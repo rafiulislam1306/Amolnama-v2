@@ -150,6 +150,38 @@
         <button class="btn-primary-full" style="background-color: #0f172a; margin-top: 24px; padding: 16px;" onclick="initiateCloseDesk()">🔒 CLOSE DESK & RECONCILE</button>
     </main>
 
+    <main id="tab-floor" class="tab-content" style="background-color: #f1f5f9;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="color: #0f172a; margin: 0; font-size: 1.1rem;">Live Desk Status</h3>
+            <button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: auto;" onclick="renderLiveFloorTab()">🔄 Refresh</button>
+        </div>
+        <div id="live-floor-container" style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="placeholder-text">Loading floor data...</div>
+        </div>
+    </main>
+
+        <div id="modal-transfer" class="modal-overlay" style="z-index: 9500;">
+        <div class="modal-content">
+            <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
+                <h3 style="color: #8b5cf6;">📦 Send Stock</h3>
+            </div>
+            <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 16px;">Transferring inventory to <strong id="transfer-target-name" style="color: #0f172a;">Desk Name</strong>.</p>
+            
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
+                <div style="margin-bottom: 16px;">
+                    <label class="admin-label">Select Item to Send</label>
+                    <select id="transfer-item-select" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;"></select>
+                </div>
+                <div>
+                    <label class="admin-label">Quantity</label>
+                    <input type="number" id="transfer-qty" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0">
+                </div>
+            </div>
+            <button class="btn-primary-full" style="background-color: #8b5cf6;" onclick="executeTransfer()">🚀 CONFIRM TRANSFER</button>
+            <button class="modal-close" style="color: #64748b;" onclick="closeModal('modal-transfer')">Cancel</button>
+        </div>
+    </div>
+
     <div id="modal-new-sim" class="modal-overlay">
         <div class="modal-content" id="container-new-sim">
             <h3 class="modal-title">Select New SIM Type</h3>
@@ -291,19 +323,22 @@
     </div>
 
     <nav class="bottom-nav">
-        <button class="nav-item active" onclick="switchTab('ers', 'ERS')">
-            <span class="nav-icon">🔢</span> ERS
-        </button>
-        <button class="nav-item" onclick="switchTab('sims', 'SIMs')">
-            <span class="nav-icon">📱</span> SIMs
-        </button>
-        <button class="nav-item" onclick="switchTab('services', 'Services')">
-            <span class="nav-icon">🛠️</span> Services
-        </button>
-        <button class="nav-item" onclick="switchTab('report', 'Daily Report')">
-            <span class="nav-icon">📊</span> Report
-        </button>
-    </nav>
+        <button class="nav-item active" onclick="switchTab('ers', 'ERS')">
+            <span class="nav-icon">🔢</span> ERS
+        </button>
+        <button class="nav-item" onclick="switchTab('sims', 'SIMs')">
+            <span class="nav-icon">📱</span> SIMs
+        </button>
+        <button class="nav-item" onclick="switchTab('services', 'Services')">
+            <span class="nav-icon">🛠️</span> Serv.
+        </button>
+        <button class="nav-item" onclick="switchTab('floor', 'Live Floor Map')">
+            <span class="nav-icon">🗺️</span> Floor
+        </button>
+        <button class="nav-item" onclick="switchTab('report', 'Daily Report')">
+            <span class="nav-icon">📊</span> Rep.
+        </button>
+    </nav>
 
     <div id="modal-desk-select" class="modal-overlay" style="z-index: 9000; background-color: var(--bg-color);">
         <div class="modal-content" style="height: 100dvh; max-height: 100dvh; display: flex; flex-direction: column; justify-content: center; border-radius: 0; padding: 24px;">

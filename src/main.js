@@ -623,6 +623,196 @@ async function saveAdjustment() {
     }
 }
 
+// ==========================================
+//    PHASE 3.3 & 3.4: LIVE FLOOR & TRANSFERS
+// ==========================================
+
+let targetTransferDeskId = null;
+let targetTransferSessionId = null;
+
+async function renderLiveFloorTab() {
+    const container = document.getElementById('live-floor-container');
+    container.innerHTML = '<div class="spinner" style="align-self: center; margin-top: 40px;"></div>';
+
+    try {
+        // 1. Find all active sessions across the floor
+        const sessionsRef = collection(db, 'sessions');
+        const q = query(sessionsRef, where('status', '==', 'open'));
+        const activeSessionsSnap = await getDocs(q);
+
+        if (activeSessionsSnap.empty) {
+            container.innerHTML = '<p class="placeholder-text">No desks are currently open.</p>';
+            return;
+        }
+
+        let floorHTML = '';
+
+        // 2. Loop through each open session and calculate its live math
+        for (const docSnap of activeSessionsSnap.docs) {
+            const session = docSnap.data();
+            const sid = docSnap.id;
+            
+            // Fetch live transactions for this specific session
+            const txQuery = query(collection(db, 'transactions'), where('sessionId', '==', sid), where('isDeleted', '==', false));
+            const txSnap = await getDocs(txQuery);
+
+            let liveCash = parseFloat(session.openingBalances.cash) || 0;
+            let liveInv = { ...(session.openingBalances.inventory || {}) };
+
+            txSnap.forEach(txDoc => {
+                let tx = txDoc.data();
+                if (!tx.isVoided) {
+                    liveCash += (tx.cashAmt || 0);
+                    if (tx.name !== 'ERS Flexiload') {
+                        // Subtract normal sales, Add if it was a positive adjustment
+                        liveInv[tx.name] = (liveInv[tx.name] || 0) - (tx.qty || 0);
+                    }
+                }
+            });
+
+            // Format Inventory for display
+            let invDisplay = '';
+            for (const [name, qty] of Object.entries(liveInv)) {
+                if (qty !== 0) {
+                    // Highlight low stock (under 3) in red
+                    let color = qty < 3 ? '#ef4444' : '#475569';
+                    invDisplay += `<span style="display:inline-block; background:#f1f5f9; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin:2px; color:${color}; font-weight:600;">${name}: ${qty}</span>`;
+                }
+            }
+            if(!invDisplay) invDisplay = '<span style="font-size:0.8rem; color:#94a3b8;">No physical stock.</span>';
+
+            // Check if this is the user's current desk
+            const isMyDesk = sid === currentSessionId;
+            const badge = isMyDesk ? '<span style="background:#0ea5e9; color:white; font-size:0.7rem; padding:2px 6px; border-radius:12px; font-weight:bold;">YOUR DESK</span>' : '';
+
+            // Render the Desk Card
+            floorHTML += `
+                <div class="admin-form-card" style="margin-bottom: 0; padding: 16px; border-top: 4px solid ${isMyDesk ? '#0ea5e9' : '#8b5cf6'};">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
+                        <h4 style="margin: 0; color: #0f172a; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+                            ${session.deskId.replace('_', ' ').toUpperCase()} ${badge}
+                        </h4>
+                        <span style="font-size: 0.85rem; color: #64748b;">👤 ${session.openedBy}</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 12px;">
+                        <span style="font-size: 0.8rem; font-weight: bold; color: #64748b; text-transform: uppercase;">Live Cash:</span>
+                        <span style="font-size: 1.2rem; font-weight: bold; color: #10b981; margin-left: 8px;">${liveCash} Tk</span>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <span style="display: block; font-size: 0.8rem; font-weight: bold; color: #64748b; text-transform: uppercase; margin-bottom: 6px;">Live Inventory:</span>
+                        <div>${invDisplay}</div>
+                    </div>
+
+                    ${!isMyDesk ? `
+                        <button class="btn-outline" style="width: 100%; justify-content: center; color: #8b5cf6; border-color: #8b5cf6; background: #faf5ff; height: auto; padding: 10px;" onclick="openTransferModal('${session.deskId}', '${sid}')">
+                            📦 Push Stock to this Desk
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        container.innerHTML = floorHTML;
+
+    } catch (e) {
+        console.error("Error loading floor map:", e);
+        container.innerHTML = '<p class="placeholder-text" style="color: #ef4444;">Offline: Could not load live floor data.</p>';
+    }
+}
+
+function openTransferModal(targetDesk, targetSession) {
+    if (!currentSessionId) {
+        alert("You must open your desk first before transferring items.");
+        return;
+    }
+
+    targetTransferDeskId = targetDesk;
+    targetTransferSessionId = targetSession;
+    
+    document.getElementById('transfer-target-name').innerText = targetDesk.replace('_', ' ').toUpperCase();
+    document.getElementById('transfer-qty').value = '';
+    
+    let selectEl = document.getElementById('transfer-item-select');
+    selectEl.innerHTML = '';
+    
+    // Only physical items
+    Object.values(globalCatalog).forEach(item => {
+        if (item.isActive && item.cat !== 'service' && item.cat !== 'free-action') {
+            let opt = document.createElement('option');
+            opt.value = item.name;
+            opt.innerText = item.name;
+            selectEl.appendChild(opt);
+        }
+    });
+
+    openModal('modal-transfer');
+}
+
+async function executeTransfer() {
+    let qty = parseInt(document.getElementById('transfer-qty').value) || 0;
+    if (qty <= 0) {
+        alert("Please enter a valid quantity to send.");
+        return;
+    }
+
+    let itemName = document.getElementById('transfer-item-select').value;
+    let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    let dateStr = new Date().toLocaleDateString('en-GB');
+
+    // 1. Transaction FOR SENDER (Negative qty because it's leaving their desk)
+    const senderTx = {
+        id: Date.now(),
+        type: 'transfer_out',
+        name: itemName, 
+        amount: 0, 
+        qty: qty, // Positive here, we will handle logic when reading
+        payment: `Sent to ${targetTransferDeskId}`,
+        cashAmt: 0, mfsAmt: 0, isDeleted: false,
+        time: timeStr, dateStr: dateStr,
+        deskId: currentDeskId,
+        sessionId: currentSessionId,
+        agentId: currentUser.uid,
+        agentName: userDisplayName
+    };
+
+    // 2. Transaction FOR RECEIVER (Negative qty adjustment to add to stock)
+    const receiverTx = {
+        id: Date.now() + 1,
+        type: 'transfer_in',
+        name: itemName, 
+        amount: 0, 
+        qty: -qty, // Math logic: actual sale = minus. To ADD stock, we write negative qty.
+        payment: `Received from ${currentDeskId}`,
+        cashAmt: 0, mfsAmt: 0, isDeleted: false,
+        time: timeStr, dateStr: dateStr,
+        deskId: targetTransferDeskId,
+        sessionId: targetTransferSessionId,
+        agentId: "system",
+        agentName: `Transfer from ${userDisplayName}`
+    };
+
+    // Push local update for sender immediately
+    transactions.push({ ...senderTx, qty: qty }); // Log it as standard positive for local display
+    renderReport();
+    closeModal('modal-transfer');
+
+    try {
+        const txCollectionRef = collection(db, 'transactions');
+        
+        // Push both sides of the transfer to the central ledger
+        await addDoc(txCollectionRef, senderTx);
+        await addDoc(txCollectionRef, receiverTx);
+        
+        showFlashMessage("Transfer Successful!");
+        renderLiveFloorTab(); // Refresh to show new totals
+    } catch(e) {
+        console.error("Transfer failed:", e);
+        showFlashMessage("Offline: Transfer queued for sync.");
+    }
+}
+
 // Ensure the floor map triggers when the app initializes
 window.loadFloorMap = loadFloorMap;
 window.handleDeskSelect = handleDeskSelect;
@@ -634,6 +824,9 @@ window.finalizeCloseDesk = finalizeCloseDesk;
 window.voidTransaction = voidTransaction;
 window.openAdjustmentModal = openAdjustmentModal;
 window.saveAdjustment = saveAdjustment;
+window.renderLiveFloorTab = renderLiveFloorTab;
+window.openTransferModal = openTransferModal;
+window.executeTransfer = executeTransfer;
 
 // --- UI NAVIGATION ---
 function switchTab(tabId, title) {
@@ -643,9 +836,14 @@ function switchTab(tabId, title) {
     event.currentTarget.classList.add('active');
     
     if(tabId === 'ers') {
-        document.getElementById('header-title').innerText = userDisplayName;
-    } else {
-        document.getElementById('header-title').innerText = title;
+        document.getElementById('header-title').innerText = currentDeskName ? currentDeskName : userDisplayName;
+    } else {
+        document.getElementById('header-title').innerText = title;
+    }
+
+    // Auto-refresh the floor map when navigating to it
+    if(tabId === 'floor') {
+        renderLiveFloorTab();
     }
 
     if (tabId === 'report' && currentUser) {
