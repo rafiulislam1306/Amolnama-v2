@@ -300,6 +300,35 @@
         </button>
     </nav>
 
+    <div id="modal-desk-select" class="modal-overlay" style="z-index: 9000; background-color: var(--bg-color);">
+        <div class="modal-content" style="height: 100dvh; max-height: 100dvh; display: flex; flex-direction: column; justify-content: center; border-radius: 0; padding: 24px;">
+            <h2 class="modal-title" style="font-size: 2rem; color: var(--accent-color); margin-bottom: 8px;">Floor Map</h2>
+            <p style="text-align: center; color: var(--text-secondary); margin-bottom: 32px;">Select your desk to begin your shift.</p>
+            <div id="desk-list-container" style="display: flex; flex-direction: column; gap: 16px;">
+                                <div class="spinner" style="align-self: center;"></div>
+            </div>
+        </div>
+    </div>
+
+        <div id="modal-open-desk" class="modal-overlay" style="z-index: 9500;">
+        <div class="modal-content">
+            <h3 class="modal-title" id="open-desk-title" style="color: #0ea5e9;">Open Desk</h3>
+            <div class="admin-form-card" style="margin-bottom: 16px; padding: 16px;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">Manager's Morning Cash Float</label>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 1.5rem; font-weight: bold; color: #0f172a;">Tk</span>
+                    <input type="number" id="open-cash-float" class="settings-input" style="font-size: 1.5rem; padding: 12px; height: auto;" placeholder="0">
+                </div>
+            </div>
+            <div class="section-header">📦 Rollover Inventory (From Yesterday)</div>
+            <div id="rollover-inventory-list" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 24px; max-height: 150px; overflow-y: auto; font-size: 0.9rem; color: #475569;">
+                Loading previous stock...
+            </div>
+            <button class="btn-primary-full" onclick="confirmOpenDesk()">🚀 CONFIRM & OPEN DESK</button>
+            <button class="modal-close" style="color: #64748b;" onclick="closeModal('modal-open-desk')">Cancel</button>
+        </div>
+    </div>
+
     <script type="module" src="/src/main.js"></script>
 </body>
 </html>

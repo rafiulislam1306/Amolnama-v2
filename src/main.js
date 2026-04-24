@@ -14,7 +14,7 @@ if ('serviceWorker' in navigator) {
 // ==========================================
 import { initializeApp } from "firebase/app";
 import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
-import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, getDocs, enableIndexedDbPersistence } from "firebase/firestore";
+import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, getDocs, enableIndexedDbPersistence, orderBy, limit, serverTimestamp } from "firebase/firestore";
 
 const firebaseConfig = {
 apiKey: "AIzaSyA4YyIOi1xSddHCeLMdBN5mwrjQbJPn_Iw",
@@ -50,9 +50,11 @@ const userCurrency = 'Tk'; 
 let userDisplayName = 'ERS';
 let currentUserRole = 'user'; // Defaults to standard user
 
-// --- DESK & SESSION STATE (PHASE 1) ---
-let currentDeskId = 'desk_1'; // Temporary hardcode until Phase 2 UI
-let currentSessionId = 'session_temp_' + new Date().toLocaleDateString('en-GB').replace(/\//g, '');
+// --- DESK & SESSION STATE (PHASE 2) ---
+let currentDeskId = null; 
+let currentSessionId = null;
+let currentDeskName = '';
+let rolloverStock = {}; // Holds yesterday's SIMs
 
 // --- GLOBAL DATABASE STRUCTURE ---
 let globalCatalog = {}; 
@@ -130,6 +132,162 @@ function logout() {
         switchTab('ers', 'ERS'); 
     });
 }
+
+// ==========================================
+//        PHASE 2: DESK & SHIFT MANAGEMENT
+// ==========================================
+
+async function loadFloorMap() {
+    // Show the desk selection screen and hide everything else
+    document.getElementById('modal-desk-select').classList.add('active');
+    
+    try {
+        const desksSnapshot = await getDocs(collection(db, 'desks'));
+        let deskHTML = '';
+        
+        // If no desks exist yet (first time setup), create some defaults!
+        if (desksSnapshot.empty) {
+            await setDoc(doc(db, 'desks', 'desk_1'), { name: 'Desk 1', status: 'closed', currentSessionId: null });
+            await setDoc(doc(db, 'desks', 'desk_2'), { name: 'Desk 2', status: 'closed', currentSessionId: null });
+            await setDoc(doc(db, 'desks', 'desk_3'), { name: 'Desk 3', status: 'closed', currentSessionId: null });
+            loadFloorMap(); // Reload after creating
+            return;
+        }
+
+        desksSnapshot.forEach(docSnap => {
+            const desk = docSnap.data();
+            const isOpen = desk.status === 'open';
+            const btnColor = isOpen ? '#10b981' : '#0ea5e9'; // Green if open, Blue if closed
+            const actionText = isOpen ? '🤝 Join Active Desk' : '🔑 Open Desk';
+
+            deskHTML += `
+                <div class="admin-form-card" style="margin-bottom: 0; padding: 16px; border-left: 4px solid ${btnColor};">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h3 style="margin: 0; font-size: 1.2rem; color: #0f172a;">${desk.name}</h3>
+                        <span style="font-size: 0.8rem; font-weight: bold; color: ${btnColor}; background: ${isOpen ? '#d1fae5' : '#e0f2fe'}; padding: 4px 8px; border-radius: 12px;">
+                            ${isOpen ? 'OPEN' : 'CLOSED'}
+                        </span>
+                    </div>
+                    <button class="btn-primary-full" style="background: ${btnColor};" onclick="handleDeskSelect('${docSnap.id}', '${desk.name}', '${desk.status}', '${desk.currentSessionId}')">
+                        ${actionText}
+                    </button>
+                </div>
+            `;
+        });
+        
+        document.getElementById('desk-list-container').innerHTML = deskHTML;
+    } catch (e) {
+        console.error("Error loading floor map:", e);
+        document.getElementById('desk-list-container').innerHTML = '<p class="placeholder-text">Error loading desks. Are you offline?</p>';
+    }
+}
+
+async function handleDeskSelect(deskId, deskName, status, sessionId) {
+    currentDeskId = deskId;
+    currentDeskName = deskName;
+
+    if (status === 'open' && sessionId) {
+        // SCENARIO 1: The desk is already open. Just join it!
+        currentSessionId = sessionId;
+        document.getElementById('modal-desk-select').classList.remove('active');
+        document.getElementById('header-title').innerText = `${deskName} (Joined)`;
+        await fetchTransactionsForDate(); // Load today's live data
+        showFlashMessage(`Joined ${deskName}!`);
+    } else {
+        // SCENARIO 2: The desk is closed. We must open it and fetch rollover stock.
+        document.getElementById('open-desk-title').innerText = `Open ${deskName}`;
+        document.getElementById('open-cash-float').value = '';
+        document.getElementById('rollover-inventory-list').innerHTML = 'Fetching yesterday\'s stock...';
+        openModal('modal-open-desk');
+
+        // Fetch the absolute most recent closed session for this desk to get leftover SIMs
+        const sessionsRef = collection(db, 'sessions');
+        const q = query(sessionsRef, where('deskId', '==', deskId), orderBy('closedAt', 'desc'), limit(1));
+        
+        try {
+            const lastSessionSnap = await getDocs(q);
+            rolloverStock = {}; 
+            let rolloverHTML = '';
+
+            if (!lastSessionSnap.empty) {
+                const lastSession = lastSessionSnap.docs[0].data();
+                if (lastSession.actualClosing && lastSession.actualClosing.inventory) {
+                    rolloverStock = lastSession.actualClosing.inventory;
+                }
+            }
+
+            // Render the stock into the modal
+            if (Object.keys(rolloverStock).length === 0) {
+                rolloverHTML = '<em>No physical stock rolled over. Drawer is empty.</em>';
+            } else {
+                for (const [itemName, qty] of Object.entries(rolloverStock)) {
+                    if(qty > 0) rolloverHTML += `<div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>${itemName}</span> <strong>${qty}</strong></div>`;
+                }
+            }
+            document.getElementById('rollover-inventory-list').innerHTML = rolloverHTML || '<em>No physical stock rolled over.</em>';
+
+        } catch (e) {
+            console.error("Error fetching rollover:", e);
+            document.getElementById('rollover-inventory-list').innerHTML = '<em>Offline: Cannot fetch rollover stock.</em>';
+        }
+    }
+}
+
+async function confirmOpenDesk() {
+    let floatAmount = parseFloat(document.getElementById('open-cash-float').value);
+    
+    // We strictly force them to type the opening cash from the manager
+    if (isNaN(floatAmount) || floatAmount < 0) {
+        alert("You must enter the exact physical cash float provided by the manager.");
+        return;
+    }
+
+    // 1. Create the new Session document
+    const newSessionRef = doc(collection(db, 'sessions'));
+    currentSessionId = newSessionRef.id;
+
+    const sessionData = {
+        deskId: currentDeskId,
+        dateStr: new Date().toLocaleDateString('en-GB'),
+        openedBy: userDisplayName,
+        openedByUid: currentUser.uid,
+        openedAt: serverTimestamp(),
+        status: 'open',
+        openingBalances: {
+            cash: floatAmount,
+            inventory: rolloverStock // Passed directly from yesterday
+        }
+    };
+
+    try {
+        await setDoc(newSessionRef, sessionData);
+        
+        // 2. Update the Desk document to mark it open and link the session
+        await updateDoc(doc(db, 'desks', currentDeskId), {
+            status: 'open',
+            currentSessionId: currentSessionId
+        });
+
+        closeModal('modal-open-desk');
+        document.getElementById('modal-desk-select').classList.remove('active');
+        document.getElementById('header-title').innerText = `${currentDeskName}`;
+        
+        // Clear local memory and fetch fresh
+        transactions = [];
+        trashTransactions = [];
+        renderReport();
+        showFlashMessage(`${currentDeskName} is now OPEN!`);
+
+    } catch (e) {
+        console.error("Failed to open desk:", e);
+        alert("Error opening desk. Please check connection.");
+    }
+}
+
+// Ensure the floor map triggers when the app initializes
+window.loadFloorMap = loadFloorMap;
+window.handleDeskSelect = handleDeskSelect;
+window.confirmOpenDesk = confirmOpenDesk;
 
 // --- UI NAVIGATION ---
 function switchTab(tabId, title) {
@@ -406,10 +564,13 @@ async function initUserData() {
         updateCurrencyUI();
         renderAppUI();
 
-        // Initialize the date picker to today and trigger the fetch
-        document.getElementById('report-date-picker').value = getTodayISO();
-        await fetchTransactionsForDate();
-    } catch(e) {
+        // Initialize the date picker to today
+        document.getElementById('report-date-picker').value = getTodayISO();
+        
+        // Launch Phase 2: Floor Map / Desk Selection
+        await loadFloorMap();
+        
+    } catch(e) {
         console.error("Error loading data:", e);
         showFlashMessage("Error loading data!");
     } finally {
