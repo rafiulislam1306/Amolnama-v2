@@ -1,16 +1,16 @@
 // ==========================================
-//        0. SERVICE WORKER FOR PWA INSTALL
+//    0. SERVICE WORKER FOR PWA INSTALL
 // ==========================================
 if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`)
-            .then(reg => console.log('Service Worker registered:', reg))
-            .catch(err => console.error('Service Worker registration failed:', err));
-    });
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`)
+      .then(reg => console.log('Service Worker registered:', reg))
+      .catch(err => console.error('Service Worker registration failed:', err));
+  });
 }
 
 // ==========================================
-//         1. FIREBASE CONFIGURATION
+//    1. FIREBASE CONFIGURATION
 // ==========================================
 import { initializeApp } from "firebase/app";
 import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
@@ -28,7 +28,7 @@ appId: "1:283254200113:web:248a3bff50f167568ec210"
 let app, auth, db;
 
 if (Object.keys(firebaseConfig).length > 0) {
-    app = initializeApp(firebaseConfig);
+  app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
 
@@ -41,12 +41,12 @@ if (Object.keys(firebaseConfig).length > 0) {
         }
     });
 } else {
-    console.error("Firebase is not configured! Please paste your config above.");
+  console.error("Firebase is not configured! Please paste your config above.");
 }
 
 // Global User State
 let currentUser = null;
-const userCurrency = 'Tk'; 
+const userCurrency = 'Tk';
 let userDisplayName = 'ERS';
 let currentUserRole = 'user'; // Defaults to standard user
 
@@ -93,8 +93,8 @@ let trashTransactions = [];
 let isInitialLoad = true;
 
 setPersistence(auth, browserLocalPersistence)
-    .then(() => {
-        onAuthStateChanged(auth, user => {
+  .then(() => {
+    onAuthStateChanged(auth, user => {
             if (user) {
                 currentUser = user;
                 userDisplayName = user.displayName || 'User';
@@ -119,12 +119,12 @@ function showAuthError(msg) {
 }
 
 function signInWithGoogle() {
-    const provider = new GoogleAuthProvider();
-    signInWithPopup(auth, provider).catch(error => showAuthError(error.message));
+  const provider = new GoogleAuthProvider();
+  signInWithPopup(auth, provider).catch(error => showAuthError(error.message));
 }
 
 function logout() {
-    signOut(auth).then(() => {
+  signOut(auth).then(() => {
         closeModal('modal-settings');
         transactions = []; 
         trashTransactions = []; 
@@ -973,10 +973,10 @@ function switchTab(tabId, title) {
     event.currentTarget.classList.add('active');
     
     if(tabId === 'ers') {
-        document.getElementById('header-title').innerText = currentDeskName ? currentDeskName : userDisplayName;
-    } else {
-        document.getElementById('header-title').innerText = title;
-    }
+    document.getElementById('header-title').innerText = currentDeskName ? currentDeskName : userDisplayName;
+  } else {
+    document.getElementById('header-title').innerText = title;
+  }
 
     // Auto-refresh the floor map when navigating to it
     if(tabId === 'floor') {
@@ -984,7 +984,7 @@ function switchTab(tabId, title) {
     }
 
     if (tabId === 'report' && currentUser) {
-        if (currentUserRole === 'admin') {
+    if (currentUserRole === 'admin') {
             document.getElementById('settings-btn').style.display = 'block';
             document.getElementById('logout-btn').style.display = 'none';
         } else {
@@ -1136,22 +1136,22 @@ async function fetchTransactionsForDate() {
     const dateLabel = isToday ? 'Today' : targetDateStr;
 
     try {
-        const txRef = collection(db, 'transactions');
-        const q = query(txRef, where('dateStr', '==', targetDateStr));
-        const txSnapshot = await getDocs(q);
+    const txRef = collection(db, 'transactions');
+    const q = query(txRef, where('dateStr', '==', targetDateStr));
+    const txSnapshot = await getDocs(q);
 
         transactions = [];
         trashTransactions = []; 
 
         txSnapshot.forEach(doc => {
-            let tx = doc.data();
-            tx.docId = doc.id; 
-            // Only load transactions tied to the current desk
-            if (tx.deskId === currentDeskId) {
-                if (tx.isDeleted) trashTransactions.push(tx);
-                else transactions.push(tx);
-            }
-        });
+      let tx = doc.data();
+      tx.docId = doc.id;
+      // Only load transactions tied to the current desk
+      if (tx.deskId === currentDeskId) {
+        if (tx.isDeleted) trashTransactions.push(tx);
+        else transactions.push(tx);
+      }
+    });
         
         transactions.sort((a, b) => a.id - b.id);
         trashTransactions.sort((a, b) => a.id - b.id);
@@ -1208,29 +1208,29 @@ function renderAppUI() {
 //        FIRESTORE CLOUD DATA LOGIC
 // ==========================================
 async function initUserData() {
-    if(!currentUser) return;
-    try {
-        // Fetch or initialize user role from Firestore
-        const userDocRef = doc(db, 'users', currentUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        
-        if (userDocSnap.exists() && userDocSnap.data().role) {
-            currentUserRole = userDocSnap.data().role;
-        } else {
-            await setDoc(userDocRef, { email: currentUser.email, role: 'user' }, { merge: true });
-            currentUserRole = 'user';
-        }
-        const globalRef = doc(db, 'global', 'settings');
-        const globalDoc = await getDoc(globalRef);
-        
-        if (globalDoc.exists() && globalDoc.data().catalog) {
-            globalCatalog = globalDoc.data().catalog;
-        } else {
-            globalCatalog = defaultCatalog;
-            if (currentUserRole === 'admin') {
-                await setDoc(globalRef, { catalog: globalCatalog }, { merge: true });
-            }
-        }
+  if(!currentUser) return;
+  try {
+    // Fetch or initialize user role from Firestore
+    const userDocRef = doc(db, 'users', currentUser.uid);
+    const userDocSnap = await getDoc(userDocRef);
+    
+    if (userDocSnap.exists() && userDocSnap.data().role) {
+      currentUserRole = userDocSnap.data().role;
+    } else {
+      await setDoc(userDocRef, { email: currentUser.email, role: 'user' }, { merge: true });
+      currentUserRole = 'user';
+    }
+    const globalRef = doc(db, 'global', 'settings');
+    const globalDoc = await getDoc(globalRef);
+   
+    if (globalDoc.exists() && globalDoc.data().catalog) {
+      globalCatalog = globalDoc.data().catalog;
+    } else {
+      globalCatalog = defaultCatalog;
+      if (currentUserRole === 'admin') {
+        await setDoc(globalRef, { catalog: globalCatalog }, { merge: true });
+      }
+    }
 
         document.getElementById('report-user-name').innerText = userDisplayName;
         if (currentUser.email) document.getElementById('report-user-email').innerText = currentUser.email;
@@ -1246,12 +1246,12 @@ async function initUserData() {
         renderAppUI();
 
         // Initialize the date picker to today
-        document.getElementById('report-date-picker').value = getTodayISO();
+    document.getElementById('report-date-picker').value = getTodayISO();
         
         // Launch Phase 2: Floor Map / Desk Selection
         await loadFloorMap();
         
-    } catch(e) {
+  } catch(e) {
         console.error("Error loading data:", e);
         showFlashMessage("Error loading data!");
     } finally {
@@ -1269,25 +1269,25 @@ async function addTransactionToCloud(type, name, amount, qty, payment, cashAmt =
 
     const today = new Date().toLocaleDateString('en-GB');
     const tx = {
-        id: Date.now(), 
-        type: type, name: name, amount: amount, qty: qty,
-        payment: payment, cashAmt: cashAmt, mfsAmt: mfsAmt,
-        isDeleted: false,
-        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-        dateStr: today,
-        deskId: currentDeskId,
-        sessionId: currentSessionId,
-        agentId: currentUser.uid,
-        agentName: userDisplayName
-    };
+    id: Date.now(),
+    type: type, name: name, amount: amount, qty: qty,
+    payment: payment, cashAmt: cashAmt, mfsAmt: mfsAmt,
+    isDeleted: false,
+    time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+    dateStr: today,
+    deskId: currentDeskId,
+    sessionId: currentSessionId,
+    agentId: currentUser.uid,
+    agentName: userDisplayName
+  };
 
     transactions.push(tx);
     renderReport();
     
     try {
-        const txCollectionRef = collection(db, 'transactions');
-        const docRef = await addDoc(txCollectionRef, tx);
-        let localTx = transactions.find(t => t.id === tx.id);
+    const txCollectionRef = collection(db, 'transactions');
+    const docRef = await addDoc(txCollectionRef, tx);
+    let localTx = transactions.find(t => t.id === tx.id);
         if(localTx) localTx.docId = docRef.id; 
         showFlashMessage("Saved to Cloud!");
     } catch(e) {
@@ -1315,47 +1315,47 @@ function toggleAddForm() {
 }
 
 function openSettings() {
-    let container = document.getElementById('settings-list-container');
-    container.innerHTML = ''; 
+  let container = document.getElementById('settings-list-container');
+  container.innerHTML = '';
     document.getElementById('admin-search').value = '';
     document.getElementById('admin-add-form').style.display = 'none';
 
-    let itemsArray = Object.entries(globalCatalog)
-                           .map(([key, item]) => ({key, ...item}))
-                           .sort((a, b) => (a.order || 0) - (b.order || 0));
+  let itemsArray = Object.entries(globalCatalog)
+             .map(([key, item]) => ({key, ...item}))
+             .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-    itemsArray.forEach(item => {
-        if (!item.isActive) return;
-        let row = document.createElement('div');
-        row.className = 'admin-row-card admin-row';
-        row.setAttribute('data-key', item.key);
-        row.innerHTML = `
-            <div class="admin-row-header">
-                <span class="drag-handle">⋮⋮</span>
-                <input type="text" class="settings-input i-name" style="flex:1; border:none; background:transparent; font-weight:700; color:#0f172a; padding:0; min-width:0;" value="${item.name}">
-                <button class="delete-btn" style="color: #ef4444; padding: 4px 8px; font-size: 1.1rem; flex-shrink: 0;" onclick="removeRow(this)">🗑️</button>
-            </div>
-            <div class="admin-row-body">
-                <div>
-                    <label class="admin-label">Price (${userCurrency})</label>
-                    <input type="number" class="settings-input i-price" style="padding: 10px; width: 100%; box-sizing: border-box;" value="${item.price}">
-                </div>
-                <div>
-                    <label class="admin-label">Category</label>
-                    <select class="settings-input i-cat" style="padding: 10px; width: 100%; box-sizing: border-box;">
-                        <option value="new-sim" ${item.cat==='new-sim'?'selected':''}>📱 New SIM</option>
-                        <option value="paid-rep" ${item.cat==='paid-rep'?'selected':''}>📦 Paid Rep</option>
-                        <option value="foc" ${item.cat==='foc'?'selected':''}>🆓 FOC</option>
-                        <option value="service" ${item.cat==='service'?'selected':''}>🛠️ Service</option>
-                        <option value="free-action" ${item.cat==='free-action'?'selected':''}>🏢 Free Action</option>
-                    </select>
-                </div>
-            </div>
-        `;
-        container.appendChild(row);
-        setupDragAndDrop(row); 
-    });
-    openModal('modal-settings');
+  itemsArray.forEach(item => {
+    if (!item.isActive) return;
+    let row = document.createElement('div');
+    row.className = 'admin-row-card admin-row';
+    row.setAttribute('data-key', item.key);
+    row.innerHTML = `
+      <div class="admin-row-header">
+        <span class="drag-handle">⋮⋮</span>
+        <input type="text" class="settings-input i-name" style="flex:1; border:none; background:transparent; font-weight:700; color:#0f172a; padding:0; min-width:0;" value="${item.name}">
+        <button class="delete-btn" style="color: #ef4444; padding: 4px 8px; font-size: 1.1rem; flex-shrink: 0;" onclick="removeRow(this)">🗑️</button>
+      </div>
+      <div class="admin-row-body">
+        <div>
+          <label class="admin-label">Price (${userCurrency})</label>
+          <input type="number" class="settings-input i-price" style="padding: 10px; width: 100%; box-sizing: border-box;" value="${item.price}">
+        </div>
+        <div>
+          <label class="admin-label">Category</label>
+          <select class="settings-input i-cat" style="padding: 10px; width: 100%; box-sizing: border-box;">
+            <option value="new-sim" ${item.cat==='new-sim'?'selected':''}>📱 New SIM</option>
+            <option value="paid-rep" ${item.cat==='paid-rep'?'selected':''}>📦 Paid Rep</option>
+            <option value="foc" ${item.cat==='foc'?'selected':''}>🆓 FOC</option>
+            <option value="service" ${item.cat==='service'?'selected':''}>🛠️ Service</option>
+            <option value="free-action" ${item.cat==='free-action'?'selected':''}>🏢 Free Action</option>
+          </select>
+        </div>
+      </div>
+    `;
+    container.appendChild(row);
+    setupDragAndDrop(row);
+  });
+  openModal('modal-settings');
 }
 
 let draggedEl = null;
@@ -1443,11 +1443,11 @@ async function saveSettings() {
         }
     });
     try {
-        if (currentUserRole === 'admin') {
-            const globalRef = doc(db, 'global', 'settings');
-            await setDoc(globalRef, { catalog: globalCatalog }, { merge: true });
-        }
-        renderAppUI(); closeModal('modal-settings'); showFlashMessage("Settings Saved & Synced!");
+    if (currentUserRole === 'admin') {
+      const globalRef = doc(db, 'global', 'settings');
+      await setDoc(globalRef, { catalog: globalCatalog }, { merge: true });
+    }
+    renderAppUI(); closeModal('modal-settings'); showFlashMessage("Settings Saved & Synced!");
     } catch(e) { console.error(e); showFlashMessage("Error saving settings."); }
 }
 
@@ -1488,9 +1488,9 @@ function renderReport() {
                     <span class="history-meta">${tx.time} • ${tx.amount} ${userCurrency} • ${payLabel}</span>
                 </div>
                 <div style="display: flex; gap: 4px;">
-                    <button class="delete-btn" style="color: var(--accent-color);" onclick="openEditTx(${tx.id})">✏️</button>
-                    <button class="delete-btn" onclick="deleteTransaction('${tx.docId}', ${tx.id})">🗑️</button>
-                </div>
+          <button class="delete-btn" style="color: var(--accent-color);" onclick="openEditTx(${tx.id})">✏️</button>
+          <button class="delete-btn" onclick="deleteTransaction('${tx.docId}', ${tx.id})">🗑️</button>
+        </div>
             </div>
         `;
     });
