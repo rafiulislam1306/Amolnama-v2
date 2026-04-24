@@ -104,3 +104,16 @@ header { background-color: var(--surface-color); padding: 0 16px; height: 64px; 
 .delete-btn { background: none; border: none; color: #ef4444; font-size: 1.25rem; cursor: pointer; padding: 4px 8px; }
 #modal-auth.active { display: flex; align-items: center; background-color: var(--bg-color); z-index: 9999; }
 #modal-auth .modal-content { border-radius: 20px; max-width: 400px; margin: 0 auto; }
+/* --- ADMIN DASHBOARD UI --- */
+#modal-settings .modal-content { height: 100dvh; max-height: 100dvh; border-radius: 0; padding: 0; display: flex; flex-direction: column; background-color: var(--bg-color); }
+.admin-header-bar { position: sticky; top: 0; background-color: var(--surface-color); padding: 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.admin-header-bar h3 { margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--text-primary); }
+.admin-body { padding: 16px; overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; }
+.admin-card { background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: transform 0.2s, box-shadow 0.2s; }
+.admin-card-header { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--bg-color); padding-bottom: 12px; }
+.admin-card-body { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.admin-input-group { display: flex; flex-direction: column; gap: 4px; }
+.admin-input-group label { font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.admin-add-section { background: linear-gradient(to right bottom, var(--surface-color), var(--bg-color)); border: 2px dashed var(--accent-color); border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+.drag-handle { font-size: 1.5rem; color: var(--text-secondary); cursor: grab; user-select: none; touch-action: none; padding-right: 8px; }
+.drag-handle:active { cursor: grabbing; }

@@ -165,30 +165,40 @@
     </div>
 
     <div id="modal-settings" class="modal-overlay">
-        <div class="modal-content">
-            <h3 class="modal-title">Admin Dashboard</h3>
-            <div class="section-header" style="margin-top:0;">➕ Add New Item</div>
-            <div style="display:flex; gap:8px; margin-bottom:8px;">
-                <input type="text" id="new-item-name" class="settings-input" style="flex:2; text-align:left;" placeholder="Item Name">
-                <input type="number" id="new-item-price" class="settings-input" style="flex:1;" placeholder="Price">
-            </div>
-            <div style="display:flex; gap:8px; margin-bottom:24px;">
-                <select id="new-item-category" class="settings-input" style="flex:2; text-align:left; padding: 12px;">
-                    <option value="new-sim">📱 New SIM</option>
-                    <option value="paid-rep">📦 Paid Replacement</option>
-                    <option value="foc">🆓 Free of Cost</option>
-                    <option value="service">🛠️ Service</option>
-                    <option value="free-action">🏢 Free Action (No Modal)</option>
-                </select>
-                <button class="save-ers-btn" style="padding:8px; font-size:1rem; flex:1;" onclick="addNewItem()">Add</button>
-            </div>
-            <div class="section-header">⚙️ Manage Catalog (Drag & Drop via ☰)</div>
-            <div class="settings-list" id="settings-list-container"></div>
-            <button class="save-ers-btn" style="margin-bottom: 12px;" onclick="saveSettings()">💾 SAVE TO CLOUD</button>
-            <button class="action-btn" style="width: 100%; border-color: #ef4444; color: #ef4444;" onclick="logout()">🚪 LOGOUT</button>
-            <button class="modal-close" onclick="closeModal('modal-settings')">Cancel</button>
-        </div>
-    </div>
+        <div class="modal-content">
+            <div class="admin-header-bar">
+                <h3>Admin Dashboard</h3>
+                <button class="delete-btn" style="color: var(--text-secondary); font-size: 1.5rem;" onclick="closeModal('modal-settings')">✕</button>
+            </div>
+            
+            <div class="admin-body">
+                <div class="admin-add-section">
+                    <div class="section-header" style="margin-top:0; color: var(--accent-color);">➕ Create New Item</div>
+                    <div style="display:flex; gap:8px; margin-bottom:12px;">
+                        <input type="text" id="new-item-name" class="settings-input" style="flex:2; text-align:left; border-color: transparent; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" placeholder="Item Name (e.g. 📱 New SIM)">
+                        <input type="number" id="new-item-price" class="settings-input" style="flex:1; border-color: transparent; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" placeholder="Price">
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <select id="new-item-category" class="settings-input" style="flex:2; text-align:left; border-color: transparent; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                            <option value="new-sim">📱 New SIM Modal</option>
+                            <option value="paid-rep">📦 Paid Replacement Modal</option>
+                            <option value="foc">🆓 Free of Cost Modal</option>
+                            <option value="service">🛠️ Services Tab</option>
+                            <option value="free-action">🏢 Free Action (SIMs Tab)</option>
+                        </select>
+                        <button class="save-ers-btn" style="padding:12px; font-size:1rem; flex:1;" onclick="addNewItem()">Add Item</button>
+                    </div>
+                </div>
+
+                <div class="section-header">⚙️ Manage Catalog (Drag ☰ to reorder)</div>
+                <div class="settings-list" id="settings-list-container"></div>
+                
+                <div style="position: sticky; bottom: 0; background: var(--bg-color); padding-top: 12px; padding-bottom: 12px; z-index: 5;">
+                    <button class="save-ers-btn" style="margin-bottom: 12px;" onclick="saveSettings()">💾 SAVE CHANGES TO CLOUD</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div id="modal-quantity" class="modal-overlay">
         <div class="modal-content">

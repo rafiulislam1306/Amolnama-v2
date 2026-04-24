@@ -630,33 +630,36 @@ function openSettings() {
                            .sort((a, b) => (a.order || 0) - (b.order || 0));
 
     itemsArray.forEach(item => {
-        if (!item.isActive) return;
-        let row = document.createElement('div');
-        row.className = 'admin-row';
-        row.setAttribute('data-key', item.key);
-        row.style.cssText = 'border: 1px solid var(--border-color); padding: 12px; margin-bottom: 8px; border-radius: 8px; background-color: var(--surface-color); transition: transform 0.2s, box-shadow 0.2s;';
-        row.innerHTML = `
-            <div style="display:flex; gap:8px; margin-bottom:8px; align-items:center;">
-                <span class="drag-handle" style="font-size:1.5rem; color:var(--text-secondary); padding: 0 8px; cursor: grab; user-select: none;">☰</span>
-                <input type="text" class="settings-input i-name" style="flex:2; text-align:left;" value="${item.name}">
-                <input type="number" class="settings-input i-price" style="flex:1;" value="${item.price}">
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <select class="settings-input i-cat" style="flex:1; text-align:left; padding:8px;">
-                    <option value="new-sim" ${item.cat==='new-sim'?'selected':''}>📱 New SIM</option>
-                    <option value="paid-rep" ${item.cat==='paid-rep'?'selected':''}>📦 Paid Rep</option>
-                    <option value="foc" ${item.cat==='foc'?'selected':''}>🆓 FOC</option>
-                    <option value="service" ${item.cat==='service'?'selected':''}>🛠️ Service</option>
-                    <option value="free-action" ${item.cat==='free-action'?'selected':''}>🏢 Free Action</option>
-                </select>
-                <div style="display:flex; gap:4px; margin-left:8px;">
-                    <button class="action-btn" style="padding:8px 16px; border-color:#ef4444; color:#ef4444;" onclick="removeRow(this)">🗑️</button>
-                </div>
-            </div>
-        `;
-        container.appendChild(row);
-        setupDragAndDrop(row); 
-    });
+        if (!item.isActive) return;
+        let row = document.createElement('div');
+        row.className = 'admin-card admin-row';
+        row.setAttribute('data-key', item.key);
+        row.innerHTML = `
+            <div class="admin-card-header">
+                <span class="drag-handle">☰</span>
+                <input type="text" class="settings-input i-name" style="flex:1; text-align:left; font-weight:700; border: none; padding: 4px 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);" value="${item.name}">
+                <button class="delete-btn" style="padding: 8px; background: #fee2e2; border-radius: 8px;" onclick="removeRow(this)">🗑️</button>
+            </div>
+            <div class="admin-card-body">
+                <div class="admin-input-group">
+                    <label>Price (${userCurrency})</label>
+                    <input type="number" class="settings-input i-price" value="${item.price}">
+                </div>
+                <div class="admin-input-group">
+                    <label>Category Placement</label>
+                    <select class="settings-input i-cat">
+                        <option value="new-sim" ${item.cat==='new-sim'?'selected':''}>📱 New SIM</option>
+                        <option value="paid-rep" ${item.cat==='paid-rep'?'selected':''}>📦 Paid Rep</option>
+                        <option value="foc" ${item.cat==='foc'?'selected':''}>🆓 FOC</option>
+                        <option value="service" ${item.cat==='service'?'selected':''}>🛠️ Service</option>
+                        <option value="free-action" ${item.cat==='free-action'?'selected':''}>🏢 Free Action</option>
+                    </select>
+                </div>
+            </div>
+        `;
+        container.appendChild(row);
+        setupDragAndDrop(row); 
+    });
     openModal('modal-settings');
 }
 
