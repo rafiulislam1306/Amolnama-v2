@@ -14,7 +14,7 @@ if ('serviceWorker' in navigator) {
 // ==========================================
 import { initializeApp } from "firebase/app";
 import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
-import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, getDocs, enableIndexedDbPersistence, orderBy, limit, serverTimestamp } from "firebase/firestore";
+import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, getDocs, enableIndexedDbPersistence, orderBy, limit, serverTimestamp, onSnapshot } from "firebase/firestore";
 
 const firebaseConfig = {
 apiKey: "AIzaSyA4YyIOi1xSddHCeLMdBN5mwrjQbJPn_Iw",
@@ -88,6 +88,7 @@ const defaultCatalog = {
 // --- CORE MEMORY ARRAYS ---
 let transactions = []; 
 let trashTransactions = []; 
+let txListenerUnsubscribe = null; // NEW: Holds our live connection 
 
 // --- AUTHENTICATION LOGIC ---
 let isInitialLoad = true;
@@ -566,8 +567,6 @@ async function saveAdjustment() {
         agentName: userDisplayName
     };
 
-    transactions.push(adjTx);
-    renderReport();
     closeModal('modal-adjustment');
 
     try {
@@ -735,8 +734,6 @@ async function executeTransfer() {
         agentName: `Transfer from ${userDisplayName}`
     };
 
-    transactions.push({ ...senderTx, qty: qty }); 
-    renderReport();
     closeModal('modal-transfer');
 
     try {
@@ -862,25 +859,12 @@ async function saveTxEdit() {
 async function deleteTransaction(docId, localId) {
     if(!confirm("Move to trash?")) return;
 
-    let txIndex = transactions.findIndex(t => t.id === localId);
-    if(txIndex > -1) {
-        let tx = transactions.splice(txIndex, 1)[0];
-        tx.isDeleted = true; 
-        trashTransactions.push(tx);
-        
-        renderReport();
-
-        if (document.getElementById('tab-floor').classList.contains('active')) {
-            renderLiveFloorTab();
-        }
-
-        if(docId) {
-            try {
-                const txRef = doc(db, 'transactions', docId);
-                await updateDoc(txRef, { isDeleted: true });
-            } catch(e) {
-                console.error("Trash failed:", e);
-            }
+    if(docId) {
+        try {
+            const txRef = doc(db, 'transactions', docId);
+            await updateDoc(txRef, { isDeleted: true });
+        } catch(e) {
+            console.error("Trash failed:", e);
         }
     }
 }
@@ -917,30 +901,21 @@ function renderTrash() {
 }
 
 async function restoreTx(docId, localId) {
-    let txIndex = trashTransactions.findIndex(t => t.id === localId);
-    if(txIndex > -1) {
-        let tx = trashTransactions.splice(txIndex, 1)[0];
-        tx.isDeleted = false; 
-        tx.isRestored = true;
-        transactions.push(tx);
-        
-        transactions.sort((a,b) => a.id - b.id);
-        
-        renderReport();
-        renderTrash(); 
-
-        if (document.getElementById('tab-floor').classList.contains('active')) {
-            renderLiveFloorTab();
-        }
-
-        if(docId) {
+    if(docId) {
+        try {
             const txRef = doc(db, 'transactions', docId);
             await updateDoc(txRef, { isDeleted: false, isRestored: true });
             showFlashMessage("Transaction Restored!");
+     
+            // Wait half a second for the cloud to catch up, then refresh the trash view
+            setTimeout(() => {
+                renderTrash();
+                if(trashTransactions.length === 0) closeModal('modal-trash');
+            }, 500);
+
+        } catch(e) {
+            console.error("Restore failed:", e);
         }
-        
-        // Close modal if empty
-        if(trashTransactions.length === 0) closeModal('modal-trash');
     }
 }
 
@@ -1154,38 +1129,52 @@ async function fetchTransactionsForDate() {
     }
 
     const targetDateStr = formatToGBDate(selectedIsoDate);
-    
     const isToday = targetDateStr === new Date().toLocaleDateString('en-GB');
     const dateLabel = isToday ? 'Today' : targetDateStr;
+
+    // IMPORTANT: If we already have a live connection, close it before opening a new one
+    if (txListenerUnsubscribe) {
+        txListenerUnsubscribe();
+        txListenerUnsubscribe = null;
+    }
 
     try {
         const txRef = collection(db, 'transactions');
         const q = query(txRef, where('dateStr', '==', targetDateStr));
-        const txSnapshot = await getDocs(q);
 
-        transactions = [];
-        trashTransactions = []; 
+        // 🔥 THE MAGIC: onSnapshot listens permanently until we tell it to stop
+        txListenerUnsubscribe = onSnapshot(q, (txSnapshot) => {
+            transactions = [];
+            trashTransactions = []; 
 
-        txSnapshot.forEach(doc => {
-            let tx = doc.data();
-            tx.docId = doc.id; 
-            if (tx.deskId === currentDeskId) {
-                if (tx.isDeleted) trashTransactions.push(tx);
-                else transactions.push(tx);
+            txSnapshot.forEach(doc => {
+                let tx = doc.data();
+                tx.docId = doc.id; 
+                
+                if (tx.deskId === currentDeskId) {
+                    if (tx.isDeleted) trashTransactions.push(tx);
+                    else transactions.push(tx);
+                }
+            });
+            
+            transactions.sort((a, b) => a.id - b.id);
+            trashTransactions.sort((a, b) => a.id - b.id);
+            
+            // Instantly update the UI for ALL agents at this desk
+            renderReport();
+            
+            const financialLabel = document.getElementById('financial-date-label');
+            if (financialLabel) financialLabel.innerHTML = `${dateLabel} 🗓️`;
+
+            // If an agent is looking at the floor map, update that live too!
+            if (document.getElementById('tab-floor').classList.contains('active')) {
+                renderLiveFloorTab();
             }
         });
-        
-        transactions.sort((a, b) => a.id - b.id);
-        trashTransactions.sort((a, b) => a.id - b.id);
-        
-        renderReport();
-        
-        const financialLabel = document.getElementById('financial-date-label');
-        if (financialLabel) financialLabel.innerHTML = `${dateLabel} 🗓️`;
 
     } catch (e) {
-        console.error("Error fetching historical data:", e);
-        showFlashMessage("Error loading historical data.");
+        console.error("Error setting up live data:", e);
+        showFlashMessage("Error connecting to live ledger.");
     }
 }
 
@@ -1298,14 +1287,9 @@ async function addTransactionToCloud(type, name, amount, qty, payment, cashAmt =
         agentName: userDisplayName
     };
 
-    transactions.push(tx);
-    renderReport();
-    
     try {
         const txCollectionRef = collection(db, 'transactions');
-        const docRef = await addDoc(txCollectionRef, tx);
-        let localTx = transactions.find(t => t.id === tx.id);
-        if(localTx) localTx.docId = docRef.id; 
+        await addDoc(txCollectionRef, tx);
         showFlashMessage("Saved to Cloud!");
     } catch(e) {
         console.error("Failed to sync:", e);
