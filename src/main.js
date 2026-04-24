@@ -194,44 +194,49 @@ async function handleDeskSelect(deskId, deskName, status, sessionId) {
     } else {
         document.getElementById('open-desk-title').innerText = `Open ${deskName}`;
         document.getElementById('open-cash-float').value = '';
-        document.getElementById('open-desk-inventory-container').innerHTML = 'Fetching yesterday\'s stock...';
+        document.getElementById('open-desk-inventory-container').innerHTML = '<div class="spinner" style="margin: 0 auto;"></div>';
         openModal('modal-open-desk');
 
         const sessionsRef = collection(db, 'sessions');
+        // This query requires a Firestore index. If it fails, we catch it gracefully.
         const q = query(sessionsRef, where('deskId', '==', deskId), orderBy('closedAt', 'desc'), limit(1));
         
+        // Reset rollover stock
+        rolloverStock = {}; 
+
         try {
             const lastSessionSnap = await getDocs(q);
-            rolloverStock = {}; 
-            let rolloverHTML = '';
-
             if (!lastSessionSnap.empty) {
                 const lastSession = lastSessionSnap.docs[0].data();
                 if (lastSession.actualClosing && lastSession.actualClosing.inventory) {
                     rolloverStock = lastSession.actualClosing.inventory;
                 }
             }
-
-            Object.values(globalCatalog).forEach(item => {
-                if (item.isActive && item.cat !== 'service' && item.cat !== 'free-action') {
-                    let expectedQty = rolloverStock[item.name] || 0;
-                    
-                    rolloverHTML += `
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
-                            <label class="admin-label" style="margin:0; font-size:0.85rem; color:#334155;">${item.name}</label>
-                            <input type="number" class="settings-input open-inv-input" data-name="${item.name}" value="${expectedQty === 0 ? '' : expectedQty}" placeholder="0" style="width:80px; text-align:center; padding:8px; border-color:#cbd5e1;">
-                        </div>
-                    `;
-                }
-            });
-
-            if (!rolloverHTML) rolloverHTML = '<em style="color:#64748b; font-size:0.9rem;">No physical items in catalog.</em>';
-            document.getElementById('open-desk-inventory-container').innerHTML = rolloverHTML;
-
         } catch (e) {
-            console.error("Error fetching rollover:", e);
-            document.getElementById('open-desk-inventory-container').innerHTML = '<em style="color:#ef4444;">Offline: Cannot fetch rollover stock.</em>';
+            console.error("Missing Index or Offline. Proceeding with empty rollover:", e);
+            // We DO NOT show an error message. We just let rolloverStock remain empty 
+            // so the agent can manually input the stock themselves.
         }
+
+        // ALWAYS render the inventory list, even if fetching failed
+        let rolloverHTML = '';
+        Object.values(globalCatalog).forEach(item => {
+            // We load all physical items (SIMs, Kits). Since "Recycle SIM" and "Power Prime" 
+            // are in your catalog, they will perfectly show up here for anyone to input.
+            if (item.isActive && item.cat !== 'service' && item.cat !== 'free-action') {
+                let expectedQty = rolloverStock[item.name] || 0;
+                
+                rolloverHTML += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
+                        <label class="admin-label" style="margin:0; font-size:0.85rem; color:#334155;">${item.name}</label>
+                        <input type="number" class="settings-input open-inv-input" data-name="${item.name}" value="${expectedQty === 0 ? '' : expectedQty}" placeholder="0" style="width:80px; text-align:center; padding:8px; border-color:#cbd5e1;">
+                    </div>
+                `;
+            }
+        });
+
+        if (!rolloverHTML) rolloverHTML = '<em style="color:#64748b; font-size:0.9rem;">No physical items in catalog.</em>';
+        document.getElementById('open-desk-inventory-container').innerHTML = rolloverHTML;
     }
 }
 
