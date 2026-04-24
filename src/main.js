@@ -163,8 +163,29 @@ async function loadFloorMap() {
                 </div>
             `;
         });
+
+        // Add the bypass button ONLY for admins
+        if (currentUserRole === 'admin') {
+            deskHTML += `
+                <button class="btn-outline" style="margin-top: 24px; width: 100%; justify-content: center; color: #64748b; border-color: #cbd5e1; padding: 12px; font-weight: bold;" onclick="adminBypass()">
+                    🛡️ Admin Bypass (Global View & Settings)
+                </button>
+            `;
+        }
+
         document.getElementById('desk-list-container').innerHTML = deskHTML;
     } catch (e) { console.error(e); }
+}
+
+function adminBypass() {
+    document.getElementById('modal-desk-select').classList.remove('active');
+    currentDeskId = null;
+    currentSessionId = null;
+    currentDeskName = 'Global Admin Mode';
+    document.getElementById('header-title').innerText = 'Global Admin Mode';
+    switchTab('report', 'Global Report');
+    fetchTransactionsForDate();
+    showFlashMessage("Admin Mode Activated");
 }
 
 async function handleDeskSelect(deskId, deskName, status, sessionId) {
@@ -799,7 +820,13 @@ async function fetchTransactionsForDate() {
             transactions = []; trashTransactions = []; 
             txSnapshot.forEach(doc => {
                 let tx = doc.data(); tx.docId = doc.id; 
-                if (tx.deskId === currentDeskId) tx.isDeleted ? trashTransactions.push(tx) : transactions.push(tx);
+                
+                // If admin bypassed desk selection (currentDeskId is null), show ALL transactions globally
+                let isMatch = (tx.deskId === currentDeskId) || (currentUserRole === 'admin' && !currentDeskId);
+                
+                if (isMatch) {
+                    tx.isDeleted ? trashTransactions.push(tx) : transactions.push(tx);
+                }
             });
             
             transactions.sort((a, b) => a.id - b.id);
@@ -1215,3 +1242,4 @@ window.openEditTx = openEditTx; window.toggleEditSplitFields = toggleEditSplitFi
 window.saveTxEdit = saveTxEdit; window.deleteTransaction = deleteTransaction; window.openTrash = openTrash;
 window.restoreTx = restoreTx; window.emptyTrash = emptyTrash; window.permanentlyDeleteTx = permanentlyDeleteTx;
 window.addInventoryGroup = addInventoryGroup; window.removeInventoryGroup = removeInventoryGroup;
+window.adminBypass = adminBypass;
