@@ -488,60 +488,6 @@ async function finalizeCloseDesk(variance) {
     }
 }
 
-// ==========================================
-//    PHASE 3.1 & 3.2: VOIDS & ADJUSTMENTS
-// ==========================================
-
-async function voidTransaction(docId, localId) {
-    if(!currentSessionId) return;
-    if (!confirm("Are you sure you want to VOID this transaction? This will create a permanent contra-entry on the ledger.")) return;
-
-    let txIndex = transactions.findIndex(tx => tx.id === localId);
-    if (txIndex === -1) return;
-    let originalTx = transactions[txIndex];
-
-    // 1. Mark original as voided in local state
-    originalTx.isVoided = true;
-    renderReport();
-
-    // 2. Create the Contra-Entry (Reverse the math)
-    const voidTx = {
-        id: Date.now(),
-        type: 'void',
-        name: originalTx.name, // Keep exact name so math reverses
-        amount: -(originalTx.amount || 0),
-        qty: -(originalTx.qty || 0),
-        payment: `VOID: ${originalTx.payment}`,
-        cashAmt: -(originalTx.cashAmt || 0),
-        mfsAmt: -(originalTx.mfsAmt || 0),
-        isDeleted: false,
-        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-        dateStr: new Date().toLocaleDateString('en-GB'),
-        deskId: currentDeskId,
-        sessionId: currentSessionId,
-        agentId: currentUser.uid,
-        agentName: userDisplayName,
-        originalTxId: docId
-    };
-
-    transactions.push(voidTx);
-    renderReport();
-
-    // 3. Sync to Cloud
-    try {
-        if (docId) {
-            const origDocRef = doc(db, 'transactions', docId);
-            await updateDoc(origDocRef, { isVoided: true });
-        }
-        const txCollectionRef = collection(db, 'transactions');
-        await addDoc(txCollectionRef, voidTx);
-        showFlashMessage("Ledger Updated: Contra-Entry Saved");
-    } catch(e) {
-        console.error("Void failed:", e);
-        showFlashMessage("Offline: Void will sync later.");
-    }
-}
-
 let currentAdjType = 'stock';
 
 function openAdjustmentModal(type) {
@@ -722,6 +668,212 @@ async function renderLiveFloorTab() {
     }
 }
 
+// ==========================================
+//    PHASE 3: EDIT, SPLIT PAYMENT, & TRASH
+// ==========================================
+let currentEditTxId = null;
+
+function openEditTx(id) {
+    let tx = transactions.find(t => t.id === id);
+    if(!tx) return;
+    currentEditTxId = id;
+
+    document.getElementById('edit-tx-name').innerText = "Edit: " + tx.name;
+    document.getElementById('edit-tx-qty').value = tx.qty || 1;
+    document.getElementById('edit-tx-amount').value = tx.amount;
+
+    let paymentSelect = document.getElementById('edit-tx-payment');
+    let splitFields = document.getElementById('edit-split-fields');
+
+    // Auto-detect if it was previously a split payment
+    if (tx.cashAmt > 0 && tx.mfsAmt > 0) {
+        paymentSelect.value = 'Split';
+        splitFields.style.display = 'flex';
+        document.getElementById('edit-tx-cash').value = tx.cashAmt;
+        document.getElementById('edit-tx-mfs').value = tx.mfsAmt;
+    } else {
+        paymentSelect.value = tx.payment;
+        splitFields.style.display = 'none';
+    }
+
+    openModal('modal-edit-tx');
+}
+
+function toggleEditSplitFields() {
+    let method = document.getElementById('edit-tx-payment').value;
+    let splitFields = document.getElementById('edit-split-fields');
+    if (method === 'Split') {
+        splitFields.style.display = 'flex';
+        let total = parseFloat(document.getElementById('edit-tx-amount').value) || 0;
+        document.getElementById('edit-tx-cash').value = total;
+        document.getElementById('edit-tx-mfs').value = 0;
+    } else {
+        splitFields.style.display = 'none';
+    }
+}
+
+function updateSplitTotal() {
+    // Allows agents to manually adjust the cash/mfs balance while typing
+    let total = parseFloat(document.getElementById('edit-tx-amount').value) || 0;
+    let cashVal = parseFloat(document.getElementById('edit-tx-cash').value) || 0;
+    // We let them type freely, but we will strictly validate the math when they hit SAVE.
+}
+
+async function saveTxEdit() {
+    let txIndex = transactions.findIndex(t => t.id === currentEditTxId);
+    if(txIndex === -1) return;
+
+    let tx = transactions[txIndex];
+    let newQty = parseInt(document.getElementById('edit-tx-qty').value) || 0;
+    let newAmount = parseFloat(document.getElementById('edit-tx-amount').value) || 0;
+    let method = document.getElementById('edit-tx-payment').value;
+
+    let finalCash = 0;
+    let finalMfs = 0;
+
+    // Route the money based on payment method
+    if (method === 'Cash') {
+        finalCash = newAmount;
+    } else if (method === 'MFS') {
+        finalMfs = newAmount;
+    } else if (method === 'Split') {
+        finalCash = parseFloat(document.getElementById('edit-tx-cash').value) || 0;
+        finalMfs = parseFloat(document.getElementById('edit-tx-mfs').value) || 0;
+        
+        // Strict guardrail to prevent bad math in the drawer
+        if (finalCash + finalMfs !== newAmount) {
+            alert("Error: The Cash + MFS portions must perfectly equal the Total Tk.");
+            return;
+        }
+    }
+
+    // Update local state instantly
+    tx.qty = newQty;
+    tx.amount = newAmount;
+    tx.payment = method === 'Split' ? 'Split' : method;
+    tx.cashAmt = finalCash;
+    tx.mfsAmt = finalMfs;
+
+    renderReport();
+    closeModal('modal-edit-tx');
+
+    // Force the Floor Map to recalculate if the agent is looking at it
+    if (document.getElementById('tab-floor').classList.contains('active')) {
+        renderLiveFloorTab();
+    }
+
+    // Sync to Cloud
+    if (tx.docId) {
+        try {
+            const txRef = doc(db, 'transactions', tx.docId);
+            await updateDoc(txRef, {
+                qty: newQty,
+                amount: newAmount,
+                payment: tx.payment,
+                cashAmt: finalCash,
+                mfsAmt: finalMfs
+            });
+            showFlashMessage("Transaction Updated!");
+        } catch(e) {
+            console.error("Edit failed:", e);
+            showFlashMessage("Offline: Edit will sync later.");
+        }
+    }
+}
+
+async function deleteTransaction(docId, localId) {
+    if(!confirm("Move to trash?")) return;
+
+    let txIndex = transactions.findIndex(t => t.id === localId);
+    if(txIndex > -1) {
+        let tx = transactions.splice(txIndex, 1)[0];
+        tx.isDeleted = true; // Soft Delete
+        trashTransactions.push(tx);
+        
+        renderReport();
+
+        // Instantly recalculate floor map inventory
+        if (document.getElementById('tab-floor').classList.contains('active')) {
+            renderLiveFloorTab();
+        }
+
+        if(docId) {
+            try {
+                // Update in the central ledger
+                const txRef = doc(db, 'transactions', docId);
+                await updateDoc(txRef, { isDeleted: true });
+            } catch(e) {
+                console.error("Trash failed:", e);
+            }
+        }
+    }
+}
+
+function openTrash() {
+    let html = '';
+    if(trashTransactions.length === 0) {
+        html = '<p class="placeholder-text">Trash is empty</p>';
+    } else {
+        // Sort trash newest first
+        trashTransactions.sort((a,b) => b.id - a.id).forEach(tx => {
+            html += `
+                <div style="border:1px solid #e2e8f0; padding:12px; margin-bottom:8px; border-radius:8px; background: #fff;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <strong style="color: #0f172a;">${tx.name}</strong> <span style="font-weight:bold; color:#ef4444;">${tx.amount} Tk</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:0.8rem; color:#64748b;">${tx.time} | ${tx.payment}</span>
+                        <button class="btn-outline" style="padding:6px 12px; font-size:0.8rem; height:auto;" onclick="restoreTx('${tx.docId}', ${tx.id})">♻️ Restore</button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    document.getElementById('trash-log').innerHTML = html;
+    openModal('modal-trash');
+}
+
+async function restoreTx(docId, localId) {
+    let txIndex = trashTransactions.findIndex(t => t.id === localId);
+    if(txIndex > -1) {
+        let tx = trashTransactions.splice(txIndex, 1)[0];
+        tx.isDeleted = false; // Restore
+        transactions.push(tx);
+        
+        // Put it back in chronological order
+        transactions.sort((a,b) => a.id - b.id);
+        
+        renderReport();
+        openTrash(); 
+
+        if (document.getElementById('tab-floor').classList.contains('active')) {
+            renderLiveFloorTab();
+        }
+
+        if(docId) {
+            const txRef = doc(db, 'transactions', docId);
+            await updateDoc(txRef, { isDeleted: false });
+        }
+    }
+}
+
+async function emptyTrash() {
+    if(!confirm("Permanently delete all items in trash? This CANNOT be undone.")) return;
+    
+    const idsToDelete = trashTransactions.map(t => t.docId).filter(id => id);
+    trashTransactions = [];
+    openTrash();
+
+    for (const id of idsToDelete) {
+        try {
+            const txRef = doc(db, 'transactions', id);
+            await deleteDoc(txRef); // Hard Delete
+        } catch(e) {
+            console.error("Delete failed", e);
+        }
+    }
+}
+
 function openTransferModal(targetDesk, targetSession) {
     if (!currentSessionId) {
         alert("You must open your desk first before transferring items.");
@@ -821,12 +973,19 @@ window.initiateCloseDesk = initiateCloseDesk;
 window.processCloseDeskStep2 = processCloseDeskStep2;
 window.calculateRetained = calculateRetained;
 window.finalizeCloseDesk = finalizeCloseDesk;
-window.voidTransaction = voidTransaction;
 window.openAdjustmentModal = openAdjustmentModal;
 window.saveAdjustment = saveAdjustment;
 window.renderLiveFloorTab = renderLiveFloorTab;
 window.openTransferModal = openTransferModal;
 window.executeTransfer = executeTransfer;
+window.openEditTx = openEditTx;
+window.toggleEditSplitFields = toggleEditSplitFields;
+window.updateSplitTotal = updateSplitTotal;
+window.saveTxEdit = saveTxEdit;
+window.deleteTransaction = deleteTransaction;
+window.openTrash = openTrash;
+window.restoreTx = restoreTx;
+window.emptyTrash = emptyTrash;
 
 // --- UI NAVIGATION ---
 function switchTab(tabId, title) {
@@ -1524,11 +1683,9 @@ function renderReport() {
                     </div>
                     <span class="history-meta">${tx.time} • ${tx.amount} ${userCurrency} • ${payLabel}</span>
                 </div>
-                <div style="display: flex; gap: 4px; align-items: center;">
-                    ${tx.type === 'void' || tx.isVoided ? 
-                        '<span style="font-size: 0.75rem; color: #ef4444; font-weight: bold; background: #fee2e2; padding: 4px 8px; border-radius: 8px;">VOIDED</span>' : 
-                        `<button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; color: #ef4444; border-color: #ef4444; height: auto;" onclick="voidTransaction('${tx.docId}', ${tx.id})">↩️ Void</button>`
-                    }
+                <div style="display: flex; gap: 4px;">
+                    <button class="delete-btn" style="color: var(--accent-color);" onclick="openEditTx(${tx.id})">✏️</button>
+                    <button class="delete-btn" onclick="deleteTransaction('${tx.docId}', ${tx.id})">🗑️</button>
                 </div>
             </div>
         `;
