@@ -10,8 +10,12 @@ if ('serviceWorker' in navigator) {
 }
 
 // ==========================================
-//         1. FIREBASE CONFIGURATION
+//         1. FIREBASE CONFIGURATION
 // ==========================================
+import { initializeApp } from "firebase/app";
+import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, getDocs } from "firebase/firestore";
+
 const firebaseConfig = {
 apiKey: "AIzaSyA4YyIOi1xSddHCeLMdBN5mwrjQbJPn_Iw",
 authDomain: "amolnama-cc2bf.firebaseapp.com",
@@ -21,14 +25,15 @@ messagingSenderId: "283254200113",
 appId: "1:283254200113:web:248a3bff50f167568ec210"
 };
 
-if (Object.keys(firebaseConfig).length > 0) {
-    firebase.initializeApp(firebaseConfig);
-} else {
-    console.error("Firebase is not configured! Please paste your config above.");
-}
+let app, auth, db;
 
-const auth = firebase.auth();
-const db = firebase.firestore();
+if (Object.keys(firebaseConfig).length > 0) {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+} else {
+    console.error("Firebase is not configured! Please paste your config above.");
+}
 
 // Global User State
 let currentUser = null;
@@ -74,9 +79,9 @@ let trashTransactions = [];
 // --- AUTHENTICATION LOGIC ---
 let isInitialLoad = true;
 
-auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
-    .then(() => {
-        auth.onAuthStateChanged(user => {
+setPersistence(auth, browserLocalPersistence)
+    .then(() => {
+        onAuthStateChanged(auth, user => {
             if (user) {
                 currentUser = user;
                 userDisplayName = user.displayName || 'User';
@@ -101,12 +106,12 @@ function showAuthError(msg) {
 }
 
 function signInWithGoogle() {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithPopup(provider).catch(error => showAuthError(error.message));
+    const provider = new GoogleAuthProvider();
+    signInWithPopup(auth, provider).catch(error => showAuthError(error.message));
 }
 
 function logout() {
-    auth.signOut().then(() => {
+    signOut(auth).then(() => {
         closeModal('modal-settings');
         transactions = []; 
         trashTransactions = []; 
@@ -281,8 +286,9 @@ async function fetchTransactionsForDate() {
     const dateLabel = isToday ? 'Today' : targetDateStr;
 
     try {
-        const txRef = db.collection('users').doc(currentUser.uid).collection('transactions');
-        const txSnapshot = await txRef.where('dateStr', '==', targetDateStr).get();
+        const txRef = collection(db, 'users', currentUser.uid, 'transactions');
+        const q = query(txRef, where('dateStr', '==', targetDateStr));
+        const txSnapshot = await getDocs(q);
 
         transactions = [];
         trashTransactions = []; 
@@ -351,17 +357,17 @@ function renderAppUI() {
 async function initUserData() {
     if(!currentUser) return;
     try {
-        const globalRef = db.collection('global').doc('settings');
-        const globalDoc = await globalRef.get();
-        
-        if (globalDoc.exists && globalDoc.data().catalog) {
-            globalCatalog = globalDoc.data().catalog;
-        } else {
-            globalCatalog = defaultCatalog;
-            if (currentUser.email === ADMIN_EMAIL) {
-                await globalRef.set({ catalog: globalCatalog }, { merge: true });
-            }
-        }
+        const globalRef = doc(db, 'global', 'settings');
+        const globalDoc = await getDoc(globalRef);
+        
+        if (globalDoc.exists() && globalDoc.data().catalog) {
+            globalCatalog = globalDoc.data().catalog;
+        } else {
+            globalCatalog = defaultCatalog;
+            if (currentUser.email === ADMIN_EMAIL) {
+                await setDoc(globalRef, { catalog: globalCatalog }, { merge: true });
+            }
+        }
 
         document.getElementById('report-user-name').innerText = userDisplayName;
         if (currentUser.email) document.getElementById('report-user-email').innerText = currentUser.email;
@@ -409,8 +415,9 @@ async function addTransactionToCloud(type, name, amount, qty, payment, cashAmt =
     renderReport();
     
     try {
-        const docRef = await db.collection('users').doc(currentUser.uid).collection('transactions').add(tx);
-        let localTx = transactions.find(t => t.id === tx.id);
+        const txCollectionRef = collection(db, 'users', currentUser.uid, 'transactions');
+        const docRef = await addDoc(txCollectionRef, tx);
+        let localTx = transactions.find(t => t.id === tx.id);
         if(localTx) localTx.docId = docRef.id; 
         showFlashMessage("Saved to Cloud!");
     } catch(e) {
@@ -481,12 +488,13 @@ async function saveTxEdit() {
     closeModal('modal-edit-tx');
 
     if (tx.docId) {
-        try {
-            await db.collection('users').doc(currentUser.uid).collection('transactions').doc(tx.docId).update({
-                qty: newQty, amount: newAmount, payment: newPayment,
-                cashAmt: newCashAmt, mfsAmt: newMfsAmt, isEdited: true 
-            });
-            showFlashMessage("Updated in Cloud!");
+        try {
+            const txDocRef = doc(db, 'users', currentUser.uid, 'transactions', tx.docId);
+            await updateDoc(txDocRef, {
+                qty: newQty, amount: newAmount, payment: newPayment,
+                cashAmt: newCashAmt, mfsAmt: newMfsAmt, isEdited: true 
+            });
+            showFlashMessage("Updated in Cloud!");
         } catch(e) {
             console.error("Edit failed:", e);
             showFlashMessage("Error saving edit.");
@@ -507,9 +515,10 @@ async function deleteTransaction(docId, localId) {
         renderReport();
     }
     if(docId) {
-        try {
-            await db.collection('users').doc(currentUser.uid).collection('transactions').doc(docId).update({ isDeleted: true });
-            showFlashMessage("Moved to Trash");
+        try {
+            const txDocRef = doc(db, 'users', currentUser.uid, 'transactions', docId);
+            await updateDoc(txDocRef, { isDeleted: true });
+            showFlashMessage("Moved to Trash");
         } catch(e) { console.error("Delete failed:", e); }
     }
 }
@@ -541,9 +550,10 @@ async function permanentlyDeleteTx(docId, localId) {
     trashTransactions = trashTransactions.filter(tx => tx.id !== localId);
     renderTrash();
     if(docId) {
-        try {
-            await db.collection('users').doc(currentUser.uid).collection('transactions').doc(docId).delete();
-            showFlashMessage("Permanently Deleted!");
+        try {
+            const txDocRef = doc(db, 'users', currentUser.uid, 'transactions', docId);
+            await deleteDoc(txDocRef);
+            showFlashMessage("Permanently Deleted!");
         } catch(e) { console.error("Hard delete failed:", e); }
     }
 }
@@ -556,10 +566,13 @@ async function emptyTrash() {
     renderTrash();
     showFlashMessage("Emptying Trash...");
     try {
-        let deletePromises = itemsToDelete.map(tx => {
-            if(tx.docId) return db.collection('users').doc(currentUser.uid).collection('transactions').doc(tx.docId).delete();
-        });
-        await Promise.all(deletePromises);
+        let deletePromises = itemsToDelete.map(tx => {
+            if(tx.docId) {
+                const txDocRef = doc(db, 'users', currentUser.uid, 'transactions', tx.docId);
+                return deleteDoc(txDocRef);
+            }
+        });
+        await Promise.all(deletePromises);
         showFlashMessage("Trash Emptied!");
     } catch(e) {
         console.error("Empty trash failed:", e);
@@ -578,11 +591,12 @@ async function restoreTransaction(docId, localId) {
         renderReport(); renderTrash();
     }
     if(docId) {
-        try {
-            await db.collection('users').doc(currentUser.uid).collection('transactions').doc(docId).update({
-                isDeleted: false, isRestored: true 
-            });
-            showFlashMessage("Transaction Restored!");
+        try {
+            const txDocRef = doc(db, 'users', currentUser.uid, 'transactions', docId);
+            await updateDoc(txDocRef, {
+                isDeleted: false, isRestored: true 
+            });
+            showFlashMessage("Transaction Restored!");
             closeModal('modal-trash');
         } catch(e) { console.error("Restore failed:", e); }
     }
@@ -714,10 +728,11 @@ async function saveSettings() {
         }
     });
     try {
-        if (currentUser.email === ADMIN_EMAIL) {
-            await db.collection('global').doc('settings').set({ catalog: globalCatalog }, { merge: true });
-        }
-        renderAppUI(); closeModal('modal-settings'); showFlashMessage("Settings Saved & Synced!");
+        if (currentUser.email === ADMIN_EMAIL) {
+            const globalRef = doc(db, 'global', 'settings');
+            await setDoc(globalRef, { catalog: globalCatalog }, { merge: true });
+        }
+        renderAppUI(); closeModal('modal-settings'); showFlashMessage("Settings Saved & Synced!");
     } catch(e) { console.error(e); showFlashMessage("Error saving settings."); }
 }
 
