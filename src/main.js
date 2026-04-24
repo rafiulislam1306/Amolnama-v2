@@ -138,26 +138,24 @@ function logout() {
 // ==========================================
 
 async function loadFloorMap() {
-    // Show the desk selection screen and hide everything else
     document.getElementById('modal-desk-select').classList.add('active');
     
     try {
         const desksSnapshot = await getDocs(collection(db, 'desks'));
         let deskHTML = '';
         
-        // If no desks exist yet (first time setup), create some defaults!
         if (desksSnapshot.empty) {
             await setDoc(doc(db, 'desks', 'desk_1'), { name: 'Desk 1', status: 'closed', currentSessionId: null });
             await setDoc(doc(db, 'desks', 'desk_2'), { name: 'Desk 2', status: 'closed', currentSessionId: null });
             await setDoc(doc(db, 'desks', 'desk_3'), { name: 'Desk 3', status: 'closed', currentSessionId: null });
-            loadFloorMap(); // Reload after creating
+            loadFloorMap(); 
             return;
         }
 
         desksSnapshot.forEach(docSnap => {
             const desk = docSnap.data();
             const isOpen = desk.status === 'open';
-            const btnColor = isOpen ? '#10b981' : '#0ea5e9'; // Green if open, Blue if closed
+            const btnColor = isOpen ? '#10b981' : '#0ea5e9'; 
             const actionText = isOpen ? '🤝 Join Active Desk' : '🔑 Open Desk';
 
             deskHTML += `
@@ -187,20 +185,17 @@ async function handleDeskSelect(deskId, deskName, status, sessionId) {
     currentDeskName = deskName;
 
     if (status === 'open' && sessionId) {
-        // SCENARIO 1: The desk is already open. Just join it!
         currentSessionId = sessionId;
         document.getElementById('modal-desk-select').classList.remove('active');
         document.getElementById('header-title').innerText = `${deskName} (Joined)`;
-        await fetchTransactionsForDate(); // Load today's live data
+        await fetchTransactionsForDate(); 
         showFlashMessage(`Joined ${deskName}!`);
     } else {
-        // SCENARIO 2: The desk is closed. We must open it and fetch rollover stock.
         document.getElementById('open-desk-title').innerText = `Open ${deskName}`;
         document.getElementById('open-cash-float').value = '';
         document.getElementById('rollover-inventory-list').innerHTML = 'Fetching yesterday\'s stock...';
         openModal('modal-open-desk');
 
-        // Fetch the absolute most recent closed session for this desk to get leftover SIMs
         const sessionsRef = collection(db, 'sessions');
         const q = query(sessionsRef, where('deskId', '==', deskId), orderBy('closedAt', 'desc'), limit(1));
         
@@ -216,7 +211,6 @@ async function handleDeskSelect(deskId, deskName, status, sessionId) {
                 }
             }
 
-            // Render the stock into the modal
             if (Object.keys(rolloverStock).length === 0) {
                 rolloverHTML = '<em>No physical stock rolled over. Drawer is empty.</em>';
             } else {
@@ -236,13 +230,11 @@ async function handleDeskSelect(deskId, deskName, status, sessionId) {
 async function confirmOpenDesk() {
     let floatAmount = parseFloat(document.getElementById('open-cash-float').value);
     
-    // We strictly force them to type the opening cash from the manager
     if (isNaN(floatAmount) || floatAmount < 0) {
         alert("You must enter the exact physical cash float provided by the manager.");
         return;
     }
 
-    // 1. Create the new Session document
     const newSessionRef = doc(collection(db, 'sessions'));
     currentSessionId = newSessionRef.id;
 
@@ -255,14 +247,12 @@ async function confirmOpenDesk() {
         status: 'open',
         openingBalances: {
             cash: floatAmount,
-            inventory: rolloverStock // Passed directly from yesterday
+            inventory: rolloverStock 
         }
     };
 
     try {
         await setDoc(newSessionRef, sessionData);
-        
-        // 2. Update the Desk document to mark it open and link the session
         await updateDoc(doc(db, 'desks', currentDeskId), {
             status: 'open',
             currentSessionId: currentSessionId
@@ -272,7 +262,6 @@ async function confirmOpenDesk() {
         document.getElementById('modal-desk-select').classList.remove('active');
         document.getElementById('header-title').innerText = `${currentDeskName}`;
         
-        // Clear local memory and fetch fresh
         transactions = [];
         trashTransactions = [];
         renderReport();
@@ -297,7 +286,6 @@ async function initiateCloseDesk() {
         return;
     }
 
-    // 1. Calculate Expected Totals
     const sessionRef = doc(db, 'sessions', currentSessionId);
     const sessionSnap = await getDoc(sessionRef);
     if (!sessionSnap.exists()) return;
@@ -306,15 +294,12 @@ async function initiateCloseDesk() {
     let expectedCash = parseFloat(sessionData.openingBalances.cash) || 0;
     let expectedInv = { ...(sessionData.openingBalances.inventory || {}) };
 
-    // Query Firestore to ensure we have the absolute latest transactions for this desk
     const txQuery = query(collection(db, 'transactions'), where('sessionId', '==', currentSessionId), where('isDeleted', '==', false));
     const txSnap = await getDocs(txQuery);
 
     txSnap.forEach(docSnap => {
         let tx = docSnap.data();
-        expectedCash += (tx.cashAmt || 0); // Adds cash sales
-
-        // Deduct inventory if it's a physical item sale
+        expectedCash += (tx.cashAmt || 0); 
         if (tx.name !== 'ERS Flexiload') {
             expectedInv[tx.name] = (expectedInv[tx.name] || 0) - tx.qty;
         }
@@ -322,7 +307,6 @@ async function initiateCloseDesk() {
 
     expectedClosingStats = { cash: expectedCash, inventory: expectedInv };
 
-    // 2. Render Step 1 Modal (Physical Count)
     let invHTML = '';
     let itemsToCount = Object.keys(expectedInv);
     
@@ -330,7 +314,6 @@ async function initiateCloseDesk() {
         invHTML = '<p style="color:#64748b; font-size:0.9rem; text-align:center;">No physical inventory tracked today.</p>';
     } else {
         itemsToCount.forEach(itemName => {
-            // Only ask them to count it if it actually had movement or a starting balance
             invHTML += `
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
                     <label class="admin-label" style="margin:0; font-size:0.85rem; color:#334155;">${itemName}</label>
@@ -446,12 +429,9 @@ async function finalizeCloseDesk(variance) {
     }
 
     let retainedFloat = actualClosingStats.cash - dropAmount;
-    
-    // We update the inventory to explicitly be the counted actuals so it rolls over perfectly
     actualClosingStats.inventory = { ...actualClosingStats.inventory }; 
 
     try {
-        // 1. Seal the Session Ledger
         const sessionRef = doc(db, 'sessions', currentSessionId);
         await updateDoc(sessionRef, {
             closedBy: userDisplayName,
@@ -466,14 +446,12 @@ async function finalizeCloseDesk(variance) {
             retainedFloat: retainedFloat
         });
 
-        // 2. Shut Down the Desk
         const deskRef = doc(db, 'desks', currentDeskId);
         await updateDoc(deskRef, {
             status: 'closed',
             currentSessionId: null
         });
 
-        // 3. Clear State & Boot to Floor Map
         currentDeskId = null;
         currentSessionId = null;
         currentDeskName = '';
@@ -487,6 +465,10 @@ async function finalizeCloseDesk(variance) {
         alert("Offline: Could not close desk. Check connection.");
     }
 }
+
+// ==========================================
+//    PHASE 3: MID-DAY ACTIONS & TRANSFERS
+// ==========================================
 
 let currentAdjType = 'stock';
 
@@ -507,7 +489,6 @@ function openAdjustmentModal(type) {
     if (type === 'cash') {
         selectEl.innerHTML = '<option value="Physical Cash">Physical Cash (Tk)</option>';
     } else {
-        // Populate with physical catalog items (skip services/actions)
         Object.values(globalCatalog).forEach(item => {
             if (item.isActive && item.cat !== 'service' && item.cat !== 'free-action') {
                 let opt = document.createElement('option');
@@ -531,7 +512,6 @@ async function saveAdjustment() {
     let itemName = document.getElementById('adj-item-select').value;
     let action = document.getElementById('adj-action-select').value; 
     
-    // Flip to negative if it's a drop/removal
     let finalValue = action === 'add' ? amountOrQty : -amountOrQty;
 
     let qty = currentAdjType === 'stock' ? finalValue : 0;
@@ -540,8 +520,8 @@ async function saveAdjustment() {
     const adjTx = {
         id: Date.now(),
         type: 'adjustment',
-        name: itemName, // Uses actual name so inventory tracker updates perfectly
-        amount: 0, // 0 revenue impact
+        name: itemName, 
+        amount: 0, 
         qty: qty,
         payment: action === 'add' ? 'Received' : 'Dropped',
         cashAmt: cashAmt,
@@ -569,10 +549,6 @@ async function saveAdjustment() {
     }
 }
 
-// ==========================================
-//    PHASE 3.3 & 3.4: LIVE FLOOR & TRANSFERS
-// ==========================================
-
 let targetTransferDeskId = null;
 let targetTransferSessionId = null;
 
@@ -581,7 +557,6 @@ async function renderLiveFloorTab() {
     container.innerHTML = '<div class="spinner" style="align-self: center; margin-top: 40px;"></div>';
 
     try {
-        // 1. Find all active sessions across the floor
         const sessionsRef = collection(db, 'sessions');
         const q = query(sessionsRef, where('status', '==', 'open'));
         const activeSessionsSnap = await getDocs(q);
@@ -593,12 +568,10 @@ async function renderLiveFloorTab() {
 
         let floorHTML = '';
 
-        // 2. Loop through each open session and calculate its live math
         for (const docSnap of activeSessionsSnap.docs) {
             const session = docSnap.data();
             const sid = docSnap.id;
             
-            // Fetch live transactions for this specific session
             const txQuery = query(collection(db, 'transactions'), where('sessionId', '==', sid), where('isDeleted', '==', false));
             const txSnap = await getDocs(txQuery);
 
@@ -610,28 +583,23 @@ async function renderLiveFloorTab() {
                 if (!tx.isVoided) {
                     liveCash += (tx.cashAmt || 0);
                     if (tx.name !== 'ERS Flexiload') {
-                        // Subtract normal sales, Add if it was a positive adjustment
                         liveInv[tx.name] = (liveInv[tx.name] || 0) - (tx.qty || 0);
                     }
                 }
             });
 
-            // Format Inventory for display
             let invDisplay = '';
             for (const [name, qty] of Object.entries(liveInv)) {
                 if (qty !== 0) {
-                    // Highlight low stock (under 3) in red
                     let color = qty < 3 ? '#ef4444' : '#475569';
                     invDisplay += `<span style="display:inline-block; background:#f1f5f9; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin:2px; color:${color}; font-weight:600;">${name}: ${qty}</span>`;
                 }
             }
             if(!invDisplay) invDisplay = '<span style="font-size:0.8rem; color:#94a3b8;">No physical stock.</span>';
 
-            // Check if this is the user's current desk
             const isMyDesk = sid === currentSessionId;
             const badge = isMyDesk ? '<span style="background:#0ea5e9; color:white; font-size:0.7rem; padding:2px 6px; border-radius:12px; font-weight:bold;">YOUR DESK</span>' : '';
 
-            // Render the Desk Card
             floorHTML += `
                 <div class="admin-form-card" style="margin-bottom: 0; padding: 16px; border-top: 4px solid ${isMyDesk ? '#0ea5e9' : '#8b5cf6'};">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
@@ -668,9 +636,95 @@ async function renderLiveFloorTab() {
     }
 }
 
+function openTransferModal(targetDesk, targetSession) {
+    if (!currentSessionId) {
+        alert("You must open your desk first before transferring items.");
+        return;
+    }
+
+    targetTransferDeskId = targetDesk;
+    targetTransferSessionId = targetSession;
+    
+    document.getElementById('transfer-target-name').innerText = targetDesk.replace('_', ' ').toUpperCase();
+    document.getElementById('transfer-qty').value = '';
+    
+    let selectEl = document.getElementById('transfer-item-select');
+    selectEl.innerHTML = '';
+    
+    Object.values(globalCatalog).forEach(item => {
+        if (item.isActive && item.cat !== 'service' && item.cat !== 'free-action') {
+            let opt = document.createElement('option');
+            opt.value = item.name;
+            opt.innerText = item.name;
+            selectEl.appendChild(opt);
+        }
+    });
+
+    openModal('modal-transfer');
+}
+
+async function executeTransfer() {
+    let qty = parseInt(document.getElementById('transfer-qty').value) || 0;
+    if (qty <= 0) {
+        alert("Please enter a valid quantity to send.");
+        return;
+    }
+
+    let itemName = document.getElementById('transfer-item-select').value;
+    let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    let dateStr = new Date().toLocaleDateString('en-GB');
+
+    const senderTx = {
+        id: Date.now(),
+        type: 'transfer_out',
+        name: itemName, 
+        amount: 0, 
+        qty: qty, 
+        payment: `Sent to ${targetTransferDeskId}`,
+        cashAmt: 0, mfsAmt: 0, isDeleted: false,
+        time: timeStr, dateStr: dateStr,
+        deskId: currentDeskId,
+        sessionId: currentSessionId,
+        agentId: currentUser.uid,
+        agentName: userDisplayName
+    };
+
+    const receiverTx = {
+        id: Date.now() + 1,
+        type: 'transfer_in',
+        name: itemName, 
+        amount: 0, 
+        qty: -qty, 
+        payment: `Received from ${currentDeskId}`,
+        cashAmt: 0, mfsAmt: 0, isDeleted: false,
+        time: timeStr, dateStr: dateStr,
+        deskId: targetTransferDeskId,
+        sessionId: targetTransferSessionId,
+        agentId: "system",
+        agentName: `Transfer from ${userDisplayName}`
+    };
+
+    transactions.push({ ...senderTx, qty: qty }); 
+    renderReport();
+    closeModal('modal-transfer');
+
+    try {
+        const txCollectionRef = collection(db, 'transactions');
+        await addDoc(txCollectionRef, senderTx);
+        await addDoc(txCollectionRef, receiverTx);
+        
+        showFlashMessage("Transfer Successful!");
+        renderLiveFloorTab(); 
+    } catch(e) {
+        console.error("Transfer failed:", e);
+        showFlashMessage("Offline: Transfer queued for sync.");
+    }
+}
+
 // ==========================================
 //    PHASE 3: EDIT, SPLIT PAYMENT, & TRASH
 // ==========================================
+
 let currentEditTxId = null;
 
 function openEditTx(id) {
@@ -685,7 +739,6 @@ function openEditTx(id) {
     let paymentSelect = document.getElementById('edit-tx-payment');
     let splitFields = document.getElementById('edit-split-fields');
 
-    // Auto-detect if it was previously a split payment
     if (tx.cashAmt > 0 && tx.mfsAmt > 0) {
         paymentSelect.value = 'Split';
         splitFields.style.display = 'flex';
@@ -714,9 +767,6 @@ function toggleEditSplitFields() {
 
 function updateSplitTotal() {
     // Allows agents to manually adjust the cash/mfs balance while typing
-    let total = parseFloat(document.getElementById('edit-tx-amount').value) || 0;
-    let cashVal = parseFloat(document.getElementById('edit-tx-cash').value) || 0;
-    // We let them type freely, but we will strictly validate the math when they hit SAVE.
 }
 
 async function saveTxEdit() {
@@ -731,7 +781,6 @@ async function saveTxEdit() {
     let finalCash = 0;
     let finalMfs = 0;
 
-    // Route the money based on payment method
     if (method === 'Cash') {
         finalCash = newAmount;
     } else if (method === 'MFS') {
@@ -740,29 +789,26 @@ async function saveTxEdit() {
         finalCash = parseFloat(document.getElementById('edit-tx-cash').value) || 0;
         finalMfs = parseFloat(document.getElementById('edit-tx-mfs').value) || 0;
         
-        // Strict guardrail to prevent bad math in the drawer
         if (finalCash + finalMfs !== newAmount) {
             alert("Error: The Cash + MFS portions must perfectly equal the Total Tk.");
             return;
         }
     }
 
-    // Update local state instantly
     tx.qty = newQty;
     tx.amount = newAmount;
     tx.payment = method === 'Split' ? 'Split' : method;
     tx.cashAmt = finalCash;
     tx.mfsAmt = finalMfs;
+    tx.isEdited = true;
 
     renderReport();
     closeModal('modal-edit-tx');
 
-    // Force the Floor Map to recalculate if the agent is looking at it
     if (document.getElementById('tab-floor').classList.contains('active')) {
         renderLiveFloorTab();
     }
 
-    // Sync to Cloud
     if (tx.docId) {
         try {
             const txRef = doc(db, 'transactions', tx.docId);
@@ -771,7 +817,8 @@ async function saveTxEdit() {
                 amount: newAmount,
                 payment: tx.payment,
                 cashAmt: finalCash,
-                mfsAmt: finalMfs
+                mfsAmt: finalMfs,
+                isEdited: true
             });
             showFlashMessage("Transaction Updated!");
         } catch(e) {
@@ -787,19 +834,17 @@ async function deleteTransaction(docId, localId) {
     let txIndex = transactions.findIndex(t => t.id === localId);
     if(txIndex > -1) {
         let tx = transactions.splice(txIndex, 1)[0];
-        tx.isDeleted = true; // Soft Delete
+        tx.isDeleted = true; 
         trashTransactions.push(tx);
         
         renderReport();
 
-        // Instantly recalculate floor map inventory
         if (document.getElementById('tab-floor').classList.contains('active')) {
             renderLiveFloorTab();
         }
 
         if(docId) {
             try {
-                // Update in the central ledger
                 const txRef = doc(db, 'transactions', docId);
                 await updateDoc(txRef, { isDeleted: true });
             } catch(e) {
@@ -810,41 +855,48 @@ async function deleteTransaction(docId, localId) {
 }
 
 function openTrash() {
+    renderTrash();
+    openModal('modal-trash');
+}
+
+function renderTrash() {
     let html = '';
     if(trashTransactions.length === 0) {
         html = '<p class="placeholder-text">Trash is empty</p>';
     } else {
-        // Sort trash newest first
         trashTransactions.sort((a,b) => b.id - a.id).forEach(tx => {
             html += `
                 <div style="border:1px solid #e2e8f0; padding:12px; margin-bottom:8px; border-radius:8px; background: #fff;">
                     <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                        <strong style="color: #0f172a;">${tx.name}</strong> <span style="font-weight:bold; color:#ef4444;">${tx.amount} Tk</span>
+                        <strong style="color: #0f172a; text-decoration: line-through;">${tx.qty}x ${tx.name}</strong> 
+                        <span style="font-weight:bold; color:#ef4444;">${tx.amount} Tk</span>
                     </div>
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span style="font-size:0.8rem; color:#64748b;">${tx.time} | ${tx.payment}</span>
-                        <button class="btn-outline" style="padding:6px 12px; font-size:0.8rem; height:auto;" onclick="restoreTx('${tx.docId}', ${tx.id})">♻️ Restore</button>
+                        <div style="display:flex; gap: 4px;">
+                            <button class="btn-outline" style="padding:6px 12px; font-size:0.8rem; height:auto; color: #10b981; border-color: #10b981;" onclick="restoreTx('${tx.docId}', ${tx.id})">♻️ Restore</button>
+                            <button class="btn-outline" style="padding:6px 12px; font-size:0.8rem; height:auto; color: #ef4444; border-color: #ef4444;" onclick="permanentlyDeleteTx('${tx.docId}', ${tx.id})">❌</button>
+                        </div>
                     </div>
                 </div>
             `;
         });
     }
     document.getElementById('trash-log').innerHTML = html;
-    openModal('modal-trash');
 }
 
 async function restoreTx(docId, localId) {
     let txIndex = trashTransactions.findIndex(t => t.id === localId);
     if(txIndex > -1) {
         let tx = trashTransactions.splice(txIndex, 1)[0];
-        tx.isDeleted = false; // Restore
+        tx.isDeleted = false; 
+        tx.isRestored = true;
         transactions.push(tx);
         
-        // Put it back in chronological order
         transactions.sort((a,b) => a.id - b.id);
         
         renderReport();
-        openTrash(); 
+        renderTrash(); 
 
         if (document.getElementById('tab-floor').classList.contains('active')) {
             renderLiveFloorTab();
@@ -852,120 +904,50 @@ async function restoreTx(docId, localId) {
 
         if(docId) {
             const txRef = doc(db, 'transactions', docId);
-            await updateDoc(txRef, { isDeleted: false });
+            await updateDoc(txRef, { isDeleted: false, isRestored: true });
+            showFlashMessage("Transaction Restored!");
         }
+        
+        // Close modal if empty
+        if(trashTransactions.length === 0) closeModal('modal-trash');
+    }
+}
+
+async function permanentlyDeleteTx(docId, localId) {
+    if (!confirm("Permanently delete this transaction? This cannot be undone.")) return;
+    trashTransactions = trashTransactions.filter(tx => tx.id !== localId);
+    renderTrash();
+    if(docId) {
+        try {
+            const txDocRef = doc(db, 'transactions', docId);
+            await deleteDoc(txDocRef);
+            showFlashMessage("Permanently Deleted!");
+        } catch(e) { console.error("Hard delete failed:", e); }
     }
 }
 
 async function emptyTrash() {
-    if(!confirm("Permanently delete all items in trash? This CANNOT be undone.")) return;
+    if(!confirm("Permanently delete ALL items in trash? This CANNOT be undone.")) return;
     
     const idsToDelete = trashTransactions.map(t => t.docId).filter(id => id);
     trashTransactions = [];
-    openTrash();
+    renderTrash();
 
     for (const id of idsToDelete) {
         try {
             const txRef = doc(db, 'transactions', id);
-            await deleteDoc(txRef); // Hard Delete
+            await deleteDoc(txRef); 
         } catch(e) {
             console.error("Delete failed", e);
         }
     }
+    closeModal('modal-trash');
 }
 
-function openTransferModal(targetDesk, targetSession) {
-    if (!currentSessionId) {
-        alert("You must open your desk first before transferring items.");
-        return;
-    }
+// ==========================================
+//    UI NAVIGATION & CORE APP LOGIC
+// ==========================================
 
-    targetTransferDeskId = targetDesk;
-    targetTransferSessionId = targetSession;
-    
-    document.getElementById('transfer-target-name').innerText = targetDesk.replace('_', ' ').toUpperCase();
-    document.getElementById('transfer-qty').value = '';
-    
-    let selectEl = document.getElementById('transfer-item-select');
-    selectEl.innerHTML = '';
-    
-    // Only physical items
-    Object.values(globalCatalog).forEach(item => {
-        if (item.isActive && item.cat !== 'service' && item.cat !== 'free-action') {
-            let opt = document.createElement('option');
-            opt.value = item.name;
-            opt.innerText = item.name;
-            selectEl.appendChild(opt);
-        }
-    });
-
-    openModal('modal-transfer');
-}
-
-async function executeTransfer() {
-    let qty = parseInt(document.getElementById('transfer-qty').value) || 0;
-    if (qty <= 0) {
-        alert("Please enter a valid quantity to send.");
-        return;
-    }
-
-    let itemName = document.getElementById('transfer-item-select').value;
-    let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    let dateStr = new Date().toLocaleDateString('en-GB');
-
-    // 1. Transaction FOR SENDER (Negative qty because it's leaving their desk)
-    const senderTx = {
-        id: Date.now(),
-        type: 'transfer_out',
-        name: itemName, 
-        amount: 0, 
-        qty: qty, // Positive here, we will handle logic when reading
-        payment: `Sent to ${targetTransferDeskId}`,
-        cashAmt: 0, mfsAmt: 0, isDeleted: false,
-        time: timeStr, dateStr: dateStr,
-        deskId: currentDeskId,
-        sessionId: currentSessionId,
-        agentId: currentUser.uid,
-        agentName: userDisplayName
-    };
-
-    // 2. Transaction FOR RECEIVER (Negative qty adjustment to add to stock)
-    const receiverTx = {
-        id: Date.now() + 1,
-        type: 'transfer_in',
-        name: itemName, 
-        amount: 0, 
-        qty: -qty, // Math logic: actual sale = minus. To ADD stock, we write negative qty.
-        payment: `Received from ${currentDeskId}`,
-        cashAmt: 0, mfsAmt: 0, isDeleted: false,
-        time: timeStr, dateStr: dateStr,
-        deskId: targetTransferDeskId,
-        sessionId: targetTransferSessionId,
-        agentId: "system",
-        agentName: `Transfer from ${userDisplayName}`
-    };
-
-    // Push local update for sender immediately
-    transactions.push({ ...senderTx, qty: qty }); // Log it as standard positive for local display
-    renderReport();
-    closeModal('modal-transfer');
-
-    try {
-        const txCollectionRef = collection(db, 'transactions');
-        
-        // Push both sides of the transfer to the central ledger
-        await addDoc(txCollectionRef, senderTx);
-        await addDoc(txCollectionRef, receiverTx);
-        
-        showFlashMessage("Transfer Successful!");
-        renderLiveFloorTab(); // Refresh to show new totals
-    } catch(e) {
-        console.error("Transfer failed:", e);
-        showFlashMessage("Offline: Transfer queued for sync.");
-    }
-}
-
-// --- UI NAVIGATION ---
 function switchTab(tabId, title) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
@@ -973,18 +955,17 @@ function switchTab(tabId, title) {
     event.currentTarget.classList.add('active');
     
     if(tabId === 'ers') {
-    document.getElementById('header-title').innerText = currentDeskName ? currentDeskName : userDisplayName;
-  } else {
-    document.getElementById('header-title').innerText = title;
-  }
+        document.getElementById('header-title').innerText = currentDeskName ? currentDeskName : userDisplayName;
+    } else {
+        document.getElementById('header-title').innerText = title;
+    }
 
-    // Auto-refresh the floor map when navigating to it
     if(tabId === 'floor') {
         renderLiveFloorTab();
     }
 
     if (tabId === 'report' && currentUser) {
-    if (currentUserRole === 'admin') {
+        if (currentUserRole === 'admin') {
             document.getElementById('settings-btn').style.display = 'block';
             document.getElementById('logout-btn').style.display = 'none';
         } else {
@@ -1131,34 +1112,31 @@ async function fetchTransactionsForDate() {
 
     const targetDateStr = formatToGBDate(selectedIsoDate);
     
-    // Check if we are viewing today or the past
     const isToday = targetDateStr === new Date().toLocaleDateString('en-GB');
     const dateLabel = isToday ? 'Today' : targetDateStr;
 
     try {
-    const txRef = collection(db, 'transactions');
-    const q = query(txRef, where('dateStr', '==', targetDateStr));
-    const txSnapshot = await getDocs(q);
+        const txRef = collection(db, 'transactions');
+        const q = query(txRef, where('dateStr', '==', targetDateStr));
+        const txSnapshot = await getDocs(q);
 
         transactions = [];
         trashTransactions = []; 
 
         txSnapshot.forEach(doc => {
-      let tx = doc.data();
-      tx.docId = doc.id;
-      // Only load transactions tied to the current desk
-      if (tx.deskId === currentDeskId) {
-        if (tx.isDeleted) trashTransactions.push(tx);
-        else transactions.push(tx);
-      }
-    });
+            let tx = doc.data();
+            tx.docId = doc.id; 
+            if (tx.deskId === currentDeskId) {
+                if (tx.isDeleted) trashTransactions.push(tx);
+                else transactions.push(tx);
+            }
+        });
         
         transactions.sort((a, b) => a.id - b.id);
         trashTransactions.sort((a, b) => a.id - b.id);
         
         renderReport();
         
-        // Update the interactive badge above the financial summary
         const financialLabel = document.getElementById('financial-date-label');
         if (financialLabel) financialLabel.innerHTML = `${dateLabel} 🗓️`;
 
@@ -1208,29 +1186,28 @@ function renderAppUI() {
 //        FIRESTORE CLOUD DATA LOGIC
 // ==========================================
 async function initUserData() {
-  if(!currentUser) return;
-  try {
-    // Fetch or initialize user role from Firestore
-    const userDocRef = doc(db, 'users', currentUser.uid);
-    const userDocSnap = await getDoc(userDocRef);
-    
-    if (userDocSnap.exists() && userDocSnap.data().role) {
-      currentUserRole = userDocSnap.data().role;
-    } else {
-      await setDoc(userDocRef, { email: currentUser.email, role: 'user' }, { merge: true });
-      currentUserRole = 'user';
-    }
-    const globalRef = doc(db, 'global', 'settings');
-    const globalDoc = await getDoc(globalRef);
-   
-    if (globalDoc.exists() && globalDoc.data().catalog) {
-      globalCatalog = globalDoc.data().catalog;
-    } else {
-      globalCatalog = defaultCatalog;
-      if (currentUserRole === 'admin') {
-        await setDoc(globalRef, { catalog: globalCatalog }, { merge: true });
-      }
-    }
+    if(!currentUser) return;
+    try {
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        
+        if (userDocSnap.exists() && userDocSnap.data().role) {
+            currentUserRole = userDocSnap.data().role;
+        } else {
+            await setDoc(userDocRef, { email: currentUser.email, role: 'user' }, { merge: true });
+            currentUserRole = 'user';
+        }
+        const globalRef = doc(db, 'global', 'settings');
+        const globalDoc = await getDoc(globalRef);
+        
+        if (globalDoc.exists() && globalDoc.data().catalog) {
+            globalCatalog = globalDoc.data().catalog;
+        } else {
+            globalCatalog = defaultCatalog;
+            if (currentUserRole === 'admin') {
+                await setDoc(globalRef, { catalog: globalCatalog }, { merge: true });
+            }
+        }
 
         document.getElementById('report-user-name').innerText = userDisplayName;
         if (currentUser.email) document.getElementById('report-user-email').innerText = currentUser.email;
@@ -1245,13 +1222,10 @@ async function initUserData() {
         updateCurrencyUI();
         renderAppUI();
 
-        // Initialize the date picker to today
-    document.getElementById('report-date-picker').value = getTodayISO();
-        
-        // Launch Phase 2: Floor Map / Desk Selection
+        document.getElementById('report-date-picker').value = getTodayISO();
         await loadFloorMap();
         
-  } catch(e) {
+    } catch(e) {
         console.error("Error loading data:", e);
         showFlashMessage("Error loading data!");
     } finally {
@@ -1269,25 +1243,25 @@ async function addTransactionToCloud(type, name, amount, qty, payment, cashAmt =
 
     const today = new Date().toLocaleDateString('en-GB');
     const tx = {
-    id: Date.now(),
-    type: type, name: name, amount: amount, qty: qty,
-    payment: payment, cashAmt: cashAmt, mfsAmt: mfsAmt,
-    isDeleted: false,
-    time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-    dateStr: today,
-    deskId: currentDeskId,
-    sessionId: currentSessionId,
-    agentId: currentUser.uid,
-    agentName: userDisplayName
-  };
+        id: Date.now(), 
+        type: type, name: name, amount: amount, qty: qty,
+        payment: payment, cashAmt: cashAmt, mfsAmt: mfsAmt,
+        isDeleted: false,
+        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        dateStr: today,
+        deskId: currentDeskId,
+        sessionId: currentSessionId,
+        agentId: currentUser.uid,
+        agentName: userDisplayName
+    };
 
     transactions.push(tx);
     renderReport();
     
     try {
-    const txCollectionRef = collection(db, 'transactions');
-    const docRef = await addDoc(txCollectionRef, tx);
-    let localTx = transactions.find(t => t.id === tx.id);
+        const txCollectionRef = collection(db, 'transactions');
+        const docRef = await addDoc(txCollectionRef, tx);
+        let localTx = transactions.find(t => t.id === tx.id);
         if(localTx) localTx.docId = docRef.id; 
         showFlashMessage("Saved to Cloud!");
     } catch(e) {
@@ -1295,8 +1269,6 @@ async function addTransactionToCloud(type, name, amount, qty, payment, cashAmt =
         showFlashMessage("Offline: Will sync later.");
     }
 }
-
-// (Old Edit/Trash logic removed to prevent duplicates)
 
 // ==========================================
 //         ADMIN DASHBOARD CONTROLS
@@ -1315,47 +1287,47 @@ function toggleAddForm() {
 }
 
 function openSettings() {
-  let container = document.getElementById('settings-list-container');
-  container.innerHTML = '';
+    let container = document.getElementById('settings-list-container');
+    container.innerHTML = ''; 
     document.getElementById('admin-search').value = '';
     document.getElementById('admin-add-form').style.display = 'none';
 
-  let itemsArray = Object.entries(globalCatalog)
-             .map(([key, item]) => ({key, ...item}))
-             .sort((a, b) => (a.order || 0) - (b.order || 0));
+    let itemsArray = Object.entries(globalCatalog)
+                           .map(([key, item]) => ({key, ...item}))
+                           .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-  itemsArray.forEach(item => {
-    if (!item.isActive) return;
-    let row = document.createElement('div');
-    row.className = 'admin-row-card admin-row';
-    row.setAttribute('data-key', item.key);
-    row.innerHTML = `
-      <div class="admin-row-header">
-        <span class="drag-handle">⋮⋮</span>
-        <input type="text" class="settings-input i-name" style="flex:1; border:none; background:transparent; font-weight:700; color:#0f172a; padding:0; min-width:0;" value="${item.name}">
-        <button class="delete-btn" style="color: #ef4444; padding: 4px 8px; font-size: 1.1rem; flex-shrink: 0;" onclick="removeRow(this)">🗑️</button>
-      </div>
-      <div class="admin-row-body">
-        <div>
-          <label class="admin-label">Price (${userCurrency})</label>
-          <input type="number" class="settings-input i-price" style="padding: 10px; width: 100%; box-sizing: border-box;" value="${item.price}">
-        </div>
-        <div>
-          <label class="admin-label">Category</label>
-          <select class="settings-input i-cat" style="padding: 10px; width: 100%; box-sizing: border-box;">
-            <option value="new-sim" ${item.cat==='new-sim'?'selected':''}>📱 New SIM</option>
-            <option value="paid-rep" ${item.cat==='paid-rep'?'selected':''}>📦 Paid Rep</option>
-            <option value="foc" ${item.cat==='foc'?'selected':''}>🆓 FOC</option>
-            <option value="service" ${item.cat==='service'?'selected':''}>🛠️ Service</option>
-            <option value="free-action" ${item.cat==='free-action'?'selected':''}>🏢 Free Action</option>
-          </select>
-        </div>
-      </div>
-    `;
-    container.appendChild(row);
-    setupDragAndDrop(row);
-  });
-  openModal('modal-settings');
+    itemsArray.forEach(item => {
+        if (!item.isActive) return;
+        let row = document.createElement('div');
+        row.className = 'admin-row-card admin-row';
+        row.setAttribute('data-key', item.key);
+        row.innerHTML = `
+            <div class="admin-row-header">
+                <span class="drag-handle">⋮⋮</span>
+                <input type="text" class="settings-input i-name" style="flex:1; border:none; background:transparent; font-weight:700; color:#0f172a; padding:0; min-width:0;" value="${item.name}">
+                <button class="delete-btn" style="color: #ef4444; padding: 4px 8px; font-size: 1.1rem; flex-shrink: 0;" onclick="removeRow(this)">🗑️</button>
+            </div>
+            <div class="admin-row-body">
+                <div>
+                    <label class="admin-label">Price (${userCurrency})</label>
+                    <input type="number" class="settings-input i-price" style="padding: 10px; width: 100%; box-sizing: border-box;" value="${item.price}">
+                </div>
+                <div>
+                    <label class="admin-label">Category</label>
+                    <select class="settings-input i-cat" style="padding: 10px; width: 100%; box-sizing: border-box;">
+                        <option value="new-sim" ${item.cat==='new-sim'?'selected':''}>📱 New SIM</option>
+                        <option value="paid-rep" ${item.cat==='paid-rep'?'selected':''}>📦 Paid Rep</option>
+                        <option value="foc" ${item.cat==='foc'?'selected':''}>🆓 FOC</option>
+                        <option value="service" ${item.cat==='service'?'selected':''}>🛠️ Service</option>
+                        <option value="free-action" ${item.cat==='free-action'?'selected':''}>🏢 Free Action</option>
+                    </select>
+                </div>
+            </div>
+        `;
+        container.appendChild(row);
+        setupDragAndDrop(row); 
+    });
+    openModal('modal-settings');
 }
 
 let draggedEl = null;
@@ -1443,11 +1415,11 @@ async function saveSettings() {
         }
     });
     try {
-    if (currentUserRole === 'admin') {
-      const globalRef = doc(db, 'global', 'settings');
-      await setDoc(globalRef, { catalog: globalCatalog }, { merge: true });
-    }
-    renderAppUI(); closeModal('modal-settings'); showFlashMessage("Settings Saved & Synced!");
+        if (currentUserRole === 'admin') {
+            const globalRef = doc(db, 'global', 'settings');
+            await setDoc(globalRef, { catalog: globalCatalog }, { merge: true });
+        }
+        renderAppUI(); closeModal('modal-settings'); showFlashMessage("Settings Saved & Synced!");
     } catch(e) { console.error(e); showFlashMessage("Error saving settings."); }
 }
 
@@ -1488,9 +1460,9 @@ function renderReport() {
                     <span class="history-meta">${tx.time} • ${tx.amount} ${userCurrency} • ${payLabel}</span>
                 </div>
                 <div style="display: flex; gap: 4px;">
-          <button class="delete-btn" style="color: var(--accent-color);" onclick="openEditTx(${tx.id})">✏️</button>
-          <button class="delete-btn" onclick="deleteTransaction('${tx.docId}', ${tx.id})">🗑️</button>
-        </div>
+                    <button class="delete-btn" style="color: var(--accent-color);" onclick="openEditTx(${tx.id})">✏️</button>
+                    <button class="delete-btn" onclick="deleteTransaction('${tx.docId}', ${tx.id})">🗑️</button>
+                </div>
             </div>
         `;
     });
@@ -1576,8 +1548,6 @@ window.shareReport = shareReport;
 window.fetchTransactionsForDate = fetchTransactionsForDate;
 window.filterAdminCatalog = filterAdminCatalog;
 window.toggleAddForm = toggleAddForm;
-
-// Phase 2 & 3 Shift Management Exports
 window.loadFloorMap = loadFloorMap;
 window.handleDeskSelect = handleDeskSelect;
 window.confirmOpenDesk = confirmOpenDesk;
@@ -1590,8 +1560,6 @@ window.saveAdjustment = saveAdjustment;
 window.renderLiveFloorTab = renderLiveFloorTab;
 window.openTransferModal = openTransferModal;
 window.executeTransfer = executeTransfer;
-
-// Phase 3 Edit & Trash Exports
 window.openEditTx = openEditTx;
 window.toggleEditSplitFields = toggleEditSplitFields;
 window.updateSplitTotal = updateSplitTotal;
@@ -1600,3 +1568,4 @@ window.deleteTransaction = deleteTransaction;
 window.openTrash = openTrash;
 window.restoreTx = restoreTx;
 window.emptyTrash = emptyTrash;
+window.permanentlyDeleteTx = permanentlyDeleteTx;
