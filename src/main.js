@@ -965,28 +965,6 @@ async function executeTransfer() {
     }
 }
 
-// Ensure the floor map triggers when the app initializes
-window.loadFloorMap = loadFloorMap;
-window.handleDeskSelect = handleDeskSelect;
-window.confirmOpenDesk = confirmOpenDesk;
-window.initiateCloseDesk = initiateCloseDesk;
-window.processCloseDeskStep2 = processCloseDeskStep2;
-window.calculateRetained = calculateRetained;
-window.finalizeCloseDesk = finalizeCloseDesk;
-window.openAdjustmentModal = openAdjustmentModal;
-window.saveAdjustment = saveAdjustment;
-window.renderLiveFloorTab = renderLiveFloorTab;
-window.openTransferModal = openTransferModal;
-window.executeTransfer = executeTransfer;
-window.openEditTx = openEditTx;
-window.toggleEditSplitFields = toggleEditSplitFields;
-window.updateSplitTotal = updateSplitTotal;
-window.saveTxEdit = saveTxEdit;
-window.deleteTransaction = deleteTransaction;
-window.openTrash = openTrash;
-window.restoreTx = restoreTx;
-window.emptyTrash = emptyTrash;
-
 // --- UI NAVIGATION ---
 function switchTab(tabId, title) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
@@ -1318,181 +1296,7 @@ async function addTransactionToCloud(type, name, amount, qty, payment, cashAmt =
     }
 }
 
-// --- EDIT TRANSACTION LOGIC ---
-let currentEditingTxId = null;
-
-function toggleEditSplitFields() {
-    let method = document.getElementById('edit-tx-payment').value;
-    document.getElementById('edit-split-fields').style.display = (method === 'Split') ? 'flex' : 'none';
-}
-
-function updateSplitTotal() {
-    let cash = parseFloat(document.getElementById('edit-tx-cash').value) || 0;
-    let mfs = parseFloat(document.getElementById('edit-tx-mfs').value) || 0;
-    document.getElementById('edit-tx-amount').value = cash + mfs;
-}
-
-function openEditTx(localId) {
-    let tx = transactions.find(t => t.id === localId);
-    if (!tx) return;
-    currentEditingTxId = localId;
-    document.getElementById('edit-tx-name').innerText = tx.name;
-    document.getElementById('edit-tx-qty').value = tx.qty;
-    document.getElementById('edit-tx-amount').value = tx.amount;
-    document.getElementById('edit-tx-payment').value = tx.payment;
-    document.getElementById('edit-tx-cash').value = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : '');
-    document.getElementById('edit-tx-mfs').value = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : '');
-    toggleEditSplitFields();
-    openModal('modal-edit-tx');
-}
-
-async function saveTxEdit() {
-    if (!currentEditingTxId || !currentUser) return;
-    let txIndex = transactions.findIndex(t => t.id === currentEditingTxId);
-    if (txIndex === -1) return;
-    let tx = transactions[txIndex];
-    
-    let newQty = parseInt(document.getElementById('edit-tx-qty').value) || 0;
-    let newAmount = parseFloat(document.getElementById('edit-tx-amount').value) || 0;
-    let newPayment = document.getElementById('edit-tx-payment').value;
-    let newCashAmt = 0, newMfsAmt = 0;
-
-    if (newPayment === 'Cash') { newCashAmt = newAmount; }
-    else if (newPayment === 'MFS') { newMfsAmt = newAmount; }
-    else if (newPayment === 'Split') {
-        newCashAmt = parseFloat(document.getElementById('edit-tx-cash').value) || 0;
-        newMfsAmt = parseFloat(document.getElementById('edit-tx-mfs').value) || 0;
-        if (Math.abs((newCashAmt + newMfsAmt) - newAmount) > 0.01) {
-            alert("Split amounts must equal the Total Tk!");
-            return;
-        }
-    }
-
-    if (newAmount < 0 || newCashAmt < 0 || newMfsAmt < 0 || newQty < 0) {
-        alert("Error: Amounts and quantities cannot be negative numbers!");
-        return;
-    }
-
-    tx.qty = newQty; tx.amount = newAmount; tx.payment = newPayment;
-    tx.cashAmt = newCashAmt; tx.mfsAmt = newMfsAmt; tx.isEdited = true; 
-
-    renderReport();
-    closeModal('modal-edit-tx');
-
-    if (tx.docId) {
-        try {
-            const txDocRef = doc(db, 'transactions', tx.docId);
-            await updateDoc(txDocRef, {
-                qty: newQty, amount: newAmount, payment: newPayment,
-                cashAmt: newCashAmt, mfsAmt: newMfsAmt, isEdited: true 
-            });
-            showFlashMessage("Updated in Cloud!");
-        } catch(e) {
-            console.error("Edit failed:", e);
-            showFlashMessage("Error saving edit.");
-        }
-    }
-}
-
-// --- TRASH SYSTEM (SOFT DELETE) ---
-async function deleteTransaction(docId, localId) {
-    if(!currentUser) return;
-    if (!confirm("Move this transaction to Trash?")) return;
-
-    let txIndex = transactions.findIndex(tx => tx.id === localId);
-    if (txIndex > -1) {
-        let tx = transactions.splice(txIndex, 1)[0];
-        tx.isDeleted = true;
-        trashTransactions.push(tx);
-        renderReport();
-    }
-    if(docId) {
-        try {
-            const txDocRef = doc(db, 'transactions', docId);
-            await updateDoc(txDocRef, { isDeleted: true });
-            showFlashMessage("Moved to Trash");
-        } catch(e) { console.error("Delete failed:", e); }
-    }
-}
-
-function openTrash() { renderTrash(); openModal('modal-trash'); }
-
-function renderTrash() {
-    let trashHTML = '';
-    [...trashTransactions].reverse().forEach(tx => {
-        trashHTML += `
-            <div class="history-item" style="opacity: 0.7;">
-                <div class="history-info">
-                    <span class="history-title" style="text-decoration: line-through;">${tx.qty}x ${tx.name}</span>
-                    <span class="history-meta">${tx.time} • ${tx.amount} ${userCurrency}</span>
-                </div>
-                <div style="display: flex; gap: 4px;">
-                    <button class="delete-btn" style="color: #10b981; border: 1px solid #10b981; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem;" onclick="restoreTransaction('${tx.docId}', ${tx.id})">♻️ Restore</button>
-                    <button class="delete-btn" style="color: #ef4444; border: 1px solid #ef4444; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem;" onclick="permanentlyDeleteTx('${tx.docId}', ${tx.id})">❌ Delete</button>
-                </div>
-            </div>
-        `;
-    });
-    document.getElementById('trash-log').innerHTML = trashHTML || '<div class="placeholder-text">Trash is empty</div>';
-}
-
-async function permanentlyDeleteTx(docId, localId) {
-    if(!currentUser) return;
-    if (!confirm("Permanently delete this transaction? This cannot be undone.")) return;
-    trashTransactions = trashTransactions.filter(tx => tx.id !== localId);
-    renderTrash();
-    if(docId) {
-        try {
-            const txDocRef = doc(db, 'transactions', docId);
-            await deleteDoc(txDocRef);
-            showFlashMessage("Permanently Deleted!");
-        } catch(e) { console.error("Hard delete failed:", e); }
-    }
-}
-
-async function emptyTrash() {
-    if(!currentUser || trashTransactions.length === 0) return;
-    if (!confirm("Are you sure you want to permanently delete ALL items in the trash? This cannot be undone.")) return;
-    let itemsToDelete = [...trashTransactions];
-    trashTransactions = [];
-    renderTrash();
-    showFlashMessage("Emptying Trash...");
-    try {
-        let deletePromises = itemsToDelete.map(tx => {
-            if(tx.docId) {
-                const txDocRef = doc(db, 'transactions', tx.docId);
-                return deleteDoc(txDocRef);
-            }
-        });
-        await Promise.all(deletePromises);
-        showFlashMessage("Trash Emptied!");
-    } catch(e) {
-        console.error("Empty trash failed:", e);
-        showFlashMessage("Error emptying trash.");
-    }
-}
-
-async function restoreTransaction(docId, localId) {
-    if(!currentUser) return;
-    let txIndex = trashTransactions.findIndex(tx => tx.id === localId);
-    if (txIndex > -1) {
-        let tx = trashTransactions.splice(txIndex, 1)[0];
-        tx.isDeleted = false; tx.isRestored = true; 
-        transactions.push(tx);
-        transactions.sort((a, b) => a.id - b.id);
-        renderReport(); renderTrash();
-    }
-    if(docId) {
-        try {
-            const txDocRef = doc(db, 'transactions', docId);
-            await updateDoc(txDocRef, {
-                isDeleted: false, isRestored: true 
-            });
-            showFlashMessage("Transaction Restored!");
-            closeModal('modal-trash');
-        } catch(e) { console.error("Restore failed:", e); }
-    }
-}
+// (Old Edit/Trash logic removed to prevent duplicates)
 
 // ==========================================
 //         ADMIN DASHBOARD CONTROLS
@@ -1764,18 +1568,35 @@ window.selectItem = selectItem;
 window.qtyKeyPress = qtyKeyPress;
 window.qtyBackspace = qtyBackspace;
 window.saveQuantity = saveQuantity;
-window.openEditTx = openEditTx;
-window.saveTxEdit = saveTxEdit;
-window.toggleEditSplitFields = toggleEditSplitFields;
-window.updateSplitTotal = updateSplitTotal;
-window.deleteTransaction = deleteTransaction;
-window.openTrash = openTrash;
-window.emptyTrash = emptyTrash;
-window.permanentlyDeleteTx = permanentlyDeleteTx;
-window.restoreTransaction = restoreTransaction;
 window.openSettings = openSettings;
 window.removeRow = removeRow;
 window.addNewItem = addNewItem;
 window.saveSettings = saveSettings;
 window.shareReport = shareReport;
 window.fetchTransactionsForDate = fetchTransactionsForDate;
+window.filterAdminCatalog = filterAdminCatalog;
+window.toggleAddForm = toggleAddForm;
+
+// Phase 2 & 3 Shift Management Exports
+window.loadFloorMap = loadFloorMap;
+window.handleDeskSelect = handleDeskSelect;
+window.confirmOpenDesk = confirmOpenDesk;
+window.initiateCloseDesk = initiateCloseDesk;
+window.processCloseDeskStep2 = processCloseDeskStep2;
+window.calculateRetained = calculateRetained;
+window.finalizeCloseDesk = finalizeCloseDesk;
+window.openAdjustmentModal = openAdjustmentModal;
+window.saveAdjustment = saveAdjustment;
+window.renderLiveFloorTab = renderLiveFloorTab;
+window.openTransferModal = openTransferModal;
+window.executeTransfer = executeTransfer;
+
+// Phase 3 Edit & Trash Exports
+window.openEditTx = openEditTx;
+window.toggleEditSplitFields = toggleEditSplitFields;
+window.updateSplitTotal = updateSplitTotal;
+window.saveTxEdit = saveTxEdit;
+window.deleteTransaction = deleteTransaction;
+window.openTrash = openTrash;
+window.restoreTx = restoreTx;
+window.emptyTrash = emptyTrash;
