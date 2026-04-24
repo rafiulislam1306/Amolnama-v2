@@ -284,10 +284,218 @@ async function confirmOpenDesk() {
     }
 }
 
+// ==========================================
+//    PHASE 2: CLOSE DESK & RECONCILIATION
+// ==========================================
+
+let expectedClosingStats = { cash: 0, inventory: {} };
+let actualClosingStats = { cash: 0, inventory: {} };
+
+async function initiateCloseDesk() {
+    if (!currentSessionId) {
+        alert("You are not currently assigned to an open desk.");
+        return;
+    }
+
+    // 1. Calculate Expected Totals
+    const sessionRef = doc(db, 'sessions', currentSessionId);
+    const sessionSnap = await getDoc(sessionRef);
+    if (!sessionSnap.exists()) return;
+
+    const sessionData = sessionSnap.data();
+    let expectedCash = parseFloat(sessionData.openingBalances.cash) || 0;
+    let expectedInv = { ...(sessionData.openingBalances.inventory || {}) };
+
+    // Query Firestore to ensure we have the absolute latest transactions for this desk
+    const txQuery = query(collection(db, 'transactions'), where('sessionId', '==', currentSessionId), where('isDeleted', '==', false));
+    const txSnap = await getDocs(txQuery);
+
+    txSnap.forEach(docSnap => {
+        let tx = docSnap.data();
+        expectedCash += (tx.cashAmt || 0); // Adds cash sales
+
+        // Deduct inventory if it's a physical item sale
+        if (tx.name !== 'ERS Flexiload') {
+            expectedInv[tx.name] = (expectedInv[tx.name] || 0) - tx.qty;
+        }
+    });
+
+    expectedClosingStats = { cash: expectedCash, inventory: expectedInv };
+
+    // 2. Render Step 1 Modal (Physical Count)
+    let invHTML = '';
+    let itemsToCount = Object.keys(expectedInv);
+    
+    if(itemsToCount.length === 0) {
+        invHTML = '<p style="color:#64748b; font-size:0.9rem; text-align:center;">No physical inventory tracked today.</p>';
+    } else {
+        itemsToCount.forEach(itemName => {
+            // Only ask them to count it if it actually had movement or a starting balance
+            invHTML += `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
+                    <label class="admin-label" style="margin:0; font-size:0.85rem; color:#334155;">${itemName}</label>
+                    <input type="number" class="settings-input actual-inv-input" data-name="${itemName}" style="width:80px; text-align:center; padding:8px; border-color:#cbd5e1;" placeholder="0">
+                </div>
+            `;
+        });
+    }
+
+    const modalContent = `
+        <h3 class="modal-title" style="color: #0f172a; margin-bottom: 4px;">Close ${currentDeskName}</h3>
+        <p style="text-align: center; color: #64748b; font-size: 0.9rem; margin-bottom: 24px;">Step 1: Physical Reconciliation</p>
+
+        <div class="admin-form-card" style="padding: 16px; margin-bottom: 16px;">
+            <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">Actual Cash in Drawer</label>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-size: 1.5rem; font-weight: bold; color: #0f172a;">Tk</span>
+                <input type="number" id="actual-cash-input" class="settings-input" style="font-size: 1.5rem; padding: 12px; height: auto;" placeholder="0">
+            </div>
+        </div>
+
+        <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
+            <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 16px;">Count Physical Inventory</label>
+            ${invHTML}
+        </div>
+
+        <button class="btn-primary-full" onclick="processCloseDeskStep2()">NEXT STEP ➡️</button>
+        <button class="modal-close" style="color: #ef4444;" onclick="closeModal('modal-close-desk')">Cancel</button>
+    `;
+
+    document.getElementById('close-desk-content').innerHTML = modalContent;
+    openModal('modal-close-desk');
+}
+
+function processCloseDeskStep2() {
+    let actualCash = parseFloat(document.getElementById('actual-cash-input').value);
+    if (isNaN(actualCash) || actualCash < 0) {
+        alert("Please enter the total physical cash currently in the drawer.");
+        return;
+    }
+
+    actualClosingStats.cash = actualCash;
+    actualClosingStats.inventory = {};
+
+    document.querySelectorAll('.actual-inv-input').forEach(input => {
+        let itemName = input.getAttribute('data-name');
+        actualClosingStats.inventory[itemName] = parseInt(input.value) || 0;
+    });
+
+    let variance = actualCash - expectedClosingStats.cash;
+    
+    let warningHTML = '';
+    if (variance < 0) {
+        warningHTML = `
+            <div style="background: #fef2f2; border: 2px solid #ef4444; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+                <h4 style="color: #b91c1c; margin-bottom: 8px;">⚠️ SHORTAGE DETECTED</h4>
+                <p style="color: #991b1b; font-size: 0.95rem; margin-bottom: 0;">You are short <strong>${Math.abs(variance)} Tk</strong>. Expected: ${expectedClosingStats.cash} Tk.</p>
+            </div>
+        `;
+    } else if (variance > 0) {
+        warningHTML = `
+            <div style="background: #f0fdf4; border: 2px solid #22c55e; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+                <h4 style="color: #15803d; margin-bottom: 8px;">✅ OVERAGE DETECTED</h4>
+                <p style="color: #166534; font-size: 0.95rem; margin-bottom: 0;">You have an overage of <strong>+${variance} Tk</strong>. Expected: ${expectedClosingStats.cash} Tk.</p>
+            </div>
+        `;
+    } else {
+        warningHTML = `
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 24px; text-align: center;">
+                <h4 style="color: #0ea5e9; margin-bottom: 0;">⚖️ DRAWER IS PERFECTLY BALANCED</h4>
+            </div>
+        `;
+    }
+
+    const modalContent = `
+        <h3 class="modal-title" style="color: #0f172a; margin-bottom: 4px;">Finalize Handover</h3>
+        <p style="text-align: center; color: #64748b; font-size: 0.9rem; margin-bottom: 24px;">Step 2: Manager Drop & Close</p>
+
+        ${warningHTML}
+
+        <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
+            <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">Cash Drop to Manager</label>
+            <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 12px;">How much of the <strong>${actualCash} Tk</strong> are you handing to the manager for the vault?</p>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-size: 1.5rem; font-weight: bold; color: #0f172a;">Tk</span>
+                <input type="number" id="manager-drop-input" class="settings-input" style="font-size: 1.5rem; padding: 12px; height: auto;" placeholder="0" oninput="calculateRetained()">
+            </div>
+            <div style="margin-top: 16px; font-size: 0.95rem; color: #475569; padding-top: 12px; border-top: 1px solid #e2e8f0;">
+                Retained Drawer Float (Tomorrow): <strong id="retained-float-display" style="color: #0ea5e9;">${actualCash} Tk</strong>
+            </div>
+        </div>
+
+        <button class="btn-primary-full" style="background: ${variance < 0 ? '#ef4444' : '#0ea5e9'};" onclick="finalizeCloseDesk(${variance})">
+            ${variance < 0 ? '🚨 FORCE CLOSE & LOG SHORTAGE' : '🔒 CONFIRM & CLOSE DESK'}
+        </button>
+        <button class="modal-close" style="color: #64748b;" onclick="initiateCloseDesk()">⬅️ Go Back to Edit Counts</button>
+    `;
+
+    document.getElementById('close-desk-content').innerHTML = modalContent;
+}
+
+function calculateRetained() {
+    let drop = parseFloat(document.getElementById('manager-drop-input').value) || 0;
+    let retained = actualClosingStats.cash - drop;
+    document.getElementById('retained-float-display').innerText = retained + " Tk";
+}
+
+async function finalizeCloseDesk(variance) {
+    let dropAmount = parseFloat(document.getElementById('manager-drop-input').value) || 0;
+    if (dropAmount < 0 || dropAmount > actualClosingStats.cash) {
+        alert("Manager drop cannot be negative or more than the actual cash currently in the drawer.");
+        return;
+    }
+
+    let retainedFloat = actualClosingStats.cash - dropAmount;
+    
+    // We update the inventory to explicitly be the counted actuals so it rolls over perfectly
+    actualClosingStats.inventory = { ...actualClosingStats.inventory }; 
+
+    try {
+        // 1. Seal the Session Ledger
+        const sessionRef = doc(db, 'sessions', currentSessionId);
+        await updateDoc(sessionRef, {
+            closedBy: userDisplayName,
+            closedByUid: currentUser.uid,
+            closedAt: serverTimestamp(),
+            status: 'closed',
+            expectedClosing: expectedClosingStats,
+            actualClosing: actualClosingStats,
+            variance: variance,
+            hasDiscrepancy: variance !== 0,
+            managerDrop: dropAmount,
+            retainedFloat: retainedFloat
+        });
+
+        // 2. Shut Down the Desk
+        const deskRef = doc(db, 'desks', currentDeskId);
+        await updateDoc(deskRef, {
+            status: 'closed',
+            currentSessionId: null
+        });
+
+        // 3. Clear State & Boot to Floor Map
+        currentDeskId = null;
+        currentSessionId = null;
+        currentDeskName = '';
+        closeModal('modal-close-desk');
+        
+        showFlashMessage("Desk Successfully Closed!");
+        loadFloorMap(); 
+
+    } catch (e) {
+        console.error("Error closing desk:", e);
+        alert("Offline: Could not close desk. Check connection.");
+    }
+}
+
 // Ensure the floor map triggers when the app initializes
 window.loadFloorMap = loadFloorMap;
 window.handleDeskSelect = handleDeskSelect;
 window.confirmOpenDesk = confirmOpenDesk;
+window.initiateCloseDesk = initiateCloseDesk;
+window.processCloseDeskStep2 = processCloseDeskStep2;
+window.calculateRetained = calculateRetained;
+window.finalizeCloseDesk = finalizeCloseDesk;
 
 // --- UI NAVIGATION ---
 function switchTab(tabId, title) {

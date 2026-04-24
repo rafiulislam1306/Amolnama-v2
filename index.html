@@ -143,6 +143,7 @@
         </div>
         
         <button class="action-btn" style="width: 100%; margin-top: 16px; background-color: var(--bg-color); color: var(--text-secondary); border: 1px dashed var(--border-color);" onclick="openTrash()">🗑️ View Trash (Today)</button>
+        <button class="btn-primary-full" style="background-color: #0f172a; margin-top: 24px; padding: 16px;" onclick="initiateCloseDesk()">🔒 CLOSE DESK & RECONCILE</button>
     </main>
 
     <div id="modal-new-sim" class="modal-overlay">
@@ -327,6 +328,11 @@
             <button class="btn-primary-full" onclick="confirmOpenDesk()">🚀 CONFIRM & OPEN DESK</button>
             <button class="modal-close" style="color: #64748b;" onclick="closeModal('modal-open-desk')">Cancel</button>
         </div>
+    </div>
+
+    <div id="modal-close-desk" class="modal-overlay" style="z-index: 9500;">
+        <div class="modal-content" id="close-desk-content" style="background-color: #f8fafc;">
+                    </div>
     </div>
 
     <script type="module" src="/src/main.js"></script>
