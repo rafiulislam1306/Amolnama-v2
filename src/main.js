@@ -54,6 +54,7 @@ let currentUserRole = 'user'; // Defaults to standard user
 let currentDeskId = null; 
 let currentSessionId = null;
 let currentDeskName = '';
+let currentOpeningCash = 0; // NEW: Tracks the cash float
 let rolloverStock = {}; // Holds yesterday's SIMs
 
 // --- GLOBAL DATABASE STRUCTURE ---
@@ -189,21 +190,27 @@ async function handleDeskSelect(deskId, deskName, status, sessionId) {
         currentSessionId = sessionId;
         document.getElementById('modal-desk-select').classList.remove('active');
         document.getElementById('header-title').innerText = `${deskName} (Joined)`;
+        
+        // Fetch session to grab the opening balance
+        try {
+            const sessionSnap = await getDoc(doc(db, 'sessions', sessionId));
+            if (sessionSnap.exists() && sessionSnap.data().openingBalances) {
+                currentOpeningCash = parseFloat(sessionSnap.data().openingBalances.cash) || 0;
+            }
+        } catch(e) { console.error(e); }
+
         await fetchTransactionsForDate(); 
         showFlashMessage(`Joined ${deskName}!`);
     } else {
         document.getElementById('open-desk-title').innerText = `Open ${deskName}`;
         document.getElementById('open-cash-float').value = '';
-        document.getElementById('open-desk-inventory-container').innerHTML = '<div class="spinner" style="margin: 0 auto;"></div>';
+        document.getElementById('open-desk-inventory-container').innerHTML = 'Fetching yesterday\'s stock...';
         openModal('modal-open-desk');
 
         const sessionsRef = collection(db, 'sessions');
-        // This query requires a Firestore index. If it fails, we catch it gracefully.
         const q = query(sessionsRef, where('deskId', '==', deskId), orderBy('closedAt', 'desc'), limit(1));
         
-        // Reset rollover stock
         rolloverStock = {}; 
-
         try {
             const lastSessionSnap = await getDocs(q);
             if (!lastSessionSnap.empty) {
@@ -212,20 +219,12 @@ async function handleDeskSelect(deskId, deskName, status, sessionId) {
                     rolloverStock = lastSession.actualClosing.inventory;
                 }
             }
-        } catch (e) {
-            console.error("Missing Index or Offline. Proceeding with empty rollover:", e);
-            // We DO NOT show an error message. We just let rolloverStock remain empty 
-            // so the agent can manually input the stock themselves.
-        }
+        } catch (e) { console.error("No index or offline:", e); }
 
-        // ALWAYS render the inventory list, even if fetching failed
         let rolloverHTML = '';
         Object.values(globalCatalog).forEach(item => {
-            // We load all physical items (SIMs, Kits). Since "Recycle SIM" and "Power Prime" 
-            // are in your catalog, they will perfectly show up here for anyone to input.
             if (item.isActive && item.cat !== 'service' && item.cat !== 'free-action') {
                 let expectedQty = rolloverStock[item.name] || 0;
-                
                 rolloverHTML += `
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
                         <label class="admin-label" style="margin:0; font-size:0.85rem; color:#334155;">${item.name}</label>
@@ -242,7 +241,6 @@ async function handleDeskSelect(deskId, deskName, status, sessionId) {
 
 async function confirmOpenDesk() {
     let floatAmount = parseFloat(document.getElementById('open-cash-float').value);
-    
     if (isNaN(floatAmount) || floatAmount < 0) {
         alert("You must enter the exact physical cash float provided by the manager.");
         return;
@@ -259,6 +257,7 @@ async function confirmOpenDesk() {
 
     const newSessionRef = doc(collection(db, 'sessions'));
     currentSessionId = newSessionRef.id;
+    currentOpeningCash = floatAmount; // Set local memory
 
     const sessionData = {
         deskId: currentDeskId,
@@ -267,28 +266,22 @@ async function confirmOpenDesk() {
         openedByUid: currentUser.uid,
         openedAt: serverTimestamp(),
         status: 'open',
-        openingBalances: {
-            cash: floatAmount,
-            inventory: verifiedStartingInventory 
-        }
+        openingBalances: { cash: floatAmount, inventory: verifiedStartingInventory }
     };
 
     try {
         await setDoc(newSessionRef, sessionData);
         await updateDoc(doc(db, 'desks', currentDeskId), {
-            status: 'open',
-            currentSessionId: currentSessionId
+            status: 'open', currentSessionId: currentSessionId
         });
 
         closeModal('modal-open-desk');
         document.getElementById('modal-desk-select').classList.remove('active');
         document.getElementById('header-title').innerText = `${currentDeskName}`;
         
-        transactions = [];
-        trashTransactions = [];
-        renderReport();
+        transactions = []; trashTransactions = [];
+        renderReport(currentOpeningCash);
         showFlashMessage(`${currentDeskName} is now OPEN!`);
-
     } catch (e) {
         console.error("Failed to open desk:", e);
         alert("Error opening desk. Please check connection.");
@@ -1120,36 +1113,39 @@ function getTodayISO() {
 
 async function fetchTransactionsForDate() {
     if (!currentUser) return;
-
     const datePicker = document.getElementById('report-date-picker');
     let selectedIsoDate = datePicker.value;
-
-    if (!selectedIsoDate) {
-        selectedIsoDate = getTodayISO();
-        datePicker.value = selectedIsoDate;
-    }
+    if (!selectedIsoDate) { selectedIsoDate = getTodayISO(); datePicker.value = selectedIsoDate; }
 
     const targetDateStr = formatToGBDate(selectedIsoDate);
     const isToday = targetDateStr === new Date().toLocaleDateString('en-GB');
     const dateLabel = isToday ? 'Today' : targetDateStr;
 
-    if (txListenerUnsubscribe) {
-        txListenerUnsubscribe();
-        txListenerUnsubscribe = null;
+    // Grab opening cash (Today = Memory. Past Date = Fetch from DB)
+    let reportOpeningCash = 0;
+    if (isToday) {
+        reportOpeningCash = currentOpeningCash;
+    } else {
+        try {
+            const sessionsRef = collection(db, 'sessions');
+            const sessQ = query(sessionsRef, where('deskId', '==', currentDeskId), where('dateStr', '==', targetDateStr), limit(1));
+            const sessSnap = await getDocs(sessQ);
+            if (!sessSnap.empty && sessSnap.docs[0].data().openingBalances) {
+                reportOpeningCash = parseFloat(sessSnap.docs[0].data().openingBalances.cash) || 0;
+            }
+        } catch(e) {}
     }
+
+    if (txListenerUnsubscribe) { txListenerUnsubscribe(); txListenerUnsubscribe = null; }
 
     try {
         const txRef = collection(db, 'transactions');
         const q = query(txRef, where('dateStr', '==', targetDateStr));
 
         txListenerUnsubscribe = onSnapshot(q, (txSnapshot) => {
-            transactions = [];
-            trashTransactions = []; 
-
+            transactions = []; trashTransactions = []; 
             txSnapshot.forEach(doc => {
-                let tx = doc.data();
-                tx.docId = doc.id; 
-                
+                let tx = doc.data(); tx.docId = doc.id; 
                 if (tx.deskId === currentDeskId) {
                     if (tx.isDeleted) trashTransactions.push(tx);
                     else transactions.push(tx);
@@ -1159,286 +1155,37 @@ async function fetchTransactionsForDate() {
             transactions.sort((a, b) => a.id - b.id);
             trashTransactions.sort((a, b) => a.id - b.id);
             
-            renderReport();
+            // Pass the correct opening balance into the renderer
+            renderReport(reportOpeningCash);
             
             const financialLabel = document.getElementById('financial-date-label');
             if (financialLabel) financialLabel.innerHTML = `${dateLabel} 🗓️`;
-
-            if (document.getElementById('tab-floor').classList.contains('active')) {
-                renderLiveFloorTab();
-            }
+            if (document.getElementById('tab-floor').classList.contains('active')) renderLiveFloorTab();
         });
-
-    } catch (e) {
-        console.error("Error setting up live data:", e);
-        showFlashMessage("Error connecting to live ledger.");
-    }
+    } catch (e) { console.error(e); }
 }
 
-// --- UI RENDERING FOR CATALOG ---
-function renderAppUI() {
-    document.querySelectorAll('.dynamic-item').forEach(el => el.remove());
-    const allItems = Object.values(globalCatalog).sort((a, b) => (a.order || 0) - (b.order || 0));
-
-    allItems.forEach(item => {
-        if (!item.isActive) return;
-        let safePrice = parseFloat(item.price) || 0;
-        let containerId = "";
-        let isModal = false;
-        
-        if (item.cat === 'new-sim') { containerId = 'container-new-sim'; isModal = true; }
-        else if (item.cat === 'paid-rep') { containerId = 'container-paid-rep'; isModal = true; }
-        else if (item.cat === 'foc') { containerId = 'container-foc'; isModal = true; }
-        else if (item.cat === 'service') { containerId = 'container-services'; }
-        else if (item.cat === 'free-action') { containerId = 'container-free-actions'; }
-
-        let container = document.getElementById(containerId);
-        if (!container) return;
-
-        let btn = document.createElement('button');
-        btn.className = (isModal ? 'modal-item' : 'action-btn') + ' dynamic-item';
-        btn.setAttribute('onclick', `selectItem('${item.name}', ${safePrice})`);
-        
-        if (isModal) {
-            let displayName = item.display || item.name;
-            btn.innerHTML = `<span>${displayName}</span><span>${safePrice} ${userCurrency}</span>`;
-            let cancelBtn = container.querySelector('.modal-close');
-            container.insertBefore(btn, cancelBtn);
-        } else {
-            btn.innerText = item.display || item.name;
-            container.appendChild(btn);
-        }
-    });
-}
-
-// ==========================================
-//        FIRESTORE CLOUD DATA LOGIC
-// ==========================================
-async function initUserData() {
-    if(!currentUser) return;
-    try {
-        const userDocRef = doc(db, 'users', currentUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        
-        if (userDocSnap.exists() && userDocSnap.data().role) {
-            currentUserRole = userDocSnap.data().role;
-        } else {
-            await setDoc(userDocRef, { email: currentUser.email, role: 'user' }, { merge: true });
-            currentUserRole = 'user';
-        }
-        const globalRef = doc(db, 'global', 'settings');
-        const globalDoc = await getDoc(globalRef);
-        
-        if (globalDoc.exists() && globalDoc.data().catalog) {
-            globalCatalog = globalDoc.data().catalog;
-        } else {
-            globalCatalog = defaultCatalog;
-            if (currentUserRole === 'admin') {
-                await setDoc(globalRef, { catalog: globalCatalog }, { merge: true });
-            }
-        }
-
-        document.getElementById('report-user-name').innerText = userDisplayName;
-        if (currentUser.email) document.getElementById('report-user-email').innerText = currentUser.email;
-        if (currentUser.photoURL) {
-            document.getElementById('report-user-photo').src = currentUser.photoURL;
-            document.getElementById('header-user-photo').src = currentUser.photoURL;
-        }
-        if(document.getElementById('tab-ers').classList.contains('active')) {
-            document.getElementById('header-title').innerText = userDisplayName;
-        }
-
-        updateCurrencyUI();
-        renderAppUI();
-
-        document.getElementById('report-date-picker').value = getTodayISO();
-        await loadFloorMap();
-        
-    } catch(e) {
-        console.error("Error loading data:", e);
-        showFlashMessage("Error loading data!");
-    } finally {
-        if (isInitialLoad) {
-            document.getElementById('splash-screen').classList.remove('active');
-            isInitialLoad = false;
-        }
-    }
-}
-
-// ==========================================
-//         ADMIN DASHBOARD CONTROLS
-// ==========================================
-function filterAdminCatalog() {
-    let text = document.getElementById('admin-search').value.toLowerCase();
-    document.querySelectorAll('.admin-row-card').forEach(row => {
-        let name = row.querySelector('.i-name').value.toLowerCase();
-        row.style.display = name.includes(text) ? 'flex' : 'none';
-    });
-}
-
-function toggleAddForm() {
-    let form = document.getElementById('admin-add-form');
-    form.style.display = form.style.display === 'none' ? 'block' : 'none';
-}
-
-function openSettings() {
-    let container = document.getElementById('settings-list-container');
-    container.innerHTML = ''; 
-    document.getElementById('admin-search').value = '';
-    document.getElementById('admin-add-form').style.display = 'none';
-
-    let itemsArray = Object.entries(globalCatalog)
-                           .map(([key, item]) => ({key, ...item}))
-                           .sort((a, b) => (a.order || 0) - (b.order || 0));
-
-    itemsArray.forEach(item => {
-        if (!item.isActive) return;
-        let row = document.createElement('div');
-        row.className = 'admin-row-card admin-row';
-        row.setAttribute('data-key', item.key);
-        row.innerHTML = `
-            <div class="admin-row-header">
-                <span class="drag-handle">⋮⋮</span>
-                <input type="text" class="settings-input i-name" style="flex:1; border:none; background:transparent; font-weight:700; color:#0f172a; padding:0; min-width:0;" value="${item.name}">
-                <button class="delete-btn" style="color: #ef4444; padding: 4px 8px; font-size: 1.1rem; flex-shrink: 0;" onclick="removeRow(this)">🗑️</button>
-            </div>
-            <div class="admin-row-body">
-                <div>
-                    <label class="admin-label">Price (${userCurrency})</label>
-                    <input type="number" class="settings-input i-price" style="padding: 10px; width: 100%; box-sizing: border-box;" value="${item.price}">
-                </div>
-                <div>
-                    <label class="admin-label">Category</label>
-                    <select class="settings-input i-cat" style="padding: 10px; width: 100%; box-sizing: border-box;">
-                        <option value="new-sim" ${item.cat==='new-sim'?'selected':''}>📱 New SIM</option>
-                        <option value="paid-rep" ${item.cat==='paid-rep'?'selected':''}>📦 Paid Rep</option>
-                        <option value="foc" ${item.cat==='foc'?'selected':''}>🆓 FOC</option>
-                        <option value="service" ${item.cat==='service'?'selected':''}>🛠️ Service</option>
-                        <option value="free-action" ${item.cat==='free-action'?'selected':''}>🏢 Free Action</option>
-                    </select>
-                </div>
-            </div>
-        `;
-        container.appendChild(row);
-        setupDragAndDrop(row); 
-    });
-    openModal('modal-settings');
-}
-
-let draggedEl = null;
-function setupDragAndDrop(row) {
-    const handle = row.querySelector('.drag-handle');
-    row.setAttribute('draggable', 'true');
-    row.addEventListener('dragstart', () => { draggedEl = row; setTimeout(() => row.style.opacity = '0.5', 0); });
-    row.addEventListener('dragend', () => { draggedEl.style.opacity = '1'; draggedEl = null; });
-    row.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        if (!draggedEl || draggedEl === row) return;
-        const box = row.getBoundingClientRect();
-        const offset = e.clientY - box.top - box.height / 2;
-        if (offset > 0) row.parentNode.insertBefore(draggedEl, row.nextSibling);
-        else row.parentNode.insertBefore(draggedEl, row);
-    });
-
-    handle.addEventListener('touchstart', (e) => {
-        draggedEl = row;
-        row.style.opacity = '0.5';
-        row.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
-    }, { passive: true });
-    
-    handle.addEventListener('touchmove', (e) => {
-        if (!draggedEl) return;
-        e.preventDefault(); 
-        const touch = e.touches[0];
-        const target = document.elementFromPoint(touch.clientX, touch.clientY);
-        const targetRow = target ? target.closest('.admin-row') : null;
-        if (targetRow && targetRow !== draggedEl) {
-            const box = targetRow.getBoundingClientRect();
-            const offset = touch.clientY - box.top - box.height / 2;
-            if (offset > 0) targetRow.parentNode.insertBefore(draggedEl, targetRow.nextSibling);
-            else targetRow.parentNode.insertBefore(draggedEl, targetRow);
-        }
-    }, { passive: false });
-    
-    handle.addEventListener('touchend', () => {
-        if(!draggedEl) return;
-        draggedEl.style.opacity = '1';
-        draggedEl.style.boxShadow = 'none';
-        draggedEl = null;
-    });
-}
-
-function removeRow(btn) {
-    if(confirm("Are you sure you want to delete this item?")) {
-        let row = btn.closest('.admin-row');
-        row.style.display = 'none';
-        row.classList.add('deleted-row'); 
-    }
-}
-
-async function addNewItem() {
-    let nameVal = document.getElementById('new-item-name').value.trim();
-    let priceVal = parseFloat(document.getElementById('new-item-price').value);
-    let catVal = document.getElementById('new-item-category').value;
-    if (nameVal && !isNaN(priceVal) && priceVal >= 0) {
-        let newKey = "item_" + Date.now();
-        let newOrder = Object.keys(globalCatalog).length + 1;
-        globalCatalog[newKey] = { name: nameVal, display: nameVal, price: priceVal, cat: catVal, isActive: true, order: newOrder };
-        document.getElementById('new-item-name').value = '';
-        document.getElementById('new-item-price').value = '';
-        renderAppUI(); openSettings(); 
-        showFlashMessage("Item Added! Don't forget to click Save.");
-    } else alert("Please enter a valid name and a price of 0 or higher.");
-}
-
-async function saveSettings() {
-    if(!currentUser) return;
-    let rows = document.querySelectorAll('.admin-row');
-    let orderCounter = 1;
-    rows.forEach(row => {
-        let key = row.getAttribute('data-key');
-        let isDeleted = row.classList.contains('deleted-row');
-        if (globalCatalog[key]) {
-            if (isDeleted) globalCatalog[key].isActive = false; 
-            else {
-                globalCatalog[key].name = row.querySelector('.i-name').value;
-                globalCatalog[key].display = row.querySelector('.i-name').value; 
-                globalCatalog[key].price = parseFloat(row.querySelector('.i-price').value) || 0;
-                globalCatalog[key].cat = row.querySelector('.i-cat').value;
-                globalCatalog[key].order = orderCounter++; 
-            }
-        }
-    });
-    try {
-        if (currentUserRole === 'admin') {
-            const globalRef = doc(db, 'global', 'settings');
-            await setDoc(globalRef, { catalog: globalCatalog }, { merge: true });
-        }
-        renderAppUI(); closeModal('modal-settings'); showFlashMessage("Settings Saved & Synced!");
-    } catch(e) { console.error(e); showFlashMessage("Error saving settings."); }
-}
-
-function showFlashMessage(text) {
-    let msg = document.createElement('div');
-    msg.innerText = text;
-    msg.style.cssText = "position:fixed; bottom:100px; left:50%; transform:translateX(-50%); background:var(--accent-color); color:white; padding:8px 20px; border-radius:20px; z-index:2000; font-weight:bold; box-shadow:0 4px 6px rgba(0,0,0,0.2);";
-    document.body.appendChild(msg);
-    setTimeout(() => msg.remove(), 1500);
-}
-
-// ==========================================
-//          REPORTING & SHARE LOGIC
-// ==========================================
-function renderReport() {
-    let totalCash = 0, totalMfs = 0, totalErs = 0;
+function renderReport(openingCash = currentOpeningCash) {
+    let cashSales = 0, mfsSales = 0, totalErs = 0, cashAdjs = 0;
     let inventoryCounts = {}; let historyHTML = '';
 
     [...transactions].reverse().forEach(tx => {
         let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
         let safeMfsAmt = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0);
-        totalCash += safeCashAmt; totalMfs += safeMfsAmt;
-        if (tx.name === 'ERS Flexiload') totalErs += tx.amount;
-        else inventoryCounts[tx.name] = (inventoryCounts[tx.name] || 0) + tx.qty;
+        
+        // Categorize Logic
+        if (tx.type === 'adjustment') {
+            cashAdjs += safeCashAmt; // Drops are negative, Adds are positive
+            if (tx.name !== 'Physical Cash') inventoryCounts[tx.name] = (inventoryCounts[tx.name] || 0) + tx.qty;
+        } else if (tx.type === 'transfer_out' || tx.type === 'transfer_in') {
+            inventoryCounts[tx.name] = (inventoryCounts[tx.name] || 0) + tx.qty;
+        } else {
+            // Standard Sales Performance
+            cashSales += safeCashAmt; 
+            mfsSales += safeMfsAmt;
+            if (tx.name === 'ERS Flexiload') totalErs += tx.amount;
+            else inventoryCounts[tx.name] = (inventoryCounts[tx.name] || 0) + tx.qty;
+        }
         
         let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
         let badges = '';
@@ -1462,13 +1209,26 @@ function renderReport() {
         `;
     });
 
-    document.getElementById('tot-cash').innerText = totalCash + ' ' + userCurrency;
-    document.getElementById('tot-mfs').innerText = totalMfs + ' ' + userCurrency;
+    // Write to DOM
+    let elOpening = document.getElementById('tot-opening');
+    if(elOpening) elOpening.innerText = openingCash + ' ' + userCurrency;
+
+    let elCashSales = document.getElementById('tot-cash-sales');
+    if(elCashSales) elCashSales.innerText = cashSales + ' ' + userCurrency;
+
+    let elCashAdj = document.getElementById('tot-cash-adj');
+    if(elCashAdj) elCashAdj.innerText = cashAdjs + ' ' + userCurrency;
+
+    let expectedCash = openingCash + cashSales + cashAdjs;
+    let elExpected = document.getElementById('tot-expected-cash');
+    if(elExpected) elExpected.innerText = expectedCash + ' ' + userCurrency;
+
+    document.getElementById('tot-mfs').innerText = mfsSales + ' ' + userCurrency;
     document.getElementById('tot-ers').innerText = totalErs + ' ' + userCurrency;
 
-    let grandTotal = totalCash + totalMfs;
+    let grandTotalRev = cashSales + mfsSales;
     let totalElement = document.getElementById('report-total-all');
-    if (totalElement) totalElement.innerText = grandTotal + ' ' + userCurrency;
+    if (totalElement) totalElement.innerText = grandTotalRev + ' ' + userCurrency;
 
     let invHTML = '';
     for (const [name, qty] of Object.entries(inventoryCounts)) {
@@ -1480,17 +1240,21 @@ function renderReport() {
 
 function shareReport() {
     let dateStr = formatToGBDate(document.getElementById('report-date-picker').value);
-    let totalCash = document.getElementById('tot-cash').innerText;
+    let totalRevenue = document.getElementById('report-total-all') ? document.getElementById('report-total-all').innerText : "0 Tk";
+    let expectedCash = document.getElementById('tot-expected-cash') ? document.getElementById('tot-expected-cash').innerText : "0 Tk";
     let totalMfs = document.getElementById('tot-mfs').innerText;
     let totalErs = document.getElementById('tot-ers').innerText;
-    let grandTotal = document.getElementById('report-total-all') ? document.getElementById('report-total-all').innerText : "0 Tk";
     
     let reportText = `📅 Daily Report: ${dateStr}\n👤 User: ${userDisplayName}\n\n`;
-    reportText += `💰 FINANCIAL SUMMARY\nTotal Cash Collected: ${totalCash}\nTotal MFS Collected: ${totalMfs}\n----------------------\n🏆 GRAND TOTAL: ${grandTotal}\n\n📱 Total ERS Disbursed: ${totalErs}\n\n📦 INVENTORY & SERVICES\n`;
+    reportText += `💰 FINANCIAL SUMMARY\nTotal Revenue (Sales): ${totalRevenue}\nTotal MFS Collected: ${totalMfs}\n----------------------\n💵 EXPECTED DRAWER CASH: ${expectedCash}\n\n📱 Total ERS Disbursed: ${totalErs}\n\n📦 INVENTORY & SERVICES\n`;
     
     let inventoryCounts = {}; let hasItems = false;
     transactions.forEach(tx => {
-        if (tx.name !== 'ERS Flexiload') { inventoryCounts[tx.name] = (inventoryCounts[tx.name] || 0) + tx.qty; hasItems = true; }
+        if (tx.name !== 'ERS Flexiload') { 
+            if (tx.type === 'adjustment' && tx.name === 'Physical Cash') return;
+            inventoryCounts[tx.name] = (inventoryCounts[tx.name] || 0) + tx.qty; 
+            hasItems = true; 
+        }
     });
 
     if (!hasItems) reportText += `None\n`;
@@ -1500,7 +1264,7 @@ function shareReport() {
     else {
         try {
             if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(reportText).then(() => alert("Report copied to clipboard! You can paste it anywhere.")).catch(() => fallbackCopy(reportText));
+                navigator.clipboard.writeText(reportText).then(() => alert("Report copied to clipboard!")).catch(() => fallbackCopy(reportText));
             } else fallbackCopy(reportText);
         } catch (e) { fallbackCopy(reportText); }
     }
