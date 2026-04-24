@@ -488,6 +488,141 @@ async function finalizeCloseDesk(variance) {
     }
 }
 
+// ==========================================
+//    PHASE 3.1 & 3.2: VOIDS & ADJUSTMENTS
+// ==========================================
+
+async function voidTransaction(docId, localId) {
+    if(!currentSessionId) return;
+    if (!confirm("Are you sure you want to VOID this transaction? This will create a permanent contra-entry on the ledger.")) return;
+
+    let txIndex = transactions.findIndex(tx => tx.id === localId);
+    if (txIndex === -1) return;
+    let originalTx = transactions[txIndex];
+
+    // 1. Mark original as voided in local state
+    originalTx.isVoided = true;
+    renderReport();
+
+    // 2. Create the Contra-Entry (Reverse the math)
+    const voidTx = {
+        id: Date.now(),
+        type: 'void',
+        name: originalTx.name, // Keep exact name so math reverses
+        amount: -(originalTx.amount || 0),
+        qty: -(originalTx.qty || 0),
+        payment: `VOID: ${originalTx.payment}`,
+        cashAmt: -(originalTx.cashAmt || 0),
+        mfsAmt: -(originalTx.mfsAmt || 0),
+        isDeleted: false,
+        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        dateStr: new Date().toLocaleDateString('en-GB'),
+        deskId: currentDeskId,
+        sessionId: currentSessionId,
+        agentId: currentUser.uid,
+        agentName: userDisplayName,
+        originalTxId: docId
+    };
+
+    transactions.push(voidTx);
+    renderReport();
+
+    // 3. Sync to Cloud
+    try {
+        if (docId) {
+            const origDocRef = doc(db, 'transactions', docId);
+            await updateDoc(origDocRef, { isVoided: true });
+        }
+        const txCollectionRef = collection(db, 'transactions');
+        await addDoc(txCollectionRef, voidTx);
+        showFlashMessage("Ledger Updated: Contra-Entry Saved");
+    } catch(e) {
+        console.error("Void failed:", e);
+        showFlashMessage("Offline: Void will sync later.");
+    }
+}
+
+let currentAdjType = 'stock';
+
+function openAdjustmentModal(type) {
+    if(!currentSessionId) {
+        alert("You must open a desk first.");
+        return;
+    }
+    currentAdjType = type;
+    document.getElementById('adj-amount').value = '';
+    
+    let title = type === 'cash' ? '💵 Cash Adjustment' : '📦 Stock Adjustment';
+    document.getElementById('adj-title').innerText = title;
+
+    let selectEl = document.getElementById('adj-item-select');
+    selectEl.innerHTML = '';
+    
+    if (type === 'cash') {
+        selectEl.innerHTML = '<option value="Physical Cash">Physical Cash (Tk)</option>';
+    } else {
+        // Populate with physical catalog items (skip services/actions)
+        Object.values(globalCatalog).forEach(item => {
+            if (item.isActive && item.cat !== 'service' && item.cat !== 'free-action') {
+                let opt = document.createElement('option');
+                opt.value = item.name;
+                opt.innerText = item.name;
+                selectEl.appendChild(opt);
+            }
+        });
+    }
+    
+    openModal('modal-adjustment');
+}
+
+async function saveAdjustment() {
+    let amountOrQty = parseFloat(document.getElementById('adj-amount').value) || 0;
+    if (amountOrQty <= 0) {
+        alert("Please enter a valid number greater than 0.");
+        return;
+    }
+
+    let itemName = document.getElementById('adj-item-select').value;
+    let action = document.getElementById('adj-action-select').value; 
+    
+    // Flip to negative if it's a drop/removal
+    let finalValue = action === 'add' ? amountOrQty : -amountOrQty;
+
+    let qty = currentAdjType === 'stock' ? finalValue : 0;
+    let cashAmt = currentAdjType === 'cash' ? finalValue : 0;
+
+    const adjTx = {
+        id: Date.now(),
+        type: 'adjustment',
+        name: itemName, // Uses actual name so inventory tracker updates perfectly
+        amount: 0, // 0 revenue impact
+        qty: qty,
+        payment: action === 'add' ? 'Received' : 'Dropped',
+        cashAmt: cashAmt,
+        mfsAmt: 0,
+        isDeleted: false,
+        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        dateStr: new Date().toLocaleDateString('en-GB'),
+        deskId: currentDeskId,
+        sessionId: currentSessionId,
+        agentId: currentUser.uid,
+        agentName: userDisplayName
+    };
+
+    transactions.push(adjTx);
+    renderReport();
+    closeModal('modal-adjustment');
+
+    try {
+        const txCollectionRef = collection(db, 'transactions');
+        await addDoc(txCollectionRef, adjTx);
+        showFlashMessage("Ledger Updated!");
+    } catch(e) {
+        console.error("Adjustment failed:", e);
+        showFlashMessage("Offline: Will sync later.");
+    }
+}
+
 // Ensure the floor map triggers when the app initializes
 window.loadFloorMap = loadFloorMap;
 window.handleDeskSelect = handleDeskSelect;
@@ -496,6 +631,9 @@ window.initiateCloseDesk = initiateCloseDesk;
 window.processCloseDeskStep2 = processCloseDeskStep2;
 window.calculateRetained = calculateRetained;
 window.finalizeCloseDesk = finalizeCloseDesk;
+window.voidTransaction = voidTransaction;
+window.openAdjustmentModal = openAdjustmentModal;
+window.saveAdjustment = saveAdjustment;
 
 // --- UI NAVIGATION ---
 function switchTab(tabId, title) {
@@ -1188,10 +1326,12 @@ function renderReport() {
                     </div>
                     <span class="history-meta">${tx.time} • ${tx.amount} ${userCurrency} • ${payLabel}</span>
                 </div>
-                <div style="display: flex; gap: 4px;">
-                    <button class="delete-btn" style="color: var(--accent-color);" onclick="openEditTx(${tx.id})">✏️</button>
-                    <button class="delete-btn" onclick="deleteTransaction('${tx.docId}', ${tx.id})">🗑️</button>
-                </div>
+                <div style="display: flex; gap: 4px; align-items: center;">
+                    ${tx.type === 'void' || tx.isVoided ? 
+                        '<span style="font-size: 0.75rem; color: #ef4444; font-weight: bold; background: #fee2e2; padding: 4px 8px; border-radius: 8px;">VOIDED</span>' : 
+                        `<button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; color: #ef4444; border-color: #ef4444; height: auto;" onclick="voidTransaction('${tx.docId}', ${tx.id})">↩️ Void</button>`
+                    }
+                </div>
             </div>
         `;
     });

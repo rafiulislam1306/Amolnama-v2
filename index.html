@@ -139,10 +139,14 @@
 
         <div class="section-header">🕒 TODAY'S HISTORY</div>
         <div id="history-log">
-            <div class="placeholder-text" style="margin-top:20px;">No transactions today</div>
-        </div>
-        
-        <button class="action-btn" style="width: 100%; margin-top: 16px; background-color: var(--bg-color); color: var(--text-secondary); border: 1px dashed var(--border-color);" onclick="openTrash()">🗑️ View Trash (Today)</button>
+            <div class="placeholder-text" style="margin-top:20px;">No transactions today</div>
+        </div>
+        
+        <div class="section-header" style="margin-top: 24px;">⚡ MID-DAY DESK ACTIONS</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <button class="btn-outline" style="justify-content: center; background: var(--bg-color); height: auto; padding: 12px;" onclick="openAdjustmentModal('stock')">📦 Adj. Stock</button>
+            <button class="btn-outline" style="justify-content: center; background: var(--bg-color); height: auto; padding: 12px;" onclick="openAdjustmentModal('cash')">💵 Adj. Cash</button>
+        </div>
         <button class="btn-primary-full" style="background-color: #0f172a; margin-top: 24px; padding: 16px;" onclick="initiateCloseDesk()">🔒 CLOSE DESK & RECONCILE</button>
     </main>
 
@@ -327,6 +331,35 @@
             </div>
             <button class="btn-primary-full" onclick="confirmOpenDesk()">🚀 CONFIRM & OPEN DESK</button>
             <button class="modal-close" style="color: #64748b;" onclick="closeModal('modal-open-desk')">Cancel</button>
+        </div>
+    </div>
+
+    <div id="modal-adjustment" class="modal-overlay" style="z-index: 9500;">
+        <div class="modal-content">
+            <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
+                <h3 id="adj-title" style="color: #0ea5e9;">Mid-Day Adjustment</h3>
+            </div>
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
+                <div style="margin-bottom: 16px;" id="adj-item-container">
+                    <label class="admin-label">Select Item</label>
+                    <select id="adj-item-select" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;"></select>
+                </div>
+                <div class="admin-row-body" style="padding: 0;">
+                    <div>
+                        <label class="admin-label">Action</label>
+                        <select id="adj-action-select" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;">
+                            <option value="add">➕ Receive / Add</option>
+                            <option value="remove">➖ Drop / Remove</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="admin-label">Quantity / Amount</label>
+                        <input type="number" id="adj-amount" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0">
+                    </div>
+                </div>
+            </div>
+            <button class="btn-primary-full" onclick="saveAdjustment()">💾 SAVE TO LEDGER</button>
+            <button class="modal-close" style="color: #64748b;" onclick="closeModal('modal-adjustment')">Cancel</button>
         </div>
     </div>
 
