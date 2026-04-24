@@ -653,17 +653,17 @@ function openSettings() {
         row.innerHTML = `
             <div class="admin-row-header">
                 <span class="drag-handle">⋮⋮</span>
-                <input type="text" class="settings-input i-name" style="flex:1; border:none; background:transparent; font-weight:700; color:#0f172a; padding:0;" value="${item.name}">
-                <button class="delete-btn" style="color: #ef4444; padding: 4px 8px; font-size: 1.1rem;" onclick="removeRow(this)">🗑️</button>
+                <input type="text" class="settings-input i-name" style="flex:1; border:none; background:transparent; font-weight:700; color:#0f172a; padding:0; min-width:0;" value="${item.name}">
+                <button class="delete-btn" style="color: #ef4444; padding: 4px 8px; font-size: 1.1rem; flex-shrink: 0;" onclick="removeRow(this)">🗑️</button>
             </div>
             <div class="admin-row-body">
-                <div style="flex: 1;">
+                <div>
                     <label class="admin-label">Price (${userCurrency})</label>
-                    <input type="number" class="settings-input i-price" style="padding: 10px;" value="${item.price}">
+                    <input type="number" class="settings-input i-price" style="padding: 10px; width: 100%; box-sizing: border-box;" value="${item.price}">
                 </div>
-                <div style="flex: 2;">
+                <div>
                     <label class="admin-label">Category</label>
-                    <select class="settings-input i-cat" style="padding: 10px;">
+                    <select class="settings-input i-cat" style="padding: 10px; width: 100%; box-sizing: border-box;">
                         <option value="new-sim" ${item.cat==='new-sim'?'selected':''}>📱 New SIM</option>
                         <option value="paid-rep" ${item.cat==='paid-rep'?'selected':''}>📦 Paid Rep</option>
                         <option value="foc" ${item.cat==='foc'?'selected':''}>🆓 FOC</option>
