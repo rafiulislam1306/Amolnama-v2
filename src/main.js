@@ -193,7 +193,7 @@ async function handleDeskSelect(deskId, deskName, status, sessionId) {
     } else {
         document.getElementById('open-desk-title').innerText = `Open ${deskName}`;
         document.getElementById('open-cash-float').value = '';
-        document.getElementById('rollover-inventory-list').innerHTML = 'Fetching yesterday\'s stock...';
+        document.getElementById('open-desk-inventory-container').innerHTML = 'Fetching yesterday\'s stock...';
         openModal('modal-open-desk');
 
         const sessionsRef = collection(db, 'sessions');
@@ -211,18 +211,26 @@ async function handleDeskSelect(deskId, deskName, status, sessionId) {
                 }
             }
 
-            if (Object.keys(rolloverStock).length === 0) {
-                rolloverHTML = '<em>No physical stock rolled over. Drawer is empty.</em>';
-            } else {
-                for (const [itemName, qty] of Object.entries(rolloverStock)) {
-                    if(qty > 0) rolloverHTML += `<div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>${itemName}</span> <strong>${qty}</strong></div>`;
+            // Render interactive input fields for all physical catalog items
+            Object.values(globalCatalog).forEach(item => {
+                if (item.isActive && item.cat !== 'service' && item.cat !== 'free-action') {
+                    let expectedQty = rolloverStock[item.name] || 0;
+                    
+                    rolloverHTML += `
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
+                            <label class="admin-label" style="margin:0; font-size:0.85rem; color:#334155;">${item.name}</label>
+                            <input type="number" class="settings-input open-inv-input" data-name="${item.name}" value="${expectedQty === 0 ? '' : expectedQty}" placeholder="0" style="width:80px; text-align:center; padding:8px; border-color:#cbd5e1;">
+                        </div>
+                    `;
                 }
-            }
-            document.getElementById('rollover-inventory-list').innerHTML = rolloverHTML || '<em>No physical stock rolled over.</em>';
+            });
+
+            if (!rolloverHTML) rolloverHTML = '<em style="color:#64748b; font-size:0.9rem;">No physical items in catalog.</em>';
+            document.getElementById('open-desk-inventory-container').innerHTML = rolloverHTML;
 
         } catch (e) {
             console.error("Error fetching rollover:", e);
-            document.getElementById('rollover-inventory-list').innerHTML = '<em>Offline: Cannot fetch rollover stock.</em>';
+            document.getElementById('open-desk-inventory-container').innerHTML = '<em style="color:#ef4444;">Offline: Cannot fetch rollover stock.</em>';
         }
     }
 }
@@ -234,6 +242,16 @@ async function confirmOpenDesk() {
         alert("You must enter the exact physical cash float provided by the manager.");
         return;
     }
+
+    // Scan the inputs to build the verified Starting Inventory
+    let verifiedStartingInventory = {};
+    document.querySelectorAll('.open-inv-input').forEach(input => {
+        let qty = parseInt(input.value) || 0;
+        if (qty > 0) {
+            let itemName = input.getAttribute('data-name');
+            verifiedStartingInventory[itemName] = qty;
+        }
+    });
 
     const newSessionRef = doc(collection(db, 'sessions'));
     currentSessionId = newSessionRef.id;
@@ -247,7 +265,7 @@ async function confirmOpenDesk() {
         status: 'open',
         openingBalances: {
             cash: floatAmount,
-            inventory: rolloverStock 
+            inventory: verifiedStartingInventory 
         }
     };
 
@@ -418,13 +436,26 @@ function processCloseDeskStep2() {
 function calculateRetained() {
     let drop = parseFloat(document.getElementById('manager-drop-input').value) || 0;
     let retained = actualClosingStats.cash - drop;
-    document.getElementById('retained-float-display').innerText = retained + " Tk";
+    
+    // The absolute max they can drop is whichever is smaller: the physical cash they have, or the system's expected total.
+    let maxAllowedDrop = Math.min(actualClosingStats.cash, expectedClosingStats.cash);
+    
+    let displayEl = document.getElementById('retained-float-display');
+    if (drop > maxAllowedDrop) {
+        displayEl.innerHTML = `<span style="color: #ef4444;">❌ Error: Exceeds System Total (${expectedClosingStats.cash} Tk)</span>`;
+    } else {
+        displayEl.innerText = retained + " Tk";
+    }
 }
 
 async function finalizeCloseDesk(variance) {
     let dropAmount = parseFloat(document.getElementById('manager-drop-input').value) || 0;
-    if (dropAmount < 0 || dropAmount > actualClosingStats.cash) {
-        alert("Manager drop cannot be negative or more than the actual cash currently in the drawer.");
+    
+    // Strict Guardrail
+    let maxAllowedDrop = Math.min(actualClosingStats.cash, expectedClosingStats.cash);
+
+    if (dropAmount < 0 || dropAmount > maxAllowedDrop) {
+        alert(`Error: You cannot drop more than ${maxAllowedDrop} Tk to the manager.\n\nThe system expects a total of ${expectedClosingStats.cash} Tk. You cannot accidentally drop more than the recorded total.`);
         return;
     }
 
@@ -967,10 +998,10 @@ function switchTab(tabId, title) {
     if (tabId === 'report' && currentUser) {
         if (currentUserRole === 'admin') {
             document.getElementById('settings-btn').style.display = 'block';
-            document.getElementById('logout-btn').style.display = 'none';
+            document.getElementById('logout-btn').style.display = 'block'; // Admins get both!
         } else {
             document.getElementById('settings-btn').style.display = 'none';
-            document.getElementById('logout-btn').style.display = 'block';
+            document.getElementById('logout-btn').style.display = 'block'; // Users just get logout
         }
     } else {
         document.getElementById('settings-btn').style.display = 'none';
@@ -1035,6 +1066,18 @@ function toggleMFS() {
 
 function openModal(modalId) { document.getElementById(modalId).classList.add('active'); }
 function closeModal(modalId) { document.getElementById(modalId).classList.remove('active'); }
+
+// Close modal when clicking on the dark outside overlay area
+window.addEventListener('click', (event) => {
+    // Check if the exact thing clicked was the dark background
+    if (event.target.classList.contains('modal-overlay')) {
+        // Guardrail: Prevent closing mandatory screens
+        const mandatoryScreens = ['modal-auth', 'splash-screen', 'modal-desk-select'];
+        if (!mandatoryScreens.includes(event.target.id)) {
+            closeModal(event.target.id);
+        }
+    }
+});
 
 function selectItem(itemName, price) {
     document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
