@@ -14,7 +14,7 @@ if ('serviceWorker' in navigator) {
 // ==========================================
 import { initializeApp } from "firebase/app";
 import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
-import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, getDocs } from "firebase/firestore";
+import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, getDocs, enableIndexedDbPersistence } from "firebase/firestore";
 
 const firebaseConfig = {
 apiKey: "AIzaSyA4YyIOi1xSddHCeLMdBN5mwrjQbJPn_Iw",
@@ -31,6 +31,15 @@ if (Object.keys(firebaseConfig).length > 0) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
+
+    // Turn on True Offline Support
+    enableIndexedDbPersistence(db).catch((err) => {
+        if (err.code == 'failed-precondition') {
+            console.warn("Offline persistence only works when one tab of the app is open.");
+        } else if (err.code == 'unimplemented') {
+            console.warn("This browser doesn't support Firestore offline caching.");
+        }
+    });
 } else {
     console.error("Firebase is not configured! Please paste your config above.");
 }
