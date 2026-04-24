@@ -51,8 +51,11 @@ let rolloverStock = {};
 
 // --- GLOBAL DATABASE STRUCTURE ---
 let globalCatalog = {}; 
+let globalInventoryGroups = []; 
 
-// Notice the new "trackAs" field! This groups different actions into the same physical drawer item.
+// Default physical stock list
+const defaultInventoryGroups = ['Regular Kit', 'Skitto Kit', 'eSIM', 'Skitto eSIM', 'Power Prime', 'Recycle SIM', 'No. 1 Plan', 'Prime', 'Djuice'];
+
 const defaultCatalog = {
     "sim_no1": { name: '📱 No. 1 Plan', display: 'No. 1 Plan', price: 497, cat: 'new-sim', trackAs: 'No. 1 Plan', isActive: true, order: 1 },
     "sim_prime": { name: '📱 Prime', display: 'Prime', price: 400, cat: 'new-sim', trackAs: 'Prime', isActive: true, order: 2 },
@@ -78,15 +81,8 @@ const defaultCatalog = {
     "foc_corp": { name: '🏢 Corporate Replacement', display: 'Corporate Replacement', price: 0, cat: 'free-action', trackAs: '', isActive: true, order: 22 }
 };
 
-// Returns a unique list of physical items that exist in the drawer
 function getPhysicalItems() {
-    let items = new Set();
-    Object.values(globalCatalog).forEach(item => {
-        if (item.isActive && item.cat !== 'service' && item.cat !== 'free-action') {
-            items.add(item.trackAs || item.name);
-        }
-    });
-    return Array.from(items);
+    return globalInventoryGroups;
 }
 
 let transactions = []; 
@@ -208,7 +204,7 @@ async function handleDeskSelect(deskId, deskName, status, sessionId) {
         } catch (e) { console.error("No index or offline:", e); }
 
         let rolloverHTML = '';
-        const physicalItems = getPhysicalItems(); // Only renders actual physical drawers!
+        const physicalItems = getPhysicalItems(); 
         
         physicalItems.forEach(itemName => {
             let expectedQty = rolloverStock[itemName] || 0;
@@ -290,8 +286,8 @@ async function initiateCloseDesk() {
     txSnap.forEach(docSnap => {
         let tx = docSnap.data();
         expectedCash += (tx.cashAmt || 0); 
-        if (tx.name !== 'ERS Flexiload') {
-            let pItem = tx.trackAs || tx.name;
+        if (tx.name !== 'ERS Flexiload' && tx.trackAs) {
+            let pItem = tx.trackAs;
             expectedInv[pItem] = (expectedInv[pItem] || 0) - tx.qty;
         }
     });
@@ -429,8 +425,7 @@ function openAdjustmentModal(type) {
     if (type === 'cash') {
         selectEl.innerHTML = '<option value="Physical Cash">Physical Cash (Tk)</option>';
     } else {
-        const pItems = getPhysicalItems();
-        pItems.forEach(itemName => {
+        getPhysicalItems().forEach(itemName => {
             let opt = document.createElement('option');
             opt.value = itemName; opt.innerText = itemName;
             selectEl.appendChild(opt);
@@ -487,8 +482,8 @@ async function renderLiveFloorTab() {
                 let tx = txDoc.data();
                 if (!tx.isVoided) {
                     liveCash += (tx.cashAmt || 0);
-                    if (tx.name !== 'ERS Flexiload') {
-                        let pItem = tx.trackAs || tx.name;
+                    if (tx.name !== 'ERS Flexiload' && tx.trackAs) {
+                        let pItem = tx.trackAs;
                         liveInv[pItem] = (liveInv[pItem] || 0) - (tx.qty || 0);
                     }
                 }
@@ -531,8 +526,7 @@ function openTransferModal(targetDesk, targetSession) {
     
     let selectEl = document.getElementById('transfer-item-select');
     selectEl.innerHTML = '';
-    const pItems = getPhysicalItems();
-    pItems.forEach(itemName => {
+    getPhysicalItems().forEach(itemName => {
         let opt = document.createElement('option');
         opt.value = itemName; opt.innerText = itemName;
         selectEl.appendChild(opt);
@@ -594,7 +588,7 @@ function toggleEditSplitFields() {
     } else document.getElementById('edit-split-fields').style.display = 'none';
 }
 
-function updateSplitTotal() {} // Allows agents to manually adjust cash/mfs balance
+function updateSplitTotal() {}
 
 async function saveTxEdit() {
     let txIndex = transactions.findIndex(t => t.id === currentEditTxId);
@@ -846,10 +840,13 @@ async function initUserData() {
         else { await setDoc(doc(db, 'users', currentUser.uid), { email: currentUser.email, role: 'user' }, { merge: true }); currentUserRole = 'user'; }
         
         const globalDoc = await getDoc(doc(db, 'global', 'settings'));
-        if (globalDoc.exists() && globalDoc.data().catalog) globalCatalog = globalDoc.data().catalog;
-        else {
+        if (globalDoc.exists() && globalDoc.data().catalog) {
+            globalCatalog = globalDoc.data().catalog;
+            globalInventoryGroups = globalDoc.data().inventoryGroups || defaultInventoryGroups;
+        } else {
             globalCatalog = defaultCatalog;
-            if (currentUserRole === 'admin') await setDoc(doc(db, 'global', 'settings'), { catalog: globalCatalog }, { merge: true });
+            globalInventoryGroups = defaultInventoryGroups;
+            if (currentUserRole === 'admin') await setDoc(doc(db, 'global', 'settings'), { catalog: globalCatalog, inventoryGroups: globalInventoryGroups }, { merge: true });
         }
 
         document.getElementById('report-user-name').innerText = userDisplayName;
@@ -873,9 +870,8 @@ async function addTransactionToCloud(type, name, amount, qty, payment, cashAmt =
     if (payment === 'Cash') { cashAmt = amount; mfsAmt = 0; }
     if (payment === 'MFS') { cashAmt = 0; mfsAmt = amount; }
 
-    // Map Menu Name to Physical Tracking Name
     let catItem = Object.values(globalCatalog).find(c => c.name === name);
-    let trackAs = catItem ? (catItem.trackAs || name) : name;
+    let trackAs = catItem ? (catItem.trackAs || "") : "";
 
     const tx = {
         id: Date.now(), type: type, name: name, trackAs: trackAs, amount: amount, qty: qty,
@@ -899,12 +895,77 @@ function filterAdminCatalog() {
 
 function toggleAddForm() { let f = document.getElementById('admin-add-form'); f.style.display = f.style.display === 'none' ? 'block' : 'none'; }
 
+function renderInventoryGroupsAdmin() {
+    let html = '';
+    globalInventoryGroups.forEach((group, index) => {
+        html += `<span style="background: #f1f5f9; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 16px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px;">
+            ${group} <button style="background: none; border: none; color: #ef4444; font-weight: bold; cursor: pointer;" onclick="removeInventoryGroup(${index})">✕</button>
+        </span>`;
+    });
+    document.getElementById('admin-inventory-groups').innerHTML = html;
+    populateTrackAsDropdowns();
+}
+
+function addInventoryGroup() {
+    let val = document.getElementById('new-inv-group-name').value.trim();
+    if (val && !globalInventoryGroups.includes(val)) {
+        globalInventoryGroups.push(val);
+        document.getElementById('new-inv-group-name').value = '';
+        renderInventoryGroupsAdmin();
+        openSettings(); // Refresh row dropdowns
+    }
+}
+
+function removeInventoryGroup(index) {
+    if(confirm("Remove this physical item from the Master List? Menu buttons tied to it will need to be reassigned.")) {
+        globalInventoryGroups.splice(index, 1);
+        renderInventoryGroupsAdmin();
+        openSettings();
+    }
+}
+
+function populateTrackAsDropdowns() {
+    let newSelect = document.getElementById('new-item-track');
+    if(newSelect) {
+        let options = '<option value="">🚫 None (Digital/Service)</option>';
+        globalInventoryGroups.forEach(g => options += `<option value="${g}">${g}</option>`);
+        newSelect.innerHTML = options;
+    }
+    
+    let adjSelect = document.getElementById('adj-item-select');
+    if (adjSelect && currentAdjType === 'stock') {
+        adjSelect.innerHTML = '';
+        globalInventoryGroups.forEach(itemName => {
+            let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
+            adjSelect.appendChild(opt);
+        });
+    }
+    
+    let transSelect = document.getElementById('transfer-item-select');
+    if (transSelect) {
+        transSelect.innerHTML = '';
+        globalInventoryGroups.forEach(itemName => {
+            let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
+            transSelect.appendChild(opt);
+        });
+    }
+}
+
 function openSettings() {
     let container = document.getElementById('settings-list-container');
     container.innerHTML = ''; document.getElementById('admin-search').value = ''; document.getElementById('admin-add-form').style.display = 'none';
 
+    renderInventoryGroupsAdmin();
+
     Object.entries(globalCatalog).map(([key, item]) => ({key, ...item})).sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(item => {
         if (!item.isActive) return;
+        
+        let trackOptions = '<option value="">🚫 None (Digital/Service)</option>';
+        globalInventoryGroups.forEach(g => {
+            let sel = (item.trackAs === g) ? 'selected' : '';
+            trackOptions += `<option value="${g}" ${sel}>${g}</option>`;
+        });
+
         let row = document.createElement('div'); row.className = 'admin-row-card admin-row'; row.setAttribute('data-key', item.key);
         row.innerHTML = `
             <div class="admin-row-header">
@@ -925,8 +986,10 @@ function openSettings() {
                     </select>
                 </div>
                 <div style="grid-column: span 2;">
-                    <label class="admin-label">Physical Inventory Group (Optional)</label>
-                    <input type="text" class="settings-input i-track" style="padding: 10px; width: 100%; box-sizing: border-box; font-weight: normal; font-size: 0.85rem;" placeholder="e.g. Regular Kit" value="${item.trackAs || ''}">
+                    <label class="admin-label">Deducts from Physical Inventory:</label>
+                    <select class="settings-input i-track" style="padding: 10px; width: 100%; box-sizing: border-box;">
+                        ${trackOptions}
+                    </select>
                 </div>
             </div>
         `;
@@ -946,19 +1009,19 @@ function setupDragAndDrop(row) {
     handle.addEventListener('touchend', () => { if(!draggedEl) return; draggedEl.style.opacity = '1'; draggedEl.style.boxShadow = 'none'; draggedEl = null; });
 }
 
-function removeRow(btn) { if(confirm("Are you sure you want to delete this item?")) { let row = btn.closest('.admin-row'); row.style.display = 'none'; row.classList.add('deleted-row'); } }
+function removeRow(btn) { if(confirm("Are you sure you want to delete this menu button?")) { let row = btn.closest('.admin-row'); row.style.display = 'none'; row.classList.add('deleted-row'); } }
 
 async function addNewItem() {
     let nameVal = document.getElementById('new-item-name').value.trim();
     let priceVal = parseFloat(document.getElementById('new-item-price').value);
     let catVal = document.getElementById('new-item-category').value;
-    let trackVal = document.getElementById('new-item-track').value.trim() || nameVal;
+    let trackVal = document.getElementById('new-item-track').value;
 
     if (nameVal && !isNaN(priceVal) && priceVal >= 0) {
         let newKey = "item_" + Date.now(); let newOrder = Object.keys(globalCatalog).length + 1;
         globalCatalog[newKey] = { name: nameVal, display: nameVal, price: priceVal, cat: catVal, trackAs: trackVal, isActive: true, order: newOrder };
-        document.getElementById('new-item-name').value = ''; document.getElementById('new-item-price').value = ''; document.getElementById('new-item-track').value = '';
-        renderAppUI(); openSettings(); showFlashMessage("Item Added! Don't forget to click Save.");
+        document.getElementById('new-item-name').value = ''; document.getElementById('new-item-price').value = '';
+        renderAppUI(); openSettings(); showFlashMessage("Item Added! Click Save to publish.");
     } else alert("Please enter a valid name and price.");
 }
 
@@ -974,13 +1037,13 @@ async function saveSettings() {
                 globalCatalog[key].display = row.querySelector('.i-name').value; 
                 globalCatalog[key].price = parseFloat(row.querySelector('.i-price').value) || 0;
                 globalCatalog[key].cat = row.querySelector('.i-cat').value;
-                globalCatalog[key].trackAs = row.querySelector('.i-track').value.trim() || row.querySelector('.i-name').value.trim();
+                globalCatalog[key].trackAs = row.querySelector('.i-track').value;
                 globalCatalog[key].order = orderCounter++; 
             }
         }
     });
     try {
-        if (currentUserRole === 'admin') await setDoc(doc(db, 'global', 'settings'), { catalog: globalCatalog }, { merge: true });
+        if (currentUserRole === 'admin') await setDoc(doc(db, 'global', 'settings'), { catalog: globalCatalog, inventoryGroups: globalInventoryGroups }, { merge: true });
         renderAppUI(); closeModal('modal-settings'); showFlashMessage("Settings Saved & Synced!");
     } catch(e) { showFlashMessage("Error saving settings."); }
 }
@@ -1002,16 +1065,15 @@ function renderReport(openingCash = currentOpeningCash) {
         let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
         let safeMfsAmt = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0);
         
-        // Group the Physical Stock Tracking
         if (tx.type === 'adjustment') {
             cashAdjs += safeCashAmt; 
-            if (tx.name !== 'Physical Cash') { let pItem = tx.trackAs || tx.name; inventoryCounts[pItem] = (inventoryCounts[pItem] || 0) + tx.qty; }
+            if (tx.name !== 'Physical Cash' && tx.trackAs) { let pItem = tx.trackAs; inventoryCounts[pItem] = (inventoryCounts[pItem] || 0) + tx.qty; }
         } else if (tx.type === 'transfer_out' || tx.type === 'transfer_in') {
-            let pItem = tx.trackAs || tx.name; inventoryCounts[pItem] = (inventoryCounts[pItem] || 0) + tx.qty;
+            if (tx.trackAs) { let pItem = tx.trackAs; inventoryCounts[pItem] = (inventoryCounts[pItem] || 0) + tx.qty; }
         } else {
             cashSales += safeCashAmt; mfsSales += safeMfsAmt;
             if (tx.name === 'ERS Flexiload') totalErs += tx.amount;
-            else { let pItem = tx.trackAs || tx.name; inventoryCounts[pItem] = (inventoryCounts[pItem] || 0) + tx.qty; }
+            else if (tx.trackAs) { let pItem = tx.trackAs; inventoryCounts[pItem] = (inventoryCounts[pItem] || 0) + tx.qty; }
         }
         
         let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
@@ -1060,9 +1122,11 @@ function shareReport() {
     transactions.forEach(tx => {
         if (tx.name !== 'ERS Flexiload') { 
             if (tx.type === 'adjustment' && tx.name === 'Physical Cash') return;
-            let pItem = tx.trackAs || tx.name;
-            inventoryCounts[pItem] = (inventoryCounts[pItem] || 0) + tx.qty; 
-            hasItems = true; 
+            if (tx.trackAs) {
+                let pItem = tx.trackAs;
+                inventoryCounts[pItem] = (inventoryCounts[pItem] || 0) + tx.qty; 
+                hasItems = true; 
+            }
         }
     });
 
@@ -1093,3 +1157,4 @@ window.renderLiveFloorTab = renderLiveFloorTab; window.openTransferModal = openT
 window.openEditTx = openEditTx; window.toggleEditSplitFields = toggleEditSplitFields; window.updateSplitTotal = updateSplitTotal;
 window.saveTxEdit = saveTxEdit; window.deleteTransaction = deleteTransaction; window.openTrash = openTrash;
 window.restoreTx = restoreTx; window.emptyTrash = emptyTrash; window.permanentlyDeleteTx = permanentlyDeleteTx;
+window.addInventoryGroup = addInventoryGroup; window.removeInventoryGroup = removeInventoryGroup;
