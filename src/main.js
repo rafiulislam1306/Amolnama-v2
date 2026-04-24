@@ -50,6 +50,10 @@ const userCurrency = 'Tk'; 
 let userDisplayName = 'ERS';
 let currentUserRole = 'user'; // Defaults to standard user
 
+// --- DESK & SESSION STATE (PHASE 1) ---
+let currentDeskId = 'desk_1'; // Temporary hardcode until Phase 2 UI
+let currentSessionId = 'session_temp_' + new Date().toLocaleDateString('en-GB').replace(/\//g, '');
+
 // --- GLOBAL DATABASE STRUCTURE ---
 let globalCatalog = {}; 
 
@@ -293,7 +297,7 @@ async function fetchTransactionsForDate() {
     const dateLabel = isToday ? 'Today' : targetDateStr;
 
     try {
-        const txRef = collection(db, 'users', currentUser.uid, 'transactions');
+        const txRef = collection(db, 'transactions');
         const q = query(txRef, where('dateStr', '==', targetDateStr));
         const txSnapshot = await getDocs(q);
 
@@ -301,11 +305,14 @@ async function fetchTransactionsForDate() {
         trashTransactions = []; 
 
         txSnapshot.forEach(doc => {
-            let tx = doc.data();
-            tx.docId = doc.id; 
-            if (tx.isDeleted) trashTransactions.push(tx);
-            else transactions.push(tx);
-        });
+            let tx = doc.data();
+            tx.docId = doc.id; 
+            // Only load transactions tied to the current desk
+            if (tx.deskId === currentDeskId) {
+                if (tx.isDeleted) trashTransactions.push(tx);
+                else transactions.push(tx);
+            }
+        });
         
         transactions.sort((a, b) => a.id - b.id);
         trashTransactions.sort((a, b) => a.id - b.id);
@@ -420,19 +427,23 @@ async function addTransactionToCloud(type, name, amount, qty, payment, cashAmt =
 
     const today = new Date().toLocaleDateString('en-GB');
     const tx = {
-        id: Date.now(), 
-        type: type, name: name, amount: amount, qty: qty,
-        payment: payment, cashAmt: cashAmt, mfsAmt: mfsAmt,
-        isDeleted: false,
-        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-        dateStr: today
-    };
+        id: Date.now(), 
+        type: type, name: name, amount: amount, qty: qty,
+        payment: payment, cashAmt: cashAmt, mfsAmt: mfsAmt,
+        isDeleted: false,
+        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        dateStr: today,
+        deskId: currentDeskId,
+        sessionId: currentSessionId,
+        agentId: currentUser.uid,
+        agentName: userDisplayName
+    };
 
     transactions.push(tx);
     renderReport();
     
     try {
-        const txCollectionRef = collection(db, 'users', currentUser.uid, 'transactions');
+        const txCollectionRef = collection(db, 'transactions');
         const docRef = await addDoc(txCollectionRef, tx);
         let localTx = transactions.find(t => t.id === tx.id);
         if(localTx) localTx.docId = docRef.id; 
@@ -506,7 +517,7 @@ async function saveTxEdit() {
 
     if (tx.docId) {
         try {
-            const txDocRef = doc(db, 'users', currentUser.uid, 'transactions', tx.docId);
+            const txDocRef = doc(db, 'transactions', tx.docId);
             await updateDoc(txDocRef, {
                 qty: newQty, amount: newAmount, payment: newPayment,
                 cashAmt: newCashAmt, mfsAmt: newMfsAmt, isEdited: true 
@@ -533,7 +544,7 @@ async function deleteTransaction(docId, localId) {
     }
     if(docId) {
         try {
-            const txDocRef = doc(db, 'users', currentUser.uid, 'transactions', docId);
+            const txDocRef = doc(db, 'transactions', docId);
             await updateDoc(txDocRef, { isDeleted: true });
             showFlashMessage("Moved to Trash");
         } catch(e) { console.error("Delete failed:", e); }
@@ -568,7 +579,7 @@ async function permanentlyDeleteTx(docId, localId) {
     renderTrash();
     if(docId) {
         try {
-            const txDocRef = doc(db, 'users', currentUser.uid, 'transactions', docId);
+            const txDocRef = doc(db, 'transactions', docId);
             await deleteDoc(txDocRef);
             showFlashMessage("Permanently Deleted!");
         } catch(e) { console.error("Hard delete failed:", e); }
@@ -585,7 +596,7 @@ async function emptyTrash() {
     try {
         let deletePromises = itemsToDelete.map(tx => {
             if(tx.docId) {
-                const txDocRef = doc(db, 'users', currentUser.uid, 'transactions', tx.docId);
+                const txDocRef = doc(db, 'transactions', tx.docId);
                 return deleteDoc(txDocRef);
             }
         });
@@ -609,7 +620,7 @@ async function restoreTransaction(docId, localId) {
     }
     if(docId) {
         try {
-            const txDocRef = doc(db, 'users', currentUser.uid, 'transactions', docId);
+            const txDocRef = doc(db, 'transactions', docId);
             await updateDoc(txDocRef, {
                 isDeleted: false, isRestored: true 
             });
