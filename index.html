@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Amolnama</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#007bff">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    
+    <link rel="stylesheet" href="/src/style.css">
+
+    <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+    <div id="splash-screen" class="modal-overlay active" style="background-color: var(--bg-color); z-index: 10000; flex-direction: column; align-items: center; justify-content: center;">
+        <div class="spinner"></div>
+    </div>
+
+    <div id="modal-auth" class="modal-overlay">
+        <div class="modal-content">
+            <h2 class="modal-title" style="margin-bottom: 24px;">Amolnama Login</h2>
+            <button class="save-ers-btn" style="background-color: #ffffff; color: #3c4043; border: 1px solid #dadce0; margin-bottom: 12px; padding: 12px 16px; display: flex; justify-content: center; align-items: center; gap: 12px; box-shadow: 0 1px 2px rgba(60,64,67,0.3); font-weight: 500; font-family: 'Google Sans', Roboto, Arial, sans-serif;" onclick="signInWithGoogle()">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google Logo" width="24" height="24">
+                Sign in with Google
+            </button>
+            <div id="auth-error" style="color: #ef4444; margin-top: 8px; font-size: 0.9rem; text-align: center; min-height: 20px;"></div>
+        </div>
+    </div>
+
+    <header>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <img id="header-user-photo" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666666'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>" alt="Profile" style="width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border-color); object-fit: cover; background-color: var(--bg-color);">
+            <div class="header-title" id="header-title">ERS</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <button class="settings-btn" id="logout-btn" style="display: none; font-size: 1.3rem;" onclick="logout()">🚪</button>
+            <button class="settings-btn" id="settings-btn" style="display: none;" onclick="openSettings()">⚙️</button>
+        </div>
+    </header>
+
+    <main id="tab-ers" class="tab-content active">
+        <div class="ers-container">
+            <div class="ers-display-wrapper">
+                <div class="ers-currency">Tk</div>
+                <div class="ers-display" id="ers-display">0</div>
+            </div>
+            <div class="keypad">
+                <button class="keypad-btn" onclick="ersKeyPress('1')">1</button>
+                <button class="keypad-btn" onclick="ersKeyPress('2')">2</button>
+                <button class="keypad-btn" onclick="ersKeyPress('3')">3</button>
+                <button class="keypad-btn" onclick="ersKeyPress('4')">4</button>
+                <button class="keypad-btn" onclick="ersKeyPress('5')">5</button>
+                <button class="keypad-btn" onclick="ersKeyPress('6')">6</button>
+                <button class="keypad-btn" onclick="ersKeyPress('7')">7</button>
+                <button class="keypad-btn" onclick="ersKeyPress('8')">8</button>
+                <button class="keypad-btn" onclick="ersKeyPress('9')">9</button>
+                <button class="keypad-btn" onclick="ersKeyPress('00')">00</button>
+                <button class="keypad-btn" onclick="ersKeyPress('0')">0</button>
+                <button class="keypad-btn backspace-btn" onclick="ersBackspace()">⌫</button>
+            </div>
+            <div style="display: flex; gap: 12px; width: 100%;">
+                <button class="save-ers-btn" style="background-color: #10b981;" onclick="saveErs('Cash')">💵 CASH</button>
+                <button class="save-ers-btn" style="background-color: var(--accent-color);" onclick="saveErs('MFS')">📱 MFS</button>
+            </div>
+        </div>
+    </main>
+
+    <main id="tab-sims" class="tab-content">
+        <div class="toggle-container">
+            <span class="toggle-label">Payment Mode:</span>
+            <div class="toggle-switch" onclick="toggleMFS()">
+                <div class="toggle-option sync-cash active">Cash</div>
+                <div class="toggle-option sync-mfs">MFS</div>
+            </div>
+        </div>
+        <div class="section-header">💰 PAID ACTIONS</div>
+        <div class="action-grid">
+            <button class="action-btn" onclick="openModal('modal-new-sim')">New SIMs</button>
+            <button class="action-btn" onclick="openModal('modal-paid-rep')">Replacement</button>
+        </div>
+        <div class="section-header">🆓 FREE ACTIONS</div>
+        <div class="action-grid" id="container-free-actions">
+            <button class="action-btn" onclick="openModal('modal-foc')">Free of Cost Replacement</button>
+        </div>
+    </main>
+
+    <main id="tab-services" class="tab-content">
+        <div class="toggle-container">
+            <span class="toggle-label">Payment Mode:</span>
+            <div class="toggle-switch" onclick="toggleMFS()">
+                <div class="toggle-option sync-cash active">Cash</div>
+                <div class="toggle-option sync-mfs">MFS</div>
+            </div>
+        </div>
+        <div class="section-header">🛠️ OTHER SERVICES</div>
+        <div class="action-grid" id="container-services"></div>
+    </main>
+
+    <main id="tab-report" class="tab-content">
+        
+        <div class="report-section" style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px; padding: 20px;">
+            <img id="report-user-photo" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666666'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>" alt="Profile" style="width: 60px; height: 60px; border-radius: 50%; border: 2px solid var(--border-color); object-fit: cover; background-color: var(--bg-color);">
+            
+            <div style="flex: 1; overflow: hidden;">
+                <h3 id="report-user-name" style="margin-bottom: 4px; font-size: 1.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">User Name</h3>
+                <div id="report-user-email" style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">email@example.com</div>
+                <div style="font-size: 0.95rem; font-weight: 700; color: var(--accent-color);">
+                    Total: <span id="report-total-all">0 Tk</span>
+                </div>
+            </div>
+
+            <button onclick="shareReport()" style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; cursor: pointer; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); color: var(--accent-color);" title="Share Daily Report">
+                📤
+            </button>
+        </div>
+
+        <div class="report-section" style="margin-bottom: 16px;">
+            <div class="report-header">
+                <h3>💰 Financial</h3>
+                <div style="position: relative; display: inline-block;">
+                    <div id="financial-date-label" style="font-size: 0.85rem; color: var(--accent-color); font-weight: 600; background: var(--bg-color); padding: 4px 12px; border-radius: 12px; border: 1px solid var(--accent-color);">Today 🗓️</div>
+                    <input type="date" id="report-date-picker" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;" onchange="fetchTransactionsForDate()">
+                </div>
+            </div>
+            <div class="report-row"><span>Total Cash Collected:</span> <span id="tot-cash" class="report-total">0 Tk</span></div>
+            <div class="report-row"><span>Total MFS Collected:</span> <span id="tot-mfs" class="report-total">0 Tk</span></div>
+            <div class="report-row"><span>Total ERS Disbursed:</span> <span id="tot-ers" class="report-total">0 Tk</span></div>
+        </div>
+
+        <div class="report-section">
+            <div class="report-header">
+                <h3>📦 Inventory & Services</h3>
+            </div>
+            <div id="inventory-list">
+                <div class="report-row" style="color: var(--text-secondary); font-style: italic;">No items yet</div>
+            </div>
+        </div>
+
+        <div class="section-header">🕒 TODAY'S HISTORY</div>
+        <div id="history-log">
+            <div class="placeholder-text" style="margin-top:20px;">No transactions today</div>
+        </div>
+        
+        <button class="action-btn" style="width: 100%; margin-top: 16px; background-color: var(--bg-color); color: var(--text-secondary); border: 1px dashed var(--border-color);" onclick="openTrash()">🗑️ View Trash (Today)</button>
+    </main>
+
+    <div id="modal-new-sim" class="modal-overlay">
+        <div class="modal-content" id="container-new-sim">
+            <h3 class="modal-title">Select New SIM Type</h3>
+            <button class="modal-close" onclick="closeModal('modal-new-sim')">Cancel</button>
+        </div>
+    </div>
+    <div id="modal-paid-rep" class="modal-overlay">
+        <div class="modal-content" id="container-paid-rep">
+            <h3 class="modal-title">Select Replacement Type</h3>
+            <button class="modal-close" onclick="closeModal('modal-paid-rep')">Cancel</button>
+        </div>
+    </div>
+    <div id="modal-foc" class="modal-overlay">
+        <div class="modal-content" id="container-foc">
+            <h3 class="modal-title">Select FOC Product</h3>
+            <button class="modal-close" onclick="closeModal('modal-foc')">Cancel</button>
+        </div>
+    </div>
+
+    <div id="modal-settings" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="modal-title">Admin Dashboard</h3>
+            <div class="section-header" style="margin-top:0;">➕ Add New Item</div>
+            <div style="display:flex; gap:8px; margin-bottom:8px;">
+                <input type="text" id="new-item-name" class="settings-input" style="flex:2; text-align:left;" placeholder="Item Name">
+                <input type="number" id="new-item-price" class="settings-input" style="flex:1;" placeholder="Price">
+            </div>
+            <div style="display:flex; gap:8px; margin-bottom:24px;">
+                <select id="new-item-category" class="settings-input" style="flex:2; text-align:left; padding: 12px;">
+                    <option value="new-sim">📱 New SIM</option>
+                    <option value="paid-rep">📦 Paid Replacement</option>
+                    <option value="foc">🆓 Free of Cost</option>
+                    <option value="service">🛠️ Service</option>
+                    <option value="free-action">🏢 Free Action (No Modal)</option>
+                </select>
+                <button class="save-ers-btn" style="padding:8px; font-size:1rem; flex:1;" onclick="addNewItem()">Add</button>
+            </div>
+            <div class="section-header">⚙️ Manage Catalog (Drag & Drop via ☰)</div>
+            <div class="settings-list" id="settings-list-container"></div>
+            <button class="save-ers-btn" style="margin-bottom: 12px;" onclick="saveSettings()">💾 SAVE TO CLOUD</button>
+            <button class="action-btn" style="width: 100%; border-color: #ef4444; color: #ef4444;" onclick="logout()">🚪 LOGOUT</button>
+            <button class="modal-close" onclick="closeModal('modal-settings')">Cancel</button>
+        </div>
+    </div>
+
+    <div id="modal-quantity" class="modal-overlay">
+        <div class="modal-content">
+            <div class="qty-header" id="qty-item-name">Item Name</div>
+            <div class="ers-display-wrapper" style="margin-bottom: 8px;">
+                <div class="ers-currency">Qty:</div>
+                <div class="ers-display" id="qty-display">1</div>
+            </div>
+            <div class="qty-calc" id="qty-calc-display">1 x 0 = 0 Tk</div>
+            <div class="keypad">
+                <button class="keypad-btn" onclick="qtyKeyPress('1')">1</button>
+                <button class="keypad-btn" onclick="qtyKeyPress('2')">2</button>
+                <button class="keypad-btn" onclick="qtyKeyPress('3')">3</button>
+                <button class="keypad-btn" onclick="qtyKeyPress('4')">4</button>
+                <button class="keypad-btn" onclick="qtyKeyPress('5')">5</button>
+                <button class="keypad-btn" onclick="qtyKeyPress('6')">6</button>
+                <button class="keypad-btn" onclick="qtyKeyPress('7')">7</button>
+                <button class="keypad-btn" onclick="qtyKeyPress('8')">8</button>
+                <button class="keypad-btn" onclick="qtyKeyPress('9')">9</button>
+                <button class="keypad-btn" style="visibility:hidden;"></button>
+                <button class="keypad-btn" onclick="qtyKeyPress('0')">0</button>
+                <button class="keypad-btn backspace-btn" onclick="qtyBackspace()">⌫</button>
+            </div>
+            <button class="save-ers-btn" onclick="saveQuantity()">SAVE</button>
+            <button class="modal-close" onclick="closeModal('modal-quantity')">Cancel</button>
+        </div>
+    </div>
+
+    <div id="modal-edit-tx" class="modal-overlay">
+        <div class="modal-content">
+            <div class="qty-header" id="edit-tx-name">Item Name</div>
+            <div style="display:flex; gap:8px; margin-bottom:12px;">
+                <div style="flex:1;">
+                    <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: bold;">Qty</label>
+                    <input type="number" id="edit-tx-qty" class="settings-input" style="text-align:center;">
+                </div>
+                <div style="flex:2;">
+                    <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: bold;">Total Tk</label>
+                    <input type="number" id="edit-tx-amount" class="settings-input">
+                </div>
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: bold;">Payment Method</label>
+                <select id="edit-tx-payment" class="settings-input" style="text-align:left;" onchange="toggleEditSplitFields()">
+                    <option value="Cash">Cash</option>
+                    <option value="MFS">MFS</option>
+                    <option value="Split">Split</option>
+                </select>
+            </div>
+            <div id="edit-split-fields" style="display:none; gap:8px; margin-bottom:24px;">
+                <div style="flex:1;">
+                    <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: bold;">Cash Portion</label>
+                    <input type="number" id="edit-tx-cash" class="settings-input" style="text-align:center;" oninput="updateSplitTotal()">
+                </div>
+                <div style="flex:1;">
+                    <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: bold;">MFS Portion</label>
+                    <input type="number" id="edit-tx-mfs" class="settings-input" style="text-align:center;" oninput="updateSplitTotal()">
+                </div>
+            </div>
+            <button class="save-ers-btn" onclick="saveTxEdit()">💾 UPDATE</button>
+            <button class="modal-close" onclick="closeModal('modal-edit-tx')">Cancel</button>
+        </div>
+    </div>
+
+    <div id="modal-trash" class="modal-overlay">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 class="modal-title" style="margin-bottom: 0;">Deleted Items</h3>
+                <button class="delete-btn" style="font-size: 0.9rem; padding: 6px 12px; border: 1px solid #ef4444; border-radius: 4px; cursor: pointer;" onclick="emptyTrash()">🗑️ Empty All</button>
+            </div>
+            <div id="trash-log" style="max-height: 50vh; overflow-y: auto; margin-bottom: 16px;"></div>
+            <button class="modal-close" onclick="closeModal('modal-trash')">Close</button>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <button class="nav-item active" onclick="switchTab('ers', 'ERS')">
+            <span class="nav-icon">🔢</span> ERS
+        </button>
+        <button class="nav-item" onclick="switchTab('sims', 'SIMs')">
+            <span class="nav-icon">📱</span> SIMs
+        </button>
+        <button class="nav-item" onclick="switchTab('services', 'Services')">
+            <span class="nav-icon">🛠️</span> Services
+        </button>
+        <button class="nav-item" onclick="switchTab('report', 'Daily Report')">
+            <span class="nav-icon">📊</span> Report
+        </button>
+    </nav>
+
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>
