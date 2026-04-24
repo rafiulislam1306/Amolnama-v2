@@ -168,34 +168,45 @@
         <div class="modal-content">
             <div class="admin-header-bar">
                 <h3>Admin Dashboard</h3>
-                <button class="delete-btn" style="color: var(--text-secondary); font-size: 1.5rem;" onclick="closeModal('modal-settings')">✕</button>
+                <button class="delete-btn" style="color: #64748b; font-size: 1.5rem;" onclick="closeModal('modal-settings')">✕</button>
             </div>
             
+            <div class="admin-toolbar">
+                <input type="text" id="admin-search" class="search-bar" placeholder="🔍 Search catalog..." oninput="filterAdminCatalog()">
+                <button class="btn-outline" onclick="toggleAddForm()">➕ Add</button>
+            </div>
+
             <div class="admin-body">
-                <div class="admin-add-section">
-                    <div class="section-header" style="margin-top:0; color: var(--accent-color);">➕ Create New Item</div>
-                    <div style="display:flex; gap:8px; margin-bottom:12px;">
-                        <input type="text" id="new-item-name" class="settings-input" style="flex:2; text-align:left; border-color: transparent; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" placeholder="Item Name (e.g. 📱 New SIM)">
-                        <input type="number" id="new-item-price" class="settings-input" style="flex:1; border-color: transparent; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" placeholder="Price">
+                <div id="admin-add-form" class="admin-form-card" style="display: none;">
+                    <h4 style="margin-bottom: 16px; color: #0ea5e9; font-size: 1.1rem;">Create New Item</h4>
+                    <div style="margin-bottom: 12px;">
+                        <label class="admin-label">Item Name</label>
+                        <input type="text" id="new-item-name" class="settings-input" placeholder="e.g. 📱 Standard SIM">
                     </div>
-                    <div style="display:flex; gap:8px;">
-                        <select id="new-item-category" class="settings-input" style="flex:2; text-align:left; border-color: transparent; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                            <option value="new-sim">📱 New SIM Modal</option>
-                            <option value="paid-rep">📦 Paid Replacement Modal</option>
-                            <option value="foc">🆓 Free of Cost Modal</option>
-                            <option value="service">🛠️ Services Tab</option>
-                            <option value="free-action">🏢 Free Action (SIMs Tab)</option>
-                        </select>
-                        <button class="save-ers-btn" style="padding:12px; font-size:1rem; flex:1;" onclick="addNewItem()">Add Item</button>
+                    <div style="display:flex; gap:12px; margin-bottom: 16px;">
+                        <div style="flex:1;">
+                            <label class="admin-label">Price</label>
+                            <input type="number" id="new-item-price" class="settings-input" placeholder="0">
+                        </div>
+                        <div style="flex:2;">
+                            <label class="admin-label">Category placement</label>
+                            <select id="new-item-category" class="settings-input" style="padding: 10px;">
+                                <option value="new-sim">📱 New SIM</option>
+                                <option value="paid-rep">📦 Paid Replacement</option>
+                                <option value="foc">🆓 Free of Cost</option>
+                                <option value="service">🛠️ Service</option>
+                                <option value="free-action">🏢 Free Action</option>
+                            </select>
+                        </div>
                     </div>
+                    <button class="btn-primary-full" style="padding: 10px;" onclick="addNewItem()">Save New Item</button>
                 </div>
 
-                <div class="section-header">⚙️ Manage Catalog (Drag ☰ to reorder)</div>
                 <div class="settings-list" id="settings-list-container"></div>
-                
-                <div style="position: sticky; bottom: 0; background: var(--bg-color); padding-top: 12px; padding-bottom: 12px; z-index: 5;">
-                    <button class="save-ers-btn" style="margin-bottom: 12px;" onclick="saveSettings()">💾 SAVE CHANGES TO CLOUD</button>
-                </div>
+            </div>
+
+            <div class="admin-bottom-bar">
+                <button class="btn-primary-full" onclick="saveSettings()">💾 PUBLISH CHANGES</button>
             </div>
         </div>
     </div>

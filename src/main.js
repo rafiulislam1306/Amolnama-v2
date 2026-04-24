@@ -622,32 +622,48 @@ async function restoreTransaction(docId, localId) {
 // ==========================================
 //         ADMIN DASHBOARD CONTROLS
 // ==========================================
-function openSettings() {
-    let container = document.getElementById('settings-list-container');
-    container.innerHTML = ''; 
-    let itemsArray = Object.entries(globalCatalog)
-                           .map(([key, item]) => ({key, ...item}))
-                           .sort((a, b) => (a.order || 0) - (b.order || 0));
+function filterAdminCatalog() {
+    let text = document.getElementById('admin-search').value.toLowerCase();
+    document.querySelectorAll('.admin-row-card').forEach(row => {
+        let name = row.querySelector('.i-name').value.toLowerCase();
+        row.style.display = name.includes(text) ? 'flex' : 'none';
+    });
+}
 
-    itemsArray.forEach(item => {
+function toggleAddForm() {
+    let form = document.getElementById('admin-add-form');
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+function openSettings() {
+    let container = document.getElementById('settings-list-container');
+    container.innerHTML = ''; 
+    document.getElementById('admin-search').value = '';
+    document.getElementById('admin-add-form').style.display = 'none';
+
+    let itemsArray = Object.entries(globalCatalog)
+                           .map(([key, item]) => ({key, ...item}))
+                           .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    itemsArray.forEach(item => {
         if (!item.isActive) return;
         let row = document.createElement('div');
-        row.className = 'admin-card admin-row';
+        row.className = 'admin-row-card admin-row';
         row.setAttribute('data-key', item.key);
         row.innerHTML = `
-            <div class="admin-card-header">
-                <span class="drag-handle">☰</span>
-                <input type="text" class="settings-input i-name" style="flex:1; text-align:left; font-weight:700; border: none; padding: 4px 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);" value="${item.name}">
-                <button class="delete-btn" style="padding: 8px; background: #fee2e2; border-radius: 8px;" onclick="removeRow(this)">🗑️</button>
+            <div class="admin-row-header">
+                <span class="drag-handle">⋮⋮</span>
+                <input type="text" class="settings-input i-name" style="flex:1; border:none; background:transparent; font-weight:700; color:#0f172a; padding:0;" value="${item.name}">
+                <button class="delete-btn" style="color: #ef4444; padding: 4px 8px; font-size: 1.1rem;" onclick="removeRow(this)">🗑️</button>
             </div>
-            <div class="admin-card-body">
-                <div class="admin-input-group">
-                    <label>Price (${userCurrency})</label>
-                    <input type="number" class="settings-input i-price" value="${item.price}">
+            <div class="admin-row-body">
+                <div style="flex: 1;">
+                    <label class="admin-label">Price (${userCurrency})</label>
+                    <input type="number" class="settings-input i-price" style="padding: 10px;" value="${item.price}">
                 </div>
-                <div class="admin-input-group">
-                    <label>Category Placement</label>
-                    <select class="settings-input i-cat">
+                <div style="flex: 2;">
+                    <label class="admin-label">Category</label>
+                    <select class="settings-input i-cat" style="padding: 10px;">
                         <option value="new-sim" ${item.cat==='new-sim'?'selected':''}>📱 New SIM</option>
                         <option value="paid-rep" ${item.cat==='paid-rep'?'selected':''}>📦 Paid Rep</option>
                         <option value="foc" ${item.cat==='foc'?'selected':''}>🆓 FOC</option>
@@ -660,7 +676,7 @@ function openSettings() {
         container.appendChild(row);
         setupDragAndDrop(row); 
     });
-    openModal('modal-settings');
+    openModal('modal-settings');
 }
 
 let draggedEl = null;
