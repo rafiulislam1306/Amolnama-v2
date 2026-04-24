@@ -173,6 +173,14 @@ async function handleDeskSelect(deskId, deskName, status, sessionId) {
 
     if (status === 'open' && sessionId) {
         currentSessionId = sessionId;
+        
+        // --- NEW: PERMANENTLY LOCK AGENT FOR TODAY ---
+        const todayStr = new Date().toLocaleDateString('en-GB');
+        await updateDoc(doc(db, 'users', currentUser.uid), {
+            assignedDeskId: currentDeskId,
+            assignedDate: todayStr
+        });
+
         document.getElementById('modal-desk-select').classList.remove('active');
         document.getElementById('header-title').innerText = `${deskName} (Joined)`;
         
@@ -240,10 +248,11 @@ async function confirmOpenDesk() {
     const newSessionRef = doc(collection(db, 'sessions'));
     currentSessionId = newSessionRef.id;
     currentOpeningCash = floatAmount;
+    const todayStr = new Date().toLocaleDateString('en-GB');
 
     const sessionData = {
         deskId: currentDeskId,
-        dateStr: new Date().toLocaleDateString('en-GB'),
+        dateStr: todayStr,
         openedBy: userDisplayName,
         openedByUid: currentUser.uid,
         openedAt: serverTimestamp(),
@@ -254,6 +263,12 @@ async function confirmOpenDesk() {
     try {
         await setDoc(newSessionRef, sessionData);
         await updateDoc(doc(db, 'desks', currentDeskId), { status: 'open', currentSessionId: currentSessionId });
+
+        // --- NEW: PERMANENTLY LOCK AGENT FOR TODAY ---
+        await updateDoc(doc(db, 'users', currentUser.uid), {
+            assignedDeskId: currentDeskId,
+            assignedDate: todayStr
+        });
 
         closeModal('modal-open-desk');
         document.getElementById('modal-desk-select').classList.remove('active');
@@ -835,9 +850,18 @@ function renderAppUI() {
 async function initUserData() {
     if(!currentUser) return;
     try {
-        const userDocSnap = await getDoc(doc(db, 'users', currentUser.uid));
-        if (userDocSnap.exists() && userDocSnap.data().role) currentUserRole = userDocSnap.data().role;
-        else { await setDoc(doc(db, 'users', currentUser.uid), { email: currentUser.email, role: 'user' }, { merge: true }); currentUserRole = 'user'; }
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        const todayStr = new Date().toLocaleDateString('en-GB');
+        
+        let userData = {};
+        if (userDocSnap.exists()) {
+            userData = userDocSnap.data();
+            currentUserRole = userData.role || 'user';
+        } else { 
+            await setDoc(userDocRef, { email: currentUser.email, role: 'user' }, { merge: true }); 
+            currentUserRole = 'user'; 
+        }
         
         const globalDoc = await getDoc(doc(db, 'global', 'settings'));
         if (globalDoc.exists() && globalDoc.data().catalog) {
@@ -859,7 +883,40 @@ async function initUserData() {
 
         updateCurrencyUI(); renderAppUI();
         document.getElementById('report-date-picker').value = getTodayISO();
-        await loadFloorMap();
+        
+        // --- NEW: THE DAILY LOCK-IN CHECK ---
+        if (userData.assignedDate === todayStr && userData.assignedDeskId) {
+            // Agent is permanently locked to this desk for today
+            currentDeskId = userData.assignedDeskId;
+            
+            // Check if the desk is still open
+            const deskSnap = await getDoc(doc(db, 'desks', currentDeskId));
+            if (deskSnap.exists() && deskSnap.data().status === 'open') {
+                currentSessionId = deskSnap.data().currentSessionId;
+                currentDeskName = deskSnap.data().name;
+                document.getElementById('header-title').innerText = `${currentDeskName} (Joined)`;
+                
+                try {
+                    const sessionSnap = await getDoc(doc(db, 'sessions', currentSessionId));
+                    if (sessionSnap.exists() && sessionSnap.data().openingBalances) {
+                        currentOpeningCash = parseFloat(sessionSnap.data().openingBalances.cash) || 0;
+                    }
+                } catch(e) {}
+            } else {
+                // The desk was closed by their partner while they were logged out.
+                currentDeskName = deskSnap.exists() ? deskSnap.data().name : currentDeskId;
+                document.getElementById('header-title').innerText = `${currentDeskName} (Closed)`;
+                currentSessionId = null; 
+            }
+            
+            // Hide the floor map permanently for today
+            document.getElementById('modal-desk-select').classList.remove('active');
+            await fetchTransactionsForDate();
+        } else {
+            // No desk chosen today yet, show the map!
+            await loadFloorMap();
+        }
+        
     } catch(e) { console.error(e); } finally {
         if (isInitialLoad) { document.getElementById('splash-screen').classList.remove('active'); isInitialLoad = false; }
     }
