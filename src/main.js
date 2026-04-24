@@ -88,7 +88,7 @@ const defaultCatalog = {
 // --- CORE MEMORY ARRAYS ---
 let transactions = []; 
 let trashTransactions = []; 
-let txListenerUnsubscribe = null; // NEW: Holds our live connection 
+let txListenerUnsubscribe = null; 
 
 // --- AUTHENTICATION LOGIC ---
 let isInitialLoad = true;
@@ -212,7 +212,6 @@ async function handleDeskSelect(deskId, deskName, status, sessionId) {
                 }
             }
 
-            // Render interactive input fields for all physical catalog items
             Object.values(globalCatalog).forEach(item => {
                 if (item.isActive && item.cat !== 'service' && item.cat !== 'free-action') {
                     let expectedQty = rolloverStock[item.name] || 0;
@@ -244,7 +243,6 @@ async function confirmOpenDesk() {
         return;
     }
 
-    // Scan the inputs to build the verified Starting Inventory
     let verifiedStartingInventory = {};
     document.querySelectorAll('.open-inv-input').forEach(input => {
         let qty = parseInt(input.value) || 0;
@@ -438,7 +436,6 @@ function calculateRetained() {
     let drop = parseFloat(document.getElementById('manager-drop-input').value) || 0;
     let retained = actualClosingStats.cash - drop;
     
-    // The absolute max they can drop is whichever is smaller: the physical cash they have, or the system's expected total.
     let maxAllowedDrop = Math.min(actualClosingStats.cash, expectedClosingStats.cash);
     
     let displayEl = document.getElementById('retained-float-display');
@@ -452,7 +449,6 @@ function calculateRetained() {
 async function finalizeCloseDesk(variance) {
     let dropAmount = parseFloat(document.getElementById('manager-drop-input').value) || 0;
     
-    // Strict Guardrail
     let maxAllowedDrop = Math.min(actualClosingStats.cash, expectedClosingStats.cash);
 
     if (dropAmount < 0 || dropAmount > maxAllowedDrop) {
@@ -742,7 +738,9 @@ async function executeTransfer() {
         await addDoc(txCollectionRef, receiverTx);
         
         showFlashMessage("Transfer Successful!");
-        renderLiveFloorTab(); 
+        if (document.getElementById('tab-floor').classList.contains('active')) {
+            renderLiveFloorTab();
+        }
     } catch(e) {
         console.error("Transfer failed:", e);
         showFlashMessage("Offline: Transfer queued for sync.");
@@ -906,7 +904,7 @@ async function restoreTx(docId, localId) {
             const txRef = doc(db, 'transactions', docId);
             await updateDoc(txRef, { isDeleted: false, isRestored: true });
             showFlashMessage("Transaction Restored!");
-     
+            
             // Wait half a second for the cloud to catch up, then refresh the trash view
             setTimeout(() => {
                 renderTrash();
@@ -1044,9 +1042,7 @@ function closeModal(modalId) { document.getElementById(modalId).classList.remove
 
 // Close modal when clicking on the dark outside overlay area
 window.addEventListener('click', (event) => {
-    // Check if the exact thing clicked was the dark background
     if (event.target.classList.contains('modal-overlay')) {
-        // Guardrail: Prevent closing mandatory screens
         const mandatoryScreens = ['modal-auth', 'splash-screen', 'modal-desk-select'];
         if (!mandatoryScreens.includes(event.target.id)) {
             closeModal(event.target.id);
@@ -1132,7 +1128,6 @@ async function fetchTransactionsForDate() {
     const isToday = targetDateStr === new Date().toLocaleDateString('en-GB');
     const dateLabel = isToday ? 'Today' : targetDateStr;
 
-    // IMPORTANT: If we already have a live connection, close it before opening a new one
     if (txListenerUnsubscribe) {
         txListenerUnsubscribe();
         txListenerUnsubscribe = null;
@@ -1142,7 +1137,6 @@ async function fetchTransactionsForDate() {
         const txRef = collection(db, 'transactions');
         const q = query(txRef, where('dateStr', '==', targetDateStr));
 
-        // 🔥 THE MAGIC: onSnapshot listens permanently until we tell it to stop
         txListenerUnsubscribe = onSnapshot(q, (txSnapshot) => {
             transactions = [];
             trashTransactions = []; 
@@ -1160,13 +1154,11 @@ async function fetchTransactionsForDate() {
             transactions.sort((a, b) => a.id - b.id);
             trashTransactions.sort((a, b) => a.id - b.id);
             
-            // Instantly update the UI for ALL agents at this desk
             renderReport();
             
             const financialLabel = document.getElementById('financial-date-label');
             if (financialLabel) financialLabel.innerHTML = `${dateLabel} 🗓️`;
 
-            // If an agent is looking at the floor map, update that live too!
             if (document.getElementById('tab-floor').classList.contains('active')) {
                 renderLiveFloorTab();
             }
@@ -1265,35 +1257,6 @@ async function initUserData() {
             document.getElementById('splash-screen').classList.remove('active');
             isInitialLoad = false;
         }
-    }
-}
-
-async function addTransactionToCloud(type, name, amount, qty, payment, cashAmt = 0, mfsAmt = 0) {
-    if(!currentUser) return;
-    if (payment === 'Cash') { cashAmt = amount; mfsAmt = 0; }
-    if (payment === 'MFS') { cashAmt = 0; mfsAmt = amount; }
-
-    const today = new Date().toLocaleDateString('en-GB');
-    const tx = {
-        id: Date.now(), 
-        type: type, name: name, amount: amount, qty: qty,
-        payment: payment, cashAmt: cashAmt, mfsAmt: mfsAmt,
-        isDeleted: false,
-        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-        dateStr: today,
-        deskId: currentDeskId,
-        sessionId: currentSessionId,
-        agentId: currentUser.uid,
-        agentName: userDisplayName
-    };
-
-    try {
-        const txCollectionRef = collection(db, 'transactions');
-        await addDoc(txCollectionRef, tx);
-        showFlashMessage("Saved to Cloud!");
-    } catch(e) {
-        console.error("Failed to sync:", e);
-        showFlashMessage("Offline: Will sync later.");
     }
 }
 
