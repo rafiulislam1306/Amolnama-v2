@@ -46,11 +46,9 @@ if (Object.keys(firebaseConfig).length > 0) {
 
 // Global User State
 let currentUser = null;
-const userCurrency = 'Tk'; 
+const userCurrency = 'Tk'; 
 let userDisplayName = 'ERS';
-
-// --- YOUR ADMIN EMAIL ---
-const ADMIN_EMAIL = "rafiulislam1306@gmail.com"; 
+let currentUserRole = 'user'; // Defaults to standard user
 
 // --- GLOBAL DATABASE STRUCTURE ---
 let globalCatalog = {}; 
@@ -143,7 +141,7 @@ function switchTab(tabId, title) {
     }
 
     if (tabId === 'report' && currentUser) {
-        if (currentUser.email === ADMIN_EMAIL) {
+        if (currentUserRole === 'admin') {
             document.getElementById('settings-btn').style.display = 'block';
             document.getElementById('logout-btn').style.display = 'none';
         } else {
@@ -364,8 +362,18 @@ function renderAppUI() {
 //        FIRESTORE CLOUD DATA LOGIC
 // ==========================================
 async function initUserData() {
-    if(!currentUser) return;
-    try {
+    if(!currentUser) return;
+    try {
+        // Fetch or initialize user role from Firestore
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        
+        if (userDocSnap.exists() && userDocSnap.data().role) {
+            currentUserRole = userDocSnap.data().role;
+        } else {
+            await setDoc(userDocRef, { email: currentUser.email, role: 'user' }, { merge: true });
+            currentUserRole = 'user';
+        }
         const globalRef = doc(db, 'global', 'settings');
         const globalDoc = await getDoc(globalRef);
         
@@ -373,7 +381,7 @@ async function initUserData() {
             globalCatalog = globalDoc.data().catalog;
         } else {
             globalCatalog = defaultCatalog;
-            if (currentUser.email === ADMIN_EMAIL) {
+            if (currentUserRole === 'admin') {
                 await setDoc(globalRef, { catalog: globalCatalog }, { merge: true });
             }
         }
@@ -737,7 +745,7 @@ async function saveSettings() {
         }
     });
     try {
-        if (currentUser.email === ADMIN_EMAIL) {
+        if (currentUserRole === 'admin') {
             const globalRef = doc(db, 'global', 'settings');
             await setDoc(globalRef, { catalog: globalCatalog }, { merge: true });
         }
