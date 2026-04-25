@@ -249,7 +249,12 @@ async function handleDeskSelect(deskId, deskName, status, sessionId) {
     }
 }
 
+let isProcessingDesk = false; // NEW: The JavaScript lock to prevent double-clicks!
+
 async function confirmOpenDesk() {
+    // If the button was already clicked, ignore any extra clicks
+    if (isProcessingDesk) return; 
+
     let floatAmount = parseFloat(document.getElementById('open-cash-float').value);
     if (isNaN(floatAmount) || floatAmount < 0) {
         alert("You must enter the exact physical cash float provided by the manager.");
@@ -265,24 +270,40 @@ async function confirmOpenDesk() {
         }
     });
 
-    const newSessionRef = doc(collection(db, 'sessions'));
-    currentSessionId = newSessionRef.id;
-    currentOpeningCash = floatAmount;
-    const todayStr = new Date().toLocaleDateString('en-GB');
-
-    const sessionData = {
-        deskId: currentDeskId,
-        dateStr: todayStr,
-        openedBy: userDisplayName,
-        openedByUid: currentUser.uid,
-        openedAt: serverTimestamp(),
-        status: 'open',
-        openingBalances: { cash: floatAmount, inventory: verifiedStartingInventory }
-    };
+    isProcessingDesk = true; // Lock the function so it can't run again!
 
     try {
+        // --- NEW: THE DATABASE SAFETY CHECK ---
+        // Before we create a session, we strictly check if someone else beat us to it.
+        const deskRef = doc(db, 'desks', currentDeskId);
+        const deskCheck = await getDoc(deskRef);
+        
+        if (deskCheck.exists() && deskCheck.data().status === 'open') {
+            alert("⚠️ STOP! This desk is already open. Another agent may have just opened it.");
+            closeModal('modal-open-desk');
+            loadFloorMap(); 
+            isProcessingDesk = false; // Unlock
+            return;
+        }
+
+        // If safe, generate the new session
+        const newSessionRef = doc(collection(db, 'sessions'));
+        currentSessionId = newSessionRef.id;
+        currentOpeningCash = floatAmount;
+        const todayStr = new Date().toLocaleDateString('en-GB');
+
+        const sessionData = {
+            deskId: currentDeskId,
+            dateStr: todayStr,
+            openedBy: userDisplayName,
+            openedByUid: currentUser.uid,
+            openedAt: serverTimestamp(),
+            status: 'open',
+            openingBalances: { cash: floatAmount, inventory: verifiedStartingInventory }
+        };
+
         await setDoc(newSessionRef, sessionData);
-        await setDoc(doc(db, 'desks', currentDeskId), { status: 'open', currentSessionId: currentSessionId, name: currentDeskName }, { merge: true });
+        await setDoc(deskRef, { status: 'open', currentSessionId: currentSessionId, name: currentDeskName }, { merge: true });
 
         // --- BULLETPROOF LOCK-IN ---
         await setDoc(doc(db, 'users', currentUser.uid), {
@@ -297,9 +318,12 @@ async function confirmOpenDesk() {
         transactions = []; trashTransactions = [];
         renderReport(currentOpeningCash);
         showFlashMessage(`${currentDeskName} is now OPEN!`);
+
     } catch (e) { 
         console.error("Failed to open desk:", e);
-        alert("System Error: " + e.message); // Exact error reporting
+        alert("System Error: " + e.message); 
+    } finally {
+        isProcessingDesk = false; // Always unlock the function when finished
     }
 }
 
