@@ -282,7 +282,7 @@ async function confirmOpenDesk() {
 
     try {
         await setDoc(newSessionRef, sessionData);
-        await updateDoc(doc(db, 'desks', currentDeskId), { status: 'open', currentSessionId: currentSessionId });
+        await setDoc(doc(db, 'desks', currentDeskId), { status: 'open', currentSessionId: currentSessionId, name: currentDeskName }, { merge: true });
 
         // --- BULLETPROOF LOCK-IN ---
         await setDoc(doc(db, 'users', currentUser.uid), {
@@ -437,7 +437,7 @@ async function finalizeCloseDesk(variance) {
             expectedClosing: expectedClosingStats, actualClosing: actualClosingStats, variance: variance,
             hasDiscrepancy: variance !== 0, managerDrop: dropAmount, retainedFloat: retainedFloat
         });
-        await updateDoc(doc(db, 'desks', currentDeskId), { status: 'closed', currentSessionId: null });
+        await setDoc(doc(db, 'desks', currentDeskId), { status: 'closed', currentSessionId: null }, { merge: true });
 
         currentDeskId = null; currentSessionId = null; currentDeskName = '';
         closeModal('modal-close-desk');
