@@ -653,6 +653,11 @@ async function renderLiveFloorTab() {
             const isMyDesk = sid === currentSessionId;
             const badge = isMyDesk ? '<span style="background:#0ea5e9; color:white; font-size:0.7rem; padding:2px 6px; border-radius:12px; font-weight:bold;">YOUR DESK</span>' : '';
 
+            // If it's my desk, show "Open My Drawer". If it's someone else's, show "Peek"
+            let actionBtn = isMyDesk 
+                ? `<button class="btn-primary-full" style="width: 100%; background: #0ea5e9; padding: 10px; margin-top: 12px;" onclick="openMyDeskDashboard()">💼 Open My Drawer</button>`
+                : `<button class="btn-outline" style="width: 100%; color: #8b5cf6; border-color: #8b5cf6; background: #faf5ff; padding: 10px; margin-top: 12px;" onclick="peekAtDesk('${session.deskId}', '${session.deskId.replace('_', ' ').toUpperCase()}')">👁️ View Details</button>`;
+
             floorHTML += `
                 <div class="admin-form-card" style="margin-bottom: 0; padding: 16px; border-top: 4px solid ${isMyDesk ? '#0ea5e9' : '#8b5cf6'};">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
@@ -662,12 +667,20 @@ async function renderLiveFloorTab() {
                     <div style="margin-bottom: 12px;"><span style="font-size: 0.8rem; font-weight: bold; color: #64748b;">Live Cash:</span><span style="font-size: 1.2rem; font-weight: bold; color: #10b981; margin-left: 8px;">${liveCash} Tk</span></div>
                     <div style="margin-bottom: 16px;"><span style="display: block; font-size: 0.8rem; font-weight: bold; color: #64748b; margin-bottom: 6px;">Live Inventory:</span><div>${invDisplay}</div></div>
                     
-                    <button class="btn-outline" style="width: 100%; color: #8b5cf6; border-color: #8b5cf6; background: #faf5ff; padding: 10px;" onclick="peekAtDesk('${session.deskId}', '${session.deskId.replace('_', ' ').toUpperCase()}')">👁️ View Details</button>
+                    ${actionBtn}
                 </div>
             `;
         }
         container.innerHTML = floorHTML;
     } catch (e) { container.innerHTML = '<p class="placeholder-text" style="color: #ef4444;">Offline: Could not load.</p>'; }
+}
+
+function openMyDeskDashboard() {
+    document.getElementById('desk-peek-header').style.display = 'none';
+    document.getElementById('desk-action-buttons').style.display = 'block';
+    document.getElementById('desk-dashboard-title').innerText = currentDeskName + ' (My Drawer)';
+    switchTab('desk', currentDeskName);
+    renderDeskDashboard(currentDeskId);
 }
 
 function peekAtDesk(targetDeskId, targetDeskName) {
