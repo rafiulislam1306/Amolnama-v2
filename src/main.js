@@ -81,9 +81,7 @@ const defaultCatalog = {
     "foc_corp": { name: '🏢 Corporate Replacement', display: 'Corporate Replacement', price: 0, cat: 'free-action', trackAs: '', isActive: true, order: 22 }
 };
 
-function getPhysicalItems() {
-    return globalInventoryGroups;
-}
+function getPhysicalItems() { return globalInventoryGroups; }
 
 let transactions = []; 
 let trashTransactions = []; 
@@ -163,16 +161,15 @@ async function loadFloorMap() {
                 </div>
             `;
         });
-
-        // Add the bypass button ONLY for admins
+        
         if (currentUserRole === 'admin') {
             deskHTML += `
                 <button class="btn-outline" style="margin-top: 24px; width: 100%; justify-content: center; color: #64748b; border-color: #cbd5e1; padding: 12px; font-weight: bold;" onclick="adminBypass()">
-                    🛡️ Admin Bypass (Global View & Settings)
+                    🛡️ Admin Bypass (Global View)
                 </button>
             `;
         }
-
+        
         document.getElementById('desk-list-container').innerHTML = deskHTML;
     } catch (e) { console.error(e); }
 }
@@ -195,12 +192,14 @@ async function handleDeskSelect(deskId, deskName, status, sessionId) {
     if (status === 'open' && sessionId) {
         currentSessionId = sessionId;
         
-        // --- NEW: PERMANENTLY LOCK AGENT FOR TODAY ---
+        // --- BULLETPROOF LOCK-IN ---
         const todayStr = new Date().toLocaleDateString('en-GB');
-        await setDoc(doc(db, 'users', currentUser.uid), {
-            assignedDeskId: currentDeskId,
-            assignedDate: todayStr
-        }, { merge: true });
+        try {
+            await setDoc(doc(db, 'users', currentUser.uid), {
+                assignedDeskId: currentDeskId,
+                assignedDate: todayStr
+            }, { merge: true });
+        } catch(e) { console.error("Profile lock error:", e); }
 
         document.getElementById('modal-desk-select').classList.remove('active');
         document.getElementById('header-title').innerText = `${deskName} (Joined)`;
@@ -285,7 +284,7 @@ async function confirmOpenDesk() {
         await setDoc(newSessionRef, sessionData);
         await updateDoc(doc(db, 'desks', currentDeskId), { status: 'open', currentSessionId: currentSessionId });
 
-        // --- NEW: PERMANENTLY LOCK AGENT FOR TODAY ---
+        // --- BULLETPROOF LOCK-IN ---
         await setDoc(doc(db, 'users', currentUser.uid), {
             assignedDeskId: currentDeskId,
             assignedDate: todayStr
@@ -298,7 +297,10 @@ async function confirmOpenDesk() {
         transactions = []; trashTransactions = [];
         renderReport(currentOpeningCash);
         showFlashMessage(`${currentDeskName} is now OPEN!`);
-    } catch (e) { alert("Error opening desk. Please check connection."); }
+    } catch (e) { 
+        console.error("Failed to open desk:", e);
+        alert("System Error: " + e.message); // Exact error reporting
+    }
 }
 
 // ==========================================
@@ -440,6 +442,10 @@ async function finalizeCloseDesk(variance) {
         currentDeskId = null; currentSessionId = null; currentDeskName = '';
         closeModal('modal-close-desk');
         showFlashMessage("Desk Successfully Closed!");
+        
+        // Remove Daily Lock when closing desk
+        await setDoc(doc(db, 'users', currentUser.uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
+        
         loadFloorMap(); 
     } catch (e) { alert("Offline: Could not close desk."); }
 }
@@ -545,7 +551,7 @@ async function renderLiveFloorTab() {
                     </div>
                     <div style="margin-bottom: 12px;"><span style="font-size: 0.8rem; font-weight: bold; color: #64748b;">Live Cash:</span><span style="font-size: 1.2rem; font-weight: bold; color: #10b981; margin-left: 8px;">${liveCash} Tk</span></div>
                     <div style="margin-bottom: 16px;"><span style="display: block; font-size: 0.8rem; font-weight: bold; color: #64748b; margin-bottom: 6px;">Live Inventory:</span><div>${invDisplay}</div></div>
-                    ${!isMyDesk ? `<button class="btn-outline" style="width: 100%; color: #8b5cf6; border-color: #8b5cf6; background: #faf5ff; padding: 10px;" onclick="openTransferModal('${session.deskId}', '${sid}')">📦 Push Stock to this Desk</button>` : ''}
+                    ${!isMyDesk && !(!currentDeskId && currentUserRole === 'admin') ? `<button class="btn-outline" style="width: 100%; color: #8b5cf6; border-color: #8b5cf6; background: #faf5ff; padding: 10px;" onclick="openTransferModal('${session.deskId}', '${sid}')">📦 Push Stock to this Desk</button>` : ''}
                 </div>
             `;
         }
@@ -820,10 +826,7 @@ async function fetchTransactionsForDate() {
             transactions = []; trashTransactions = []; 
             txSnapshot.forEach(doc => {
                 let tx = doc.data(); tx.docId = doc.id; 
-                
-                // If admin bypassed desk selection (currentDeskId is null), show ALL transactions globally
                 let isMatch = (tx.deskId === currentDeskId) || (currentUserRole === 'admin' && !currentDeskId);
-                
                 if (isMatch) {
                     tx.isDeleted ? trashTransactions.push(tx) : transactions.push(tx);
                 }
@@ -880,7 +883,7 @@ async function initUserData() {
         const userDocRef = doc(db, 'users', currentUser.uid);
         const userDocSnap = await getDoc(userDocRef);
         const todayStr = new Date().toLocaleDateString('en-GB');
-        
+
         let userData = {};
         if (userDocSnap.exists()) {
             userData = userDocSnap.data();
@@ -889,7 +892,7 @@ async function initUserData() {
             await setDoc(userDocRef, { email: currentUser.email, role: 'user' }, { merge: true }); 
             currentUserRole = 'user'; 
         }
-        
+
         const globalDoc = await getDoc(doc(db, 'global', 'settings'));
         if (globalDoc.exists() && globalDoc.data().catalog) {
             globalCatalog = globalDoc.data().catalog;
@@ -911,18 +914,14 @@ async function initUserData() {
         updateCurrencyUI(); renderAppUI();
         document.getElementById('report-date-picker').value = getTodayISO();
         
-        // --- NEW: THE DAILY LOCK-IN CHECK ---
+        // --- DAILY LOCK-IN CHECK ---
         if (userData.assignedDate === todayStr && userData.assignedDeskId) {
-            // Agent is permanently locked to this desk for today
             currentDeskId = userData.assignedDeskId;
-            
-            // Check if the desk is still open
             const deskSnap = await getDoc(doc(db, 'desks', currentDeskId));
             if (deskSnap.exists() && deskSnap.data().status === 'open') {
                 currentSessionId = deskSnap.data().currentSessionId;
                 currentDeskName = deskSnap.data().name;
                 document.getElementById('header-title').innerText = `${currentDeskName} (Joined)`;
-                
                 try {
                     const sessionSnap = await getDoc(doc(db, 'sessions', currentSessionId));
                     if (sessionSnap.exists() && sessionSnap.data().openingBalances) {
@@ -930,20 +929,15 @@ async function initUserData() {
                     }
                 } catch(e) {}
             } else {
-                // The desk was closed by their partner while they were logged out.
                 currentDeskName = deskSnap.exists() ? deskSnap.data().name : currentDeskId;
                 document.getElementById('header-title').innerText = `${currentDeskName} (Closed)`;
                 currentSessionId = null; 
             }
-            
-            // Hide the floor map permanently for today
             document.getElementById('modal-desk-select').classList.remove('active');
             await fetchTransactionsForDate();
         } else {
-            // No desk chosen today yet, show the map!
             await loadFloorMap();
         }
-        
     } catch(e) { console.error(e); } finally {
         if (isInitialLoad) { document.getElementById('splash-screen').classList.remove('active'); isInitialLoad = false; }
     }
@@ -996,7 +990,7 @@ function addInventoryGroup() {
         globalInventoryGroups.push(val);
         document.getElementById('new-inv-group-name').value = '';
         renderInventoryGroupsAdmin();
-        openSettings(); // Refresh row dropdowns
+        openSettings(); 
     }
 }
 
