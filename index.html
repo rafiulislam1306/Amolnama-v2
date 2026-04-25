@@ -97,6 +97,54 @@
         <div class="action-grid" id="container-services"></div>
     </main>
 
+    <main id="tab-desk" class="tab-content">
+        <div id="desk-peek-header" style="display: none; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+            <button class="btn-outline" style="height: auto; padding: 6px 12px; font-size: 0.85rem;" onclick="switchTab('floor', 'Live Floor Map')">⬅️ Back to Floor</button>
+            <span style="font-size: 0.85rem; color: #ef4444; font-weight: bold; background: #fef2f2; padding: 4px 8px; border-radius: 8px;">👁️ READ ONLY</span>
+        </div>
+
+        <div class="report-section">
+            <div class="report-header">
+                <h3 id="desk-dashboard-title">🏢 Shared Drawer Status</h3>
+                <div style="font-size: 0.85rem; color: #10b981; font-weight: 600; background: #d1fae5; padding: 4px 12px; border-radius: 12px;">OPEN</div>
+            </div>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px;">Active Agents: <strong id="desk-logged-agents" style="color: var(--text-primary);">Loading...</strong></p>
+            
+            <div class="report-row"><span>Opening Balance:</span> <span id="desk-tot-opening" class="report-total">0 Tk</span></div>
+            <div class="report-row"><span>Cash Sales (All Agents):</span> <span id="desk-tot-cash-sales" class="report-total">0 Tk</span></div>
+            <div class="report-row" style="color: var(--accent-color);"><span>Manager Drop/Rcv:</span> <span id="desk-tot-manager" class="report-total">0 Tk</span></div>
+            <div class="report-row" style="border-top: 1px dashed var(--border-color); padding-top: 8px; margin-top: 8px;">
+                <span style="font-weight: 600;">Expected Drawer Cash:</span> <span id="desk-tot-expected-cash" class="report-total" style="color: #10b981; font-size: 1.1rem;">0 Tk</span>
+            </div>
+        </div>
+
+        <div id="desk-action-buttons">
+            <div class="section-header">⚡ DESK ACTIONS</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                <button class="btn-outline" style="justify-content: center; background: var(--surface-color); padding: 12px;" onclick="openManagerCashModal()">💵 Cash to/from Mgr</button>
+                <button class="btn-outline" style="justify-content: center; background: var(--surface-color); padding: 12px;" onclick="openMainStockModal()">📦 Rcv Main Stock</button>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 24px;">
+                <button class="btn-outline" style="justify-content: center; background: var(--surface-color); padding: 12px;" onclick="openDeskTransfer()">🔄 Transfer to Desk</button>
+            </div>
+            <button class="btn-primary-full" style="background-color: #0f172a; margin-bottom: 24px; padding: 16px;" onclick="initiateCloseDesk()">🔒 CLOSE DESK & RECONCILE</button>
+        </div>
+
+        <div class="report-section">
+            <div class="report-header">
+                <h3>📦 Physical Drawer Inventory</h3>
+            </div>
+            <div id="desk-inventory-list">
+                <div class="report-row" style="color: var(--text-secondary); font-style: italic;">No physical items tracked</div>
+            </div>
+        </div>
+
+        <div class="section-header">🕒 DESK LEDGER (ALL AGENTS)</div>
+        <div id="desk-history-log">
+            <div class="placeholder-text" style="margin-top:20px;">No transactions yet</div>
+        </div>
+    </main>
+
     <main id="tab-report" class="tab-content">
         <div class="report-section" style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px; padding: 20px;">
             <img id="report-user-photo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666666'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E" alt="Profile" style="width: 60px; height: 60px; border-radius: 50%; border: 2px solid var(--border-color); object-fit: cover; background-color: var(--bg-color);">
@@ -169,6 +217,75 @@
             </div>
             <button class="btn-primary-full" style="background-color: #8b5cf6;" onclick="executeTransfer()">🚀 CONFIRM TRANSFER</button>
             <button class="modal-close" style="color: #64748b;" onclick="closeModal('modal-transfer')">Cancel</button>
+        </div>
+    </div>
+
+    <div id="modal-manager-cash" class="modal-overlay" style="z-index: 9500;">
+        <div class="modal-content">
+            <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
+                <h3 style="color: #10b981;">💵 Manager Cash Action</h3>
+            </div>
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
+                <div style="margin-bottom: 16px;">
+                    <label class="admin-label">Action</label>
+                    <select id="mgr-cash-action" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;">
+                        <option value="drop">➖ Drop Cash TO Manager</option>
+                        <option value="receive">➕ Receive Float FROM Manager</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="admin-label">Amount (Tk)</label>
+                    <input type="number" id="mgr-cash-amount" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0">
+                </div>
+            </div>
+            <button class="btn-primary-full" style="background-color: #10b981;" onclick="saveManagerCash()">💾 SAVE TO LEDGER</button>
+            <button class="modal-close" style="color: #64748b;" onclick="closeModal('modal-manager-cash')">Cancel</button>
+        </div>
+    </div>
+
+    <div id="modal-main-stock" class="modal-overlay" style="z-index: 9500;">
+        <div class="modal-content">
+            <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
+                <h3 style="color: #0ea5e9;">📦 Receive Main Stock</h3>
+            </div>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px;">Log physical items brought from the main center inventory into your drawer.</p>
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
+                <div style="margin-bottom: 16px;">
+                    <label class="admin-label">Physical Item</label>
+                    <select id="main-stock-item" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;"></select>
+                </div>
+                <div>
+                    <label class="admin-label">Quantity Received</label>
+                    <input type="number" id="main-stock-qty" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0">
+                </div>
+            </div>
+            <button class="btn-primary-full" onclick="saveMainStock()">📥 ADD TO DRAWER</button>
+            <button class="modal-close" style="color: #64748b;" onclick="closeModal('modal-main-stock')">Cancel</button>
+        </div>
+    </div>
+
+    <div id="modal-desk-transfer" class="modal-overlay" style="z-index: 9500;">
+        <div class="modal-content">
+            <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
+                <h3 style="color: #8b5cf6;">🔄 Transfer Stock</h3>
+            </div>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px;">Send physical items directly to another active desk.</p>
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
+                <div style="margin-bottom: 16px;">
+                    <label class="admin-label">Destination Desk</label>
+                    <select id="desk-transfer-target" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;"></select>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label class="admin-label">Physical Item</label>
+                    <select id="desk-transfer-item" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;"></select>
+                </div>
+                <div>
+                    <label class="admin-label">Quantity to Send</label>
+                    <input type="number" id="desk-transfer-qty" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0">
+                </div>
+            </div>
+            <button class="btn-primary-full" style="background-color: #8b5cf6;" onclick="executeDeskTransfer()">🚀 SEND TO DESK</button>
+            <button class="modal-close" style="color: #64748b;" onclick="closeModal('modal-desk-transfer')">Cancel</button>
         </div>
     </div>
 
@@ -327,24 +444,6 @@
         </div>
     </div>
 
-    <nav class="bottom-nav">
-        <button class="nav-item active" onclick="switchTab('ers', 'ERS')">
-            <span class="nav-icon">🔢</span> ERS
-        </button>
-        <button class="nav-item" onclick="switchTab('sims', 'SIMs')">
-            <span class="nav-icon">📱</span> SIMs
-        </button>
-        <button class="nav-item" onclick="switchTab('services', 'Services')">
-            <span class="nav-icon">🛠️</span> Serv.
-        </button>
-        <button class="nav-item" onclick="switchTab('floor', 'Live Floor Map')">
-            <span class="nav-icon">🗺️</span> Floor
-        </button>
-        <button class="nav-item" onclick="switchTab('report', 'Daily Report')">
-            <span class="nav-icon">📊</span> Rep.
-        </button>
-    </nav>
-
     <div id="modal-desk-select" class="modal-overlay" style="z-index: 9000; background-color: var(--bg-color);">
         <div class="modal-content" style="height: 100dvh; max-height: 100dvh; display: flex; flex-direction: column; justify-content: center; border-radius: 0; padding: 24px;">
             <h2 class="modal-title" style="font-size: 2rem; color: var(--accent-color); margin-bottom: 8px;">Floor Map</h2>
@@ -379,15 +478,26 @@
         </div>
     </div>
 
+    <nav class="bottom-nav">
+        <button class="nav-item active" onclick="switchTab('ers', 'ERS')">
+            <span class="nav-icon">🔢</span> ERS
+        </button>
+        <button class="nav-item" onclick="switchTab('sims', 'SIMs')">
+            <span class="nav-icon">📱</span> SIMs
+        </button>
+        <button class="nav-item" onclick="switchTab('services', 'Services')">
+            <span class="nav-icon">🛠️</span> Serv.
+        </button>
+        
+        <button class="nav-item" id="nav-hub-btn" onclick="openDynamicHub()">
+            <span class="nav-icon" id="nav-hub-icon">🗺️</span> <span id="nav-hub-text">Floor</span>
+        </button>
+        
+        <button class="nav-item" onclick="switchTab('report', 'My Report')">
+            <span class="nav-icon">📊</span> Rep.
+        </button>
+    </nav>
+
     <script type="module" src="/src/main.js"></script>
-
-    <script>
-        // Temporary bridge for Phase 1 testing
-        function openDynamicHub() {
-            // For now, it just opens the Desk tab so you can look at it!
-            switchTab('desk', 'Shared Desk'); 
-        }
-    </script>
-
 </body>
 </html>
