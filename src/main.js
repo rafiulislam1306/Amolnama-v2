@@ -42,6 +42,12 @@ const userCurrency = 'Tk';
 let userDisplayName = 'ERS';
 let currentUserRole = 'user';
 
+// --- STRICT DATE FORMATTER (Fixes the Android Date Bug) ---
+function getStrictDate() { 
+    const t = new Date(); 
+    return `${String(t.getDate()).padStart(2,'0')}/${String(t.getMonth()+1).padStart(2,'0')}/${t.getFullYear()}`; 
+}
+
 // --- DESK & SESSION STATE ---
 let currentDeskId = null; 
 let currentSessionId = null;
@@ -53,7 +59,6 @@ let rolloverStock = {};
 let globalCatalog = {}; 
 let globalInventoryGroups = []; 
 
-// Default physical stock list
 const defaultInventoryGroups = ['Regular Kit', 'Skitto Kit', 'eSIM', 'Skitto eSIM', 'Power Prime', 'Recycle SIM', 'No. 1 Plan', 'Prime', 'Djuice'];
 
 const defaultCatalog = {
@@ -119,21 +124,46 @@ function logout() {
   signOut(auth).then(() => {
         closeModal('modal-settings');
         transactions = []; trashTransactions = []; 
-        renderReport(0);
+        renderPersonalReport();
         switchTab('ers', 'ERS'); 
     });
 }
 
 // ==========================================
-//        PHASE 2: DESK & SHIFT MANAGEMENT
+//    PHASE 2: DYNAMIC HUB & SHIFT MGMT
 // ==========================================
+function updateHubNav() {
+    const icon = document.getElementById('nav-hub-icon');
+    const text = document.getElementById('nav-hub-text');
+    if (icon && text) {
+        if (currentDeskId) {
+            icon.innerText = '🏢'; text.innerText = 'My Desk';
+        } else {
+            icon.innerText = '🗺️'; text.innerText = 'Floor Map';
+        }
+    }
+}
+
+function openDynamicHub() {
+    if (currentDeskId) {
+        document.getElementById('desk-peek-header').style.display = 'none';
+        document.getElementById('desk-action-buttons').style.display = 'block';
+        document.getElementById('desk-dashboard-title').innerText = currentDeskName + ' (My Drawer)';
+        switchTab('desk', currentDeskName);
+    } else {
+        switchTab('floor', 'Live Floor Map');
+    }
+}
 
 async function loadFloorMap() {
+    const container = document.getElementById('desk-list-container');
+    container.innerHTML = '<div class="spinner" style="margin: 0 auto;"></div>';
     document.getElementById('modal-desk-select').classList.add('active');
+
     try {
         const desksSnapshot = await getDocs(collection(db, 'desks'));
         let deskHTML = '';
-        
+
         if (desksSnapshot.empty) {
             await setDoc(doc(db, 'desks', 'desk_1'), { name: 'Desk 1', status: 'closed', currentSessionId: null });
             await setDoc(doc(db, 'desks', 'desk_2'), { name: 'Desk 2', status: 'closed', currentSessionId: null });
@@ -170,45 +200,37 @@ async function loadFloorMap() {
             `;
         }
         
-        document.getElementById('desk-list-container').innerHTML = deskHTML;
-    } catch (e) { console.error(e); }
+        container.innerHTML = deskHTML;
+    } catch (e) { container.innerHTML = `<div style="color:#ef4444; padding:16px;">Error loading map. Refresh app.</div>`; }
 }
 
 function adminBypass() {
     document.getElementById('modal-desk-select').classList.remove('active');
-    currentDeskId = null;
-    currentSessionId = null;
-    currentDeskName = 'Global Admin Mode';
+    currentDeskId = null; currentSessionId = null; currentDeskName = 'Global Admin Mode';
+    updateHubNav();
     document.getElementById('header-title').innerText = 'Global Admin Mode';
-    switchTab('report', 'Global Report');
-    fetchTransactionsForDate();
-    showFlashMessage("Admin Mode Activated");
+    switchTab('floor', 'Live Floor Map');
+    fetchTransactionsForDate(); showFlashMessage("Admin Mode Activated");
 }
 
 async function handleDeskSelect(deskId, deskName, status, sessionId) {
     currentDeskId = deskId;
     currentDeskName = deskName;
+    updateHubNav();
 
     if (status === 'open' && sessionId) {
         currentSessionId = sessionId;
-        
-        // --- BULLETPROOF LOCK-IN ---
-        const todayStr = new Date().toLocaleDateString('en-GB');
+        const todayStr = getStrictDate();
         try {
-            await setDoc(doc(db, 'users', currentUser.uid), {
-                assignedDeskId: currentDeskId,
-                assignedDate: todayStr
-            }, { merge: true });
-        } catch(e) { console.error("Profile lock error:", e); }
+            await setDoc(doc(db, 'users', currentUser.uid), { assignedDeskId: currentDeskId, assignedDate: todayStr }, { merge: true });
+        } catch(e) {}
 
         document.getElementById('modal-desk-select').classList.remove('active');
-        document.getElementById('header-title').innerText = `${deskName} (Joined)`;
+        document.getElementById('header-title').innerText = `${deskName}`;
         
         try {
             const sessionSnap = await getDoc(doc(db, 'sessions', sessionId));
-            if (sessionSnap.exists() && sessionSnap.data().openingBalances) {
-                currentOpeningCash = parseFloat(sessionSnap.data().openingBalances.cash) || 0;
-            }
+            if (sessionSnap.exists() && sessionSnap.data().openingBalances) currentOpeningCash = parseFloat(sessionSnap.data().openingBalances.cash) || 0;
         } catch(e) {}
 
         await fetchTransactionsForDate(); 
@@ -229,7 +251,7 @@ async function handleDeskSelect(deskId, deskName, status, sessionId) {
                 const lastSession = lastSessionSnap.docs[0].data();
                 if (lastSession.actualClosing && lastSession.actualClosing.inventory) rolloverStock = lastSession.actualClosing.inventory;
             }
-        } catch (e) { console.error("No index or offline:", e); }
+        } catch (e) {}
 
         let rolloverHTML = '';
         const physicalItems = getPhysicalItems(); 
@@ -249,82 +271,54 @@ async function handleDeskSelect(deskId, deskName, status, sessionId) {
     }
 }
 
-let isProcessingDesk = false; // NEW: The JavaScript lock to prevent double-clicks!
-
+let isProcessingDesk = false;
 async function confirmOpenDesk() {
-    // If the button was already clicked, ignore any extra clicks
     if (isProcessingDesk) return; 
 
     let floatAmount = parseFloat(document.getElementById('open-cash-float').value);
-    if (isNaN(floatAmount) || floatAmount < 0) {
-        alert("You must enter the exact physical cash float provided by the manager.");
-        return;
-    }
+    if (isNaN(floatAmount) || floatAmount < 0) return alert("You must enter the exact physical cash float provided by the manager.");
 
     let verifiedStartingInventory = {};
     document.querySelectorAll('.open-inv-input').forEach(input => {
         let qty = parseInt(input.value) || 0;
-        if (qty > 0) {
-            let itemName = input.getAttribute('data-name');
-            verifiedStartingInventory[itemName] = qty;
-        }
+        if (qty > 0) verifiedStartingInventory[input.getAttribute('data-name')] = qty;
     });
 
-    isProcessingDesk = true; // Lock the function so it can't run again!
+    isProcessingDesk = true; 
 
     try {
-        // --- NEW: THE DATABASE SAFETY CHECK ---
-        // Before we create a session, we strictly check if someone else beat us to it.
         const deskRef = doc(db, 'desks', currentDeskId);
         const deskCheck = await getDoc(deskRef);
         
         if (deskCheck.exists() && deskCheck.data().status === 'open') {
             alert("⚠️ STOP! This desk is already open. Another agent may have just opened it.");
-            closeModal('modal-open-desk');
-            loadFloorMap(); 
-            isProcessingDesk = false; // Unlock
-            return;
+            closeModal('modal-open-desk'); loadFloorMap(); isProcessingDesk = false; return;
         }
 
-        // If safe, generate the new session
         const newSessionRef = doc(collection(db, 'sessions'));
         currentSessionId = newSessionRef.id;
         currentOpeningCash = floatAmount;
-        const todayStr = new Date().toLocaleDateString('en-GB');
+        const todayStr = getStrictDate();
 
         const sessionData = {
-            deskId: currentDeskId,
-            dateStr: todayStr,
-            openedBy: userDisplayName,
-            openedByUid: currentUser.uid,
-            openedAt: serverTimestamp(),
-            status: 'open',
-            openingBalances: { cash: floatAmount, inventory: verifiedStartingInventory }
+            deskId: currentDeskId, dateStr: todayStr, openedBy: userDisplayName, openedByUid: currentUser.uid, openedAt: serverTimestamp(),
+            status: 'open', openingBalances: { cash: floatAmount, inventory: verifiedStartingInventory }
         };
 
         await setDoc(newSessionRef, sessionData);
         await setDoc(deskRef, { status: 'open', currentSessionId: currentSessionId, name: currentDeskName }, { merge: true });
-
-        // --- BULLETPROOF LOCK-IN ---
-        await setDoc(doc(db, 'users', currentUser.uid), {
-            assignedDeskId: currentDeskId,
-            assignedDate: todayStr
-        }, { merge: true });
+        await setDoc(doc(db, 'users', currentUser.uid), { assignedDeskId: currentDeskId, assignedDate: todayStr }, { merge: true });
 
         closeModal('modal-open-desk');
         document.getElementById('modal-desk-select').classList.remove('active');
         document.getElementById('header-title').innerText = `${currentDeskName}`;
         
         transactions = []; trashTransactions = [];
-        renderReport(currentOpeningCash);
+        await fetchTransactionsForDate();
         showFlashMessage(`${currentDeskName} is now OPEN!`);
 
-    } catch (e) { 
-        console.error("Failed to open desk:", e);
-        alert("System Error: " + e.message); 
-    } finally {
-        isProcessingDesk = false; // Always unlock the function when finished
-    }
+    } catch (e) { alert("System Error: " + e.message); } 
+    finally { isProcessingDesk = false; }
 }
 
 // ==========================================
@@ -464,70 +458,162 @@ async function finalizeCloseDesk(variance) {
         await setDoc(doc(db, 'desks', currentDeskId), { status: 'closed', currentSessionId: null }, { merge: true });
 
         currentDeskId = null; currentSessionId = null; currentDeskName = '';
+        updateHubNav();
         closeModal('modal-close-desk');
         showFlashMessage("Desk Successfully Closed!");
         
-        // Remove Daily Lock when closing desk
         await setDoc(doc(db, 'users', currentUser.uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
-        
         loadFloorMap(); 
     } catch (e) { alert("Offline: Could not close desk."); }
 }
 
 // ==========================================
-//    PHASE 3: MID-DAY ACTIONS & TRANSFERS
+//    PHASE 3: DESK ACTIONS & TRANSFERS
 // ==========================================
-let currentAdjType = 'stock';
 
-function openAdjustmentModal(type) {
-    if(!currentSessionId) { alert("You must open a desk first."); return; }
-    currentAdjType = type;
-    document.getElementById('adj-amount').value = '';
-    document.getElementById('adj-title').innerText = type === 'cash' ? '💵 Cash Adjustment' : '📦 Stock Adjustment';
-
-    let selectEl = document.getElementById('adj-item-select');
-    selectEl.innerHTML = '';
-    
-    if (type === 'cash') {
-        selectEl.innerHTML = '<option value="Physical Cash">Physical Cash (Tk)</option>';
-    } else {
-        getPhysicalItems().forEach(itemName => {
-            let opt = document.createElement('option');
-            opt.value = itemName; opt.innerText = itemName;
-            selectEl.appendChild(opt);
-        });
-    }
-    openModal('modal-adjustment');
+// 1. MANAGER CASH (Drop & Receive)
+function openManagerCashModal() {
+    if(!currentSessionId) return alert("Desk not open.");
+    document.getElementById('mgr-cash-amount').value = '';
+    openModal('modal-manager-cash');
 }
 
-async function saveAdjustment() {
-    let amountOrQty = parseFloat(document.getElementById('adj-amount').value) || 0;
-    if (amountOrQty <= 0) return alert("Enter a valid number greater than 0.");
+async function saveManagerCash() {
+    let amount = parseFloat(document.getElementById('mgr-cash-amount').value) || 0;
+    if (amount <= 0) return alert("Enter a valid amount.");
+    let action = document.getElementById('mgr-cash-action').value; 
+    let finalValue = action === 'receive' ? amount : -amount;
+    let paymentLabel = action === 'receive' ? 'Received from Manager' : 'Dropped to Manager';
 
-    let itemName = document.getElementById('adj-item-select').value;
-    let action = document.getElementById('adj-action-select').value; 
-    let finalValue = action === 'add' ? amountOrQty : -amountOrQty;
-
-    let qty = currentAdjType === 'stock' ? finalValue : 0;
-    let cashAmt = currentAdjType === 'cash' ? finalValue : 0;
-
-    const adjTx = {
-        id: Date.now(), type: 'adjustment', name: itemName, trackAs: itemName, amount: 0, qty: qty,
-        payment: action === 'add' ? 'Received' : 'Dropped', cashAmt: cashAmt, mfsAmt: 0, isDeleted: false,
+    const tx = {
+        id: Date.now(), type: 'adjustment', name: 'Physical Cash', trackAs: 'Physical Cash', amount: 0, qty: 0,
+        payment: paymentLabel, cashAmt: finalValue, mfsAmt: 0, isDeleted: false,
         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-        dateStr: new Date().toLocaleDateString('en-GB'),
-        deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userDisplayName
+        dateStr: getStrictDate(), deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userDisplayName
     };
 
-    closeModal('modal-adjustment');
-    try {
-        await addDoc(collection(db, 'transactions'), adjTx);
-        showFlashMessage("Ledger Updated!");
-    } catch(e) { showFlashMessage("Offline: Will sync later."); }
+    closeModal('modal-manager-cash');
+    try { await addDoc(collection(db, 'transactions'), tx); showFlashMessage("Cash Logged!"); } 
+    catch(e) { showFlashMessage("Offline: Queued for sync."); }
 }
 
-let targetTransferDeskId = null; let targetTransferSessionId = null;
+// 2. RECEIVE MAIN STOCK
+function openMainStockModal() {
+    if(!currentSessionId) return alert("Desk not open.");
+    document.getElementById('main-stock-qty').value = '';
+    let selectEl = document.getElementById('main-stock-item');
+    selectEl.innerHTML = '';
+    getPhysicalItems().forEach(itemName => {
+        let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
+        selectEl.appendChild(opt);
+    });
+    openModal('modal-main-stock');
+}
 
+async function saveMainStock() {
+    let qty = parseInt(document.getElementById('main-stock-qty').value) || 0;
+    if (qty <= 0) return alert("Enter a valid quantity.");
+    let itemName = document.getElementById('main-stock-item').value;
+
+    const tx = {
+        id: Date.now(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty,
+        payment: 'Received from Main Stock', cashAmt: 0, mfsAmt: 0, isDeleted: false,
+        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        dateStr: getStrictDate(), deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userDisplayName
+    };
+
+    closeModal('modal-main-stock');
+    try { await addDoc(collection(db, 'transactions'), tx); showFlashMessage("Stock Added to Drawer!"); } 
+    catch(e) { showFlashMessage("Offline: Queued for sync."); }
+}
+
+// 3. TRANSFER TO ANOTHER DESK
+async function openDeskTransfer() {
+    if(!currentSessionId) return alert("Desk not open.");
+    document.getElementById('desk-transfer-qty').value = '';
+    
+    let itemSelect = document.getElementById('desk-transfer-item');
+    itemSelect.innerHTML = '';
+    getPhysicalItems().forEach(itemName => {
+        let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
+        itemSelect.appendChild(opt);
+    });
+
+    let targetSelect = document.getElementById('desk-transfer-target');
+    targetSelect.innerHTML = '<option value="">Loading active desks...</option>';
+    openModal('modal-desk-transfer');
+
+    // Fetch active desks from Firebase so they can choose a destination
+    try {
+        const activeSessionsSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'open')));
+        let optionsHTML = '';
+        activeSessionsSnap.forEach(docSnap => {
+            let deskData = docSnap.data();
+            if(deskData.deskId !== currentDeskId) {
+                optionsHTML += `<option value="${deskData.deskId}|${docSnap.id}">${deskData.deskId.replace('_', ' ').toUpperCase()}</option>`;
+            }
+        });
+        targetSelect.innerHTML = optionsHTML || '<option value="">No other desks open</option>';
+    } catch(e) { targetSelect.innerHTML = '<option value="">Offline: Cannot fetch desks</option>'; }
+}
+
+async function executeDeskTransfer() {
+    let qty = parseInt(document.getElementById('desk-transfer-qty').value) || 0;
+    if (qty <= 0) return alert("Enter valid quantity.");
+
+    let targetVal = document.getElementById('desk-transfer-target').value;
+    if (!targetVal) return alert("Please select an active destination desk.");
+    
+    let [targetDeskId, targetSessionId] = targetVal.split('|');
+    let itemName = document.getElementById('desk-transfer-item').value;
+    let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    let dateStr = getStrictDate();
+
+    const senderTx = { id: Date.now(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userDisplayName };
+    const receiverTx = { id: Date.now() + 1, type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: -qty, payment: `Received from ${currentDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: "system", agentName: `Transfer from ${userDisplayName}` };
+
+    closeModal('modal-desk-transfer');
+    try {
+        await addDoc(collection(db, 'transactions'), senderTx);
+        await addDoc(collection(db, 'transactions'), receiverTx);
+        showFlashMessage("Transfer Successful!");
+    } catch(e) { showFlashMessage("Offline: Queued for sync."); }
+}
+
+// 4. ADMIN FLOOR MAP TRANSFER (Keep this so Admins can push stock from map)
+let targetTransferDeskId = null; let targetTransferSessionId = null;
+function openTransferModal(targetDesk, targetSession) {
+    targetTransferDeskId = targetDesk; targetTransferSessionId = targetSession;
+    document.getElementById('transfer-target-name').innerText = targetDesk.replace('_', ' ').toUpperCase();
+    document.getElementById('transfer-qty').value = '';
+    let selectEl = document.getElementById('transfer-item-select');
+    selectEl.innerHTML = '';
+    getPhysicalItems().forEach(itemName => {
+        let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
+        selectEl.appendChild(opt);
+    });
+    openModal('modal-transfer');
+}
+
+async function executeTransfer() {
+    let qty = parseInt(document.getElementById('transfer-qty').value) || 0;
+    if (qty <= 0) return alert("Enter valid quantity.");
+    let itemName = document.getElementById('transfer-item-select').value;
+    let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    let dateStr = getStrictDate();
+
+    const senderTx = { id: Date.now(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetTransferDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: currentDeskId || "Admin", sessionId: currentSessionId || "Admin", agentId: currentUser.uid, agentName: userDisplayName };
+    const receiverTx = { id: Date.now() + 1, type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: -qty, payment: `Received from ${currentDeskId || "Admin"}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetTransferDeskId, sessionId: targetTransferSessionId, agentId: "system", agentName: `Transfer from ${userDisplayName}` };
+
+    closeModal('modal-transfer');
+    try {
+        await addDoc(collection(db, 'transactions'), senderTx);
+        await addDoc(collection(db, 'transactions'), receiverTx);
+        showFlashMessage("Transfer Successful!");
+    } catch(e) { showFlashMessage("Offline: Queued for sync."); }
+}
+
+// --- RENDER FLOOR MAP & PEEK AT DESK ---
 async function renderLiveFloorTab() {
     const container = document.getElementById('live-floor-container');
     container.innerHTML = '<div class="spinner" style="align-self: center; margin-top: 40px;"></div>';
@@ -575,7 +661,8 @@ async function renderLiveFloorTab() {
                     </div>
                     <div style="margin-bottom: 12px;"><span style="font-size: 0.8rem; font-weight: bold; color: #64748b;">Live Cash:</span><span style="font-size: 1.2rem; font-weight: bold; color: #10b981; margin-left: 8px;">${liveCash} Tk</span></div>
                     <div style="margin-bottom: 16px;"><span style="display: block; font-size: 0.8rem; font-weight: bold; color: #64748b; margin-bottom: 6px;">Live Inventory:</span><div>${invDisplay}</div></div>
-                    ${!isMyDesk && !(!currentDeskId && currentUserRole === 'admin') ? `<button class="btn-outline" style="width: 100%; color: #8b5cf6; border-color: #8b5cf6; background: #faf5ff; padding: 10px;" onclick="openTransferModal('${session.deskId}', '${sid}')">📦 Push Stock to this Desk</button>` : ''}
+                    
+                    <button class="btn-outline" style="width: 100%; color: #8b5cf6; border-color: #8b5cf6; background: #faf5ff; padding: 10px;" onclick="peekAtDesk('${session.deskId}', '${session.deskId.replace('_', ' ').toUpperCase()}')">👁️ View Details</button>
                 </div>
             `;
         }
@@ -583,46 +670,22 @@ async function renderLiveFloorTab() {
     } catch (e) { container.innerHTML = '<p class="placeholder-text" style="color: #ef4444;">Offline: Could not load.</p>'; }
 }
 
-function openTransferModal(targetDesk, targetSession) {
-    if (!currentSessionId) return alert("You must open your desk first.");
-    targetTransferDeskId = targetDesk; targetTransferSessionId = targetSession;
-    
-    document.getElementById('transfer-target-name').innerText = targetDesk.replace('_', ' ').toUpperCase();
-    document.getElementById('transfer-qty').value = '';
-    
-    let selectEl = document.getElementById('transfer-item-select');
-    selectEl.innerHTML = '';
-    getPhysicalItems().forEach(itemName => {
-        let opt = document.createElement('option');
-        opt.value = itemName; opt.innerText = itemName;
-        selectEl.appendChild(opt);
-    });
-
-    openModal('modal-transfer');
-}
-
-async function executeTransfer() {
-    let qty = parseInt(document.getElementById('transfer-qty').value) || 0;
-    if (qty <= 0) return alert("Enter valid quantity.");
-
-    let itemName = document.getElementById('transfer-item-select').value;
-    let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    let dateStr = new Date().toLocaleDateString('en-GB');
-
-    const senderTx = { id: Date.now(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetTransferDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userDisplayName };
-    const receiverTx = { id: Date.now() + 1, type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: -qty, payment: `Received from ${currentDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetTransferDeskId, sessionId: targetTransferSessionId, agentId: "system", agentName: `Transfer from ${userDisplayName}` };
-
-    closeModal('modal-transfer');
-    try {
-        await addDoc(collection(db, 'transactions'), senderTx);
-        await addDoc(collection(db, 'transactions'), receiverTx);
-        showFlashMessage("Transfer Successful!");
-        if (document.getElementById('tab-floor').classList.contains('active')) renderLiveFloorTab();
-    } catch(e) { showFlashMessage("Offline: Queued for sync."); }
+function peekAtDesk(targetDeskId, targetDeskName) {
+    if (targetDeskId === currentDeskId) {
+        openDynamicHub(); // Jump to own fully active dashboard
+    } else {
+        document.getElementById('desk-action-buttons').style.display = 'none';
+        document.getElementById('desk-peek-header').style.display = 'flex';
+        document.getElementById('desk-dashboard-title').innerText = targetDeskName;
+        switchTab('desk', targetDeskName + ' (Peek)');
+        
+        // Force the desk render engine to calculate the peeked desk instead of currentDeskId
+        renderDeskDashboard(targetDeskId);
+    }
 }
 
 // ==========================================
-//    PHASE 3: EDIT, SPLIT PAYMENT, & TRASH
+//    EDIT, SPLIT PAYMENT, & TRASH
 // ==========================================
 let currentEditTxId = null;
 
@@ -747,7 +810,13 @@ function switchTab(tabId, title) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
     document.getElementById('tab-' + tabId).classList.add('active');
-    event.currentTarget.classList.add('active');
+    
+    // Highlight the correct bottom nav button
+    if (tabId === 'desk' || tabId === 'floor') {
+        document.getElementById('nav-hub-btn').classList.add('active');
+    } else {
+        event.currentTarget.classList.add('active');
+    }
     
     document.getElementById('header-title').innerText = tabId === 'ers' ? (currentDeskName || userDisplayName) : title;
     if(tabId === 'floor') renderLiveFloorTab();
@@ -822,26 +891,20 @@ function saveQuantity() {
 }
 
 // --- DATE FILTER LOGIC ---
-function formatToGBDate(iso) { if(!iso) return new Date().toLocaleDateString('en-GB'); const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; }
-function getTodayISO() { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; }
+function formatToGBDate(iso) { if(!iso) return getStrictDate(); const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; }
 
 async function fetchTransactionsForDate() {
     if (!currentUser) return;
+    
+    // We now fetch ALL transactions for the selected day, so we can feed both the Personal and Desk engines.
     const datePicker = document.getElementById('report-date-picker');
-    if (!datePicker.value) datePicker.value = getTodayISO();
-
-    const targetDateStr = formatToGBDate(datePicker.value);
-    const isToday = targetDateStr === new Date().toLocaleDateString('en-GB');
-    const dateLabel = isToday ? 'Today' : targetDateStr;
-
-    let reportOpeningCash = 0;
-    if (isToday) reportOpeningCash = currentOpeningCash;
-    else {
-        try {
-            const sessSnap = await getDocs(query(collection(db, 'sessions'), where('deskId', '==', currentDeskId), where('dateStr', '==', targetDateStr), limit(1)));
-            if (!sessSnap.empty && sessSnap.docs[0].data().openingBalances) reportOpeningCash = parseFloat(sessSnap.docs[0].data().openingBalances.cash) || 0;
-        } catch(e) {}
+    if (!datePicker.value) {
+        const t = new Date(); 
+        datePicker.value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
     }
+    const targetDateStr = formatToGBDate(datePicker.value);
+    const isToday = targetDateStr === getStrictDate();
+    const dateLabel = isToday ? 'Today' : targetDateStr;
 
     if (txListenerUnsubscribe) { txListenerUnsubscribe(); txListenerUnsubscribe = null; }
 
@@ -850,16 +913,28 @@ async function fetchTransactionsForDate() {
             transactions = []; trashTransactions = []; 
             txSnapshot.forEach(doc => {
                 let tx = doc.data(); tx.docId = doc.id; 
-                let isMatch = (tx.deskId === currentDeskId) || (currentUserRole === 'admin' && !currentDeskId);
-                if (isMatch) {
-                    tx.isDeleted ? trashTransactions.push(tx) : transactions.push(tx);
+                
+                if (!tx.isDeleted) {
+                    transactions.push(tx); // Pool all live transactions for the day
+                } else if (tx.agentId === currentUser.uid) {
+                    trashTransactions.push(tx); // Only show my own trash to me
                 }
             });
             
             transactions.sort((a, b) => a.id - b.id);
             trashTransactions.sort((a, b) => a.id - b.id);
             
-            renderReport(reportOpeningCash);
+            // Engine A: Feed my Personal Report
+            renderPersonalReport();
+            
+            // Engine B: Feed the Desk Dashboard (if I am assigned to one, or peeking at one)
+            if (document.getElementById('tab-desk').classList.contains('active')) {
+                // If peeking, the renderDeskDashboard function handles its own ID.
+                renderDeskDashboard();
+            } else if (currentDeskId) {
+                renderDeskDashboard(currentDeskId); 
+            }
+            
             const financialLabel = document.getElementById('financial-date-label');
             if (financialLabel) financialLabel.innerHTML = `${dateLabel} 🗓️`;
             if (document.getElementById('tab-floor').classList.contains('active')) renderLiveFloorTab();
@@ -906,7 +981,7 @@ async function initUserData() {
     try {
         const userDocRef = doc(db, 'users', currentUser.uid);
         const userDocSnap = await getDoc(userDocRef);
-        const todayStr = new Date().toLocaleDateString('en-GB');
+        const todayStr = getStrictDate();
 
         let userData = {};
         if (userDocSnap.exists()) {
@@ -936,16 +1011,21 @@ async function initUserData() {
         if(document.getElementById('tab-ers').classList.contains('active')) document.getElementById('header-title').innerText = userDisplayName;
 
         updateCurrencyUI(); renderAppUI();
-        document.getElementById('report-date-picker').value = getTodayISO();
+        
+        // Ensure date picker is set correctly on load
+        const t = new Date(); 
+        document.getElementById('report-date-picker').value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
         
         // --- DAILY LOCK-IN CHECK ---
         if (userData.assignedDate === todayStr && userData.assignedDeskId) {
             currentDeskId = userData.assignedDeskId;
+            updateHubNav(); // Update the button to say "Desk"
+            
             const deskSnap = await getDoc(doc(db, 'desks', currentDeskId));
             if (deskSnap.exists() && deskSnap.data().status === 'open') {
                 currentSessionId = deskSnap.data().currentSessionId;
                 currentDeskName = deskSnap.data().name;
-                document.getElementById('header-title').innerText = `${currentDeskName} (Joined)`;
+                document.getElementById('header-title').innerText = `${currentDeskName}`;
                 try {
                     const sessionSnap = await getDoc(doc(db, 'sessions', currentSessionId));
                     if (sessionSnap.exists() && sessionSnap.data().openingBalances) {
@@ -960,6 +1040,7 @@ async function initUserData() {
             document.getElementById('modal-desk-select').classList.remove('active');
             await fetchTransactionsForDate();
         } else {
+            updateHubNav(); // Button says "Floor Map"
             await loadFloorMap();
         }
     } catch(e) { console.error(e); } finally {
@@ -973,13 +1054,13 @@ async function addTransactionToCloud(type, name, amount, qty, payment, cashAmt =
     if (payment === 'MFS') { cashAmt = 0; mfsAmt = amount; }
 
     let catItem = Object.values(globalCatalog).find(c => c.name === name);
-    let trackAs = catItem ? (catItem.trackAs || "") : "";
+    let trackAs = catItem ? (catItem.trackAs || name) : name; 
 
     const tx = {
         id: Date.now(), type: type, name: name, trackAs: trackAs, amount: amount, qty: qty,
         payment: payment, cashAmt: cashAmt, mfsAmt: mfsAmt, isDeleted: false,
         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-        dateStr: new Date().toLocaleDateString('en-GB'),
+        dateStr: getStrictDate(),
         deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userDisplayName
     };
 
@@ -1156,26 +1237,28 @@ function showFlashMessage(text) {
     document.body.appendChild(msg); setTimeout(() => msg.remove(), 1500);
 }
 
+
 // ==========================================
-//          REPORTING & SHARE LOGIC
+//     ENGINE A: PERSONAL REPORT LOGIC
 // ==========================================
-function renderReport(openingCash = currentOpeningCash) {
-    let cashSales = 0, mfsSales = 0, totalErs = 0, cashAdjs = 0;
-    let inventoryCounts = {}; let historyHTML = '';
+function renderPersonalReport() {
+    let myCash = 0, myMfs = 0, myErs = 0;
+    let myInventory = {}; let historyHTML = '';
 
     [...transactions].reverse().forEach(tx => {
+        if (tx.agentId !== currentUser.uid) return; // Strict Personal Filter
+
         let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
         let safeMfsAmt = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0);
         
-        if (tx.type === 'adjustment') {
-            cashAdjs += safeCashAmt; 
-            if (tx.name !== 'Physical Cash' && tx.trackAs) { let pItem = tx.trackAs; inventoryCounts[pItem] = (inventoryCounts[pItem] || 0) + tx.qty; }
-        } else if (tx.type === 'transfer_out' || tx.type === 'transfer_in') {
-            if (tx.trackAs) { let pItem = tx.trackAs; inventoryCounts[pItem] = (inventoryCounts[pItem] || 0) + tx.qty; }
-        } else {
-            cashSales += safeCashAmt; mfsSales += safeMfsAmt;
-            if (tx.name === 'ERS Flexiload') totalErs += tx.amount;
-            else if (tx.trackAs) { let pItem = tx.trackAs; inventoryCounts[pItem] = (inventoryCounts[pItem] || 0) + tx.qty; }
+        if (tx.type !== 'adjustment' && tx.type !== 'transfer_out' && tx.type !== 'transfer_in') {
+            myCash += safeCashAmt; myMfs += safeMfsAmt;
+            if (tx.name === 'ERS Flexiload') myErs += tx.amount;
+            else {
+                // Shows the menu name for services, or the physical tracking name for boxes
+                let dName = tx.trackAs || tx.name; 
+                myInventory[dName] = (myInventory[dName] || 0) + tx.qty; 
+            }
         }
         
         let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
@@ -1197,52 +1280,114 @@ function renderReport(openingCash = currentOpeningCash) {
         `;
     });
 
-    if(document.getElementById('tot-opening')) document.getElementById('tot-opening').innerText = openingCash + ' ' + userCurrency;
-    if(document.getElementById('tot-cash-sales')) document.getElementById('tot-cash-sales').innerText = cashSales + ' ' + userCurrency;
-    if(document.getElementById('tot-cash-adj')) document.getElementById('tot-cash-adj').innerText = cashAdjs + ' ' + userCurrency;
-    if(document.getElementById('tot-expected-cash')) document.getElementById('tot-expected-cash').innerText = (openingCash + cashSales + cashAdjs) + ' ' + userCurrency;
-    document.getElementById('tot-mfs').innerText = mfsSales + ' ' + userCurrency;
-    document.getElementById('tot-ers').innerText = totalErs + ' ' + userCurrency;
-    if(document.getElementById('report-total-all')) document.getElementById('report-total-all').innerText = (cashSales + mfsSales) + ' ' + userCurrency;
+    if(document.getElementById('tot-cash-sales')) document.getElementById('tot-cash-sales').innerText = myCash + ' ' + userCurrency;
+    if(document.getElementById('tot-mfs')) document.getElementById('tot-mfs').innerText = myMfs + ' ' + userCurrency;
+    if(document.getElementById('tot-ers')) document.getElementById('tot-ers').innerText = myErs + ' ' + userCurrency;
+    if(document.getElementById('report-total-all')) document.getElementById('report-total-all').innerText = (myCash + myMfs) + ' ' + userCurrency;
 
     let invHTML = '';
-    for (const [name, qty] of Object.entries(inventoryCounts)) invHTML += `<div class="report-row"><span>${name}:</span> <span class="report-total">${qty}</span></div>`;
-    document.getElementById('inventory-list').innerHTML = invHTML || '<div class="report-row" style="color: var(--text-secondary); font-style: italic;">No items yet</div>';
-    document.getElementById('history-log').innerHTML = historyHTML || '<div class="placeholder-text" style="margin-top:20px;">No transactions today</div>';
+    for (const [name, qty] of Object.entries(myInventory)) invHTML += `<div class="report-row"><span>${name}:</span> <span class="report-total">${qty}</span></div>`;
+    document.getElementById('inventory-list').innerHTML = invHTML || '<div class="report-row" style="color: var(--text-secondary); font-style: italic;">No personal items sold yet</div>';
+    document.getElementById('history-log').innerHTML = historyHTML || '<div class="placeholder-text" style="margin-top:20px;">No personal transactions today</div>';
 }
 
 function shareReport() {
     let dateStr = formatToGBDate(document.getElementById('report-date-picker').value);
     let totalRevenue = document.getElementById('report-total-all') ? document.getElementById('report-total-all').innerText : "0 Tk";
-    let expectedCash = document.getElementById('tot-expected-cash') ? document.getElementById('tot-expected-cash').innerText : "0 Tk";
     let totalMfs = document.getElementById('tot-mfs').innerText;
+    let totalCash = document.getElementById('tot-cash-sales').innerText;
     let totalErs = document.getElementById('tot-ers').innerText;
     
-    let reportText = `📅 Daily Report: ${dateStr}\n👤 User: ${userDisplayName}\n\n💰 FINANCIAL SUMMARY\nTotal Revenue (Sales): ${totalRevenue}\nTotal MFS Collected: ${totalMfs}\n----------------------\n💵 EXPECTED DRAWER CASH: ${expectedCash}\n\n📱 Total ERS Disbursed: ${totalErs}\n\n📦 INVENTORY & SERVICES\n`;
+    let reportText = `📅 My Daily Report: ${dateStr}\n👤 Agent: ${userDisplayName}\n\n💰 PERSONAL SALES SUMMARY\nTotal Revenue: ${totalRevenue}\nCash Collected: ${totalCash}\nMFS Collected: ${totalMfs}\n\n📱 ERS Disbursed: ${totalErs}\n\n📦 MY ITEMS & SERVICES SOLD\n`;
     
     let inventoryCounts = {}; let hasItems = false;
     transactions.forEach(tx => {
-        if (tx.name !== 'ERS Flexiload') { 
-            if (tx.type === 'adjustment' && tx.name === 'Physical Cash') return;
-            if (tx.trackAs) {
-                let pItem = tx.trackAs;
-                inventoryCounts[pItem] = (inventoryCounts[pItem] || 0) + tx.qty; 
-                hasItems = true; 
-            }
+        if (tx.agentId === currentUser.uid && tx.name !== 'ERS Flexiload' && tx.type !== 'adjustment') { 
+            let dName = tx.trackAs || tx.name;
+            inventoryCounts[dName] = (inventoryCounts[dName] || 0) + tx.qty; 
+            hasItems = true; 
         }
     });
 
     if (!hasItems) reportText += `None\n`;
     else for (const [name, qty] of Object.entries(inventoryCounts)) reportText += `${qty}x ${name}\n`;
 
-    if (navigator.share) navigator.share({ title: 'Amolnama Daily Report', text: reportText }).catch(e => console.log(e));
-    else { try { navigator.clipboard.writeText(reportText).then(() => alert("Copied!")).catch(() => fallbackCopy(reportText)); } catch (e) { fallbackCopy(reportText); } }
+    if (navigator.share) navigator.share({ title: 'My Daily Report', text: reportText }).catch(e => console.log(e));
+    else { try { navigator.clipboard.writeText(reportText).then(() => alert("Report Copied!")).catch(() => fallbackCopy(reportText)); } catch (e) { fallbackCopy(reportText); } }
 }
 
-function fallbackCopy(text) {
-    let textArea = document.createElement("textarea"); textArea.value = text; textArea.style.position = "fixed"; textArea.style.opacity = "0"; document.body.appendChild(textArea); textArea.focus(); textArea.select();
-    try { document.execCommand('copy'); alert("Copied!"); } catch (err) {} document.body.removeChild(textArea);
+// ==========================================
+//     ENGINE B: DESK DASHBOARD LOGIC
+// ==========================================
+async function renderDeskDashboard(targetDeskId = currentDeskId) {
+    if (!targetDeskId) return;
+
+    let deskCashSales = 0, mgrDropRcv = 0;
+    let inventoryCounts = {}; let historyHTML = '';
+    
+    // 1. Fetch Desk Opening Balance
+    let deskOpeningCash = 0;
+    try {
+        const targetDateStr = formatToGBDate(document.getElementById('report-date-picker').value || getTodayISO());
+        const sessSnap = await getDocs(query(collection(db, 'sessions'), where('deskId', '==', targetDeskId), where('dateStr', '==', targetDateStr), limit(1)));
+        if (!sessSnap.empty && sessSnap.docs[0].data().openingBalances) {
+            deskOpeningCash = parseFloat(sessSnap.docs[0].data().openingBalances.cash) || 0;
+        }
+    } catch(e) {}
+
+    // 2. Process Desk Transactions
+    [...transactions].reverse().forEach(tx => {
+        if (tx.deskId !== targetDeskId) return; // Strict Desk Filter
+
+        let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
+        
+        if (tx.type === 'adjustment') {
+            if (tx.name === 'Physical Cash') mgrDropRcv += safeCashAmt; 
+            else if (tx.trackAs) { let pItem = tx.trackAs; inventoryCounts[pItem] = (inventoryCounts[pItem] || 0) + tx.qty; }
+        } else if (tx.type === 'transfer_out' || tx.type === 'transfer_in') {
+            if (tx.trackAs) { let pItem = tx.trackAs; inventoryCounts[pItem] = (inventoryCounts[pItem] || 0) + tx.qty; }
+        } else {
+            deskCashSales += safeCashAmt; 
+            if (tx.name !== 'ERS Flexiload' && tx.trackAs) { 
+                let pItem = tx.trackAs; 
+                inventoryCounts[pItem] = (inventoryCounts[pItem] || 0) + tx.qty; 
+            }
+        }
+        
+        let agentBadge = `<span style="font-size: 0.7rem; background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">${tx.agentName.split(' ')[0]}</span>`;
+
+        historyHTML += `
+            <div class="history-item">
+                <div class="history-info">
+                    <div style="display: flex; align-items: center;"><span class="history-title">${tx.qty}x ${tx.name}</span>${agentBadge}</div>
+                    <span class="history-meta">${tx.time} • ${tx.payment}</span>
+                </div>
+            </div>
+        `;
+    });
+
+    if(document.getElementById('desk-tot-opening')) document.getElementById('desk-tot-opening').innerText = deskOpeningCash + ' ' + userCurrency;
+    if(document.getElementById('desk-tot-cash-sales')) document.getElementById('desk-tot-cash-sales').innerText = deskCashSales + ' ' + userCurrency;
+    if(document.getElementById('desk-tot-manager')) document.getElementById('desk-tot-manager').innerText = mgrDropRcv + ' ' + userCurrency;
+    if(document.getElementById('desk-tot-expected-cash')) document.getElementById('desk-tot-expected-cash').innerText = (deskOpeningCash + deskCashSales + mgrDropRcv) + ' ' + userCurrency;
+
+    let invHTML = '';
+    for (const [name, qty] of Object.entries(inventoryCounts)) invHTML += `<div class="report-row"><span>${name}:</span> <span class="report-total">${qty}</span></div>`;
+    document.getElementById('desk-inventory-list').innerHTML = invHTML || '<div class="report-row" style="color: var(--text-secondary); font-style: italic;">No physical items tracked</div>';
+    document.getElementById('desk-history-log').innerHTML = historyHTML || '<div class="placeholder-text" style="margin-top:20px;">No transactions yet</div>';
+
+    // 3. Fetch Agents Currently Logged into this Desk
+    try {
+        const agentsSnap = await getDocs(query(collection(db, 'users'), where('assignedDeskId', '==', targetDeskId)));
+        let names = [];
+        agentsSnap.forEach(doc => {
+            let emailName = doc.data().email ? doc.data().email.split('@')[0] : 'Agent';
+            names.push(emailName);
+        });
+        document.getElementById('desk-logged-agents').innerText = names.length > 0 ? names.join(', ') : 'None';
+    } catch(e) { document.getElementById('desk-logged-agents').innerText = 'Unknown'; }
 }
+
 
 // --- VITE EXPORTS ---
 window.signInWithGoogle = signInWithGoogle; window.logout = logout; window.switchTab = switchTab;
@@ -1254,10 +1399,13 @@ window.addNewItem = addNewItem; window.saveSettings = saveSettings; window.share
 window.fetchTransactionsForDate = fetchTransactionsForDate; window.filterAdminCatalog = filterAdminCatalog; window.toggleAddForm = toggleAddForm;
 window.loadFloorMap = loadFloorMap; window.handleDeskSelect = handleDeskSelect; window.confirmOpenDesk = confirmOpenDesk;
 window.initiateCloseDesk = initiateCloseDesk; window.processCloseDeskStep2 = processCloseDeskStep2; window.calculateRetained = calculateRetained;
-window.finalizeCloseDesk = finalizeCloseDesk; window.openAdjustmentModal = openAdjustmentModal; window.saveAdjustment = saveAdjustment;
+window.finalizeCloseDesk = finalizeCloseDesk; 
+window.openManagerCashModal = openManagerCashModal; window.saveManagerCash = saveManagerCash;
+window.openMainStockModal = openMainStockModal; window.saveMainStock = saveMainStock;
+window.openDeskTransfer = openDeskTransfer; window.executeDeskTransfer = executeDeskTransfer;
 window.renderLiveFloorTab = renderLiveFloorTab; window.openTransferModal = openTransferModal; window.executeTransfer = executeTransfer;
 window.openEditTx = openEditTx; window.toggleEditSplitFields = toggleEditSplitFields; window.updateSplitTotal = updateSplitTotal;
 window.saveTxEdit = saveTxEdit; window.deleteTransaction = deleteTransaction; window.openTrash = openTrash;
 window.restoreTx = restoreTx; window.emptyTrash = emptyTrash; window.permanentlyDeleteTx = permanentlyDeleteTx;
 window.addInventoryGroup = addInventoryGroup; window.removeInventoryGroup = removeInventoryGroup;
-window.adminBypass = adminBypass;
+window.adminBypass = adminBypass; window.openDynamicHub = openDynamicHub; window.peekAtDesk = peekAtDesk;
