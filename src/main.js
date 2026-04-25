@@ -197,10 +197,10 @@ async function handleDeskSelect(deskId, deskName, status, sessionId) {
         
         // --- NEW: PERMANENTLY LOCK AGENT FOR TODAY ---
         const todayStr = new Date().toLocaleDateString('en-GB');
-        await updateDoc(doc(db, 'users', currentUser.uid), {
+        await setDoc(doc(db, 'users', currentUser.uid), {
             assignedDeskId: currentDeskId,
             assignedDate: todayStr
-        });
+        }, { merge: true });
 
         document.getElementById('modal-desk-select').classList.remove('active');
         document.getElementById('header-title').innerText = `${deskName} (Joined)`;
@@ -286,10 +286,10 @@ async function confirmOpenDesk() {
         await updateDoc(doc(db, 'desks', currentDeskId), { status: 'open', currentSessionId: currentSessionId });
 
         // --- NEW: PERMANENTLY LOCK AGENT FOR TODAY ---
-        await updateDoc(doc(db, 'users', currentUser.uid), {
+        await setDoc(doc(db, 'users', currentUser.uid), {
             assignedDeskId: currentDeskId,
             assignedDate: todayStr
-        });
+        }, { merge: true });
 
         closeModal('modal-open-desk');
         document.getElementById('modal-desk-select').classList.remove('active');
