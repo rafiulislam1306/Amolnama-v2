@@ -130,30 +130,8 @@ function logout() {
 }
 
 // ==========================================
-//    PHASE 2: DYNAMIC HUB & SHIFT MGMT
+//    PHASE 2: SHIFT MANAGEMENT
 // ==========================================
-function updateHubNav() {
-    const icon = document.getElementById('nav-hub-icon');
-    const text = document.getElementById('nav-hub-text');
-    if (icon && text) {
-        if (currentDeskId) {
-            icon.innerText = '🏢'; text.innerText = 'My Desk';
-        } else {
-            icon.innerText = '🗺️'; text.innerText = 'Floor Map';
-        }
-    }
-}
-
-function openDynamicHub() {
-    if (currentDeskId) {
-        document.getElementById('desk-peek-header').style.display = 'none';
-        document.getElementById('desk-action-buttons').style.display = 'block';
-        document.getElementById('desk-dashboard-title').innerText = currentDeskName + ' (My Drawer)';
-        switchTab('desk', currentDeskName);
-    } else {
-        switchTab('floor', 'Live Floor Map');
-    }
-}
 
 async function loadFloorMap() {
     const container = document.getElementById('desk-list-container');
@@ -207,7 +185,6 @@ async function loadFloorMap() {
 function adminBypass() {
     document.getElementById('modal-desk-select').classList.remove('active');
     currentDeskId = null; currentSessionId = null; currentDeskName = 'Global Admin Mode';
-    updateHubNav();
     document.getElementById('header-title').innerText = 'Global Admin Mode';
     switchTab('floor', 'Live Floor Map');
     fetchTransactionsForDate(); showFlashMessage("Admin Mode Activated");
@@ -216,7 +193,6 @@ function adminBypass() {
 async function handleDeskSelect(deskId, deskName, status, sessionId) {
     currentDeskId = deskId;
     currentDeskName = deskName;
-    updateHubNav();
 
     if (status === 'open' && sessionId) {
         currentSessionId = sessionId;
@@ -458,7 +434,6 @@ async function finalizeCloseDesk(variance) {
         await setDoc(doc(db, 'desks', currentDeskId), { status: 'closed', currentSessionId: null }, { merge: true });
 
         currentDeskId = null; currentSessionId = null; currentDeskName = '';
-        updateHubNav();
         closeModal('modal-close-desk');
         showFlashMessage("Desk Successfully Closed!");
         
@@ -685,7 +660,7 @@ function openMyDeskDashboard() {
 
 function peekAtDesk(targetDeskId, targetDeskName) {
     if (targetDeskId === currentDeskId) {
-        openDynamicHub(); // Jump to own fully active dashboard
+        openMyDeskDashboard(); // Jump to own fully active dashboard
     } else {
         document.getElementById('desk-action-buttons').style.display = 'none';
         document.getElementById('desk-peek-header').style.display = 'flex';
@@ -824,11 +799,8 @@ function switchTab(tabId, title) {
     document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
     document.getElementById('tab-' + tabId).classList.add('active');
     
-    // Highlight the correct bottom nav button
-    if (tabId === 'desk' || tabId === 'floor') {
-        document.getElementById('nav-hub-btn').classList.add('active');
-    } else {
-        event.currentTarget.classList.add('active');
+    if(event && event.currentTarget) {
+         event.currentTarget.classList.add('active');
     }
     
     document.getElementById('header-title').innerText = tabId === 'ers' ? (currentDeskName || userDisplayName) : title;
@@ -1032,7 +1004,6 @@ async function initUserData() {
         // --- DAILY LOCK-IN CHECK ---
         if (userData.assignedDate === todayStr && userData.assignedDeskId) {
             currentDeskId = userData.assignedDeskId;
-            updateHubNav(); // Update the button to say "Desk"
             
             const deskSnap = await getDoc(doc(db, 'desks', currentDeskId));
             if (deskSnap.exists() && deskSnap.data().status === 'open') {
@@ -1053,7 +1024,6 @@ async function initUserData() {
             document.getElementById('modal-desk-select').classList.remove('active');
             await fetchTransactionsForDate();
         } else {
-            updateHubNav(); // Button says "Floor Map"
             await loadFloorMap();
         }
     } catch(e) { console.error(e); } finally {
@@ -1421,4 +1391,4 @@ window.openEditTx = openEditTx; window.toggleEditSplitFields = toggleEditSplitFi
 window.saveTxEdit = saveTxEdit; window.deleteTransaction = deleteTransaction; window.openTrash = openTrash;
 window.restoreTx = restoreTx; window.emptyTrash = emptyTrash; window.permanentlyDeleteTx = permanentlyDeleteTx;
 window.addInventoryGroup = addInventoryGroup; window.removeInventoryGroup = removeInventoryGroup;
-window.adminBypass = adminBypass; window.openDynamicHub = openDynamicHub; window.peekAtDesk = peekAtDesk;
+window.adminBypass = adminBypass; window.peekAtDesk = peekAtDesk; window.openMyDeskDashboard = openMyDeskDashboard;
