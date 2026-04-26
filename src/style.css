@@ -117,9 +117,37 @@ header { background-color: var(--surface-color); padding: env(safe-area-inset-to
 .ers-currency { font-size: 1.5rem; color: var(--text-secondary); margin-right: 12px; font-weight: 500; }
 .ers-display { font-size: 4rem; font-weight: 800; color: var(--text-primary); word-break: break-all; letter-spacing: -2px; line-height: 1; }
 .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; flex: 1; }
-.keypad-btn { background-color: transparent; border: none; border-radius: 12px; font-size: 2rem; font-weight: 400; color: var(--text-primary); cursor: pointer; display: flex; align-items: center; justify-content: center; -webkit-user-select: none; user-select: none; transition: background-color 0.1s; }
-.keypad-btn:active { background-color: var(--border-color); }
-.backspace-btn { color: #ef4444; }
+
+/* Industry Standard POS Keypad UX */
+.keypad-btn { 
+    background-color: var(--surface-color); 
+    border: none; 
+    border-radius: 16px; /* Softer, modern corners */
+    font-size: 2.25rem; /* Slightly larger for quick readability */
+    font-weight: 500; /* Heavier weight for financial clarity */
+    color: var(--text-primary); 
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    box-shadow: 0 2px 6px rgba(0,0,0,0.04); /* Very subtle elevation */
+    -webkit-user-select: none; 
+    user-select: none; 
+    touch-action: manipulation; /* Forces zero-latency tap response */
+    transition: transform 0.05s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.05s, box-shadow 0.05s; 
+}
+
+/* The 'Snap' interaction */
+.keypad-btn:active { 
+    background-color: var(--border-color); 
+    transform: scale(0.92); /* Satisfying physical push effect */
+    box-shadow: 0 0 0 rgba(0,0,0,0);
+}
+
+.backspace-btn { 
+    color: #ef4444; 
+    font-size: 1.75rem; /* Scale down the icon slightly to match text weight */
+}
 .save-ers-btn { background-color: var(--accent-color); color: #ffffff; border: none; border-radius: 10px; padding: 16px; font-size: 1.25rem; font-weight: 600; cursor: pointer; width: 100%; -webkit-user-select: none; user-select: none; transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.1s; box-shadow: none; }
 .save-ers-btn:active { transform: scale(0.96); opacity: 0.9; }
 .toggle-container { display: flex; align-items: center; justify-content: space-between; background-color: transparent; padding: 0 4px; margin-bottom: 20px; }
