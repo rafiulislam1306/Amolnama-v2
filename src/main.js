@@ -796,7 +796,9 @@ async function emptyTrash() {
 //    UI NAVIGATION & CORE APP LOGIC
 // ==========================================
 function switchTab(tabId, title) {
-    document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
+    document.querySelectorAll('.modal-overlay').forEach(modal => {
+        if (modal.id !== 'modal-desk-select') modal.classList.remove('active');
+    });
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
     document.getElementById('tab-' + tabId).classList.add('active');
@@ -1019,13 +1021,15 @@ async function initUserData() {
                         currentOpeningCash = parseFloat(sessionSnap.data().openingBalances.cash) || 0;
                     }
                 } catch(e) {}
+                document.getElementById('modal-desk-select').classList.remove('active');
+                await fetchTransactionsForDate();
             } else {
-                currentDeskName = deskSnap.exists() ? deskSnap.data().name : currentDeskId;
-                document.getElementById('header-title').innerText = `${currentDeskName} (Closed)`;
-                currentSessionId = null; 
+                // The desk is closed. Clear assignment and force the floor map.
+                currentDeskId = null;
+                currentSessionId = null;
+                await setDoc(doc(db, 'users', currentUser.uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
+                await loadFloorMap();
             }
-            document.getElementById('modal-desk-select').classList.remove('active');
-            await fetchTransactionsForDate();
         } else {
             await loadFloorMap();
         }
