@@ -89,7 +89,7 @@ function passStockFirewall(itemName, requestedQty) {
 
     let available = getAvailableStock(itemName);
     if (available < requestedQty) {
-        alert(`⚠️ TRANSACTION BLOCKED\n\nNot enough physical stock!\n\nYou only have ${available}x ${trackAs} available in your drawer.`);
+        showAppAlert("Insufficient Stock", `You only have ${available}x ${trackAs} available in your drawer. You cannot complete this transaction.`);
         return false; 
     }
     return true; 
@@ -338,7 +338,7 @@ async function confirmOpenDesk() {
         const deskCheck = await getDoc(deskRef);
         
         if (deskCheck.exists() && deskCheck.data().status === 'open') {
-            alert("⚠️ STOP! This desk is already open. Another agent may have just opened it.");
+            showAppAlert("Desk Unavailable", "This desk was just opened by another agent. Please refresh the floor map.");
             closeModal('modal-open-desk'); loadFloorMap(); isProcessingDesk = false; return;
         }
 
@@ -925,7 +925,7 @@ function ersKeyPress(num) {
 function ersBackspace() { currentErsAmount = currentErsAmount.length > 1 ? currentErsAmount.slice(0, -1) : '0'; updateErsDisplay(); }
 function saveErs(paymentMethod) {
     const amount = parseInt(currentErsAmount);
-    if (amount <= 0) return alert("Enter a valid amount.");
+    if (amount <= 0) { showAppAlert("Invalid Input", "Please enter a valid amount."); return; }
     addTransactionToCloud('ERS', 'ERS Flexiload', amount, 1, paymentMethod);
     currentErsAmount = '0'; updateErsDisplay();
 }
@@ -965,7 +965,7 @@ function qtyKeyPress(num) { if (currentQty === '0') currentQty = num; else if (c
 function qtyBackspace() { currentQty = currentQty.length > 1 ? currentQty.slice(0, -1) : '0'; updateQtyDisplay(); }
 function saveQuantity() {
     let qtyInt = parseInt(currentQty) || 0;
-    if (qtyInt <= 0) return alert("Enter quantity 1 or more.");
+    if (qtyInt <= 0) { showAppAlert("Invalid Input", "Please enter a quantity of 1 or more."); return; }
     
     if (!passStockFirewall(currentItemName, qtyInt)) return;
 
@@ -1321,6 +1321,41 @@ async function saveSettings() {
         if (currentUserRole === 'admin') await setDoc(doc(db, 'global', 'settings'), { catalog: globalCatalog, inventoryGroups: globalInventoryGroups }, { merge: true });
         renderAppUI(); closeModal('modal-settings'); showFlashMessage("Settings Saved & Synced!");
     } catch(e) { showFlashMessage("Error saving settings."); }
+}
+
+let alertConfirmCallback = null;
+
+function showAppAlert(title, message, isConfirm = false, confirmCallback = null, confirmText = "OK") {
+    if (navigator.vibrate) navigator.vibrate([50, 50, 50]); // Warning vibration
+    
+    document.getElementById('app-alert-title').innerText = title;
+    document.getElementById('app-alert-message').innerText = message;
+    
+    let cancelBtn = document.getElementById('app-alert-cancel');
+    let confirmBtn = document.getElementById('app-alert-confirm');
+    let iconBox = document.getElementById('app-alert-icon');
+    
+    confirmBtn.innerText = confirmText;
+    
+    if (isConfirm) {
+        cancelBtn.style.display = 'block';
+        iconBox.style.color = '#f59e0b'; // Warning Orange
+        iconBox.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>';
+        confirmBtn.style.background = 'var(--accent-color)';
+    } else {
+        cancelBtn.style.display = 'none';
+        iconBox.style.color = '#ef4444'; // Error Red
+        iconBox.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>';
+        confirmBtn.style.background = '#ef4444'; 
+    }
+    
+    alertConfirmCallback = confirmCallback;
+    document.getElementById('modal-app-alert').classList.add('active');
+}
+
+window.executeAlertConfirm = function() {
+    closeModal('modal-app-alert');
+    if (alertConfirmCallback) alertConfirmCallback();
 }
 
 function showFlashMessage(text) {

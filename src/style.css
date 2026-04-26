@@ -142,6 +142,10 @@ header { background-color: var(--surface-color); padding: env(safe-area-inset-to
     overscroll-behavior-y: contain;
 }
 @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes alertPop {
+    0% { opacity: 0; transform: scale(0.9); }
+    100% { opacity: 1; transform: scale(1); }
+}
 .modal-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 16px; text-align: center; }
 .modal-item { width: 100%; background-color: transparent; border: none; border-radius: 10px; padding: 16px; font-size: 1rem; font-weight: 500; color: var(--text-primary); margin-bottom: 4px; cursor: pointer; text-align: left; display: flex; justify-content: space-between; transition: background-color 0.1s; }
 .modal-item:active { background-color: var(--border-color); }
@@ -193,7 +197,7 @@ header { background-color: var(--surface-color); padding: env(safe-area-inset-to
     top: calc(env(safe-area-inset-top) + 16px);
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(28, 36, 45, 0.85); /* Premium dark tint */
+    background: rgba(28, 36, 45, 0.85);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     color: #ffffff;
@@ -201,12 +205,16 @@ header { background-color: var(--surface-color); padding: env(safe-area-inset-to
     border-radius: 30px;
     z-index: 10000;
     font-size: 0.95rem;
-    font-weight: 600;
+    font-weight: 500;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
-    pointer-events: none; /* Lets you tap through it if needed */
+    pointer-events: none;
+    white-space: nowrap; /* Forces text to stay on one line */
+    width: max-content;
+    max-width: 90vw;
     animation: pillSlideDown 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 

@@ -546,6 +546,20 @@
         </div>
     </div>
 
+    <div id="modal-app-alert" class="modal-overlay" style="z-index: 100000; align-items: center;">
+        <div class="modal-content" style="max-width: 320px; border-radius: 16px; padding: 24px; text-align: center; animation: alertPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+            <div id="app-alert-icon" style="margin-bottom: 16px; color: #ef4444; display: flex; justify-content: center;">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+            </div>
+            <h3 id="app-alert-title" style="margin-bottom: 8px; font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">Error</h3>
+            <p id="app-alert-message" style="font-size: 0.95rem; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.5;">Message goes here.</p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button id="app-alert-cancel" class="btn-outline" style="flex: 1; display: none;" onclick="closeModal('modal-app-alert')">Cancel</button>
+                <button id="app-alert-confirm" class="btn-primary-full" style="flex: 1; background: #ef4444;" onclick="executeAlertConfirm()">OK</button>
+            </div>
+        </div>
+    </div>
+
     <div id="modal-audit" class="modal-overlay" style="z-index: 9600;">
         <div class="modal-content">
             <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
