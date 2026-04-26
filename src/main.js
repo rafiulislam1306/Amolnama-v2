@@ -1163,6 +1163,7 @@ function openSettings() {
     container.innerHTML = ''; document.getElementById('admin-search').value = ''; document.getElementById('admin-add-form').style.display = 'none';
 
     renderInventoryGroupsAdmin();
+    populateDangerZone(); // Load active desks and users for the dropdowns
 
     Object.entries(globalCatalog).map(([key, item]) => ({key, ...item})).sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(item => {
         if (!item.isActive) return;
@@ -1471,5 +1472,66 @@ async function systemResetUsers() {
     } catch(e) { alert("Error: " + e.message); }
 }
 
+async function populateDangerZone() {
+    let deskSelect = document.getElementById('danger-desk-select');
+    let userSelect = document.getElementById('danger-user-select');
+    if (!deskSelect || !userSelect) return;
+
+    deskSelect.innerHTML = '<option value="">Loading...</option>';
+    userSelect.innerHTML = '<option value="">Loading...</option>';
+
+    try {
+        const desksSnap = await getDocs(collection(db, 'desks'));
+        let deskHTML = '<option value="">-- Select a Desk --</option>';
+        desksSnap.forEach(d => { deskHTML += `<option value="${d.id}">${d.data().name} (${d.data().status.toUpperCase()})</option>`; });
+        deskSelect.innerHTML = deskHTML;
+
+        const usersSnap = await getDocs(collection(db, 'users'));
+        let userHTML = '<option value="">-- Select a User --</option>';
+        usersSnap.forEach(u => {
+            let name = u.data().name || u.data().email || 'Unknown';
+            let assigned = u.data().assignedDeskId ? ` [On: ${u.data().assignedDeskId.replace('_', ' ')}]` : '';
+            userHTML += `<option value="${u.id}">${name}${assigned}</option>`;
+        });
+        userSelect.innerHTML = userHTML;
+    } catch(e) {
+        deskSelect.innerHTML = '<option value="">Error loading</option>';
+        userSelect.innerHTML = '<option value="">Error loading</option>';
+    }
+}
+
+async function systemResetSingleDesk() {
+    let deskId = document.getElementById('danger-desk-select').value;
+    if (!deskId) return alert("Please select a desk from the dropdown first.");
+    if(!confirm(`FORCE RESET: Are you sure you want to close ${deskId.replace('_', ' ')}?`)) return;
+
+    try {
+        const deskDoc = await getDoc(doc(db, 'desks', deskId));
+        if (deskDoc.exists()) {
+            let sessionId = deskDoc.data().currentSessionId;
+            if (sessionId) await updateDoc(doc(db, 'sessions', sessionId), { status: 'closed', autoClosed: true });
+            await setDoc(doc(db, 'desks', deskId), { status: 'closed', currentSessionId: null }, { merge: true });
+            alert(`${deskId.replace('_', ' ')} has been reset.`);
+            populateDangerZone(); 
+            loadFloorMap();
+        }
+    } catch(e) { alert("Error: " + e.message); }
+}
+
+async function systemResetSingleUser() {
+    let userId = document.getElementById('danger-user-select').value;
+    if (!userId) return alert("Please select a user from the dropdown first.");
+    let userName = document.getElementById('danger-user-select').options[document.getElementById('danger-user-select').selectedIndex].text;
+    if(!confirm(`FORCE RESET: Unassign ${userName} from their desk?`)) return;
+
+    try {
+        await setDoc(doc(db, 'users', userId), { assignedDeskId: null, assignedDate: null }, { merge: true });
+        alert(`User unassigned successfully.`);
+        populateDangerZone(); 
+    } catch(e) { alert("Error: " + e.message); }
+}
+
 window.systemResetDesks = systemResetDesks; window.systemResetUsers = systemResetUsers;
+window.systemResetSingleDesk = systemResetSingleDesk; window.systemResetSingleUser = systemResetSingleUser;
+window.populateDangerZone = populateDangerZone;
 window.adminBypass = adminBypass; window.peekAtDesk = peekAtDesk; window.openMyDeskDashboard = openMyDeskDashboard;

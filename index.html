@@ -365,9 +365,23 @@
                 
                 <div style="margin-top: 32px; padding: 16px; border: 1px dashed #ef4444; border-radius: 12px; background: #fef2f2;">
                     <h4 style="color: #b91c1c; margin-bottom: 12px;">🚨 Danger Zone (Testing)</h4>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                        <button class="btn-outline" style="border-color: #ef4444; color: #ef4444; background: #fff;" onclick="systemResetDesks()">Reset All Desks</button>
-                        <button class="btn-outline" style="border-color: #ef4444; color: #ef4444; background: #fff;" onclick="systemResetUsers()">Clear User Desks</button>
+                    
+                    <div style="margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #fca5a5;">
+                        <label class="admin-label" style="color: #991b1b;">Desk Controls</label>
+                        <button class="btn-outline" style="width: 100%; justify-content: center; border-color: #ef4444; color: #ef4444; background: #fff; margin-bottom: 8px;" onclick="systemResetDesks()">⚠️ Reset ALL Desks</button>
+                        <div style="display: flex; gap: 8px;">
+                            <select id="danger-desk-select" class="settings-input" style="flex: 1; padding: 8px; border-color: #fca5a5; font-size: 0.9rem;"></select>
+                            <button class="btn-outline" style="border-color: #ef4444; color: #ef4444; background: #fff; white-space: nowrap; padding: 0 12px;" onclick="systemResetSingleDesk()">Reset Specific</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="admin-label" style="color: #991b1b;">User Controls</label>
+                        <button class="btn-outline" style="width: 100%; justify-content: center; border-color: #ef4444; color: #ef4444; background: #fff; margin-bottom: 8px;" onclick="systemResetUsers()">⚠️ Clear ALL Users</button>
+                        <div style="display: flex; gap: 8px;">
+                            <select id="danger-user-select" class="settings-input" style="flex: 1; padding: 8px; border-color: #fca5a5; font-size: 0.9rem;"></select>
+                            <button class="btn-outline" style="border-color: #ef4444; color: #ef4444; background: #fff; white-space: nowrap; padding: 0 12px;" onclick="systemResetSingleUser()">Clear Specific</button>
+                        </div>
                     </div>
                 </div>
             </div>
