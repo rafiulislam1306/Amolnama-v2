@@ -602,6 +602,15 @@ async function renderLiveFloorTab() {
             const session = docSnap.data(); const sid = docSnap.id;
             const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', sid), where('isDeleted', '==', false)));
 
+            // Dynamically check who is sitting here right now
+            const activeAgentsSnap = await getDocs(query(collection(db, 'users'), where('assignedDeskId', '==', session.deskId)));
+            let activeAgentNames = [];
+            activeAgentsSnap.forEach(uDoc => {
+                let n = uDoc.data().name || (uDoc.data().email ? uDoc.data().email.split('@')[0] : 'Agent');
+                activeAgentNames.push(n);
+            });
+            let displayNames = activeAgentNames.length > 0 ? activeAgentNames.join(', ') : 'Empty Desk';
+
             let liveCash = parseFloat(session.openingBalances.cash) || 0;
             let liveInv = { ...(session.openingBalances.inventory || {}) };
 
@@ -638,7 +647,7 @@ async function renderLiveFloorTab() {
                 <div class="admin-form-card" style="margin-bottom: 0; padding: 16px; border-top: 4px solid ${isMyDesk ? '#0ea5e9' : '#8b5cf6'};">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
                         <h4 style="margin: 0; color: #0f172a; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">${session.deskId.replace('_', ' ').toUpperCase()} ${badge}</h4>
-                        <span style="font-size: 0.85rem; color: #64748b;">👤 ${session.openedBy}</span>
+                        <span style="font-size: 0.85rem; color: ${activeAgentNames.length > 0 ? '#64748b' : '#ef4444'}; font-weight: ${activeAgentNames.length > 0 ? 'normal' : 'bold'};">👤 ${displayNames}</span>
                     </div>
                     <div style="margin-bottom: 12px;"><span style="font-size: 0.8rem; font-weight: bold; color: #64748b;">Live Cash:</span><span style="font-size: 1.2rem; font-weight: bold; color: #10b981; margin-left: 8px;">${liveCash} Tk</span></div>
                     <div style="margin-bottom: 16px;"><span style="display: block; font-size: 0.8rem; font-weight: bold; color: #64748b; margin-bottom: 6px;">Live Inventory:</span><div>${invDisplay}</div></div>
