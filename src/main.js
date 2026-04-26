@@ -531,7 +531,7 @@ async function saveManagerCash() {
     let paymentLabel = action === 'receive' ? 'Received from Manager' : 'Dropped to Manager';
 
     const tx = {
-        id: Date.now(), type: 'adjustment', name: 'Physical Cash', trackAs: 'Physical Cash', amount: 0, qty: 0,
+        id: Date.now(), type: 'adjustment', name: 'Physical Cash', trackAs: 'Physical Cash', amount: amount, qty: 1,
         payment: paymentLabel, cashAmt: finalValue, mfsAmt: 0, isDeleted: false,
         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
         dateStr: getStrictDate(), deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName
@@ -1512,6 +1512,31 @@ async function nukeTodaysLedger() {
     alert("Today's ledger completely wiped. Reloading..."); window.location.reload();
 }
 
+async function fixPastManagerDrops() {
+    if(!confirm("Fix past 0 Tk Manager Drops in the database?")) return;
+    try {
+        const q = query(collection(db, 'transactions'), where('type', '==', 'adjustment'));
+        const snap = await getDocs(q);
+        let count = 0;
+        
+        for (const docSnap of snap.docs) {
+            let tx = docSnap.data();
+            // Find physical cash adjustments where the visual amount was accidentally saved as 0
+            if (tx.name === 'Physical Cash' && tx.amount === 0 && tx.cashAmt !== 0) {
+                await updateDoc(doc(db, 'transactions', docSnap.id), {
+                    amount: Math.abs(tx.cashAmt), // Retrieve the true visual amount from the backend value
+                    qty: 1
+                });
+                count++;
+            }
+        }
+        alert(`Successfully fixed ${count} past manager drop(s)! Reloading...`);
+        window.location.reload();
+    } catch (e) {
+        alert("Error fixing drops: " + e.message);
+    }
+}
+
 // ==========================================
 //     ENGINE A: PERSONAL REPORT LOGIC
 // ==========================================
@@ -1828,7 +1853,7 @@ window.saveTxEdit = saveTxEdit; window.deleteTransaction = deleteTransaction; wi
 window.restoreTx = restoreTx; window.emptyTrash = emptyTrash; window.permanentlyDeleteTx = permanentlyDeleteTx;
 window.addInventoryGroup = addInventoryGroup; window.removeInventoryGroup = removeInventoryGroup;
 window.adminBypass = adminBypass; window.peekAtDesk = peekAtDesk; window.openMyDeskDashboard = openMyDeskDashboard;
-window.resetMyDeskLock = resetMyDeskLock; window.forceCloseAllDesks = forceCloseAllDesks; window.nukeTodaysLedger = nukeTodaysLedger;
+window.resetMyDeskLock = resetMyDeskLock; window.forceCloseAllDesks = forceCloseAllDesks; window.nukeTodaysLedger = nukeTodaysLedger; window.fixPastManagerDrops = fixPastManagerDrops;
 window.kickAgent = kickAgent; window.nukeAgent = nukeAgent;
 window.openNicknameManager = openNicknameManager; window.saveAdminNickname = saveAdminNickname;
 window.shareDeskReport = shareDeskReport;
