@@ -49,19 +49,20 @@ function getStrictDate() {
 }
 
 // ==========================================
-//    THE "TRAFFIC COP" INVENTORY ENGINE
+//   TRAFFIC COP: MASTER INVENTORY LOGIC
 // ==========================================
+// FIX: Ensures Main Stock adds, Sales subtract.
 function getInventoryChange(tx) {
     if (!tx.trackAs || !globalInventoryGroups.includes(tx.trackAs)) return 0;
     if (tx.name === 'Physical Cash' || tx.name === 'ERS Flexiload') return 0;
     
-    let q = Math.abs(parseInt(tx.qty) || 0); // Start with a strict positive number
-
+    let q = Math.abs(parseInt(tx.qty) || 0); // Always start positive
+    
     if (tx.type === 'transfer_in') return q;           // Drawer explicitly GAINS stock
     if (tx.type === 'transfer_out') return -q;         // Drawer explicitly LOSES stock
-    if (tx.type === 'adjustment') return parseInt(tx.qty) || 0; // Adjustments handle their own +/- from the modal
+    if (tx.type === 'adjustment') return parseInt(tx.qty) || 0; // Adjs handle their own signs
     
-    // Everything else is a normal sale. The drawer LOSES stock.
+    // Default: Normal Sales LOSE stock from the drawer
     return -q; 
 }
 
@@ -82,10 +83,26 @@ const defaultInventoryGroups = ['Regular Kit', 'Skitto Kit', 'eSIM', 'Skitto eSI
 const defaultCatalog = {
     "sim_no1": { name: '📱 No. 1 Plan', display: 'No. 1 Plan', price: 497, cat: 'new-sim', trackAs: 'No. 1 Plan', isActive: true, order: 1 },
     "sim_prime": { name: '📱 Prime', display: 'Prime', price: 400, cat: 'new-sim', trackAs: 'Prime', isActive: true, order: 2 },
+    "sim_djuice": { name: '📱 Djuice', display: 'Djuice', price: 400, cat: 'new-sim', trackAs: 'Djuice', isActive: true, order: 3 },
     "sim_skitto": { name: '📱 Skitto', display: 'Skitto', price: 400, cat: 'new-sim', trackAs: 'Skitto Kit', isActive: true, order: 4 },
+    "sim_esim_pre": { name: '📱 eSIM Prepaid', display: 'eSIM Prepaid', price: 400, cat: 'new-sim', trackAs: 'eSIM', isActive: true, order: 5 },
+    "sim_esim_post": { name: '📱 eSIM Postpaid', display: 'eSIM Postpaid', price: 400, cat: 'new-sim', trackAs: 'eSIM', isActive: true, order: 6 },
+    "sim_power": { name: '📱 Power Prime', display: 'Power Prime', price: 1499, cat: 'new-sim', trackAs: 'Power Prime', isActive: true, order: 7 },
+    "sim_recycle": { name: '📱 Recycle SIM', display: 'Recycle SIM', price: 400, cat: 'new-sim', trackAs: 'Recycle SIM', isActive: true, order: 8 },
+    "sim_my": { name: '📱 My SIM', display: 'My SIM', price: 400, cat: 'new-sim', trackAs: 'Regular Kit', isActive: true, order: 9 },
     "rep_regular": { name: '🔄 Regular Replacement', display: 'Regular', price: 400, cat: 'paid-rep', trackAs: 'Regular Kit', isActive: true, order: 10 },
+    "rep_skitto": { name: '🔄 Skitto Replacement', display: 'Skitto', price: 400, cat: 'paid-rep', trackAs: 'Skitto Kit', isActive: true, order: 11 },
+    "rep_esim": { name: '🔄 eSIM Replacement', display: 'eSIM', price: 349, cat: 'paid-rep', trackAs: 'eSIM', isActive: true, order: 12 },
+    "rep_skitto_esim": { name: '🔄 Skitto eSIM Replacement', display: 'Skitto eSIM', price: 349, cat: 'paid-rep', trackAs: 'Skitto eSIM', isActive: true, order: 13 },
+    "foc_regular": { name: '🆓 FOC Regular', display: 'Regular', price: 0, cat: 'foc', trackAs: 'Regular Kit', isActive: true, order: 14 },
     "foc_skitto": { name: '🆓 FOC Skitto', display: 'Skitto', price: 0, cat: 'foc', trackAs: 'Skitto Kit', isActive: true, order: 15 },
-    "srv_mnp": { name: '🛠️ MNP', display: 'MNP', price: 457.50, cat: 'service', trackAs: '', isActive: true, order: 21 }
+    "foc_esim": { name: '🆓 FOC eSIM', display: 'eSIM', price: 0, cat: 'foc', trackAs: 'eSIM', isActive: true, order: 16 },
+    "foc_skitto_esim": { name: '🆓 FOC Skitto eSIM', display: 'Skitto eSIM', price: 0, cat: 'foc', trackAs: 'Skitto eSIM', isActive: true, order: 17 },
+    "srv_recycle": { name: '🛠️ Recycle SIM Reissue', display: 'Recycle SIM Reissue', price: 115, cat: 'service', trackAs: '', isActive: true, order: 18 },
+    "srv_itemized": { name: '🛠️ Itemized Bill', display: 'Itemized Bill', price: 230, cat: 'service', trackAs: '', isActive: true, order: 19 },
+    "srv_owner": { name: '🛠️ Ownership Transfer', display: 'Ownership Transfer', price: 115, cat: 'service', trackAs: '', isActive: true, order: 20 },
+    "srv_mnp": { name: '🛠️ MNP', display: 'MNP', price: 457.50, cat: 'service', trackAs: '', isActive: true, order: 21 },
+    "foc_corp": { name: '🏢 Corporate Replacement', display: 'Corporate Replacement', price: 0, cat: 'free-action', trackAs: '', isActive: true, order: 22 }
 };
 
 function getPhysicalItems() { return globalInventoryGroups; }
@@ -110,7 +127,10 @@ setPersistence(auth, browserLocalPersistence)
             } else {
                 currentUser = null;
                 document.getElementById('modal-auth').classList.add('active');
-                if (isInitialLoad) { document.getElementById('splash-screen').classList.remove('active'); isInitialLoad = false; }
+                if (isInitialLoad) {
+                    document.getElementById('splash-screen').classList.remove('active');
+                    isInitialLoad = false;
+                }
             }
         });
     })
@@ -129,7 +149,7 @@ function logout() {
 }
 
 // ==========================================
-//    THE LAZY AUTO-CLOSE
+//    FIX 4: THE LAZY AUTO-CLOSE (UPGRADED)
 // ==========================================
 async function performLazyAutoClose() {
     const todayStr = getStrictDate();
@@ -138,11 +158,18 @@ async function performLazyAutoClose() {
         for (const docSnap of activeSessionsSnap.docs) {
             const sessionData = docSnap.data();
             if (sessionData.dateStr !== todayStr) {
+                // Ghost session detected. Close it.
                 await updateDoc(doc(db, 'sessions', docSnap.id), {
                     status: 'closed', closedBy: 'System Auto-Close', closedByUid: 'system', closedAt: serverTimestamp(),
                     hasDiscrepancy: true, variance: 'Unknown - Auto Closed'
                 });
                 await setDoc(doc(db, 'desks', sessionData.deskId), { status: 'closed', currentSessionId: null }, { merge: true });
+                
+                // NEW: Wipe the desk lock from ANY user sitting at this ghost desk
+                const stuckUsers = await getDocs(query(collection(db, 'users'), where('assignedDeskId', '==', sessionData.deskId)));
+                stuckUsers.forEach(async (u) => {
+                    await updateDoc(doc(db, 'users', u.id), { assignedDeskId: null, assignedDate: null });
+                });
             }
         }
     } catch(e) {}
@@ -216,7 +243,9 @@ async function handleDeskSelect(deskId, deskName, status, sessionId) {
     if (status === 'open' && sessionId) {
         currentSessionId = sessionId;
         const todayStr = getStrictDate();
-        try { await setDoc(doc(db, 'users', currentUser.uid), { assignedDeskId: currentDeskId, assignedDate: todayStr }, { merge: true }); } catch(e) {}
+        try {
+            await setDoc(doc(db, 'users', currentUser.uid), { assignedDeskId: currentDeskId, assignedDate: todayStr }, { merge: true });
+        } catch(e) {}
 
         document.getElementById('modal-desk-select').classList.remove('active');
         document.getElementById('header-title').innerText = `${deskName}`;
@@ -337,7 +366,7 @@ async function initiateCloseDesk() {
         let tx = docSnap.data();
         expectedCash += (tx.cashAmt || 0); 
         
-        // Let the Traffic Cop handle the math
+        // Traffic Cop prevents inventory math bugs
         let change = getInventoryChange(tx);
         if (change !== 0) {
             expectedInv[tx.trackAs] = (expectedInv[tx.trackAs] || 0) + change;
@@ -437,7 +466,10 @@ async function finalizeCloseDesk(variance) {
     let dropAmount = parseFloat(document.getElementById('manager-drop-input').value) || 0;
     let maxAllowedDrop = Math.min(actualClosingStats.cash, expectedClosingStats.cash);
 
-    if (dropAmount < 0 || dropAmount > maxAllowedDrop) return alert(`Error: You cannot drop more than ${maxAllowedDrop} Tk.`);
+    if (dropAmount < 0 || dropAmount > maxAllowedDrop) {
+        alert(`Error: You cannot drop more than ${maxAllowedDrop} Tk.`);
+        return;
+    }
 
     let retainedFloat = actualClosingStats.cash - dropAmount;
     actualClosingStats.inventory = { ...actualClosingStats.inventory }; 
@@ -460,7 +492,7 @@ async function finalizeCloseDesk(variance) {
 }
 
 // ==========================================
-//    DESK ACTIONS & TRANSFERS
+//    PHASE 3: DESK ACTIONS & TRANSFERS
 // ==========================================
 
 function openManagerCashModal() {
@@ -621,7 +653,7 @@ async function renderLiveFloorTab() {
                 let tx = txDoc.data();
                 liveCash += (tx.cashAmt || 0);
                 
-                // Traffic Cop handles the +/- logic safely
+                // Traffic Cop handles the +/- logic
                 let change = getInventoryChange(tx);
                 if (change !== 0) {
                     liveInv[tx.trackAs] = (liveInv[tx.trackAs] || 0) + change;
@@ -640,15 +672,17 @@ async function renderLiveFloorTab() {
             const isMyDesk = sid === currentSessionId;
             const badge = isMyDesk ? '<span style="background:#0ea5e9; color:white; font-size:0.7rem; padding:2px 6px; border-radius:12px; font-weight:bold;">YOUR DESK</span>' : '';
 
+            // If it's my desk, show "Open My Drawer". If it's someone else's, show "Peek"
             let actionBtn = isMyDesk 
                 ? `<button class="btn-primary-full" style="width: 100%; background: #0ea5e9; padding: 10px; margin-top: 12px;" onclick="openMyDeskDashboard()">💼 Open My Drawer</button>`
                 : `<button class="btn-outline" style="width: 100%; color: #8b5cf6; border-color: #8b5cf6; background: #faf5ff; padding: 10px; margin-top: 12px;" onclick="peekAtDesk('${session.deskId}', '${session.deskId.replace('_', ' ').toUpperCase()}')">👁️ View Details</button>`;
 
+            // FIX 2: Correctly Display Active Agent Names
             let agentNamesStr = 'Loading...';
             try {
                 const agentsSnap = await getDocs(query(collection(db, 'users'), where('assignedDeskId', '==', session.deskId)));
                 let names = [];
-                agentsSnap.forEach(aDoc => { names.push(aDoc.data().displayName || 'Agent'); });
+                agentsSnap.forEach(aDoc => { names.push(aDoc.data().displayName || aDoc.data().email?.split('@')[0] || 'Agent'); });
                 agentNamesStr = names.length > 0 ? names.join(', ') : 'Empty Desk';
             } catch(e) { agentNamesStr = 'Unknown'; }
 
@@ -660,6 +694,7 @@ async function renderLiveFloorTab() {
                     <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 12px;">👤 ${agentNamesStr}</p>
                     <div style="margin-bottom: 12px;"><span style="font-size: 0.8rem; font-weight: bold; color: #64748b;">Live Cash:</span><span style="font-size: 1.2rem; font-weight: bold; color: #10b981; margin-left: 8px;">${liveCash} Tk</span></div>
                     <div style="margin-bottom: 16px;"><span style="display: block; font-size: 0.8rem; font-weight: bold; color: #64748b; margin-bottom: 6px;">Live Inventory:</span><div>${invDisplay}</div></div>
+                    
                     ${actionBtn}
                 </div>
             `;
@@ -811,7 +846,7 @@ async function emptyTrash() {
 //    UI NAVIGATION & CORE APP LOGIC
 // ==========================================
 function switchTab(tabId, title) {
-    // Kills any open modal/popup immediately when navigating
+    // FIX 1: Modal Cleanup on Navigation
     document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
 
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
@@ -992,6 +1027,7 @@ async function initUserData() {
             currentUserRole = 'user'; 
         }
 
+        // FIX 2: Ensure we save the actual Display Name
         await setDoc(userDocRef, { email: currentUser.email, displayName: userDisplayName, role: currentUserRole }, { merge: true });
 
         const globalDoc = await getDoc(doc(db, 'global', 'settings'));
@@ -1225,7 +1261,7 @@ function showFlashMessage(text) {
 }
 
 // ==========================================
-//     DANGER ZONE CONTROLS
+//     FIX 5: DANGER ZONE CONTROLS
 // ==========================================
 async function resetMyDeskLock() {
     if(!confirm("Release your desk assignment? You will be sent back to the floor map.")) return;
@@ -1250,7 +1286,6 @@ async function nukeTodaysLedger() {
     alert("Today's ledger completely wiped. Reloading..."); window.location.reload();
 }
 
-
 // ==========================================
 //     ENGINE A: PERSONAL REPORT LOGIC
 // ==========================================
@@ -1269,7 +1304,7 @@ function renderPersonalReport() {
             if (tx.name === 'ERS Flexiload') myErs += tx.amount;
             else if (tx.trackAs) {
                 let pItem = tx.trackAs; 
-                // Strict Master Inventory Check
+                // FIX 3: Strict Master Inventory Check
                 if (globalInventoryGroups.includes(pItem)) {
                     myInventory[pItem] = (myInventory[pItem] || 0) + Math.abs(tx.qty); 
                 }
@@ -1390,10 +1425,11 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
     document.getElementById('desk-inventory-list').innerHTML = invHTML || '<div class="report-row" style="color: var(--text-secondary); font-style: italic;">No physical items tracked</div>';
     document.getElementById('desk-history-log').innerHTML = historyHTML || '<div class="placeholder-text" style="margin-top:20px;">No transactions yet</div>';
 
+    // FIX 2: Fetch actual Display Names for the Desk view
     try {
         const agentsSnap = await getDocs(query(collection(db, 'users'), where('assignedDeskId', '==', targetDeskId)));
         let names = [];
-        agentsSnap.forEach(doc => { names.push(doc.data().displayName || 'Agent'); });
+        agentsSnap.forEach(doc => { names.push(doc.data().displayName || doc.data().email?.split('@')[0] || 'Agent'); });
         document.getElementById('desk-logged-agents').innerText = names.length > 0 ? names.join(', ') : 'None';
     } catch(e) { document.getElementById('desk-logged-agents').innerText = 'Unknown'; }
 }
