@@ -186,3 +186,39 @@ header { background-color: var(--surface-color); padding: env(safe-area-inset-to
 .btn-outline:active { background-color: var(--border-color); }
 .btn-primary-full { background: var(--accent-color); color: #ffffff; border: none; width: 100%; padding: 14px; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: transform 0.1s, opacity 0.1s; }
 .btn-primary-full:active { transform: scale(0.97); opacity: 0.9; }
+/* --- DYNAMIC SUCCESS PILL --- */
+.flash-pill {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 16px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(28, 36, 45, 0.85); /* Premium dark tint */
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: #ffffff;
+    padding: 12px 24px;
+    border-radius: 30px;
+    z-index: 10000;
+    font-size: 0.95rem;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    pointer-events: none; /* Lets you tap through it if needed */
+    animation: pillSlideDown 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.flash-pill.fade-out {
+    animation: pillFadeUp 0.3s ease-in forwards;
+}
+
+@keyframes pillSlideDown {
+    0% { opacity: 0; transform: translate(-50%, -30px); }
+    100% { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes pillFadeUp {
+    0% { opacity: 1; transform: translate(-50%, 0); }
+    100% { opacity: 0; transform: translate(-50%, -20px); }
+}

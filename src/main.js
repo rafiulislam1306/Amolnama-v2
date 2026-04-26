@@ -1324,9 +1324,19 @@ async function saveSettings() {
 }
 
 function showFlashMessage(text) {
-    let msg = document.createElement('div'); msg.innerText = text;
-    msg.style.cssText = "position:fixed; bottom:100px; left:50%; transform:translateX(-50%); background:var(--accent-color); color:white; padding:8px 20px; border-radius:20px; z-index:2000; font-weight:bold; box-shadow:0 4px 6px rgba(0,0,0,0.2);";
-    document.body.appendChild(msg); setTimeout(() => msg.remove(), 1500);
+    if (navigator.vibrate) navigator.vibrate(50); // Tiny haptic tick
+    
+    let msg = document.createElement('div'); 
+    msg.className = 'flash-pill';
+    msg.innerHTML = `✅ ${text}`;
+    
+    document.body.appendChild(msg); 
+    
+    // Start exit animation at 2.7s, remove from DOM completely at 3s
+    setTimeout(() => {
+        msg.classList.add('fade-out');
+        setTimeout(() => msg.remove(), 300);
+    }, 2700);
 }
 
 // ==========================================
