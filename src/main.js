@@ -932,6 +932,14 @@ async function saveTxEdit() {
     }
 
     closeModal('modal-edit-tx');
+    
+    // 🛑 SANDBOX INTERCEPTOR
+    if (currentDeskId === 'sandbox') {
+        tx.qty = newQty; tx.amount = newAmount; tx.payment = method === 'Split' ? 'Split' : method; tx.cashAmt = finalCash; tx.mfsAmt = finalMfs; tx.isEdited = true;
+        renderPersonalReport(); if (document.getElementById('tab-desk').classList.contains('active')) renderDeskDashboard();
+        showFlashMessage("Sandbox Transaction Updated!"); return;
+    }
+
     if (tx.docId) {
         try {
             await updateDoc(doc(db, 'transactions', tx.docId), { qty: newQty, amount: newAmount, payment: method === 'Split' ? 'Split' : method, cashAmt: finalCash, mfsAmt: finalMfs, isEdited: true });
@@ -942,6 +950,19 @@ async function saveTxEdit() {
 
 async function deleteTransaction(docId, localId) {
     if(!confirm("Move to trash?")) return;
+    
+    // 🛑 SANDBOX INTERCEPTOR
+    if (currentDeskId === 'sandbox') {
+        let tx = transactions.find(t => t.id === localId);
+        if(tx) { 
+            tx.isDeleted = true; 
+            trashTransactions.push(tx); 
+            renderPersonalReport(); if (document.getElementById('tab-desk').classList.contains('active')) renderDeskDashboard();
+            showFlashMessage("Moved to Sandbox Trash!"); 
+        }
+        return;
+    }
+
     if(docId) {
         try { await updateDoc(doc(db, 'transactions', docId), { isDeleted: true }); } 
         catch(e) { console.error(e); }
@@ -976,6 +997,21 @@ function renderTrash() {
 }
 
 async function restoreTx(docId, localId) {
+    // 🛑 SANDBOX INTERCEPTOR
+    if (currentDeskId === 'sandbox') {
+        let txIndex = trashTransactions.findIndex(t => t.id === localId);
+        if (txIndex > -1) {
+            let tx = trashTransactions[txIndex];
+            if (!passStockFirewall(tx.name, tx.qty)) return;
+            tx.isDeleted = false; tx.isRestored = true;
+            trashTransactions.splice(txIndex, 1);
+            renderPersonalReport(); if (document.getElementById('tab-desk').classList.contains('active')) renderDeskDashboard();
+            showFlashMessage("Sandbox Transaction Restored!");
+            setTimeout(() => { renderTrash(); if(trashTransactions.length === 0) closeModal('modal-trash'); }, 500);
+        }
+        return;
+    }
+
     if(docId) {
         try {
             let tx = trashTransactions.find(t => t.docId === docId);
