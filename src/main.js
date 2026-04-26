@@ -1307,13 +1307,15 @@ async function openNicknameManager() {
         usersSnap.forEach(docSnap => {
             const u = docSnap.data();
             const uid = docSnap.id;
-            const realName = u.displayName || u.email || 'Unknown';
+            
+            // STRICTLY pull the email so the admin knows exactly who they are editing
+            const userEmail = u.email || 'No email linked';
             const currentNick = u.nickname || '';
             
             html += `
                 <div class="admin-form-card" style="padding: 12px; margin-bottom: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                     <div style="flex: 1; min-width: 150px;">
-                        <div style="font-size: 0.8rem; color: #64748b; margin-bottom: 4px;">${realName}</div>
+                        <div style="font-size: 0.85rem; font-weight: 600; color: #0ea5e9; margin-bottom: 4px;">📧 ${userEmail}</div>
                         <input type="text" id="nick_${uid}" class="settings-input" style="padding: 8px;" placeholder="Set nickname..." value="${currentNick}">
                     </div>
                     <button class="btn-outline" style="height: auto; padding: 8px 16px; border-color: #10b981; color: #10b981; margin-top: auto;" onclick="saveAdminNickname('${uid}', 'nick_${uid}')">Save</button>
