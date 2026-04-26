@@ -192,9 +192,16 @@ header { background-color: var(--surface-color); padding: env(safe-area-inset-to
     100% { opacity: 1; transform: scale(1); }
 }
 .modal-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 16px; text-align: center; }
-.modal-item { width: 100%; background-color: transparent; border: none; border-radius: 10px; padding: 16px; font-size: 1rem; font-weight: 500; color: var(--text-primary); margin-bottom: 4px; cursor: pointer; text-align: left; display: flex; justify-content: space-between; transition: background-color 0.1s; }
+.modal-item { width: 100%; background-color: transparent; border: none; font-size: 1rem; font-weight: 500; color: var(--text-primary); cursor: pointer; text-align: left; transition: background-color 0.1s; }
 .modal-item:active { background-color: var(--border-color); }
-.modal-close { width: 100%; background: none; border: none; padding: 16px; font-size: 1rem; font-weight: 700; color: #ef4444; cursor: pointer; margin-top: 8px; }
+
+/* Industry Standard List Menus */
+.menu-row { background-color: var(--surface-color); transition: background-color 0.15s ease; border-bottom: 1px solid var(--border-color); }
+.menu-row:last-of-type { border-bottom: none; }
+.menu-row:active { background-color: var(--bg-color); }
+.menu-action-btn { background: transparent; border: none; cursor: pointer; touch-action: manipulation; }
+
+.modal-close { width: 100%; background: none; border: none; padding: 16px; font-size: 1rem; font-weight: 700; color: #ef4444; cursor: pointer; margin-top: 0; }
 .qty-header { font-size: 1.25rem; font-weight: 700; text-align: center; margin-bottom: 12px; color: var(--accent-color); }
 .qty-calc { text-align: center; font-size: 1rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 20px; }
 .settings-list { margin-bottom: 24px; }
