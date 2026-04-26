@@ -320,6 +320,13 @@ async function loadFloorMap() {
             `;
         }
         
+        // Add Sandbox Button for testing
+        deskHTML += `
+            <button class="btn-outline" style="margin-top: 12px; width: 100%; justify-content: center; color: #f59e0b; border-color: #fcd34d; background: #fffbeb; padding: 12px; font-weight: bold;" onclick="enterSandboxMode()">
+                🧪 Enter Sandbox Mode (Local Testing)
+            </button>
+        `;
+        
         container.innerHTML = deskHTML;
     } catch (e) { container.innerHTML = `<div style="color:#ef4444; padding:16px;">Error loading map. Refresh app.</div>`; }
 }
@@ -330,6 +337,34 @@ function adminBypass() {
     document.getElementById('header-title').innerText = 'Global Admin Mode';
     switchTab('floor', 'Live Floor Map');
     fetchTransactionsForDate(); showFlashMessage("Admin Mode Activated");
+}
+
+function enterSandboxMode() {
+    // 1. Disconnect from live database listeners
+    if (txListenerUnsubscribe) { txListenerUnsubscribe(); txListenerUnsubscribe = null; }
+    
+    // 2. Set fake sandbox state
+    currentDeskId = 'sandbox';
+    currentSessionId = 'sandbox_session';
+    currentDeskName = '🧪 Sandbox';
+    currentOpeningCash = 10000; // Fake float
+    
+    // 3. Fake 50 of every physical item
+    currentOpeningInv = {};
+    getPhysicalItems().forEach(item => currentOpeningInv[item] = 50);
+    
+    // 4. Clear memory
+    transactions = [];
+    trashTransactions = [];
+    
+    // 5. Update UI
+    document.getElementById('modal-desk-select').classList.remove('active');
+    document.getElementById('header-title').innerHTML = `🧪 Sandbox <span style="font-size:0.7rem; background:#ef4444; color:#fff; padding:2px 6px; border-radius:8px;">LOCAL</span>`;
+    
+    renderPersonalReport();
+    if (document.getElementById('tab-desk').classList.contains('active')) renderDeskDashboard();
+    
+    showFlashMessage("Entered Sandbox Mode!");
 }
 
 async function handleDeskSelect(deskId, deskName, status, sessionId) {
@@ -1292,6 +1327,18 @@ async function addTransactionToCloud(type, name, amount, qty, payment, cashAmt =
         deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName
     };
 
+    // 🛑 SANDBOX INTERCEPTOR: Skip Firebase completely if in test mode
+    if (currentDeskId === 'sandbox') {
+        tx.docId = 'local_' + tx.id;
+        transactions.push(tx);
+        transactions.sort((a, b) => a.id - b.id);
+        renderPersonalReport();
+        if (document.getElementById('tab-desk').classList.contains('active')) renderDeskDashboard();
+        showFlashMessage("Saved to Sandbox!");
+        if (isMfs) toggleMFS();
+        return;
+    }
+
     try { await addDoc(collection(db, 'transactions'), tx); showFlashMessage("Saved to Cloud!"); } 
     catch(e) { showFlashMessage("Offline: Will sync later."); }
 
@@ -2007,7 +2054,7 @@ window.openEditTx = openEditTx; window.toggleEditSplitFields = toggleEditSplitFi
 window.saveTxEdit = saveTxEdit; window.deleteTransaction = deleteTransaction; window.openTrash = openTrash;
 window.restoreTx = restoreTx; window.emptyTrash = emptyTrash; window.permanentlyDeleteTx = permanentlyDeleteTx;
 window.addInventoryGroup = addInventoryGroup; window.removeInventoryGroup = removeInventoryGroup;
-window.adminBypass = adminBypass; window.peekAtDesk = peekAtDesk; window.openMyDeskDashboard = openMyDeskDashboard;
+window.adminBypass = adminBypass; window.enterSandboxMode = enterSandboxMode; window.peekAtDesk = peekAtDesk; window.openMyDeskDashboard = openMyDeskDashboard;
 window.resetMyDeskLock = resetMyDeskLock; window.forceCloseAllDesks = forceCloseAllDesks; window.nukeTodaysLedger = nukeTodaysLedger; window.fixPastManagerDrops = fixPastManagerDrops;
 window.kickAgent = kickAgent; window.nukeAgent = nukeAgent;
 window.openNicknameManager = openNicknameManager; window.saveAdminNickname = saveAdminNickname;
