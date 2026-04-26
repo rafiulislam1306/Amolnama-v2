@@ -654,8 +654,9 @@ async function saveManagerCash() {
     };
 
     closeModal('modal-manager-cash');
-    try { await addDoc(collection(db, 'transactions'), tx); showFlashMessage("Cash Logged!"); } 
-    catch(e) { showFlashMessage("Offline: Queued for sync."); }
+    let msg = action === 'receive' ? `Received ${amount} Tk Float!` : `Dropped ${amount} Tk!`;
+    try { await addDoc(collection(db, 'transactions'), tx); showFlashMessage(msg); } 
+    catch(e) { showFlashMessage("Offline: " + msg); }
 }
 
 function openMainStockModal() {
@@ -683,8 +684,9 @@ async function saveMainStock() {
     };
 
     closeModal('modal-main-stock');
-    try { await addDoc(collection(db, 'transactions'), tx); showFlashMessage("Stock Added to Drawer!"); } 
-    catch(e) { showFlashMessage("Offline: Queued for sync."); }
+    let msg = `+${qty}x ${itemName} Added!`;
+    try { await addDoc(collection(db, 'transactions'), tx); showFlashMessage(msg); } 
+    catch(e) { showFlashMessage("Offline: " + msg); }
 }
 
 async function openDeskTransfer() {
@@ -734,11 +736,12 @@ async function executeDeskTransfer() {
     const receiverTx = { id: Date.now() + 1, type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${currentDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: "system", agentName: `Transfer from ${userNickname || userDisplayName}` };
 
     closeModal('modal-desk-transfer');
+    let msg = `Sent ${qty}x ${itemName} to ${targetDeskId.replace('_', ' ').toUpperCase()}!`;
     try {
         await addDoc(collection(db, 'transactions'), senderTx);
         await addDoc(collection(db, 'transactions'), receiverTx);
-        showFlashMessage("Transfer Successful!");
-    } catch(e) { showFlashMessage("Offline: Queued for sync."); }
+        showFlashMessage(msg);
+    } catch(e) { showFlashMessage("Offline: " + msg); }
 }
 
 let targetTransferDeskId = null; let targetTransferSessionId = null;
@@ -941,10 +944,11 @@ async function saveTxEdit() {
     }
 
     if (tx.docId) {
+        let msg = `${tx.name} Updated!`;
         try {
             await updateDoc(doc(db, 'transactions', tx.docId), { qty: newQty, amount: newAmount, payment: method === 'Split' ? 'Split' : method, cashAmt: finalCash, mfsAmt: finalMfs, isEdited: true });
-            showFlashMessage("Transaction Updated!");
-        } catch(e) { showFlashMessage("Offline: Edit will sync later."); }
+            showFlashMessage(msg);
+        } catch(e) { showFlashMessage("Offline: " + msg); }
     }
 }
 
@@ -963,8 +967,14 @@ async function deleteTransaction(docId, localId) {
         return;
     }
 
+    let tx = transactions.find(t => t.id === localId);
+    let msg = tx ? `${tx.name} moved to Trash!` : "Moved to Trash!";
+
     if(docId) {
-        try { await updateDoc(doc(db, 'transactions', docId), { isDeleted: true }); } 
+        try { 
+            await updateDoc(doc(db, 'transactions', docId), { isDeleted: true }); 
+            showFlashMessage(msg);
+        } 
         catch(e) { console.error(e); }
     }
 }
@@ -1018,7 +1028,7 @@ async function restoreTx(docId, localId) {
             if (tx && !passStockFirewall(tx.name, tx.qty)) return;
 
             await updateDoc(doc(db, 'transactions', docId), { isDeleted: false, isRestored: true });
-            showFlashMessage("Transaction Restored!");
+            showFlashMessage(tx ? `${tx.name} Restored!` : "Transaction Restored!");
             setTimeout(() => { renderTrash(); if(trashTransactions.length === 0) closeModal('modal-trash'); }, 500);
         } catch(e) {
             showAppAlert("Restore Failed", "Could not restore. Please check your connection.");
@@ -1394,8 +1404,10 @@ async function addTransactionToCloud(type, name, amount, qty, payment, cashAmt =
         return;
     }
 
-    try { await addDoc(collection(db, 'transactions'), tx); showFlashMessage("Saved to Cloud!"); } 
-    catch(e) { showFlashMessage("Offline: Will sync later."); }
+    let confirmMsg = type === 'ERS' ? `ERS ${amount} Tk Logged!` : `${qty}x ${name} Logged!`;
+
+    try { await addDoc(collection(db, 'transactions'), tx); showFlashMessage(confirmMsg); } 
+    catch(e) { showFlashMessage("Offline: " + confirmMsg); }
 
     // UX Iteration 1: Smart Default (Auto-revert to Cash)
     // If the transaction was made while the global toggle was on MFS, instantly spring it back to Cash 
