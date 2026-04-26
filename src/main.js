@@ -657,8 +657,10 @@ async function saveManagerCash() {
 
     closeModal('modal-manager-cash');
     let msg = action === 'receive' ? `Received ${amount} Tk Float!` : `Dropped ${amount} Tk!`;
-    try { await addDoc(collection(db, 'transactions'), tx); showFlashMessage(msg); } 
-    catch(e) { showFlashMessage("Offline: " + msg); }
+    
+    // 💥 UPDATED to fire-and-forget for offline sync 💥
+    addDoc(collection(db, 'transactions'), tx).catch(e => console.error(e));
+    showFlashMessage(navigator.onLine ? msg : "📶 Offline: Cash queued");
 }
 
 function openMainStockModal() {
@@ -687,8 +689,10 @@ async function saveMainStock() {
 
     closeModal('modal-main-stock');
     let msg = `+${qty}x ${itemName} Added!`;
-    try { await addDoc(collection(db, 'transactions'), tx); showFlashMessage(msg); } 
-    catch(e) { showFlashMessage("Offline: " + msg); }
+    
+    // 💥 UPDATED to fire-and-forget for offline sync 💥
+    addDoc(collection(db, 'transactions'), tx).catch(e => console.error(e));
+    showFlashMessage(navigator.onLine ? msg : "📶 Offline: Stock queued");
 }
 
 async function openDeskTransfer() {
@@ -739,11 +743,11 @@ async function executeDeskTransfer() {
 
     closeModal('modal-desk-transfer');
     let msg = `Sent ${qty}x ${itemName} to ${targetDeskId.replace('_', ' ').toUpperCase()}!`;
-    try {
-        await addDoc(collection(db, 'transactions'), senderTx);
-        await addDoc(collection(db, 'transactions'), receiverTx);
-        showFlashMessage(msg);
-    } catch(e) { showFlashMessage("Offline: " + msg); }
+    
+    // 💥 UPDATED to fire-and-forget for offline sync 💥
+    addDoc(collection(db, 'transactions'), senderTx).catch(e => console.error(e));
+    addDoc(collection(db, 'transactions'), receiverTx).catch(e => console.error(e));
+    showFlashMessage(navigator.onLine ? msg : "📶 Offline: Transfer queued");
 }
 
 let targetTransferDeskId = null; let targetTransferSessionId = null;
@@ -771,11 +775,11 @@ async function executeTransfer() {
     const receiverTx = { id: Date.now() + 1, type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${currentDeskId || "Admin"}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetTransferDeskId, sessionId: targetTransferSessionId, agentId: "system", agentName: `Transfer from ${userNickname || userDisplayName}` };
 
     closeModal('modal-transfer');
-    try {
-        await addDoc(collection(db, 'transactions'), senderTx);
-        await addDoc(collection(db, 'transactions'), receiverTx);
-        showFlashMessage("Transfer Successful!");
-    } catch(e) { showFlashMessage("Offline: Queued for sync."); }
+    
+    // 💥 UPDATED to fire-and-forget for offline sync 💥
+    addDoc(collection(db, 'transactions'), senderTx).catch(e => console.error(e));
+    addDoc(collection(db, 'transactions'), receiverTx).catch(e => console.error(e));
+    showFlashMessage(navigator.onLine ? "Transfer Successful!" : "📶 Offline: Queued for sync.");
 }
 
 // --- RENDER FLOOR MAP & PEEK AT DESK ---
@@ -947,10 +951,9 @@ async function saveTxEdit() {
 
     if (tx.docId) {
         let msg = `${tx.name} Updated!`;
-        try {
-            await updateDoc(doc(db, 'transactions', tx.docId), { qty: newQty, amount: newAmount, payment: method === 'Split' ? 'Split' : method, cashAmt: finalCash, mfsAmt: finalMfs, isEdited: true });
-            showFlashMessage(msg);
-        } catch(e) { showFlashMessage("Offline: " + msg); }
+        // 💥 UPDATED to fire-and-forget for offline sync 💥
+        updateDoc(doc(db, 'transactions', tx.docId), { qty: newQty, amount: newAmount, payment: method === 'Split' ? 'Split' : method, cashAmt: finalCash, mfsAmt: finalMfs, isEdited: true }).catch(e => console.error(e));
+        showFlashMessage(navigator.onLine ? msg : "📶 Offline: Edit queued");
     }
 }
 
@@ -973,11 +976,9 @@ async function deleteTransaction(docId, localId) {
     let msg = tx ? `${tx.name} moved to Trash!` : "Moved to Trash!";
 
     if(docId) {
-        try { 
-            await updateDoc(doc(db, 'transactions', docId), { isDeleted: true }); 
-            showFlashMessage(msg);
-        } 
-        catch(e) { console.error(e); }
+        // 💥 UPDATED to fire-and-forget for offline sync 💥
+        updateDoc(doc(db, 'transactions', docId), { isDeleted: true }).catch(e => console.error(e));
+        showFlashMessage(navigator.onLine ? msg : "📶 Offline: Trash queued");
     }
 }
 
@@ -1029,8 +1030,9 @@ async function restoreTx(docId, localId) {
             let tx = trashTransactions.find(t => t.docId === docId);
             if (tx && !passStockFirewall(tx.name, tx.qty)) return;
 
-            await updateDoc(doc(db, 'transactions', docId), { isDeleted: false, isRestored: true });
-            showFlashMessage(tx ? `${tx.name} Restored!` : "Transaction Restored!");
+            // 💥 UPDATED to fire-and-forget for offline sync 💥
+            updateDoc(doc(db, 'transactions', docId), { isDeleted: false, isRestored: true }).catch(e => console.error(e));
+            showFlashMessage(navigator.onLine ? (tx ? `${tx.name} Restored!` : "Transaction Restored!") : "📶 Offline: Restore queued");
             setTimeout(() => { renderTrash(); if(trashTransactions.length === 0) closeModal('modal-trash'); }, 500);
         } catch(e) {
             showAppAlert("Restore Failed", "Could not restore. Please check your connection.");
@@ -1042,13 +1044,9 @@ async function restoreTx(docId, localId) {
 async function permanentlyDeleteTx(docId, localId) {
     if (!confirm("Permanently delete this transaction?")) return;
     if(docId) { 
-        try { 
-            await deleteDoc(doc(db, 'transactions', docId)); 
-            showFlashMessage("Permanently Deleted!"); 
-        } catch(e) {
-            showAppAlert("Delete Failed", "Could not permanently delete item.");
-            console.error("Permanent delete error:", e);
-        } 
+        // 💥 UPDATED to fire-and-forget for offline sync 💥
+        deleteDoc(doc(db, 'transactions', docId)).catch(e => console.error(e)); 
+        showFlashMessage(navigator.onLine ? "Permanently Deleted!" : "📶 Offline: Delete queued"); 
     }
 }
 
@@ -1057,11 +1055,8 @@ async function emptyTrash() {
     const idsToDelete = trashTransactions.map(t => t.docId).filter(id => id);
     closeModal('modal-trash');
     for (const id of idsToDelete) { 
-        try { 
-            await deleteDoc(doc(db, 'transactions', id)); 
-        } catch(e) {
-            console.error(`Error deleting trash item ${id}:`, e);
-        } 
+        // 💥 UPDATED to fire-and-forget for offline sync 💥
+        deleteDoc(doc(db, 'transactions', id)).catch(e => console.error(`Error deleting trash item ${id}:`, e)); 
     }
 }
 
@@ -1202,10 +1197,15 @@ async function fetchTransactionsForDate() {
     if (txListenerUnsubscribe) { txListenerUnsubscribe(); txListenerUnsubscribe = null; }
 
     try {
-        txListenerUnsubscribe = onSnapshot(query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr)), (txSnapshot) => {
+        // 💥 UPDATED to include metadata changes for offline sync tracking 💥
+        txListenerUnsubscribe = onSnapshot(
+            query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr)),
+            { includeMetadataChanges: true },
+            (txSnapshot) => {
             transactions = []; trashTransactions = []; 
             txSnapshot.forEach(doc => {
                 let tx = doc.data(); tx.docId = doc.id; 
+                tx.isPending = doc.metadata.hasPendingWrites; // <-- NEW
                 if (!tx.isDeleted) {
                     transactions.push(tx);
                 } else if (tx.agentId === currentUser.uid) {
@@ -1408,8 +1408,17 @@ async function addTransactionToCloud(type, name, amount, qty, payment, cashAmt =
 
     let confirmMsg = type === 'ERS' ? `ERS ${amount} Tk Logged!` : `${qty}x ${name} Logged!`;
 
-    try { await addDoc(collection(db, 'transactions'), tx); showFlashMessage(confirmMsg); } 
-    catch(e) { showFlashMessage("Offline: " + confirmMsg); }
+    // 💥 UPDATED to fire-and-forget for offline sync 💥
+    addDoc(collection(db, 'transactions'), tx).catch(e => {
+        showAppAlert("Storage Error", "Could not save locally. Check storage.");
+        console.error(e);
+    });
+
+    if (navigator.onLine) {
+        showFlashMessage(confirmMsg);
+    } else {
+        showFlashMessage("📶 Offline: Queued for sync");
+    }
 
     // UX Iteration 1: Smart Default (Auto-revert to Cash)
     // If the transaction was made while the global toggle was on MFS, instantly spring it back to Cash 
@@ -1832,6 +1841,9 @@ function renderPersonalReport() {
         
         let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
         let badges = '';
+        
+        // 💥 NEW: Pending badge injection 💥
+        if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">⏳ Pending</span>';
         if (tx.isEdited) badges += '<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Edited</span>';
         if (tx.isRestored) badges += '<span style="font-size: 0.7rem; background: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Restored</span>';
 
@@ -1980,6 +1992,9 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
         // Generate the advanced payment label matching Personal Report
         let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
         let badges = '';
+        
+        // 💥 NEW: Pending badge injection 💥
+        if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">⏳ Pending</span>';
         if (tx.isEdited) badges += '<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Edited</span>';
         if (tx.isRestored) badges += '<span style="font-size: 0.7rem; background: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Restored</span>';
         
