@@ -1520,23 +1520,49 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
     if (!targetDeskId) return;
 
     let deskCashSales = 0, mgrDropRcv = 0;
-    let inventoryCounts = { ...currentOpeningInv }; 
+    let inventoryCounts = {}; 
     let historyHTML = '';
-    
     let deskOpeningCash = 0;
-    try {
-        const targetDateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
-        const sessSnap = await getDocs(query(collection(db, 'sessions'), where('deskId', '==', targetDeskId), where('dateStr', '==', targetDateStr), limit(1)));
-        if (!sessSnap.empty && sessSnap.docs[0].data().openingBalances) {
-            deskOpeningCash = parseFloat(sessSnap.docs[0].data().openingBalances.cash) || 0;
-            if (targetDeskId !== currentDeskId || targetDateStr !== getStrictDate()) {
-                 inventoryCounts = sessSnap.docs[0].data().openingBalances.inventory || {};
-            }
-        }
-    } catch(e) {}
+    let activeSessionId = null;
 
+    const targetDateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
+    const isToday = targetDateStr === getStrictDate();
+
+    // 1. Determine exact Session & Opening Balances
+    if (targetDeskId === currentDeskId && isToday && currentSessionId) {
+        // Fast Path: Viewing my own currently active drawer
+        activeSessionId = currentSessionId;
+        deskOpeningCash = currentOpeningCash; // Pull exact starting cash from global memory
+        inventoryCounts = { ...currentOpeningInv }; // Pull exact starting stock from global memory
+    } else {
+        // Safe Path: Viewing a past day or another desk. 
+        // We find the most recently opened session for that specific day to avoid index crashes.
+        try {
+            const sessSnap = await getDocs(query(collection(db, 'sessions'), where('dateStr', '==', targetDateStr)));
+            let bestSession = null;
+            sessSnap.forEach(docSnap => {
+                let s = docSnap.data();
+                if (s.deskId === targetDeskId) {
+                    if (!bestSession || (s.openedAt?.toMillis() || 0) > (bestSession.openedAt?.toMillis() || 0)) {
+                        bestSession = { id: docSnap.id, ...s };
+                    }
+                }
+            });
+
+            if (bestSession) {
+                activeSessionId = bestSession.id;
+                if (bestSession.openingBalances) {
+                    deskOpeningCash = parseFloat(bestSession.openingBalances.cash) || 0;
+                    inventoryCounts = bestSession.openingBalances.inventory || {};
+                }
+            }
+        } catch(e) { console.error(e); }
+    }
+
+    // 2. Process Math (Strictly locked to this exact Session ID)
     [...transactions].reverse().forEach(tx => {
-        if (tx.deskId !== targetDeskId) return;
+        // THE FIX: Ignore transactions from previous shifts or ghost sessions
+        if (tx.sessionId !== activeSessionId) return;
 
         let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
         
@@ -1546,6 +1572,7 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
             deskCashSales += safeCashAmt; 
         }
 
+        // Traffic Cop handles the math
         let invChange = getInventoryChange(tx);
         if (invChange !== 0) {
             inventoryCounts[tx.trackAs] = (inventoryCounts[tx.trackAs] || 0) + invChange;
