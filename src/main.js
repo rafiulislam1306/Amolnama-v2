@@ -461,8 +461,8 @@ async function saveManagerCash() {
     let paymentLabel = action === 'receive' ? 'Received from Manager' : 'Dropped to Manager';
 
     const tx = {
-        id: Date.now(), type: 'adjustment', name: 'Physical Cash', trackAs: 'Physical Cash', amount: 0, qty: 0,
-        payment: paymentLabel, cashAmt: finalValue, mfsAmt: 0, isDeleted: false,
+                id: Date.now(), type: 'adjustment', name: 'Physical Cash', trackAs: 'Physical Cash', amount: amount, qty: 0,
+                payment: paymentLabel, cashAmt: finalValue, mfsAmt: 0, isDeleted: false,
         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
         dateStr: getStrictDate(), deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userDisplayName
     };
@@ -753,8 +753,8 @@ function renderTrash() {
             html += `
                 <div style="border:1px solid #e2e8f0; padding:12px; margin-bottom:8px; border-radius:8px; background: #fff;">
                     <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                        <strong style="color: #0f172a; text-decoration: line-through;">${tx.qty}x ${tx.name}</strong> 
-                        <span style="font-weight:bold; color:#ef4444;">${tx.amount} Tk</span>
+                        <strong style="color: #0f172a; text-decoration: line-through;">${tx.qty ? Math.abs(tx.qty) + 'x ' : ''}${tx.name}</strong> 
+                        <span style="font-weight:bold; color:#ef4444;">${tx.amount > 0 ? tx.amount : Math.abs(tx.cashAmt || 0)} Tk</span>
                     </div>
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span style="font-size:0.8rem; color:#64748b;">${tx.time} | ${tx.payment}</span>
@@ -1273,12 +1273,15 @@ function renderPersonalReport() {
         let badges = '';
         if (tx.isEdited) badges += '<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Edited</span>';
         if (tx.isRestored) badges += '<span style="font-size: 0.7rem; background: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Restored</span>';
+        
+        let displayQty = tx.qty ? `${Math.abs(tx.qty)}x ` : '';
+        let displayAmt = tx.amount > 0 ? tx.amount : Math.abs(safeCashAmt);
 
         historyHTML += `
             <div class="history-item">
                 <div class="history-info">
-                    <div style="display: flex; align-items: center;"><span class="history-title">${tx.qty}x ${tx.name}</span>${badges}</div>
-                    <span class="history-meta">${tx.time} • ${tx.amount} ${userCurrency} • ${payLabel}</span>
+                    <div style="display: flex; align-items: center;"><span class="history-title">${displayQty}${tx.name}</span>${badges}</div>
+                    <span class="history-meta">${tx.time} • ${displayAmt} ${userCurrency} • ${payLabel}</span>
                 </div>
                 <div style="display: flex; gap: 4px;">
                     <button class="delete-btn" style="color: var(--accent-color);" onclick="openEditTx(${tx.id})">✏️</button>
@@ -1363,12 +1366,15 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
         }
         
         let agentBadge = `<span style="font-size: 0.7rem; background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">${tx.agentName.split(' ')[0]}</span>`;
+        
+        let displayQty = tx.qty ? `${Math.abs(tx.qty)}x ` : '';
+        let displayAmt = tx.amount > 0 ? tx.amount : Math.abs(safeCashAmt);
 
         historyHTML += `
             <div class="history-item">
                 <div class="history-info">
-                    <div style="display: flex; align-items: center;"><span class="history-title">${tx.qty}x ${tx.name}</span>${agentBadge}</div>
-                    <span class="history-meta">${tx.time} • ${tx.payment}</span>
+                    <div style="display: flex; align-items: center;"><span class="history-title">${displayQty}${tx.name}</span>${agentBadge}</div>
+                    <span class="history-meta">${tx.time} • ${tx.payment}${displayAmt > 0 ? ` • ${displayAmt} ${userCurrency}` : ''}</span>
                 </div>
             </div>
         `;
