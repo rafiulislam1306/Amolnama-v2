@@ -617,12 +617,13 @@ async function renderLiveFloorTab() {
             });
 
             let invDisplay = '';
-            for (const [name, qty] of Object.entries(liveInv)) {
+            globalInventoryGroups.forEach(itemName => {
+                let qty = liveInv[itemName] || 0;
                 if (qty !== 0) {
                     let color = qty < 3 ? '#ef4444' : '#475569';
-                    invDisplay += `<span style="display:inline-block; background:#f1f5f9; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin:2px; color:${color}; font-weight:600;">${name}: ${qty}</span>`;
+                    invDisplay += `<span style="display:inline-block; background:#f1f5f9; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin:2px; color:${color}; font-weight:600;">${itemName}: ${qty}</span>`;
                 }
-            }
+            });
             if(!invDisplay) invDisplay = '<span style="font-size:0.8rem; color:#94a3b8;">No physical stock.</span>';
 
             const isMyDesk = sid === currentSessionId;
@@ -795,6 +796,7 @@ async function emptyTrash() {
 //    UI NAVIGATION & CORE APP LOGIC
 // ==========================================
 function switchTab(tabId, title) {
+    document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
     document.getElementById('tab-' + tabId).classList.add('active');
@@ -972,8 +974,9 @@ async function initUserData() {
         if (userDocSnap.exists()) {
             userData = userDocSnap.data();
             currentUserRole = userData.role || 'user';
+            await setDoc(userDocRef, { name: userDisplayName }, { merge: true });
         } else { 
-            await setDoc(userDocRef, { email: currentUser.email, role: 'user' }, { merge: true }); 
+            await setDoc(userDocRef, { email: currentUser.email, name: userDisplayName, role: 'user' }, { merge: true }); 
             currentUserRole = 'user'; 
         }
 
@@ -1028,7 +1031,25 @@ async function initUserData() {
         }
     } catch(e) { console.error(e); } finally {
         if (isInitialLoad) { document.getElementById('splash-screen').classList.remove('active'); isInitialLoad = false; }
+        autoCloseStaleSessions();
     }
+}
+
+async function autoCloseStaleSessions() {
+    try {
+        const todayStr = getStrictDate();
+        const activeSessionsSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'open')));
+        activeSessionsSnap.forEach(async (docSnap) => {
+            let session = docSnap.data();
+            if (session.dateStr !== todayStr) {
+                await updateDoc(doc(db, 'sessions', docSnap.id), {
+                    status: 'closed', closedBy: 'System Auto-Close', closedAt: serverTimestamp(), autoClosed: true,
+                    expectedClosing: session.openingBalances || {}, actualClosing: session.openingBalances || {}, variance: 0, hasDiscrepancy: false, managerDrop: 0, retainedFloat: 0
+                });
+                await setDoc(doc(db, 'desks', session.deskId), { status: 'closed', currentSessionId: null }, { merge: true });
+            }
+        });
+    } catch(e) { console.error("Auto-close failed", e); }
 }
 
 async function addTransactionToCloud(type, name, amount, qty, payment, cashAmt = 0, mfsAmt = 0) {
@@ -1355,7 +1376,12 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
     if(document.getElementById('desk-tot-expected-cash')) document.getElementById('desk-tot-expected-cash').innerText = (deskOpeningCash + deskCashSales + mgrDropRcv) + ' ' + userCurrency;
 
     let invHTML = '';
-    for (const [name, qty] of Object.entries(inventoryCounts)) invHTML += `<div class="report-row"><span>${name}:</span> <span class="report-total">${qty}</span></div>`;
+    globalInventoryGroups.forEach(itemName => {
+        let qty = inventoryCounts[itemName] || 0;
+        if (qty !== 0) {
+            invHTML += `<div class="report-row"><span>${itemName}:</span> <span class="report-total">${qty}</span></div>`;
+        }
+    });
     document.getElementById('desk-inventory-list').innerHTML = invHTML || '<div class="report-row" style="color: var(--text-secondary); font-style: italic;">No physical items tracked</div>';
     document.getElementById('desk-history-log').innerHTML = historyHTML || '<div class="placeholder-text" style="margin-top:20px;">No transactions yet</div>';
 
@@ -1364,7 +1390,7 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
         const agentsSnap = await getDocs(query(collection(db, 'users'), where('assignedDeskId', '==', targetDeskId)));
         let names = [];
         agentsSnap.forEach(doc => {
-            let emailName = doc.data().email ? doc.data().email.split('@')[0] : 'Agent';
+            let emailName = doc.data().name || (doc.data().email ? doc.data().email.split('@')[0] : 'Agent');
             names.push(emailName);
         });
         document.getElementById('desk-logged-agents').innerText = names.length > 0 ? names.join(', ') : 'None';
@@ -1391,4 +1417,33 @@ window.openEditTx = openEditTx; window.toggleEditSplitFields = toggleEditSplitFi
 window.saveTxEdit = saveTxEdit; window.deleteTransaction = deleteTransaction; window.openTrash = openTrash;
 window.restoreTx = restoreTx; window.emptyTrash = emptyTrash; window.permanentlyDeleteTx = permanentlyDeleteTx;
 window.addInventoryGroup = addInventoryGroup; window.removeInventoryGroup = removeInventoryGroup;
+async function systemResetDesks() {
+    if(!confirm("FORCE RESET: This will close ALL desks and mark all active sessions as closed. Continue?")) return;
+    try {
+        const activeSessions = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'open')));
+        for (const s of activeSessions.docs) {
+            await updateDoc(doc(db, 'sessions', s.id), { status: 'closed', autoClosed: true });
+        }
+        const allDesks = await getDocs(collection(db, 'desks'));
+        for (const d of allDesks.docs) {
+            await setDoc(doc(db, 'desks', d.id), { status: 'closed', currentSessionId: null }, { merge: true });
+        }
+        alert("All desks have been reset.");
+        loadFloorMap();
+    } catch(e) { alert("Error: " + e.message); }
+}
+
+async function systemResetUsers() {
+    if(!confirm("FORCE RESET: This will unassign ALL users from their current desks. Continue?")) return;
+    try {
+        const users = await getDocs(collection(db, 'users'));
+        for (const u of users.docs) {
+            await setDoc(doc(db, 'users', u.id), { assignedDeskId: null, assignedDate: null }, { merge: true });
+        }
+        alert("All users unassigned. Page will refresh.");
+        window.location.reload();
+    } catch(e) { alert("Error: " + e.message); }
+}
+
+window.systemResetDesks = systemResetDesks; window.systemResetUsers = systemResetUsers;
 window.adminBypass = adminBypass; window.peekAtDesk = peekAtDesk; window.openMyDeskDashboard = openMyDeskDashboard;
