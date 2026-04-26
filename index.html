@@ -344,9 +344,9 @@
 
             <div class="admin-body">
                 
-                <div class="admin-form-card" style="border-left: 4px solid #8b5cf6;">
-                    <h4 style="margin-bottom: 8px; color: #8b5cf6; font-size: 1.1rem;">📦 Drawer Inventory Master List</h4>
-                    <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 12px;">Define the actual physical boxes/SIMs kept in the drawer. Menu buttons will deduct from these.</p>
+                <div class="admin-group-title">📦 Master Inventory</div>
+                <div class="admin-form-card">
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px;">Define the actual physical boxes/SIMs kept in the drawer. Menu buttons will deduct from these.</p>
                     <div id="admin-inventory-groups" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;"></div>
                     <div style="display: flex; gap: 8px;">
                         <input type="text" id="new-inv-group-name" class="settings-input" placeholder="e.g. Blank 4G SIM" style="flex: 1;">
@@ -385,16 +385,16 @@
 
                 <div class="settings-list" id="settings-list-container"></div>
                 
-                <div class="admin-form-card" style="border-left: 4px solid #f59e0b; background: #fffbeb; margin-top: 24px;">
-                    <h4 style="margin-bottom: 8px; color: #d97706; font-size: 1.1rem;">👥 Active User Management</h4>
-                    <p style="font-size: 0.85rem; color: #b45309; margin-bottom: 12px;">Kick specific agents off their desks or erase their test data.</p>
+                <div class="admin-group-title">👥 Active User Management</div>
+                <div class="admin-form-card">
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">Kick specific agents off their desks or erase their test data.</p>
                     <div id="admin-user-management-list" style="display: flex; flex-direction: column; gap: 8px;">
                         </div>
                 </div>
 
-                <div class="admin-form-card" style="border-left: 4px solid #ef4444; background: #fef2f2; margin-top: 24px;">
-                    <h4 style="margin-bottom: 8px; color: #ef4444; font-size: 1.1rem;">🚨 Danger Zone (Testing Tools)</h4>
-                    <p style="font-size: 0.85rem; color: #991b1b; margin-bottom: 12px;">Use these to un-stick the app during testing.</p>
+                <div class="admin-group-title" style="color: #ef4444;">🚨 Danger Zone</div>
+                <div class="admin-form-card">
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">Use these to un-stick the app during testing.</p>
                     <div style="display: grid; gap: 8px;">
                         <button class="btn-outline" style="color: #ef4444; border-color: #ef4444; background: #fff;" onclick="resetMyDeskLock()">🔓 Free My Profile (Reset Desk Lock)</button>
                         <button class="btn-outline" style="color: #ef4444; border-color: #ef4444; background: #fff;" onclick="forceCloseAllDesks()">🛑 Force Close All Desks</button>

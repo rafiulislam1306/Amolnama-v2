@@ -1226,8 +1226,9 @@ function openSettings() {
         let catItems = activeItems.filter(i => i.cat === cat.id);
         if(catItems.length > 0) {
             // Create a styled header for the category
-            let catHeader = document.createElement('h4');
-            catHeader.style.cssText = `margin: 24px 0 12px 0; color: ${cat.color}; font-size: 1.1rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;`;
+            let catHeader = document.createElement('div');
+            catHeader.className = 'admin-group-title';
+            catHeader.style.color = cat.color;
             catHeader.innerText = cat.title;
             container.appendChild(catHeader);
 
