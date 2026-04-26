@@ -1514,7 +1514,8 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
     if (!targetDeskId) return;
 
     let deskCashSales = 0, mgrDropRcv = 0;
-    let deskItemsSold = {}; // FIXED: Now tracks total sales instead of live inventory
+    let deskItemsSold = {}; 
+    let deskErsCount = 0, deskErsTotal = 0; // NEW: Dedicated ERS Trackers
     let historyHTML = '';
     let deskOpeningCash = 0;
     let activeSessionId = null;
@@ -1522,7 +1523,7 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
     const targetDateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
     const isToday = targetDateStr === getStrictDate();
 
-    // 1. Session Lock Logic (From previous step)
+    // 1. Session Lock Logic
     if (targetDeskId === currentDeskId && isToday && currentSessionId) {
         activeSessionId = currentSessionId;
         deskOpeningCash = currentOpeningCash; 
@@ -1551,25 +1552,36 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
         if (tx.sessionId !== activeSessionId) return;
 
         let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
+        let safeMfsAmt = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0); // Needed for Split Label
         
         if (tx.type === 'adjustment' && tx.name === 'Physical Cash') {
             mgrDropRcv += safeCashAmt; 
         } else if (tx.type !== 'adjustment' && tx.type !== 'transfer_out' && tx.type !== 'transfer_in') {
             deskCashSales += safeCashAmt; 
             
-            // FIXED: Track Items & Services Sold for the collective desk!
-            if (tx.name !== 'ERS Flexiload' && tx.name !== 'Physical Cash') {
+            // Track ERS vs Standard Sales
+            if (tx.name === 'ERS Flexiload') {
+                deskErsCount += Math.abs(tx.qty);
+                deskErsTotal += tx.amount;
+            } else if (tx.name !== 'Physical Cash') {
                 deskItemsSold[tx.name] = (deskItemsSold[tx.name] || 0) + Math.abs(tx.qty);
             }
         }
         
+        // Generate the advanced payment label matching Personal Report
+        let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
+        let badges = '';
+        if (tx.isEdited) badges += '<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Edited</span>';
+        if (tx.isRestored) badges += '<span style="font-size: 0.7rem; background: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Restored</span>';
+        
         let agentBadge = `<span style="font-size: 0.7rem; background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">${tx.agentName.split(' ')[0]}</span>`;
 
+        // Updated Template: Now includes Price, Currency, Advanced Pay Label, and Status Badges
         historyHTML += `
             <div class="history-item">
                 <div class="history-info">
-                    <div style="display: flex; align-items: center;"><span class="history-title">${tx.qty}x ${tx.name}</span>${agentBadge}</div>
-                    <span class="history-meta">${tx.time} • ${tx.payment}</span>
+                    <div style="display: flex; align-items: center;"><span class="history-title">${tx.qty}x ${tx.name}</span>${agentBadge}${badges}</div>
+                    <span class="history-meta">${tx.time} • ${tx.amount} ${userCurrency} • ${payLabel}</span>
                 </div>
             </div>
         `;
@@ -1581,7 +1593,18 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
     if(document.getElementById('desk-tot-expected-cash')) document.getElementById('desk-tot-expected-cash').innerText = (deskOpeningCash + deskCashSales + mgrDropRcv) + ' ' + userCurrency;
 
     let invHTML = '';
-    for (const [name, qty] of Object.entries(deskItemsSold)) invHTML += `<div class="report-row"><span>${name}:</span> <span class="report-total">${qty}</span></div>`;
+    
+    // Prepend ERS Summary to the top of the items list if any occurred
+    if (deskErsCount > 0) {
+        invHTML += `<div class="report-row" style="color: var(--accent-color); border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 8px;">
+                        <span>📱 ERS Disbursed (${deskErsCount}x):</span> 
+                        <span class="report-total">${deskErsTotal} Tk</span>
+                    </div>`;
+    }
+
+    for (const [name, qty] of Object.entries(deskItemsSold)) {
+        invHTML += `<div class="report-row"><span>${name}:</span> <span class="report-total">${qty}</span></div>`;
+    }
     
     let titleEl = document.getElementById('desk-inventory-title');
     if(titleEl) titleEl.innerText = "📦 Desk Items & Services Sold";
