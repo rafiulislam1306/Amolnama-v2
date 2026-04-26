@@ -597,7 +597,8 @@ async function renderLiveFloorTab() {
         const activeSessionsSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'open')));
         if (activeSessionsSnap.empty) { container.innerHTML = '<p class="placeholder-text">No desks open.</p>'; return; }
 
-        let floorHTML = '';
+        let myDeskHTML = '';
+        let otherDesksHTML = '';
         for (const docSnap of activeSessionsSnap.docs) {
             const session = docSnap.data(); const sid = docSnap.id;
             const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', sid), where('isDeleted', '==', false)));
@@ -643,7 +644,7 @@ async function renderLiveFloorTab() {
                 ? `<button class="btn-primary-full" style="width: 100%; background: #0ea5e9; padding: 10px; margin-top: 12px;" onclick="openMyDeskDashboard()">💼 Open My Drawer</button>`
                 : `<button class="btn-outline" style="width: 100%; color: #8b5cf6; border-color: #8b5cf6; background: #faf5ff; padding: 10px; margin-top: 12px;" onclick="peekAtDesk('${session.deskId}', '${session.deskId.replace('_', ' ').toUpperCase()}')">👁️ View Details</button>`;
 
-            floorHTML += `
+            let cardHTML = `
                 <div class="admin-form-card" style="margin-bottom: 0; padding: 16px; border-top: 4px solid ${isMyDesk ? '#0ea5e9' : '#8b5cf6'};">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
                         <h4 style="margin: 0; color: #0f172a; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">${session.deskId.replace('_', ' ').toUpperCase()} ${badge}</h4>
@@ -655,8 +656,14 @@ async function renderLiveFloorTab() {
                     ${actionBtn}
                 </div>
             `;
+            
+            if (isMyDesk) {
+                myDeskHTML += cardHTML;
+            } else {
+                otherDesksHTML += cardHTML;
+            }
         }
-        container.innerHTML = floorHTML;
+        container.innerHTML = myDeskHTML + otherDesksHTML;
     } catch (e) { container.innerHTML = '<p class="placeholder-text" style="color: #ef4444;">Offline: Could not load.</p>'; }
 }
 
