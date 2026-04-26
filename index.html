@@ -332,10 +332,14 @@
                 <button class="delete-btn" style="color: #64748b; font-size: 1.5rem;" onclick="closeModal('modal-settings')">✕</button>
             </div>
             
-            <div class="admin-toolbar" style="flex-wrap: wrap;">
-                <input type="text" id="admin-search" class="search-bar" placeholder="🔍 Search catalog..." oninput="filterAdminCatalog()">
-                <button class="btn-outline" onclick="toggleAddForm()">➕ Add Item</button>
-                <button class="btn-outline" style="border-color: #0ea5e9; color: #0ea5e9;" onclick="openNicknameManager()">🏷️ Nicknames</button>
+            <div class="admin-toolbar" style="flex-wrap: wrap; gap: 8px;">
+                <input type="text" id="admin-search" class="search-bar" style="flex: 1; min-width: 150px; margin-bottom: 0;" placeholder="🔍 Search catalog..." oninput="filterAdminCatalog()">
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn-outline" onclick="toggleAddForm()">➕ Add Item</button>
+                    <button class="btn-outline" style="border-color: #0ea5e9; color: #0ea5e9;" onclick="openNicknameManager()">🏷️ Nicknames</button>
+                    <button class="btn-outline" style="border-color: #10b981; color: #10b981;" onclick="exportLedgerCSV()">📥 Export CSV</button>
+                    <button class="btn-outline" style="border-color: #f59e0b; color: #f59e0b;" onclick="openAuditModal()">📅 Audit Logs</button>
+                </div>
             </div>
 
             <div class="admin-body">
@@ -511,6 +515,25 @@
 
     <div id="modal-close-desk" class="modal-overlay" style="z-index: 9500;">
         <div class="modal-content" id="close-desk-content" style="background-color: #f8fafc;">
+        </div>
+    </div>
+
+    <div id="modal-audit" class="modal-overlay" style="z-index: 9600;">
+        <div class="modal-content">
+            <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
+                <h3 style="color: #f59e0b;">📅 Historic Audit Logs</h3>
+                <button class="delete-btn" style="color: #64748b; font-size: 1.5rem; padding: 0;" onclick="closeModal('modal-audit')">✕</button>
+            </div>
+            <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 16px;">Review end-of-day handovers, shortages, and overages for any past date.</p>
+            
+            <div style="margin-bottom: 16px; display: flex; gap: 12px; align-items: center; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <label style="font-weight: bold; color: #475569; font-size: 0.9rem; margin: 0;">Select Date:</label>
+                <input type="date" id="audit-date" class="settings-input" style="padding: 8px; width: auto; margin: 0; border-color: #cbd5e1;" onchange="fetchAuditLogs()">
+            </div>
+            
+            <div id="audit-results" style="max-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
+                <p class="placeholder-text">Select a date to view closed sessions.</p>
+            </div>
         </div>
     </div>
 

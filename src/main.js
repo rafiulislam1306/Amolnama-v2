@@ -1211,43 +1211,63 @@ function openSettings() {
     renderInventoryGroupsAdmin();
     renderUserManagementAdmin(); 
 
-    Object.entries(globalCatalog).map(([key, item]) => ({key, ...item})).sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(item => {
-        if (!item.isActive) return;
-        
-        let trackOptions = '<option value="">🚫 None (Digital/Service)</option>';
-        globalInventoryGroups.forEach(g => {
-            let sel = (item.trackAs === g) ? 'selected' : '';
-            trackOptions += `<option value="${g}" ${sel}>${g}</option>`;
-        });
+    // Define visual categories for the Admin Dashboard
+    const categories = [
+        { id: 'new-sim', title: '📱 New SIMs', color: '#10b981' },
+        { id: 'paid-rep', title: '📦 Paid Replacements', color: '#f59e0b' },
+        { id: 'foc', title: '🆓 Free of Cost', color: '#0ea5e9' },
+        { id: 'service', title: '🛠️ Services', color: '#8b5cf6' },
+        { id: 'free-action', title: '🏢 Free Actions', color: '#64748b' }
+    ];
 
-        let row = document.createElement('div'); row.className = 'admin-row-card admin-row'; row.setAttribute('data-key', item.key);
-        row.innerHTML = `
-            <div class="admin-row-header">
-                <span class="drag-handle">⋮⋮</span>
-                <input type="text" class="settings-input i-name" style="flex:1; border:none; background:transparent; font-weight:700; color:#0f172a; padding:0; min-width:0;" value="${item.name}">
-                <button class="delete-btn" style="color: #ef4444; padding: 4px 8px; font-size: 1.1rem; flex-shrink: 0;" onclick="removeRow(this)">🗑️</button>
-            </div>
-            <div class="admin-row-body">
-                <div><label class="admin-label">Price (${userCurrency})</label><input type="number" class="settings-input i-price" style="padding: 10px; width: 100%; box-sizing: border-box;" value="${item.price}"></div>
-                <div>
-                    <label class="admin-label">Category</label>
-                    <select class="settings-input i-cat" style="padding: 10px; width: 100%; box-sizing: border-box;">
-                        <option value="new-sim" ${item.cat==='new-sim'?'selected':''}>📱 New SIM</option>
-                        <option value="paid-rep" ${item.cat==='paid-rep'?'selected':''}>📦 Paid Rep</option>
-                        <option value="foc" ${item.cat==='foc'?'selected':''}>🆓 FOC</option>
-                        <option value="service" ${item.cat==='service'?'selected':''}>🛠️ Service</option>
-                        <option value="free-action" ${item.cat==='free-action'?'selected':''}>🏢 Free Action</option>
-                    </select>
-                </div>
-                <div style="grid-column: span 2;">
-                    <label class="admin-label">Deducts from Physical Inventory:</label>
-                    <select class="settings-input i-track" style="padding: 10px; width: 100%; box-sizing: border-box;">
-                        ${trackOptions}
-                    </select>
-                </div>
-            </div>
-        `;
-        container.appendChild(row); setupDragAndDrop(row); 
+    let activeItems = Object.entries(globalCatalog).map(([key, item]) => ({key, ...item})).filter(i => i.isActive).sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    categories.forEach(cat => {
+        let catItems = activeItems.filter(i => i.cat === cat.id);
+        if(catItems.length > 0) {
+            // Create a styled header for the category
+            let catHeader = document.createElement('h4');
+            catHeader.style.cssText = `margin: 24px 0 12px 0; color: ${cat.color}; font-size: 1.1rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;`;
+            catHeader.innerText = cat.title;
+            container.appendChild(catHeader);
+
+            catItems.forEach(item => {
+                let trackOptions = '<option value="">🚫 None (Digital/Service)</option>';
+                globalInventoryGroups.forEach(g => {
+                    let sel = (item.trackAs === g) ? 'selected' : '';
+                    trackOptions += `<option value="${g}" ${sel}>${g}</option>`;
+                });
+
+                let row = document.createElement('div'); row.className = 'admin-row-card admin-row'; row.setAttribute('data-key', item.key);
+                row.innerHTML = `
+                    <div class="admin-row-header">
+                        <span class="drag-handle">⋮⋮</span>
+                        <input type="text" class="settings-input i-name" style="flex:1; border:none; background:transparent; font-weight:700; color:#0f172a; padding:0; min-width:0;" value="${item.name}">
+                        <button class="delete-btn" style="color: #ef4444; padding: 4px 8px; font-size: 1.1rem; flex-shrink: 0;" onclick="removeRow(this)">🗑️</button>
+                    </div>
+                    <div class="admin-row-body">
+                        <div><label class="admin-label">Price (${userCurrency})</label><input type="number" class="settings-input i-price" style="padding: 10px; width: 100%; box-sizing: border-box;" value="${item.price}"></div>
+                        <div>
+                            <label class="admin-label">Category</label>
+                            <select class="settings-input i-cat" style="padding: 10px; width: 100%; box-sizing: border-box;">
+                                <option value="new-sim" ${item.cat==='new-sim'?'selected':''}>📱 New SIM</option>
+                                <option value="paid-rep" ${item.cat==='paid-rep'?'selected':''}>📦 Paid Rep</option>
+                                <option value="foc" ${item.cat==='foc'?'selected':''}>🆓 FOC</option>
+                                <option value="service" ${item.cat==='service'?'selected':''}>🛠️ Service</option>
+                                <option value="free-action" ${item.cat==='free-action'?'selected':''}>🏢 Free Action</option>
+                            </select>
+                        </div>
+                        <div style="grid-column: span 2;">
+                            <label class="admin-label">Deducts from Physical Inventory:</label>
+                            <select class="settings-input i-track" style="padding: 10px; width: 100%; box-sizing: border-box;">
+                                ${trackOptions}
+                            </select>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(row); setupDragAndDrop(row); 
+            });
+        }
     });
     openModal('modal-settings');
 }
@@ -1667,6 +1687,81 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
     } catch(e) { document.getElementById('desk-logged-agents').innerText = 'Unknown'; }
 }
 
+// ==========================================
+//    ADMIN CSV EXPORT & AUDIT LOGS
+// ==========================================
+async function exportLedgerCSV() {
+    let targetDateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
+    try {
+        const txSnap = await getDocs(query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr)));
+        let csvContent = "data:text/csv;charset=utf-8,ID,Time,Desk,Agent,Type,Item,Qty,TotalAmount,CashAmount,MfsAmount,PaymentMethod,IsEdited,IsDeleted\n";
+        
+        let rows = [];
+        txSnap.forEach(doc => { rows.push(doc.data()); });
+        
+        rows.sort((a,b) => a.id - b.id).forEach(t => {
+            let row = [
+                t.id, t.time, t.deskId || 'None', `"${t.agentName || 'Unknown'}"`, t.type || '', 
+                `"${t.name}"`, t.qty || 0, t.amount || 0, t.cashAmt || 0, t.mfsAmt || 0, 
+                t.payment || '', !!t.isEdited, !!t.isDeleted
+            ];
+            csvContent += row.join(",") + "\n";
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `Amolnama_Ledger_${targetDateStr.replace(/\//g, '-')}.csv`);
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    } catch(e) { alert("Error exporting CSV: " + e.message); }
+}
+
+function openAuditModal() {
+    openModal('modal-audit');
+    const t = new Date(); 
+    document.getElementById('audit-date').value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+    fetchAuditLogs();
+}
+
+async function fetchAuditLogs() {
+    let val = document.getElementById('audit-date').value;
+    if(!val) return;
+    let targetDateStr = formatToGBDate(val);
+    let container = document.getElementById('audit-results');
+    container.innerHTML = '<div class="spinner" style="margin: 20px auto; border-top-color: #f59e0b;"></div>';
+
+    try {
+        const snap = await getDocs(query(collection(db, 'sessions'), where('dateStr', '==', targetDateStr), where('status', '==', 'closed')));
+        if(snap.empty) { container.innerHTML = '<p class="placeholder-text">No closed sessions found for this date.</p>'; return; }
+
+        let html = '';
+        snap.forEach(docSnap => {
+            let s = docSnap.data();
+            let vColor = s.variance < 0 ? '#ef4444' : (s.variance > 0 ? '#22c55e' : '#64748b');
+            let vText = s.variance < 0 ? `Shortage: ${s.variance} Tk` : (s.variance > 0 ? `Overage: +${s.variance} Tk` : 'Perfectly Balanced');
+
+            html += `
+                <div class="admin-form-card" style="padding: 16px; margin-bottom: 0; border-left: 4px solid ${vColor};">
+                    <div style="display:flex; justify-content:space-between; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
+                        <h4 style="margin:0; color:#0f172a; font-size: 1.1rem;">${(s.deskId || 'Unknown').replace('_',' ').toUpperCase()}</h4>
+                        <span style="font-size:0.8rem; color:#64748b; font-weight: 600;">Closed by: ${s.closedBy || 'Unknown'}</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem; color: #475569; margin-bottom: 12px;">
+                        <div>Morning Open: <strong style="color: #0f172a;">${s.openingBalances?.cash || 0} Tk</strong></div>
+                        <div>Mid-Day Drop: <strong style="color: #0ea5e9;">${s.managerDrop || 0} Tk</strong></div>
+                        <div>Expected Cash: <strong style="color: #10b981;">${s.expectedClosing?.cash || 0} Tk</strong></div>
+                        <div>Actual Count: <strong style="color: #0f172a;">${s.actualClosing?.cash || 0} Tk</strong></div>
+                    </div>
+                    <div style="padding-top: 12px; border-top: 1px dashed #e2e8f0; font-weight: bold; font-size: 0.95rem; color: ${vColor}; text-align: center;">
+                        ${vText}
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    } catch(e) { container.innerHTML = `<p style="color:#ef4444;">Error loading logs.</p>`; }
+}
+
 // --- VITE EXPORTS ---
 window.signInWithGoogle = signInWithGoogle; window.logout = logout; window.switchTab = switchTab;
 window.ersKeyPress = ersKeyPress; window.ersBackspace = ersBackspace; window.saveErs = saveErs;
@@ -1691,3 +1786,4 @@ window.resetMyDeskLock = resetMyDeskLock; window.forceCloseAllDesks = forceClose
 window.kickAgent = kickAgent; window.nukeAgent = nukeAgent;
 window.openNicknameManager = openNicknameManager; window.saveAdminNickname = saveAdminNickname;
 window.shareDeskReport = shareDeskReport;
+window.exportLedgerCSV = exportLedgerCSV; window.openAuditModal = openAuditModal; window.fetchAuditLogs = fetchAuditLogs;
