@@ -1431,13 +1431,12 @@ async function nukeTodaysLedger() {
     alert("Today's ledger completely wiped. Reloading..."); window.location.reload();
 }
 
-
 // ==========================================
 //     ENGINE A: PERSONAL REPORT LOGIC
 // ==========================================
 function renderPersonalReport() {
     let myCash = 0, myMfs = 0, myErs = 0;
-    let myInventory = {}; let historyHTML = '';
+    let myItemsSold = {}; let historyHTML = '';
 
     [...transactions].reverse().forEach(tx => {
         if (tx.agentId !== currentUser.uid) return; 
@@ -1448,11 +1447,9 @@ function renderPersonalReport() {
         if (tx.type !== 'adjustment' && tx.type !== 'transfer_out' && tx.type !== 'transfer_in') {
             myCash += safeCashAmt; myMfs += safeMfsAmt;
             if (tx.name === 'ERS Flexiload') myErs += tx.amount;
-            else if (tx.trackAs) {
-                let pItem = tx.trackAs; 
-                if (globalInventoryGroups.includes(pItem)) {
-                    myInventory[pItem] = (myInventory[pItem] || 0) + Math.abs(tx.qty); 
-                }
+            else if (tx.name !== 'Physical Cash') {
+                // FIXED: Now accurately tracks ALL items and services sold by you
+                myItemsSold[tx.name] = (myItemsSold[tx.name] || 0) + Math.abs(tx.qty); 
             }
         }
         
@@ -1481,8 +1478,8 @@ function renderPersonalReport() {
     if(document.getElementById('report-total-all')) document.getElementById('report-total-all').innerText = (myCash + myMfs) + ' ' + userCurrency;
 
     let invHTML = '';
-    for (const [name, qty] of Object.entries(myInventory)) invHTML += `<div class="report-row"><span>${name}:</span> <span class="report-total">${qty}</span></div>`;
-    document.getElementById('inventory-list').innerHTML = invHTML || '<div class="report-row" style="color: var(--text-secondary); font-style: italic;">No personal items sold yet</div>';
+    for (const [name, qty] of Object.entries(myItemsSold)) invHTML += `<div class="report-row"><span>${name}:</span> <span class="report-total">${qty}</span></div>`;
+    document.getElementById('inventory-list').innerHTML = invHTML || '<div class="report-row" style="color: var(--text-secondary); font-style: italic;">No items sold yet</div>';
     document.getElementById('history-log').innerHTML = historyHTML || '<div class="placeholder-text" style="margin-top:20px;">No personal transactions today</div>';
 }
 
@@ -1493,16 +1490,13 @@ function shareReport() {
     let totalCash = document.getElementById('tot-cash-sales').innerText;
     let totalErs = document.getElementById('tot-ers').innerText;
     
-    let reportText = `📅 My Daily Report: ${dateStr}\n👤 Agent: ${userNickname || userDisplayName}\n\n💰 PERSONAL SALES SUMMARY\nTotal Revenue: ${totalRevenue}\nCash Collected: ${totalCash}\nMFS Collected: ${totalMfs}\n\n📱 ERS Disbursed: ${totalErs}\n\n📦 MY ITEMS SOLD\n`;
+    let reportText = `📅 My Daily Report: ${dateStr}\n👤 Agent: ${userNickname || userDisplayName}\n\n💰 PERSONAL SALES SUMMARY\nTotal Revenue: ${totalRevenue}\nCash Collected: ${totalCash}\nMFS Collected: ${totalMfs}\n\n📱 ERS Disbursed: ${totalErs}\n\n📦 MY ITEMS & SERVICES SOLD\n`;
     
     let inventoryCounts = {}; let hasItems = false;
     transactions.forEach(tx => {
-        if (tx.agentId === currentUser.uid && tx.name !== 'ERS Flexiload' && tx.type !== 'adjustment') { 
-            let dName = tx.trackAs || tx.name;
-            if (globalInventoryGroups.includes(dName)) { 
-                inventoryCounts[dName] = (inventoryCounts[dName] || 0) + Math.abs(tx.qty); 
-                hasItems = true; 
-            }
+        if (tx.agentId === currentUser.uid && tx.name !== 'ERS Flexiload' && tx.type !== 'adjustment' && tx.type !== 'transfer_in' && tx.type !== 'transfer_out' && tx.name !== 'Physical Cash') { 
+            inventoryCounts[tx.name] = (inventoryCounts[tx.name] || 0) + Math.abs(tx.qty); 
+            hasItems = true; 
         }
     });
 
@@ -1520,7 +1514,7 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
     if (!targetDeskId) return;
 
     let deskCashSales = 0, mgrDropRcv = 0;
-    let inventoryCounts = {}; 
+    let deskItemsSold = {}; // FIXED: Now tracks total sales instead of live inventory
     let historyHTML = '';
     let deskOpeningCash = 0;
     let activeSessionId = null;
@@ -1528,15 +1522,11 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
     const targetDateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
     const isToday = targetDateStr === getStrictDate();
 
-    // 1. Determine exact Session & Opening Balances
+    // 1. Session Lock Logic (From previous step)
     if (targetDeskId === currentDeskId && isToday && currentSessionId) {
-        // Fast Path: Viewing my own currently active drawer
         activeSessionId = currentSessionId;
-        deskOpeningCash = currentOpeningCash; // Pull exact starting cash from global memory
-        inventoryCounts = { ...currentOpeningInv }; // Pull exact starting stock from global memory
+        deskOpeningCash = currentOpeningCash; 
     } else {
-        // Safe Path: Viewing a past day or another desk. 
-        // We find the most recently opened session for that specific day to avoid index crashes.
         try {
             const sessSnap = await getDocs(query(collection(db, 'sessions'), where('dateStr', '==', targetDateStr)));
             let bestSession = null;
@@ -1548,20 +1538,16 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
                     }
                 }
             });
-
             if (bestSession) {
                 activeSessionId = bestSession.id;
                 if (bestSession.openingBalances) {
                     deskOpeningCash = parseFloat(bestSession.openingBalances.cash) || 0;
-                    inventoryCounts = bestSession.openingBalances.inventory || {};
                 }
             }
         } catch(e) { console.error(e); }
     }
 
-    // 2. Process Math (Strictly locked to this exact Session ID)
     [...transactions].reverse().forEach(tx => {
-        // THE FIX: Ignore transactions from previous shifts or ghost sessions
         if (tx.sessionId !== activeSessionId) return;
 
         let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
@@ -1570,12 +1556,11 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
             mgrDropRcv += safeCashAmt; 
         } else if (tx.type !== 'adjustment' && tx.type !== 'transfer_out' && tx.type !== 'transfer_in') {
             deskCashSales += safeCashAmt; 
-        }
-
-        // Traffic Cop handles the math
-        let invChange = getInventoryChange(tx);
-        if (invChange !== 0) {
-            inventoryCounts[tx.trackAs] = (inventoryCounts[tx.trackAs] || 0) + invChange;
+            
+            // FIXED: Track Items & Services Sold for the collective desk!
+            if (tx.name !== 'ERS Flexiload' && tx.name !== 'Physical Cash') {
+                deskItemsSold[tx.name] = (deskItemsSold[tx.name] || 0) + Math.abs(tx.qty);
+            }
         }
         
         let agentBadge = `<span style="font-size: 0.7rem; background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">${tx.agentName.split(' ')[0]}</span>`;
@@ -1596,8 +1581,12 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
     if(document.getElementById('desk-tot-expected-cash')) document.getElementById('desk-tot-expected-cash').innerText = (deskOpeningCash + deskCashSales + mgrDropRcv) + ' ' + userCurrency;
 
     let invHTML = '';
-    for (const [name, qty] of Object.entries(inventoryCounts)) invHTML += `<div class="report-row"><span>${name}:</span> <span class="report-total">${qty}</span></div>`;
-    document.getElementById('desk-inventory-list').innerHTML = invHTML || '<div class="report-row" style="color: var(--text-secondary); font-style: italic;">No physical items tracked</div>';
+    for (const [name, qty] of Object.entries(deskItemsSold)) invHTML += `<div class="report-row"><span>${name}:</span> <span class="report-total">${qty}</span></div>`;
+    
+    let titleEl = document.getElementById('desk-inventory-title');
+    if(titleEl) titleEl.innerText = "📦 Desk Items & Services Sold";
+
+    document.getElementById('desk-inventory-list').innerHTML = invHTML || '<div class="report-row" style="color: var(--text-secondary); font-style: italic;">No items sold yet</div>';
     document.getElementById('desk-history-log').innerHTML = historyHTML || '<div class="placeholder-text" style="margin-top:20px;">No transactions yet</div>';
 
     try {
