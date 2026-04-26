@@ -1082,17 +1082,6 @@ function instantSaveItem(itemName, price) {
     document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
 }
 
-// UX Iteration 2: Instant 1x Save
-function instantSaveItem(itemName, price) {
-    if (!passStockFirewall(itemName, 1)) return;
-    
-    // Log 1 unit immediately
-    addTransactionToCloud('Item', itemName, price, 1, (price > 0 && isMfs) ? "MFS" : "Cash");
-    
-    // Auto-close any open catalog modals (e.g., New SIMs, FOC)
-    document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
-}
-
 // --- DATE FILTER LOGIC ---
 function formatToGBDate(iso) { if(!iso) return getStrictDate(); const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; }
 
@@ -1163,10 +1152,12 @@ function renderAppUI() {
         // UX Iteration 2: Pointer Event Long-Press Logic
         let pressTimer;
         let isLongPress = false;
+        let isCancelled = false;
 
         const startPress = (e) => {
             if (e.button && e.button !== 0) return; // Ignore right-clicks
             isLongPress = false;
+            isCancelled = false;
             pressTimer = setTimeout(() => {
                 isLongPress = true;
                 if (navigator.vibrate) navigator.vibrate([50]); // Give a tiny haptic buzz to confirm long-press
@@ -1174,12 +1165,15 @@ function renderAppUI() {
             }, 500); // 500ms threshold
         };
 
-        const cancelPress = () => clearTimeout(pressTimer);
+        const cancelPress = () => {
+            isCancelled = true;
+            clearTimeout(pressTimer);
+        };
 
         const endPress = (e) => {
             clearTimeout(pressTimer);
-            if (!isLongPress) {
-                // If the timer didn't finish, it was a short tap!
+            // Only save if it was a short tap AND the user didn't scroll away
+            if (!isLongPress && !isCancelled) {
                 instantSaveItem(item.name, safePrice);
             }
         };
