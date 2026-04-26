@@ -1071,6 +1071,17 @@ function saveQuantity() {
     closeModal('modal-quantity');
 }
 
+// UX Iteration 2: Instant 1x Save
+function instantSaveItem(itemName, price) {
+    if (!passStockFirewall(itemName, 1)) return;
+    
+    // Log 1 unit immediately
+    addTransactionToCloud('Item', itemName, price, 1, (price > 0 && isMfs) ? "MFS" : "Cash");
+    
+    // Auto-close any open catalog modals (e.g., New SIMs, FOC)
+    document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
+}
+
 // --- DATE FILTER LOGIC ---
 function formatToGBDate(iso) { if(!iso) return getStrictDate(); const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; }
 
@@ -1135,16 +1146,72 @@ function renderAppUI() {
         let container = document.getElementById(containerId);
         if (!container) return;
 
-        let btn = document.createElement('button');
-        btn.className = (isModal ? 'modal-item' : 'action-btn') + ' dynamic-item';
-        btn.setAttribute('onclick', `selectItem('${item.name}', ${safePrice})`);
-        
+        // UX Iteration 2: Split Buttons for Instant vs Bulk
         if (isModal) {
-            btn.innerHTML = `<span>${item.display || item.name}</span><span>${safePrice} ${userCurrency}</span>`;
-            container.insertBefore(btn, container.querySelector('.modal-close'));
+            let wrapper = document.createElement('div');
+            wrapper.className = 'dynamic-item';
+            wrapper.style.display = 'flex';
+            wrapper.style.gap = '8px';
+            wrapper.style.marginBottom = '4px';
+
+            // 1x Instant Save Button
+            let instantBtn = document.createElement('button');
+            instantBtn.className = 'modal-item';
+            instantBtn.style.flex = '1';
+            instantBtn.style.marginBottom = '0';
+            instantBtn.setAttribute('onclick', `instantSaveItem('${item.name}', ${safePrice})`);
+            instantBtn.innerHTML = `<span>${item.display || item.name}</span><span>${safePrice} ${userCurrency}</span>`;
+
+            // Bulk Qty Button (Opens Keypad)
+            let bulkBtn = document.createElement('button');
+            bulkBtn.className = 'modal-item';
+            bulkBtn.style.width = '64px';
+            bulkBtn.style.marginBottom = '0';
+            bulkBtn.style.display = 'flex';
+            bulkBtn.style.justifyContent = 'center';
+            bulkBtn.style.alignItems = 'center';
+            bulkBtn.style.background = 'var(--bg-color)';
+            bulkBtn.setAttribute('onclick', `selectItem('${item.name}', ${safePrice})`);
+            bulkBtn.innerHTML = `🔢`;
+
+            wrapper.appendChild(instantBtn);
+            wrapper.appendChild(bulkBtn);
+            container.insertBefore(wrapper, container.querySelector('.modal-close'));
         } else {
-            btn.innerText = item.display || item.name;
-            container.appendChild(btn);
+            let wrapper = document.createElement('div');
+            wrapper.className = 'dynamic-item';
+            wrapper.style.display = 'flex';
+            wrapper.style.borderRadius = '10px';
+            wrapper.style.overflow = 'hidden';
+            wrapper.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
+
+            // 1x Instant Save Button
+            let instantBtn = document.createElement('button');
+            instantBtn.className = 'action-btn';
+            instantBtn.style.flex = '1';
+            instantBtn.style.borderRadius = '0';
+            instantBtn.style.boxShadow = 'none';
+            instantBtn.setAttribute('onclick', `instantSaveItem('${item.name}', ${safePrice})`);
+            instantBtn.innerText = item.display || item.name;
+
+            // Bulk Qty Button (Opens Keypad)
+            let bulkBtn = document.createElement('button');
+            bulkBtn.className = 'action-btn';
+            bulkBtn.style.width = '48px';
+            bulkBtn.style.borderRadius = '0';
+            bulkBtn.style.boxShadow = 'none';
+            bulkBtn.style.background = 'var(--bg-color)';
+            bulkBtn.style.borderLeft = '1px solid var(--border-color)';
+            bulkBtn.style.padding = '0';
+            bulkBtn.style.display = 'flex';
+            bulkBtn.style.alignItems = 'center';
+            bulkBtn.style.justifyContent = 'center';
+            bulkBtn.setAttribute('onclick', `selectItem('${item.name}', ${safePrice})`);
+            bulkBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>`;
+
+            wrapper.appendChild(instantBtn);
+            wrapper.appendChild(bulkBtn);
+            container.appendChild(wrapper);
         }
     });
 }
@@ -1246,10 +1313,17 @@ async function addTransactionToCloud(type, name, amount, qty, payment, cashAmt =
 
     try { await addDoc(collection(db, 'transactions'), tx); showFlashMessage("Saved to Cloud!"); } 
     catch(e) { showFlashMessage("Offline: Will sync later."); }
+
+    // UX Iteration 1: Smart Default (Auto-revert to Cash)
+    // If the transaction was made while the global toggle was on MFS, instantly spring it back to Cash 
+    // so the next rapid-fire customer isn't accidentally logged as MFS.
+    if (isMfs) {
+        toggleMFS();
+    }
 }
 
 // ==========================================
-//         ADMIN DASHBOARD CONTROLS
+//    ADMIN DASHBOARD CONTROLS
 // ==========================================
 function filterAdminCatalog() {
     let text = document.getElementById('admin-search').value.toLowerCase();
