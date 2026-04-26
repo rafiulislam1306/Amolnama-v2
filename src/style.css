@@ -13,7 +13,7 @@
     -webkit-touch-callout: none;
 }
 
-body { 
+html, body { 
     background-color: var(--bg-color); 
     color: var(--text-primary); 
     display: flex; 
@@ -21,16 +21,17 @@ body {
     height: 100vh; 
     height: 100dvh; 
     overflow: hidden;
-    overscroll-behavior-y: none;
+    overscroll-behavior-y: none; /* Prevents pull-to-refresh */
     user-select: none;
     -webkit-user-select: none;
+    -webkit-touch-callout: none; /* Disables long-press popup on mobile */
 }
 
 input, textarea, select {
     user-select: auto;
     -webkit-user-select: auto;
 }
-header { background-color: var(--surface-color); padding: 0 16px; height: 64px; min-height: 64px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+header { background-color: var(--surface-color); padding: env(safe-area-inset-top) 16px 0 16px; height: calc(64px + env(safe-area-inset-top)); min-height: calc(64px + env(safe-area-inset-top)); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
 .header-title { font-size: 1.25rem; font-weight: 600; }
 .settings-btn { background: none; border: none; font-size: 1.5rem; color: var(--text-secondary); cursor: pointer; }
 .tab-content { 
@@ -40,8 +41,20 @@ header { background-color: var(--surface-color); padding: 0 16px; height: 64px; 
     display: none; 
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
+    scrollbar-width: none; 
 }
-.tab-content.active { display: block; }
+.tab-content::-webkit-scrollbar {
+    display: none; 
+}
+.tab-content.active { 
+    display: block; 
+    animation: nativeFadeIn 0.2s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+}
+
+@keyframes nativeFadeIn {
+    0% { opacity: 0; transform: translateY(8px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
 
 /* --- UPDATED PHASE 3 BOTTOM NAVIGATION --- */
 .bottom-nav { 
@@ -90,8 +103,8 @@ header { background-color: var(--surface-color); padding: 0 16px; height: 64px; 
 .toggle-option.active { background-color: var(--accent-color); color: white; }
 .section-header { font-size: 0.9rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px; margin-top: 24px; text-transform: uppercase; letter-spacing: 0.5px; }
 .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.action-btn { background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px 12px; font-size: 1rem; font-weight: 600; color: var(--text-primary); cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; }
-.action-btn:active { background-color: var(--border-color); }
+.action-btn { background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px 12px; font-size: 1rem; font-weight: 600; color: var(--text-primary); cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.1s; }
+.action-btn:active { background-color: var(--border-color); transform: scale(0.95); }
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: flex-end; z-index: 1000; }
 .modal-overlay.active { display: flex; }
 .modal-content { 
