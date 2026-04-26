@@ -1522,6 +1522,38 @@ function shareReport() {
     else { try { navigator.clipboard.writeText(reportText).then(() => alert("Report Copied!")).catch(() => fallbackCopy(reportText)); } catch (e) { fallbackCopy(reportText); } }
 }
 
+function shareDeskReport() {
+    // Read the exact values currently painted on the screen
+    let dateStr = formatToGBDate(document.getElementById('report-date-picker').value);
+    let deskTitle = document.getElementById('desk-dashboard-title').innerText;
+    let activeAgents = document.getElementById('desk-logged-agents').innerText;
+
+    let opening = document.getElementById('desk-tot-opening').innerText;
+    let cashSales = document.getElementById('desk-tot-cash-sales').innerText;
+    let mgrDrop = document.getElementById('desk-tot-manager').innerText;
+    let expected = document.getElementById('desk-tot-expected-cash').innerText;
+
+    let reportText = `📅 Desk Report: ${dateStr}\n🏢 ${deskTitle}\n👥 Agents: ${activeAgents}\n\n💰 DRAWER SUMMARY\nOpening Balance: ${opening}\nCash Sales: ${cashSales}\nManager Drops: ${mgrDrop}\n------------------------\nExpected Drawer Cash: ${expected}\n\n📦 DESK ITEMS & SERVICES SOLD\n`;
+
+    // Extract the items list elegantly
+    let inventoryList = document.getElementById('desk-inventory-list');
+    if (inventoryList.innerText.includes('No items')) {
+        reportText += 'None\n';
+    } else {
+        let inventoryRows = inventoryList.querySelectorAll('.report-row');
+        inventoryRows.forEach(row => {
+            let spans = row.querySelectorAll('span');
+            if (spans.length >= 2) {
+                reportText += `${spans[0].innerText} ${spans[1].innerText}\n`;
+            }
+        });
+    }
+
+    // Trigger Native Share or Fallback to Copy
+    if (navigator.share) navigator.share({ title: 'Desk Report', text: reportText }).catch(e => console.log(e));
+    else { try { navigator.clipboard.writeText(reportText).then(() => alert("Desk Report Copied!")).catch(() => fallbackCopy(reportText)); } catch (e) { fallbackCopy(reportText); } }
+}
+
 // ==========================================
 //     ENGINE B: DESK DASHBOARD LOGIC
 // ==========================================
@@ -1658,3 +1690,4 @@ window.adminBypass = adminBypass; window.peekAtDesk = peekAtDesk; window.openMyD
 window.resetMyDeskLock = resetMyDeskLock; window.forceCloseAllDesks = forceCloseAllDesks; window.nukeTodaysLedger = nukeTodaysLedger;
 window.kickAgent = kickAgent; window.nukeAgent = nukeAgent;
 window.openNicknameManager = openNicknameManager; window.saveAdminNickname = saveAdminNickname;
+window.shareDeskReport = shareDeskReport;
