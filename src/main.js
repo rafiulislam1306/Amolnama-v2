@@ -192,12 +192,14 @@ async function performLazyAutoClose() {
                 
                 const stuckUsers = await getDocs(query(collection(db, 'users'), where('assignedDeskId', '==', sessionData.deskId)));
                 stuckUsers.forEach(async (u) => {
-                    await updateDoc(doc(db, 'users', u.id), { assignedDeskId: null, assignedDate: null });
-                });
+                        await updateDoc(doc(db, 'users', u.id), { assignedDeskId: null, assignedDate: null });
+                    });
+                }
             }
+        } catch(e) {
+            console.error("System Error: Lazy auto-close failed. Some desks may still appear open.", e);
         }
-    } catch(e) {}
-}
+    }
 
 
 // ==========================================
@@ -261,27 +263,34 @@ function adminBypass() {
 }
 
 async function handleDeskSelect(deskId, deskName, status, sessionId) {
-    currentDeskId = deskId;
-    currentDeskName = deskName;
+        currentDeskId = deskId;
+        currentDeskName = deskName;
 
-    if (status === 'open' && sessionId) {
-        currentSessionId = sessionId;
-        const todayStr = getStrictDate();
-        try { await setDoc(doc(db, 'users', currentUser.uid), { assignedDeskId: currentDeskId, assignedDate: todayStr }, { merge: true }); } catch(e) {}
-
-        document.getElementById('modal-desk-select').classList.remove('active');
-        document.getElementById('header-title').innerText = `${deskName}`;
-        
-        try {
-            const sessionSnap = await getDoc(doc(db, 'sessions', sessionId));
-            if (sessionSnap.exists() && sessionSnap.data().openingBalances) {
-                currentOpeningCash = parseFloat(sessionSnap.data().openingBalances.cash) || 0;
-                currentOpeningInv = sessionSnap.data().openingBalances.inventory || {}; 
+        if (status === 'open' && sessionId) {
+            currentSessionId = sessionId;
+            const todayStr = getStrictDate();
+            try { 
+                await setDoc(doc(db, 'users', currentUser.uid), { assignedDeskId: currentDeskId, assignedDate: todayStr }, { merge: true }); 
+            } catch(e) {
+                console.error("Failed to assign desk to user profile:", e);
             }
-        } catch(e) {}
 
-        await fetchTransactionsForDate(); 
-        showFlashMessage(`Joined ${deskName}!`);
+            document.getElementById('modal-desk-select').classList.remove('active');
+            document.getElementById('header-title').innerText = `${deskName}`;
+            
+            try {
+                const sessionSnap = await getDoc(doc(db, 'sessions', sessionId));
+                if (sessionSnap.exists() && sessionSnap.data().openingBalances) {
+                    currentOpeningCash = parseFloat(sessionSnap.data().openingBalances.cash) || 0;
+                    currentOpeningInv = sessionSnap.data().openingBalances.inventory || {}; 
+                }
+            } catch(e) {
+                showAppAlert("Sync Warning", "Could not fetch opening balances. Desk data might be incomplete.");
+                console.error("Session fetch error:", e);
+            }
+
+            await fetchTransactionsForDate(); 
+            showFlashMessage(`Joined ${deskName}!`);
     } else {
         document.getElementById('open-desk-title').innerText = `Open ${deskName}`;
         document.getElementById('open-cash-float').value = '';
@@ -298,7 +307,9 @@ async function handleDeskSelect(deskId, deskName, status, sessionId) {
                 const lastSession = lastSessionSnap.docs[0].data();
                 if (lastSession.actualClosing && lastSession.actualClosing.inventory) rolloverStock = lastSession.actualClosing.inventory;
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error("Could not fetch rollover stock from previous session:", e);
+        }
 
         let rolloverHTML = '';
         const physicalItems = getPhysicalItems(); 
@@ -868,20 +879,37 @@ async function restoreTx(docId, localId) {
             await updateDoc(doc(db, 'transactions', docId), { isDeleted: false, isRestored: true });
             showFlashMessage("Transaction Restored!");
             setTimeout(() => { renderTrash(); if(trashTransactions.length === 0) closeModal('modal-trash'); }, 500);
-        } catch(e) {}
+        } catch(e) {
+            showAppAlert("Restore Failed", "Could not restore. Please check your connection.");
+            console.error("Restore error:", e);
+        }
     }
 }
 
 async function permanentlyDeleteTx(docId, localId) {
     if (!confirm("Permanently delete this transaction?")) return;
-    if(docId) { try { await deleteDoc(doc(db, 'transactions', docId)); showFlashMessage("Permanently Deleted!"); } catch(e) {} }
+    if(docId) { 
+        try { 
+            await deleteDoc(doc(db, 'transactions', docId)); 
+            showFlashMessage("Permanently Deleted!"); 
+        } catch(e) {
+            showAppAlert("Delete Failed", "Could not permanently delete item.");
+            console.error("Permanent delete error:", e);
+        } 
+    }
 }
 
 async function emptyTrash() {
     if(!confirm("Permanently delete ALL items in trash?")) return;
     const idsToDelete = trashTransactions.map(t => t.docId).filter(id => id);
     closeModal('modal-trash');
-    for (const id of idsToDelete) { try { await deleteDoc(doc(db, 'transactions', id)); } catch(e) {} }
+    for (const id of idsToDelete) { 
+        try { 
+            await deleteDoc(doc(db, 'transactions', id)); 
+        } catch(e) {
+            console.error(`Error deleting trash item ${id}:`, e);
+        } 
+    }
 }
 
 // ==========================================
@@ -1112,7 +1140,9 @@ async function initUserData() {
                         currentOpeningCash = parseFloat(sessionSnap.data().openingBalances.cash) || 0;
                         currentOpeningInv = sessionSnap.data().openingBalances.inventory || {}; 
                     }
-                } catch(e) {}
+                } catch(e) {
+                    console.error("Failed to recover session balances on app load:", e);
+                }
             } else {
                 currentDeskName = deskSnap.exists() ? deskSnap.data().name : currentDeskId;
                 document.getElementById('header-title').innerText = `${currentDeskName} (Closed)`;
