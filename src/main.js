@@ -1071,6 +1071,17 @@ function saveQuantity() {
     closeModal('modal-quantity');
 }
 
+// UX Iteration 2: Instant 1x Save (Short Tap)
+function instantSaveItem(itemName, price) {
+    if (!passStockFirewall(itemName, 1)) return;
+    
+    // Log exactly 1 unit immediately
+    addTransactionToCloud('Item', itemName, price, 1, (price > 0 && isMfs) ? "MFS" : "Cash");
+    
+    // Auto-close any open catalog modals (e.g., FOC, Paid Replacements)
+    document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
+}
+
 // UX Iteration 2: Instant 1x Save
 function instantSaveItem(itemName, price) {
     if (!passStockFirewall(itemName, 1)) return;
@@ -1146,72 +1157,48 @@ function renderAppUI() {
         let container = document.getElementById(containerId);
         if (!container) return;
 
-        // UX Iteration 2: Split Buttons for Instant vs Bulk
+        let btn = document.createElement('button');
+        btn.className = (isModal ? 'modal-item' : 'action-btn') + ' dynamic-item';
+        
+        // UX Iteration 2: Pointer Event Long-Press Logic
+        let pressTimer;
+        let isLongPress = false;
+
+        const startPress = (e) => {
+            if (e.button && e.button !== 0) return; // Ignore right-clicks
+            isLongPress = false;
+            pressTimer = setTimeout(() => {
+                isLongPress = true;
+                if (navigator.vibrate) navigator.vibrate([50]); // Give a tiny haptic buzz to confirm long-press
+                selectItem(item.name, safePrice); // Open the Qty Keypad Modal
+            }, 500); // 500ms threshold
+        };
+
+        const cancelPress = () => clearTimeout(pressTimer);
+
+        const endPress = (e) => {
+            clearTimeout(pressTimer);
+            if (!isLongPress) {
+                // If the timer didn't finish, it was a short tap!
+                instantSaveItem(item.name, safePrice);
+            }
+        };
+
+        // Attach modern pointer events (handles both mouse and touch elegantly)
+        btn.addEventListener('pointerdown', startPress);
+        btn.addEventListener('pointerup', endPress);
+        btn.addEventListener('pointerleave', cancelPress);
+        btn.addEventListener('pointercancel', cancelPress);
+        
+        // Prevent mobile browsers from opening the default "copy text" or right-click menu on long-press
+        btn.oncontextmenu = (e) => { e.preventDefault(); return false; };
+        
         if (isModal) {
-            let wrapper = document.createElement('div');
-            wrapper.className = 'dynamic-item';
-            wrapper.style.display = 'flex';
-            wrapper.style.gap = '8px';
-            wrapper.style.marginBottom = '4px';
-
-            // 1x Instant Save Button
-            let instantBtn = document.createElement('button');
-            instantBtn.className = 'modal-item';
-            instantBtn.style.flex = '1';
-            instantBtn.style.marginBottom = '0';
-            instantBtn.setAttribute('onclick', `instantSaveItem('${item.name}', ${safePrice})`);
-            instantBtn.innerHTML = `<span>${item.display || item.name}</span><span>${safePrice} ${userCurrency}</span>`;
-
-            // Bulk Qty Button (Opens Keypad)
-            let bulkBtn = document.createElement('button');
-            bulkBtn.className = 'modal-item';
-            bulkBtn.style.width = '64px';
-            bulkBtn.style.marginBottom = '0';
-            bulkBtn.style.display = 'flex';
-            bulkBtn.style.justifyContent = 'center';
-            bulkBtn.style.alignItems = 'center';
-            bulkBtn.style.background = 'var(--bg-color)';
-            bulkBtn.setAttribute('onclick', `selectItem('${item.name}', ${safePrice})`);
-            bulkBtn.innerHTML = `🔢`;
-
-            wrapper.appendChild(instantBtn);
-            wrapper.appendChild(bulkBtn);
-            container.insertBefore(wrapper, container.querySelector('.modal-close'));
+            btn.innerHTML = `<span>${item.display || item.name}</span><span>${safePrice} ${userCurrency}</span>`;
+            container.insertBefore(btn, container.querySelector('.modal-close'));
         } else {
-            let wrapper = document.createElement('div');
-            wrapper.className = 'dynamic-item';
-            wrapper.style.display = 'flex';
-            wrapper.style.borderRadius = '10px';
-            wrapper.style.overflow = 'hidden';
-            wrapper.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
-
-            // 1x Instant Save Button
-            let instantBtn = document.createElement('button');
-            instantBtn.className = 'action-btn';
-            instantBtn.style.flex = '1';
-            instantBtn.style.borderRadius = '0';
-            instantBtn.style.boxShadow = 'none';
-            instantBtn.setAttribute('onclick', `instantSaveItem('${item.name}', ${safePrice})`);
-            instantBtn.innerText = item.display || item.name;
-
-            // Bulk Qty Button (Opens Keypad)
-            let bulkBtn = document.createElement('button');
-            bulkBtn.className = 'action-btn';
-            bulkBtn.style.width = '48px';
-            bulkBtn.style.borderRadius = '0';
-            bulkBtn.style.boxShadow = 'none';
-            bulkBtn.style.background = 'var(--bg-color)';
-            bulkBtn.style.borderLeft = '1px solid var(--border-color)';
-            bulkBtn.style.padding = '0';
-            bulkBtn.style.display = 'flex';
-            bulkBtn.style.alignItems = 'center';
-            bulkBtn.style.justifyContent = 'center';
-            bulkBtn.setAttribute('onclick', `selectItem('${item.name}', ${safePrice})`);
-            bulkBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>`;
-
-            wrapper.appendChild(instantBtn);
-            wrapper.appendChild(bulkBtn);
-            container.appendChild(wrapper);
+            btn.innerText = item.display || item.name;
+            container.appendChild(btn);
         }
     });
 }
