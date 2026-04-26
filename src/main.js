@@ -1161,7 +1161,9 @@ function populateTrackAsDropdowns() {
 function openSettings() {
     let container = document.getElementById('settings-list-container');
     container.innerHTML = ''; document.getElementById('admin-search').value = ''; document.getElementById('admin-add-form').style.display = 'none';
+    renderUserManagementAdmin(); // Load the active agents list
     renderInventoryGroupsAdmin();
+    
 
     Object.entries(globalCatalog).map(([key, item]) => ({key, ...item})).sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(item => {
         if (!item.isActive) return;
@@ -1284,6 +1286,80 @@ async function nukeTodaysLedger() {
     const snap = await getDocs(query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr)));
     snap.forEach(async (t) => { await deleteDoc(doc(db, 'transactions', t.id)); });
     alert("Today's ledger completely wiped. Reloading..."); window.location.reload();
+}
+
+// ==========================================
+//    SUPERPOWERS: USER MANAGEMENT
+// ==========================================
+async function renderUserManagementAdmin() {
+    const container = document.getElementById('admin-user-management-list');
+    if (!container) return;
+    container.innerHTML = '<div class="spinner" style="width: 24px; height: 24px; border-width: 3px; margin: 0 auto; border-top-color: #f59e0b;"></div>';
+
+    try {
+        // Fetch all users and filter locally to avoid Firebase Index errors
+        const usersSnap = await getDocs(collection(db, 'users'));
+        let html = '';
+        let activeCount = 0;
+
+        usersSnap.forEach(docSnap => {
+            const u = docSnap.data();
+            const uid = docSnap.id;
+            
+            // Only show users who are currently locked to a desk
+            if (u.assignedDeskId) {
+                activeCount++;
+                const deskName = u.assignedDeskId.replace('_', ' ').toUpperCase();
+                const displayName = u.displayName || u.email?.split('@')[0] || 'Unknown';
+
+                html += `
+                    <div style="background: #ffffff; border: 1px solid #fcd34d; padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                        <div>
+                            <strong style="color: #92400e; font-size: 0.95rem;">${displayName}</strong>
+                            <div style="font-size: 0.8rem; color: #b45309;">📍 ${deskName}</div>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: auto; border-color: #f59e0b; color: #d97706;" onclick="kickAgent('${uid}')">🦵 Kick</button>
+                            <button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: auto; border-color: #ef4444; color: #ef4444; background: #fef2f2;" onclick="nukeAgent('${uid}', '${displayName}')">🔥 Nuke & Kick</button>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+
+        container.innerHTML = activeCount > 0 ? html : '<p style="font-size: 0.85rem; color: #b45309; margin: 0;">No agents currently locked to a desk.</p>';
+    } catch (e) {
+        container.innerHTML = '<p style="color: #ef4444; font-size: 0.85rem;">Offline: Cannot fetch users.</p>';
+    }
+}
+
+async function kickAgent(uid) {
+    if(!confirm("Kick this agent from their desk? Their sales data will remain intact.")) return;
+    try {
+        await setDoc(doc(db, 'users', uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
+        showFlashMessage("Agent Kicked Successfully!");
+        renderUserManagementAdmin(); // Refresh the list instantly
+    } catch(e) { alert("Error kicking agent."); }
+}
+
+async function nukeAgent(uid, agentName) {
+    if(!confirm(`🔥 WARNING: You are about to kick ${agentName} AND permanently delete EVERY transaction they made today. Proceed?`)) return;
+    
+    try {
+        // 1. Kick them from the desk
+        await setDoc(doc(db, 'users', uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
+        
+        // 2. Hunt down and vaporize their transactions for today
+        const targetDateStr = getStrictDate();
+        const txSnap = await getDocs(query(collection(db, 'transactions'), where('agentId', '==', uid), where('dateStr', '==', targetDateStr)));
+        
+        txSnap.forEach(async (t) => { 
+            await deleteDoc(doc(db, 'transactions', t.id)); 
+        });
+
+        showFlashMessage(`Agent Nixed & Data Erased!`);
+        renderUserManagementAdmin(); // Refresh the list instantly
+    } catch(e) { alert("Error executing Burn Notice."); }
 }
 
 // ==========================================
@@ -1455,3 +1531,4 @@ window.restoreTx = restoreTx; window.emptyTrash = emptyTrash; window.permanently
 window.addInventoryGroup = addInventoryGroup; window.removeInventoryGroup = removeInventoryGroup;
 window.adminBypass = adminBypass; window.peekAtDesk = peekAtDesk; window.openMyDeskDashboard = openMyDeskDashboard;
 window.resetMyDeskLock = resetMyDeskLock; window.forceCloseAllDesks = forceCloseAllDesks; window.nukeTodaysLedger = nukeTodaysLedger;
+window.kickAgent = kickAgent; window.nukeAgent = nukeAgent;
