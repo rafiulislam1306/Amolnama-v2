@@ -1084,8 +1084,8 @@ async function initUserData() {
             if (currentUserRole === 'admin') await setDoc(doc(db, 'global', 'settings'), { catalog: globalCatalog, inventoryGroups: globalInventoryGroups }, { merge: true });
         }
 
-        // Cleaned up text replacement logic for the Report tab
-        document.getElementById('report-user-name').innerText = userNickname || userDisplayName;
+        // Reverted to explicitly show the full Google Account name on the Report tab
+        document.getElementById('report-user-name').innerText = userDisplayName;
         if (currentUser.email) document.getElementById('report-user-email').innerText = currentUser.email;
         if (currentUser.photoURL) {
             document.getElementById('report-user-photo').src = currentUser.photoURL;
