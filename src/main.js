@@ -1093,23 +1093,12 @@ let currentErsAmount = '0';
 const ersDisplay = document.getElementById('ers-display');
 function updateErsDisplay() { ersDisplay.innerText = currentErsAmount; }
 
-// Industry Standard: Haptic micro-vibration on keystroke (10ms is a sharp 'tick')
-function triggerKeypadHaptic() {
-    if (navigator.vibrate) navigator.vibrate(10);
-}
-
 function ersKeyPress(num) {
-    triggerKeypadHaptic();
     if (currentErsAmount === '0') { if (num !== '00' && num !== '0') currentErsAmount = num; } 
     else { if ((currentErsAmount + num).length <= 5) currentErsAmount += num; }
     updateErsDisplay();
 }
-
-function ersBackspace() { 
-    triggerKeypadHaptic();
-    currentErsAmount = currentErsAmount.length > 1 ? currentErsAmount.slice(0, -1) : '0'; 
-    updateErsDisplay(); 
-}
+function ersBackspace() { currentErsAmount = currentErsAmount.length > 1 ? currentErsAmount.slice(0, -1) : '0'; updateErsDisplay(); }
 function saveErs(paymentMethod) {
     const amount = parseInt(currentErsAmount);
     if (amount <= 0) { showAppAlert("Invalid Input", "Please enter a valid amount."); return; }
@@ -1148,16 +1137,8 @@ function updateQtyDisplay() {
     document.getElementById('qty-calc-display').innerText = currentItemPrice === 0 ? `Inventory Update (0 ${userCurrency})` : `${qtyInt} x ${currentItemPrice} = ${qtyInt * currentItemPrice} ${userCurrency}`;
 }
 
-function qtyKeyPress(num) { 
-    triggerKeypadHaptic();
-    if (currentQty === '0') currentQty = num; else if (currentQty.length < 3) currentQty += num; 
-    updateQtyDisplay(); 
-}
-function qtyBackspace() { 
-    triggerKeypadHaptic();
-    currentQty = currentQty.length > 1 ? currentQty.slice(0, -1) : '0'; 
-    updateQtyDisplay(); 
-}
+function qtyKeyPress(num) { if (currentQty === '0') currentQty = num; else if (currentQty.length < 3) currentQty += num; updateQtyDisplay(); }
+function qtyBackspace() { currentQty = currentQty.length > 1 ? currentQty.slice(0, -1) : '0'; updateQtyDisplay(); }
 function saveQuantity() {
     let qtyInt = parseInt(currentQty) || 0;
     if (qtyInt <= 0) { showAppAlert("Invalid Input", "Please enter a quantity of 1 or more."); return; }
