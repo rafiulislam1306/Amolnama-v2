@@ -42,6 +42,44 @@ if ('serviceWorker' in navigator) {
 }
 
 // ==========================================
+//    0.5 NATIVE APP INSTALL PROMPT
+// ==========================================
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevent the mini-infobar from appearing automatically on mobile
+    e.preventDefault();
+    // Stash the event so it can be triggered later when the user clicks our button
+    deferredPrompt = e;
+    
+    // Un-hide our custom install button on the Auth screen
+    const installBtn = document.getElementById('install-app-btn');
+    if (installBtn) installBtn.style.display = 'flex';
+});
+
+window.installPWA = async function() {
+    if (!deferredPrompt) return;
+    
+    // Show the native browser install prompt
+    deferredPrompt.prompt();
+    
+    // Wait for the user to accept or dismiss it
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+        // If they installed it, hide our button
+        document.getElementById('install-app-btn').style.display = 'none';
+    }
+    
+    // The prompt can only be used once, so clear it
+    deferredPrompt = null;
+}
+
+window.addEventListener('appinstalled', () => {
+    const installBtn = document.getElementById('install-app-btn');
+    if (installBtn) installBtn.style.display = 'none';
+    deferredPrompt = null;
+});
+
+// ==========================================
 //    1. FIREBASE CONFIGURATION
 // ==========================================
 import { initializeApp } from "firebase/app";
