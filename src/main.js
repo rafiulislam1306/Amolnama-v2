@@ -41,6 +41,7 @@ let currentUser = null;
 const userCurrency = 'Tk';
 let userDisplayName = 'ERS';
 let currentUserRole = 'user';
+let userNickname = '';
 
 // --- STRICT DATE FORMATTER ---
 function getStrictDate() { 
@@ -682,7 +683,7 @@ async function renderLiveFloorTab() {
             try {
                 const agentsSnap = await getDocs(query(collection(db, 'users'), where('assignedDeskId', '==', session.deskId)));
                 let names = [];
-                agentsSnap.forEach(aDoc => { names.push(aDoc.data().displayName || aDoc.data().email?.split('@')[0] || 'Agent'); });
+                agentsSnap.forEach(aDoc => { names.push(aDoc.data().nickname || aDoc.data().displayName || aDoc.data().email?.split('@')[0] || 'Agent'); });
                 agentNamesStr = names.length > 0 ? names.join(', ') : 'Empty Desk';
             } catch(e) { agentNamesStr = 'Unknown'; }
 
@@ -1023,6 +1024,7 @@ async function initUserData() {
         if (userDocSnap.exists()) {
             userData = userDocSnap.data();
             currentUserRole = userData.role || 'user';
+            userNickname = userData.nickname || '';
         } else { 
             currentUserRole = 'user'; 
         }
@@ -1040,7 +1042,7 @@ async function initUserData() {
             if (currentUserRole === 'admin') await setDoc(doc(db, 'global', 'settings'), { catalog: globalCatalog, inventoryGroups: globalInventoryGroups }, { merge: true });
         }
 
-        document.getElementById('report-user-name').innerText = userDisplayName;
+        document.getElementById('report-user-nickname').value = userNickname || userDisplayName;
         if (currentUser.email) document.getElementById('report-user-email').innerText = currentUser.email;
         if (currentUser.photoURL) {
             document.getElementById('report-user-photo').src = currentUser.photoURL;
@@ -1095,7 +1097,7 @@ async function addTransactionToCloud(type, name, amount, qty, payment, cashAmt =
         payment: payment, cashAmt: cashAmt, mfsAmt: mfsAmt, isDeleted: false,
         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
         dateStr: getStrictDate(),
-        deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userDisplayName
+        deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName
     };
 
     try { await addDoc(collection(db, 'transactions'), tx); showFlashMessage("Saved to Cloud!"); } 
@@ -1505,7 +1507,7 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
     try {
         const agentsSnap = await getDocs(query(collection(db, 'users'), where('assignedDeskId', '==', targetDeskId)));
         let names = [];
-        agentsSnap.forEach(doc => { names.push(doc.data().displayName || doc.data().email?.split('@')[0] || 'Agent'); });
+        agentsSnap.forEach(doc => { names.push(aDoc.data().nickname || aDoc.data().displayName || aDoc.data().email?.split('@')[0] || 'Agent'); });
         document.getElementById('desk-logged-agents').innerText = names.length > 0 ? names.join(', ') : 'None';
     } catch(e) { document.getElementById('desk-logged-agents').innerText = 'Unknown'; }
 }
@@ -1532,3 +1534,25 @@ window.addInventoryGroup = addInventoryGroup; window.removeInventoryGroup = remo
 window.adminBypass = adminBypass; window.peekAtDesk = peekAtDesk; window.openMyDeskDashboard = openMyDeskDashboard;
 window.resetMyDeskLock = resetMyDeskLock; window.forceCloseAllDesks = forceCloseAllDesks; window.nukeTodaysLedger = nukeTodaysLedger;
 window.kickAgent = kickAgent; window.nukeAgent = nukeAgent;
+// ==========================================
+//    USER PROFILE CONTROLS
+// ==========================================
+async function saveNickname() {
+    if (!currentUser) return;
+    const newName = document.getElementById('report-user-nickname').value.trim();
+    if (!newName) return alert("Please enter a valid nickname.");
+    
+    try {
+        await setDoc(doc(db, 'users', currentUser.uid), { nickname: newName }, { merge: true });
+        userNickname = newName;
+        document.getElementById('header-title').innerText = currentDeskId ? currentDeskName : userNickname;
+        showFlashMessage("Nickname updated!");
+        
+        // Force the active agents list to refresh its names
+        if (currentDeskId) renderDeskDashboard(currentDeskId);
+        if (document.getElementById('tab-floor').classList.contains('active')) renderLiveFloorTab();
+    } catch(e) {
+        showFlashMessage("Error saving nickname.");
+    }
+}
+window.saveNickname = saveNickname;
