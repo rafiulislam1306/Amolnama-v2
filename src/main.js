@@ -1290,8 +1290,23 @@ function renderAppUI() {
         btn.oncontextmenu = (e) => { e.preventDefault(); return false; };
         
         if (isModal) {
-            btn.innerHTML = `<span>${item.display || item.name}</span><span>${safePrice} ${userCurrency}</span>`;
-            container.insertBefore(btn, container.querySelector('.modal-close'));
+            btn.className = 'list-menu-item dynamic-item';
+            
+            // Format price: Show "Free" instead of "0 Tk" for better UX
+            let priceDisplay = safePrice > 0 ? `${safePrice} ${userCurrency}` : 'Free';
+            let priceColorStyle = safePrice === 0 ? 'color: #10b981;' : ''; // Green for Free
+
+            btn.innerHTML = `
+                <div class="list-item-content">
+                    <span class="list-item-title">${item.display || item.name}</span>
+                    <span class="list-item-price" style="${priceColorStyle}">${priceDisplay}</span>
+                </div>
+                <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            `;
+            // Because we moved the close button outside the group in HTML, we just append now
+            container.appendChild(btn); 
         } else {
             btn.innerText = item.display || item.name;
             container.appendChild(btn);

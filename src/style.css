@@ -293,3 +293,64 @@ header { background-color: var(--surface-color); padding: env(safe-area-inset-to
     box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     margin-bottom: 24px;
 }
+
+/* --- INDUSTRY STANDARD LIST MENUS --- */
+.list-menu-group {
+    background-color: var(--surface-color);
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
+
+.list-menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 16px 20px;
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.15s ease;
+    touch-action: manipulation;
+}
+
+/* Remove bottom border from the last item so it doesn't double up with the container */
+.list-menu-item:last-child {
+    border-bottom: none;
+}
+
+/* Satisfying tap feedback */
+.list-menu-item:active {
+    background-color: var(--bg-color);
+}
+
+.list-item-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.list-item-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.list-item-price {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--accent-color);
+}
+
+.list-item-chevron {
+    width: 20px;
+    height: 20px;
+    color: var(--text-secondary);
+    opacity: 0.5;
+    flex-shrink: 0;
+}
