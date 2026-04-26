@@ -312,20 +312,22 @@ async function loadFloorMap() {
             `;
         });
         
+        // Strictly gated to Admin only
         if (currentUserRole === 'admin') {
             deskHTML += `
-                <button class="btn-outline" style="margin-top: 24px; width: 100%; justify-content: center; color: #64748b; border-color: #cbd5e1; padding: 12px; font-weight: bold;" onclick="adminBypass()">
-                    🛡️ Admin Bypass (Global View)
-                </button>
+                <div style="margin-top: 32px; border-top: 1px dashed var(--border-color); padding-top: 16px;">
+                    <span style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; text-align: center;">Admin & Developer Tools</span>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-outline" style="flex: 1; padding: 12px 8px; font-size: 0.85rem; font-weight: 600; border-color: var(--border-color); color: var(--text-secondary); display: flex; flex-direction: column; align-items: center; gap: 6px; background: transparent; transition: all 0.2s;" onclick="adminBypass()">
+                            <span style="font-size: 1.25rem;">🛡️</span> Global View
+                        </button>
+                        <button class="btn-outline" style="flex: 1; padding: 12px 8px; font-size: 0.85rem; font-weight: 600; border-color: var(--border-color); color: var(--text-secondary); display: flex; flex-direction: column; align-items: center; gap: 6px; background: transparent; transition: all 0.2s;" onclick="enterSandboxMode()">
+                            <span style="font-size: 1.25rem;">🧪</span> Test Env
+                        </button>
+                    </div>
+                </div>
             `;
         }
-        
-        // Add Sandbox Button for testing
-        deskHTML += `
-            <button class="btn-outline" style="margin-top: 12px; width: 100%; justify-content: center; color: #f59e0b; border-color: #fcd34d; background: #fffbeb; padding: 12px; font-weight: bold;" onclick="enterSandboxMode()">
-                🧪 Enter Sandbox Mode (Local Testing)
-            </button>
-        `;
         
         container.innerHTML = deskHTML;
     } catch (e) { container.innerHTML = `<div style="color:#ef4444; padding:16px;">Error loading map. Refresh app.</div>`; }
