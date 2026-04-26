@@ -2,11 +2,43 @@
 //    0. SERVICE WORKER FOR PWA INSTALL
 // ==========================================
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`)
-      .then(reg => console.log('Service Worker registered:', reg))
-      .catch(err => console.error('Service Worker registration failed:', err));
-  });
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`)
+          .then(reg => {
+              console.log('Service Worker registered:', reg);
+              
+              // 1. Manually check for updates on load
+              reg.update();
+
+              // 2. Listen for a new service worker installing in the background
+              reg.addEventListener('updatefound', () => {
+                  const newWorker = reg.installing;
+                  newWorker.addEventListener('statechange', () => {
+                      // 3. If a new worker is installed and waiting to take over the old one
+                      if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                          // Trigger your custom app alert!
+                          showAppAlert(
+                              "App Update Available 🚀", 
+                              "A new version of Amolnama has been downloaded. Please refresh to apply the update.", 
+                              true, 
+                              () => window.location.reload(), 
+                              "Refresh Now"
+                          );
+                      }
+                  });
+              });
+          })
+          .catch(err => console.error('Service Worker registration failed:', err));
+    });
+    
+    // Safety net: Force a reload if the service worker takes over cleanly
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+            refreshing = true;
+            window.location.reload();
+        }
+    });
 }
 
 // ==========================================
