@@ -40,8 +40,8 @@ if (Object.keys(firebaseConfig).length > 0) {
 let currentUser = null;
 const userCurrency = 'Tk';
 let userDisplayName = 'ERS';
+let userNickname = ''; // Nickname support
 let currentUserRole = 'user';
-let userNickname = '';
 
 // --- STRICT DATE FORMATTER ---
 function getStrictDate() { 
@@ -49,30 +49,12 @@ function getStrictDate() {
     return `${String(t.getDate()).padStart(2,'0')}/${String(t.getMonth()+1).padStart(2,'0')}/${t.getFullYear()}`; 
 }
 
-// ==========================================
-//   TRAFFIC COP: MASTER INVENTORY LOGIC
-// ==========================================
-// FIX: Ensures Main Stock adds, Sales subtract.
-function getInventoryChange(tx) {
-    if (!tx.trackAs || !globalInventoryGroups.includes(tx.trackAs)) return 0;
-    if (tx.name === 'Physical Cash' || tx.name === 'ERS Flexiload') return 0;
-    
-    let q = Math.abs(parseInt(tx.qty) || 0); // Always start positive
-    
-    if (tx.type === 'transfer_in') return q;           // Drawer explicitly GAINS stock
-    if (tx.type === 'transfer_out') return -q;         // Drawer explicitly LOSES stock
-    if (tx.type === 'adjustment') return parseInt(tx.qty) || 0; // Adjs handle their own signs
-    
-    // Default: Normal Sales LOSE stock from the drawer
-    return -q; 
-}
-
-
 // --- DESK & SESSION STATE ---
 let currentDeskId = null; 
 let currentSessionId = null;
 let currentDeskName = '';
 let currentOpeningCash = 0; 
+let currentOpeningInv = {}; // NEW: Global memory bank for starting stock
 let rolloverStock = {}; 
 
 // --- GLOBAL DATABASE STRUCTURE ---
@@ -112,6 +94,54 @@ let transactions = [];
 let trashTransactions = []; 
 let txListenerUnsubscribe = null; 
 
+
+// ==========================================
+//   TRAFFIC COP: MASTER INVENTORY LOGIC
+// ==========================================
+function getInventoryChange(tx) {
+    if (!tx.trackAs || !globalInventoryGroups.includes(tx.trackAs)) return 0;
+    if (tx.name === 'Physical Cash' || tx.name === 'ERS Flexiload') return 0;
+    
+    let q = Math.abs(parseInt(tx.qty) || 0); // Always start positive
+    
+    if (tx.type === 'transfer_in') return q;           // Drawer GAINS stock
+    if (tx.type === 'transfer_out') return -q;         // Drawer LOSES stock
+    if (tx.type === 'adjustment') return parseInt(tx.qty) || 0; // Adjs handle their own signs (+/-)
+    
+    return -q; // Default: Sales LOSE stock
+}
+
+function getAvailableStock(itemName) {
+    let catItem = Object.values(globalCatalog).find(c => c.name === itemName);
+    let trackAs = catItem ? (catItem.trackAs || itemName) : itemName; 
+    
+    if (!globalInventoryGroups.includes(trackAs)) return Infinity; // Bypass if digital
+
+    let stock = currentOpeningInv[trackAs] || 0; // Start with morning balance
+
+    transactions.forEach(tx => {
+        if (tx.deskId === currentDeskId && !tx.isDeleted && tx.trackAs === trackAs) {
+            stock += getInventoryChange(tx); // Calculate all events to the millisecond
+        }
+    });
+    return stock;
+}
+
+function passStockFirewall(itemName, requestedQty) {
+    let catItem = Object.values(globalCatalog).find(c => c.name === itemName);
+    let trackAs = catItem ? (catItem.trackAs || itemName) : itemName; 
+    
+    if (!globalInventoryGroups.includes(trackAs)) return true; // Digital items auto-pass
+
+    let available = getAvailableStock(itemName);
+    if (available < requestedQty) {
+        alert(`⚠️ TRANSACTION BLOCKED\n\nNot enough physical stock!\n\nYou only have ${available}x ${trackAs} available in your drawer.`);
+        return false; // 🚫 Block transaction
+    }
+    return true; // ✅ Allow transaction
+}
+
+
 // --- AUTHENTICATION LOGIC ---
 let isInitialLoad = true;
 
@@ -128,10 +158,7 @@ setPersistence(auth, browserLocalPersistence)
             } else {
                 currentUser = null;
                 document.getElementById('modal-auth').classList.add('active');
-                if (isInitialLoad) {
-                    document.getElementById('splash-screen').classList.remove('active');
-                    isInitialLoad = false;
-                }
+                if (isInitialLoad) { document.getElementById('splash-screen').classList.remove('active'); isInitialLoad = false; }
             }
         });
     })
@@ -150,7 +177,7 @@ function logout() {
 }
 
 // ==========================================
-//    FIX 4: THE LAZY AUTO-CLOSE (UPGRADED)
+//    THE LAZY AUTO-CLOSE
 // ==========================================
 async function performLazyAutoClose() {
     const todayStr = getStrictDate();
@@ -159,14 +186,12 @@ async function performLazyAutoClose() {
         for (const docSnap of activeSessionsSnap.docs) {
             const sessionData = docSnap.data();
             if (sessionData.dateStr !== todayStr) {
-                // Ghost session detected. Close it.
                 await updateDoc(doc(db, 'sessions', docSnap.id), {
                     status: 'closed', closedBy: 'System Auto-Close', closedByUid: 'system', closedAt: serverTimestamp(),
                     hasDiscrepancy: true, variance: 'Unknown - Auto Closed'
                 });
                 await setDoc(doc(db, 'desks', sessionData.deskId), { status: 'closed', currentSessionId: null }, { merge: true });
                 
-                // NEW: Wipe the desk lock from ANY user sitting at this ghost desk
                 const stuckUsers = await getDocs(query(collection(db, 'users'), where('assignedDeskId', '==', sessionData.deskId)));
                 stuckUsers.forEach(async (u) => {
                     await updateDoc(doc(db, 'users', u.id), { assignedDeskId: null, assignedDate: null });
@@ -244,16 +269,17 @@ async function handleDeskSelect(deskId, deskName, status, sessionId) {
     if (status === 'open' && sessionId) {
         currentSessionId = sessionId;
         const todayStr = getStrictDate();
-        try {
-            await setDoc(doc(db, 'users', currentUser.uid), { assignedDeskId: currentDeskId, assignedDate: todayStr }, { merge: true });
-        } catch(e) {}
+        try { await setDoc(doc(db, 'users', currentUser.uid), { assignedDeskId: currentDeskId, assignedDate: todayStr }, { merge: true }); } catch(e) {}
 
         document.getElementById('modal-desk-select').classList.remove('active');
         document.getElementById('header-title').innerText = `${deskName}`;
         
         try {
             const sessionSnap = await getDoc(doc(db, 'sessions', sessionId));
-            if (sessionSnap.exists() && sessionSnap.data().openingBalances) currentOpeningCash = parseFloat(sessionSnap.data().openingBalances.cash) || 0;
+            if (sessionSnap.exists() && sessionSnap.data().openingBalances) {
+                currentOpeningCash = parseFloat(sessionSnap.data().openingBalances.cash) || 0;
+                currentOpeningInv = sessionSnap.data().openingBalances.inventory || {}; // Load memory bank
+            }
         } catch(e) {}
 
         await fetchTransactionsForDate(); 
@@ -321,10 +347,11 @@ async function confirmOpenDesk() {
         const newSessionRef = doc(collection(db, 'sessions'));
         currentSessionId = newSessionRef.id;
         currentOpeningCash = floatAmount;
+        currentOpeningInv = verifiedStartingInventory; // Load memory bank
         const todayStr = getStrictDate();
 
         const sessionData = {
-            deskId: currentDeskId, dateStr: todayStr, openedBy: userDisplayName, openedByUid: currentUser.uid, openedAt: serverTimestamp(),
+            deskId: currentDeskId, dateStr: todayStr, openedBy: userNickname || userDisplayName, openedByUid: currentUser.uid, openedAt: serverTimestamp(),
             status: 'open', openingBalances: { cash: floatAmount, inventory: verifiedStartingInventory }
         };
 
@@ -367,7 +394,6 @@ async function initiateCloseDesk() {
         let tx = docSnap.data();
         expectedCash += (tx.cashAmt || 0); 
         
-        // Traffic Cop prevents inventory math bugs
         let change = getInventoryChange(tx);
         if (change !== 0) {
             expectedInv[tx.trackAs] = (expectedInv[tx.trackAs] || 0) + change;
@@ -467,17 +493,14 @@ async function finalizeCloseDesk(variance) {
     let dropAmount = parseFloat(document.getElementById('manager-drop-input').value) || 0;
     let maxAllowedDrop = Math.min(actualClosingStats.cash, expectedClosingStats.cash);
 
-    if (dropAmount < 0 || dropAmount > maxAllowedDrop) {
-        alert(`Error: You cannot drop more than ${maxAllowedDrop} Tk.`);
-        return;
-    }
+    if (dropAmount < 0 || dropAmount > maxAllowedDrop) return alert(`Error: You cannot drop more than ${maxAllowedDrop} Tk.`);
 
     let retainedFloat = actualClosingStats.cash - dropAmount;
     actualClosingStats.inventory = { ...actualClosingStats.inventory }; 
 
     try {
         await updateDoc(doc(db, 'sessions', currentSessionId), {
-            closedBy: userDisplayName, closedByUid: currentUser.uid, closedAt: serverTimestamp(), status: 'closed',
+            closedBy: userNickname || userDisplayName, closedByUid: currentUser.uid, closedAt: serverTimestamp(), status: 'closed',
             expectedClosing: expectedClosingStats, actualClosing: actualClosingStats, variance: variance,
             hasDiscrepancy: variance !== 0, managerDrop: dropAmount, retainedFloat: retainedFloat
         });
@@ -513,7 +536,7 @@ async function saveManagerCash() {
         id: Date.now(), type: 'adjustment', name: 'Physical Cash', trackAs: 'Physical Cash', amount: 0, qty: 0,
         payment: paymentLabel, cashAmt: finalValue, mfsAmt: 0, isDeleted: false,
         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-        dateStr: getStrictDate(), deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userDisplayName
+        dateStr: getStrictDate(), deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName
     };
 
     closeModal('modal-manager-cash');
@@ -542,7 +565,7 @@ async function saveMainStock() {
         id: Date.now(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty,
         payment: 'Received from Main Stock', cashAmt: 0, mfsAmt: 0, isDeleted: false,
         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-        dateStr: getStrictDate(), deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userDisplayName
+        dateStr: getStrictDate(), deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName
     };
 
     closeModal('modal-main-stock');
@@ -582,16 +605,20 @@ async function executeDeskTransfer() {
     let qty = parseInt(document.getElementById('desk-transfer-qty').value) || 0;
     if (qty <= 0) return alert("Enter valid quantity.");
 
+    let itemName = document.getElementById('desk-transfer-item').value;
+    
+    // 🛡️ THE FIREWALL
+    if (!passStockFirewall(itemName, qty)) return;
+
     let targetVal = document.getElementById('desk-transfer-target').value;
     if (!targetVal) return alert("Please select an active destination desk.");
     
     let [targetDeskId, targetSessionId] = targetVal.split('|');
-    let itemName = document.getElementById('desk-transfer-item').value;
     let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     let dateStr = getStrictDate();
 
-    const senderTx = { id: Date.now(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userDisplayName };
-    const receiverTx = { id: Date.now() + 1, type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${currentDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: "system", agentName: `Transfer from ${userDisplayName}` };
+    const senderTx = { id: Date.now(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName };
+    const receiverTx = { id: Date.now() + 1, type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${currentDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: "system", agentName: `Transfer from ${userNickname || userDisplayName}` };
 
     closeModal('modal-desk-transfer');
     try {
@@ -622,8 +649,9 @@ async function executeTransfer() {
     let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     let dateStr = getStrictDate();
 
-    const senderTx = { id: Date.now(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetTransferDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: currentDeskId || "Admin", sessionId: currentSessionId || "Admin", agentId: currentUser.uid, agentName: userDisplayName };
-    const receiverTx = { id: Date.now() + 1, type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${currentDeskId || "Admin"}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetTransferDeskId, sessionId: targetTransferSessionId, agentId: "system", agentName: `Transfer from ${userDisplayName}` };
+    // Map transfers don't hit the firewall, they bypass standard drawer math to push stock from the backroom.
+    const senderTx = { id: Date.now(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetTransferDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: currentDeskId || "Admin", sessionId: currentSessionId || "Admin", agentId: currentUser.uid, agentName: userNickname || userDisplayName };
+    const receiverTx = { id: Date.now() + 1, type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${currentDeskId || "Admin"}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetTransferDeskId, sessionId: targetTransferSessionId, agentId: "system", agentName: `Transfer from ${userNickname || userDisplayName}` };
 
     closeModal('modal-transfer');
     try {
@@ -654,7 +682,6 @@ async function renderLiveFloorTab() {
                 let tx = txDoc.data();
                 liveCash += (tx.cashAmt || 0);
                 
-                // Traffic Cop handles the +/- logic
                 let change = getInventoryChange(tx);
                 if (change !== 0) {
                     liveInv[tx.trackAs] = (liveInv[tx.trackAs] || 0) + change;
@@ -673,12 +700,10 @@ async function renderLiveFloorTab() {
             const isMyDesk = sid === currentSessionId;
             const badge = isMyDesk ? '<span style="background:#0ea5e9; color:white; font-size:0.7rem; padding:2px 6px; border-radius:12px; font-weight:bold;">YOUR DESK</span>' : '';
 
-            // If it's my desk, show "Open My Drawer". If it's someone else's, show "Peek"
             let actionBtn = isMyDesk 
                 ? `<button class="btn-primary-full" style="width: 100%; background: #0ea5e9; padding: 10px; margin-top: 12px;" onclick="openMyDeskDashboard()">💼 Open My Drawer</button>`
                 : `<button class="btn-outline" style="width: 100%; color: #8b5cf6; border-color: #8b5cf6; background: #faf5ff; padding: 10px; margin-top: 12px;" onclick="peekAtDesk('${session.deskId}', '${session.deskId.replace('_', ' ').toUpperCase()}')">👁️ View Details</button>`;
 
-            // FIX 2: Correctly Display Active Agent Names
             let agentNamesStr = 'Loading...';
             try {
                 const agentsSnap = await getDocs(query(collection(db, 'users'), where('assignedDeskId', '==', session.deskId)));
@@ -695,7 +720,6 @@ async function renderLiveFloorTab() {
                     <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 12px;">👤 ${agentNamesStr}</p>
                     <div style="margin-bottom: 12px;"><span style="font-size: 0.8rem; font-weight: bold; color: #64748b;">Live Cash:</span><span style="font-size: 1.2rem; font-weight: bold; color: #10b981; margin-left: 8px;">${liveCash} Tk</span></div>
                     <div style="margin-bottom: 16px;"><span style="display: block; font-size: 0.8rem; font-weight: bold; color: #64748b; margin-bottom: 6px;">Live Inventory:</span><div>${invDisplay}</div></div>
-                    
                     ${actionBtn}
                 </div>
             `;
@@ -769,6 +793,10 @@ async function saveTxEdit() {
     let method = document.getElementById('edit-tx-payment').value;
     let finalCash = 0, finalMfs = 0;
 
+    // 🛡️ THE FIREWALL
+    let diff = newQty - tx.qty; 
+    if (diff > 0 && !passStockFirewall(tx.name, diff)) return; 
+
     if (method === 'Cash') finalCash = newAmount;
     else if (method === 'MFS') finalMfs = newAmount;
     else if (method === 'Split') {
@@ -824,6 +852,10 @@ function renderTrash() {
 async function restoreTx(docId, localId) {
     if(docId) {
         try {
+            // 🛡️ THE FIREWALL
+            let tx = trashTransactions.find(t => t.docId === docId);
+            if (tx && !passStockFirewall(tx.name, tx.qty)) return;
+
             await updateDoc(doc(db, 'transactions', docId), { isDeleted: false, isRestored: true });
             showFlashMessage("Transaction Restored!");
             setTimeout(() => { renderTrash(); if(trashTransactions.length === 0) closeModal('modal-trash'); }, 500);
@@ -847,7 +879,6 @@ async function emptyTrash() {
 //    UI NAVIGATION & CORE APP LOGIC
 // ==========================================
 function switchTab(tabId, title) {
-    // FIX 1: Modal Cleanup on Navigation
     document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
 
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
@@ -858,7 +889,7 @@ function switchTab(tabId, title) {
          event.currentTarget.classList.add('active');
     }
     
-    document.getElementById('header-title').innerText = tabId === 'ers' ? (currentDeskName || userDisplayName) : title;
+    document.getElementById('header-title').innerText = tabId === 'ers' ? (currentDeskName || userNickname || userDisplayName) : title;
     if(tabId === 'floor') renderLiveFloorTab();
 
     if (tabId === 'report' && currentUser) {
@@ -926,6 +957,10 @@ function qtyBackspace() { currentQty = currentQty.length > 1 ? currentQty.slice(
 function saveQuantity() {
     let qtyInt = parseInt(currentQty) || 0;
     if (qtyInt <= 0) return alert("Enter quantity 1 or more.");
+    
+    // 🛡️ THE FIREWALL
+    if (!passStockFirewall(currentItemName, qtyInt)) return;
+
     addTransactionToCloud('Item', currentItemName, qtyInt * currentItemPrice, qtyInt, (currentItemPrice > 0 && isMfs) ? "MFS" : "Cash");
     closeModal('modal-quantity');
 }
@@ -1024,12 +1059,11 @@ async function initUserData() {
         if (userDocSnap.exists()) {
             userData = userDocSnap.data();
             currentUserRole = userData.role || 'user';
-            userNickname = userData.nickname || '';
+            userNickname = userData.nickname || ''; // Pull Nickname
         } else { 
             currentUserRole = 'user'; 
         }
 
-        // FIX 2: Ensure we save the actual Display Name
         await setDoc(userDocRef, { email: currentUser.email, displayName: userDisplayName, role: currentUserRole }, { merge: true });
 
         const globalDoc = await getDoc(doc(db, 'global', 'settings'));
@@ -1048,7 +1082,7 @@ async function initUserData() {
             document.getElementById('report-user-photo').src = currentUser.photoURL;
             document.getElementById('header-user-photo').src = currentUser.photoURL;
         }
-        if(document.getElementById('tab-ers').classList.contains('active')) document.getElementById('header-title').innerText = userDisplayName;
+        if(document.getElementById('tab-ers').classList.contains('active')) document.getElementById('header-title').innerText = userNickname || userDisplayName;
 
         updateCurrencyUI(); renderAppUI();
         
@@ -1067,6 +1101,7 @@ async function initUserData() {
                     const sessionSnap = await getDoc(doc(db, 'sessions', currentSessionId));
                     if (sessionSnap.exists() && sessionSnap.data().openingBalances) {
                         currentOpeningCash = parseFloat(sessionSnap.data().openingBalances.cash) || 0;
+                        currentOpeningInv = sessionSnap.data().openingBalances.inventory || {}; // Load memory bank
                     }
                 } catch(e) {}
             } else {
@@ -1163,9 +1198,9 @@ function populateTrackAsDropdowns() {
 function openSettings() {
     let container = document.getElementById('settings-list-container');
     container.innerHTML = ''; document.getElementById('admin-search').value = ''; document.getElementById('admin-add-form').style.display = 'none';
-    renderUserManagementAdmin(); // Load the active agents list
-    renderInventoryGroupsAdmin();
     
+    renderInventoryGroupsAdmin();
+    renderUserManagementAdmin(); 
 
     Object.entries(globalCatalog).map(([key, item]) => ({key, ...item})).sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(item => {
         if (!item.isActive) return;
@@ -1265,8 +1300,63 @@ function showFlashMessage(text) {
 }
 
 // ==========================================
-//     FIX 5: DANGER ZONE CONTROLS
+//    USER MANAGEMENT & DANGER ZONE
 // ==========================================
+async function renderUserManagementAdmin() {
+    const container = document.getElementById('admin-user-management-list');
+    if (!container) return;
+    container.innerHTML = '<div class="spinner" style="width: 24px; height: 24px; border-width: 3px; margin: 0 auto; border-top-color: #f59e0b;"></div>';
+
+    try {
+        const usersSnap = await getDocs(collection(db, 'users'));
+        let html = ''; let activeCount = 0;
+
+        usersSnap.forEach(docSnap => {
+            const u = docSnap.data(); const uid = docSnap.id;
+            if (u.assignedDeskId) {
+                activeCount++;
+                const deskName = u.assignedDeskId.replace('_', ' ').toUpperCase();
+                const displayName = u.nickname || u.displayName || u.email?.split('@')[0] || 'Unknown';
+
+                html += `
+                    <div style="background: #ffffff; border: 1px solid #fcd34d; padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                        <div>
+                            <strong style="color: #92400e; font-size: 0.95rem;">${displayName}</strong>
+                            <div style="font-size: 0.8rem; color: #b45309;">📍 ${deskName}</div>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: auto; border-color: #f59e0b; color: #d97706;" onclick="kickAgent('${uid}')">🦵 Kick</button>
+                            <button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: auto; border-color: #ef4444; color: #ef4444; background: #fef2f2;" onclick="nukeAgent('${uid}', '${displayName}')">🔥 Nuke & Kick</button>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+        container.innerHTML = activeCount > 0 ? html : '<p style="font-size: 0.85rem; color: #b45309; margin: 0;">No agents currently locked to a desk.</p>';
+    } catch (e) { container.innerHTML = '<p style="color: #ef4444; font-size: 0.85rem;">Offline: Cannot fetch users.</p>'; }
+}
+
+async function kickAgent(uid) {
+    if(!confirm("Kick this agent from their desk? Their sales data will remain intact.")) return;
+    try {
+        await setDoc(doc(db, 'users', uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
+        showFlashMessage("Agent Kicked Successfully!");
+        renderUserManagementAdmin();
+    } catch(e) { alert("Error kicking agent."); }
+}
+
+async function nukeAgent(uid, agentName) {
+    if(!confirm(`🔥 WARNING: You are about to kick ${agentName} AND permanently delete EVERY transaction they made today. Proceed?`)) return;
+    try {
+        await setDoc(doc(db, 'users', uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
+        const targetDateStr = getStrictDate();
+        const txSnap = await getDocs(query(collection(db, 'transactions'), where('agentId', '==', uid), where('dateStr', '==', targetDateStr)));
+        txSnap.forEach(async (t) => { await deleteDoc(doc(db, 'transactions', t.id)); });
+        showFlashMessage(`Agent Nixed & Data Erased!`);
+        renderUserManagementAdmin();
+    } catch(e) { alert("Error executing Burn Notice."); }
+}
+
 async function resetMyDeskLock() {
     if(!confirm("Release your desk assignment? You will be sent back to the floor map.")) return;
     await setDoc(doc(db, 'users', currentUser.uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
@@ -1290,78 +1380,24 @@ async function nukeTodaysLedger() {
     alert("Today's ledger completely wiped. Reloading..."); window.location.reload();
 }
 
+
 // ==========================================
-//    SUPERPOWERS: USER MANAGEMENT
+//    USER PROFILE CONTROLS (NICKNAME)
 // ==========================================
-async function renderUserManagementAdmin() {
-    const container = document.getElementById('admin-user-management-list');
-    if (!container) return;
-    container.innerHTML = '<div class="spinner" style="width: 24px; height: 24px; border-width: 3px; margin: 0 auto; border-top-color: #f59e0b;"></div>';
-
-    try {
-        // Fetch all users and filter locally to avoid Firebase Index errors
-        const usersSnap = await getDocs(collection(db, 'users'));
-        let html = '';
-        let activeCount = 0;
-
-        usersSnap.forEach(docSnap => {
-            const u = docSnap.data();
-            const uid = docSnap.id;
-            
-            // Only show users who are currently locked to a desk
-            if (u.assignedDeskId) {
-                activeCount++;
-                const deskName = u.assignedDeskId.replace('_', ' ').toUpperCase();
-                const displayName = u.displayName || u.email?.split('@')[0] || 'Unknown';
-
-                html += `
-                    <div style="background: #ffffff; border: 1px solid #fcd34d; padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                        <div>
-                            <strong style="color: #92400e; font-size: 0.95rem;">${displayName}</strong>
-                            <div style="font-size: 0.8rem; color: #b45309;">📍 ${deskName}</div>
-                        </div>
-                        <div style="display: flex; gap: 6px;">
-                            <button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: auto; border-color: #f59e0b; color: #d97706;" onclick="kickAgent('${uid}')">🦵 Kick</button>
-                            <button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: auto; border-color: #ef4444; color: #ef4444; background: #fef2f2;" onclick="nukeAgent('${uid}', '${displayName}')">🔥 Nuke & Kick</button>
-                        </div>
-                    </div>
-                `;
-            }
-        });
-
-        container.innerHTML = activeCount > 0 ? html : '<p style="font-size: 0.85rem; color: #b45309; margin: 0;">No agents currently locked to a desk.</p>';
-    } catch (e) {
-        container.innerHTML = '<p style="color: #ef4444; font-size: 0.85rem;">Offline: Cannot fetch users.</p>';
-    }
-}
-
-async function kickAgent(uid) {
-    if(!confirm("Kick this agent from their desk? Their sales data will remain intact.")) return;
-    try {
-        await setDoc(doc(db, 'users', uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
-        showFlashMessage("Agent Kicked Successfully!");
-        renderUserManagementAdmin(); // Refresh the list instantly
-    } catch(e) { alert("Error kicking agent."); }
-}
-
-async function nukeAgent(uid, agentName) {
-    if(!confirm(`🔥 WARNING: You are about to kick ${agentName} AND permanently delete EVERY transaction they made today. Proceed?`)) return;
+async function saveNickname() {
+    if (!currentUser) return;
+    const newName = document.getElementById('report-user-nickname').value.trim();
+    if (!newName) return alert("Please enter a valid nickname.");
     
     try {
-        // 1. Kick them from the desk
-        await setDoc(doc(db, 'users', uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
+        await setDoc(doc(db, 'users', currentUser.uid), { nickname: newName }, { merge: true });
+        userNickname = newName;
+        document.getElementById('header-title').innerText = currentDeskId ? currentDeskName : userNickname;
+        showFlashMessage("Nickname updated!");
         
-        // 2. Hunt down and vaporize their transactions for today
-        const targetDateStr = getStrictDate();
-        const txSnap = await getDocs(query(collection(db, 'transactions'), where('agentId', '==', uid), where('dateStr', '==', targetDateStr)));
-        
-        txSnap.forEach(async (t) => { 
-            await deleteDoc(doc(db, 'transactions', t.id)); 
-        });
-
-        showFlashMessage(`Agent Nixed & Data Erased!`);
-        renderUserManagementAdmin(); // Refresh the list instantly
-    } catch(e) { alert("Error executing Burn Notice."); }
+        if (currentDeskId) renderDeskDashboard(currentDeskId);
+        if (document.getElementById('tab-floor').classList.contains('active')) renderLiveFloorTab();
+    } catch(e) { showFlashMessage("Error saving nickname."); }
 }
 
 // ==========================================
@@ -1382,7 +1418,6 @@ function renderPersonalReport() {
             if (tx.name === 'ERS Flexiload') myErs += tx.amount;
             else if (tx.trackAs) {
                 let pItem = tx.trackAs; 
-                // FIX 3: Strict Master Inventory Check
                 if (globalInventoryGroups.includes(pItem)) {
                     myInventory[pItem] = (myInventory[pItem] || 0) + Math.abs(tx.qty); 
                 }
@@ -1426,7 +1461,7 @@ function shareReport() {
     let totalCash = document.getElementById('tot-cash-sales').innerText;
     let totalErs = document.getElementById('tot-ers').innerText;
     
-    let reportText = `📅 My Daily Report: ${dateStr}\n👤 Agent: ${userDisplayName}\n\n💰 PERSONAL SALES SUMMARY\nTotal Revenue: ${totalRevenue}\nCash Collected: ${totalCash}\nMFS Collected: ${totalMfs}\n\n📱 ERS Disbursed: ${totalErs}\n\n📦 MY ITEMS SOLD\n`;
+    let reportText = `📅 My Daily Report: ${dateStr}\n👤 Agent: ${userNickname || userDisplayName}\n\n💰 PERSONAL SALES SUMMARY\nTotal Revenue: ${totalRevenue}\nCash Collected: ${totalCash}\nMFS Collected: ${totalMfs}\n\n📱 ERS Disbursed: ${totalErs}\n\n📦 MY ITEMS SOLD\n`;
     
     let inventoryCounts = {}; let hasItems = false;
     transactions.forEach(tx => {
@@ -1453,14 +1488,19 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
     if (!targetDeskId) return;
 
     let deskCashSales = 0, mgrDropRcv = 0;
-    let inventoryCounts = {}; let historyHTML = '';
+    let inventoryCounts = { ...currentOpeningInv }; // FIX: Seed visually with opening stock
+    let historyHTML = '';
     
     let deskOpeningCash = 0;
     try {
-        const targetDateStr = formatToGBDate(document.getElementById('report-date-picker').value || getTodayISO());
+        const targetDateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
         const sessSnap = await getDocs(query(collection(db, 'sessions'), where('deskId', '==', targetDeskId), where('dateStr', '==', targetDateStr), limit(1)));
         if (!sessSnap.empty && sessSnap.docs[0].data().openingBalances) {
             deskOpeningCash = parseFloat(sessSnap.docs[0].data().openingBalances.cash) || 0;
+            // Overwrite inventoryCounts if we are looking at a past day or different desk
+            if (targetDeskId !== currentDeskId || targetDateStr !== getStrictDate()) {
+                 inventoryCounts = sessSnap.docs[0].data().openingBalances.inventory || {};
+            }
         }
     } catch(e) {}
 
@@ -1503,11 +1543,10 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
     document.getElementById('desk-inventory-list').innerHTML = invHTML || '<div class="report-row" style="color: var(--text-secondary); font-style: italic;">No physical items tracked</div>';
     document.getElementById('desk-history-log').innerHTML = historyHTML || '<div class="placeholder-text" style="margin-top:20px;">No transactions yet</div>';
 
-    // FIX 2: Fetch actual Display Names for the Desk view
     try {
         const agentsSnap = await getDocs(query(collection(db, 'users'), where('assignedDeskId', '==', targetDeskId)));
         let names = [];
-        agentsSnap.forEach(doc => { names.push(aDoc.data().nickname || aDoc.data().displayName || aDoc.data().email?.split('@')[0] || 'Agent'); });
+        agentsSnap.forEach(doc => { names.push(doc.data().nickname || doc.data().displayName || doc.data().email?.split('@')[0] || 'Agent'); });
         document.getElementById('desk-logged-agents').innerText = names.length > 0 ? names.join(', ') : 'None';
     } catch(e) { document.getElementById('desk-logged-agents').innerText = 'Unknown'; }
 }
@@ -1533,26 +1572,4 @@ window.restoreTx = restoreTx; window.emptyTrash = emptyTrash; window.permanently
 window.addInventoryGroup = addInventoryGroup; window.removeInventoryGroup = removeInventoryGroup;
 window.adminBypass = adminBypass; window.peekAtDesk = peekAtDesk; window.openMyDeskDashboard = openMyDeskDashboard;
 window.resetMyDeskLock = resetMyDeskLock; window.forceCloseAllDesks = forceCloseAllDesks; window.nukeTodaysLedger = nukeTodaysLedger;
-window.kickAgent = kickAgent; window.nukeAgent = nukeAgent;
-// ==========================================
-//    USER PROFILE CONTROLS
-// ==========================================
-async function saveNickname() {
-    if (!currentUser) return;
-    const newName = document.getElementById('report-user-nickname').value.trim();
-    if (!newName) return alert("Please enter a valid nickname.");
-    
-    try {
-        await setDoc(doc(db, 'users', currentUser.uid), { nickname: newName }, { merge: true });
-        userNickname = newName;
-        document.getElementById('header-title').innerText = currentDeskId ? currentDeskName : userNickname;
-        showFlashMessage("Nickname updated!");
-        
-        // Force the active agents list to refresh its names
-        if (currentDeskId) renderDeskDashboard(currentDeskId);
-        if (document.getElementById('tab-floor').classList.contains('active')) renderLiveFloorTab();
-    } catch(e) {
-        showFlashMessage("Error saving nickname.");
-    }
-}
-window.saveNickname = saveNickname;
+window.kickAgent = kickAgent; window.nukeAgent = nukeAgent; window.saveNickname = saveNickname;
