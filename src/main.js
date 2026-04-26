@@ -673,21 +673,15 @@ async function renderLiveFloorTab() {
 
             let liveCash = parseFloat(session.openingBalances.cash) || 0;
             let liveInv = { ...(session.openingBalances.inventory || {}) };
-            let deskItemsSold = {}; 
 
             txSnap.forEach(txDoc => {
                 let tx = txDoc.data();
                 liveCash += (tx.cashAmt || 0);
                 
+                // Traffic Cop calculates physical remaining stock ONLY
                 let change = getInventoryChange(tx);
                 if (change !== 0) {
                     liveInv[tx.trackAs] = (liveInv[tx.trackAs] || 0) + change;
-                }
-
-                if (tx.type !== 'adjustment' && tx.type !== 'transfer_out' && tx.type !== 'transfer_in') {
-                    if (tx.name !== 'ERS Flexiload' && tx.name !== 'Physical Cash') {
-                        deskItemsSold[tx.name] = (deskItemsSold[tx.name] || 0) + Math.abs(tx.qty);
-                    }
                 }
             });
 
@@ -699,12 +693,6 @@ async function renderLiveFloorTab() {
                 }
             }
             if(!invDisplay) invDisplay = '<span style="font-size:0.8rem; color:#94a3b8;">No physical stock.</span>';
-
-            let salesDisplay = '';
-            for (const [name, qty] of Object.entries(deskItemsSold)) {
-                salesDisplay += `<span style="display:inline-block; background:#e0f2fe; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin:2px; color:#0284c7; font-weight:600;">${name}: ${qty}</span>`;
-            }
-            if(!salesDisplay) salesDisplay = '<span style="font-size:0.8rem; color:#94a3b8;">No sales yet.</span>';
 
             const isMyDesk = sid === currentSessionId;
             const badge = isMyDesk ? '<span style="background:#0ea5e9; color:white; font-size:0.7rem; padding:2px 6px; border-radius:12px; font-weight:bold; margin-left: 8px;">YOUR DESK</span>' : '';
@@ -721,7 +709,7 @@ async function renderLiveFloorTab() {
                 agentNamesStr = names.length > 0 ? names.join(', ') : 'Empty';
             } catch(e) { agentNamesStr = 'Unknown'; }
 
-            // 🔥 UI FIX: Moved agentNamesStr into the header block on the right side!
+            // 🔥 UI FIX: Removed Services, put Live Cash inline to save space
             floorHTML += `
                 <div class="admin-form-card" style="margin-bottom: 0; padding: 16px; border-top: 4px solid ${isMyDesk ? '#0ea5e9' : '#8b5cf6'};">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px;">
@@ -733,14 +721,9 @@ async function renderLiveFloorTab() {
                         </div>
                     </div>
                     
-                    <div style="margin-bottom: 16px;">
-                        <span style="font-size: 0.8rem; font-weight: bold; color: #64748b; display: block; margin-bottom: 4px;">Live Cash:</span>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <span style="font-size: 0.85rem; font-weight: bold; color: #64748b;">Live Cash:</span>
                         <span style="font-size: 1.1rem; font-weight: bold; color: #10b981;">${liveCash} Tk</span>
-                    </div>
-
-                    <div style="margin-bottom: 12px;">
-                        <span style="display: block; font-size: 0.8rem; font-weight: bold; color: #64748b; margin-bottom: 6px;">🎯 Sales & Services Today:</span>
-                        <div>${salesDisplay}</div>
                     </div>
 
                     <div style="margin-bottom: 16px; padding-top: 12px; border-top: 1px dashed #e2e8f0;">
