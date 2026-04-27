@@ -13,7 +13,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="/src/style.css">
-
 </head>
 <body>
 
@@ -128,7 +127,7 @@
 
         <div class="report-section">
             <div class="report-header">
-                <h3 id="desk-dashboard-title">🏢 Shared Drawer Status</h3>
+                <h3 id="desk-dashboard-title">Shared Drawer Status</h3>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <div style="font-size: 0.85rem; color: #10b981; font-weight: 600; background: #d1fae5; padding: 4px 12px; border-radius: 12px;">OPEN</div>
                     <button onclick="shareDeskReport()" style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 1rem; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.05); color: var(--accent-color);" title="Share Desk Report">📤</button>
@@ -166,16 +165,16 @@
 
         <div class="report-section">
             <div class="report-header">
-                <h3 id="desk-inventory-title">📦 Desk Items & Services Sold</h3>
+                <h3 id="desk-inventory-title">Desk Items & Services Sold</h3>
             </div>
             <div id="desk-inventory-list">
                 <div class="report-row" style="color: var(--text-secondary); font-style: italic;">No physical items tracked</div>
             </div>
         </div>
 
-        <div class="section-header">🕒 DESK LEDGER (ALL AGENTS)</div>
+        <div class="section-header">DESK LEDGER (ALL AGENTS)</div>
         <div id="desk-history-log">
-            <div class="placeholder-text" style="margin-top:20px;">No transactions yet</div>
+            <div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg><p>Drawer is empty</p></div>
         </div>
     </main>
 
@@ -218,7 +217,7 @@
 
         <div class="section-header">ACTIVITY HISTORY</div>
         <div id="history-log">
-            <div class="placeholder-text" style="margin-top:20px;">No transactions today</div>
+            <div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg><p>No transactions today</p></div>
         </div>
         
         <button class="action-btn" style="width: 100%; margin-top: 16px; margin-bottom: 8px; background-color: var(--bg-color); color: var(--text-secondary); border: 1px dashed var(--border-color); display: flex; justify-content: center; align-items: center; gap: 8px;" onclick="openTrash()">
@@ -226,9 +225,9 @@
         </button>
     </main>
 
-    <main id="tab-floor" class="tab-content" style="background-color: #f1f5f9;">
+    <main id="tab-floor" class="tab-content" style="background-color: var(--bg-color);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <h3 style="color: #0f172a; margin: 0; font-size: 1.1rem;">Live Floor Map</h3>
+            <h3 style="color: var(--text-primary); margin: 0; font-size: 1.1rem;">Live Floor Map</h3>
             <button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: auto;" onclick="renderLiveFloorTab()">🔄 Refresh</button>
         </div>
         <div id="live-floor-container" style="display: flex; flex-direction: column; gap: 16px;">
@@ -239,7 +238,7 @@
     <div id="modal-nicknames" class="modal-overlay" style="z-index: 9600;">
         <div class="modal-content">
             <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
-                <h3 style="color: #0ea5e9;">🏷️ Manage Nicknames</h3>
+                <h3 style="color: #0ea5e9;">Manage Nicknames</h3>
                 <button class="delete-btn" style="color: #64748b; font-size: 1.5rem; padding: 0;" onclick="closeModal('modal-nicknames')">✕</button>
             </div>
             <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 16px;">Assign short nicknames to agents for cleaner floor map displays.</p>
@@ -251,7 +250,7 @@
     <div id="modal-transfer" class="modal-overlay" style="z-index: 9500;">
         <div class="modal-content">
             <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
-                <h3 style="color: #8b5cf6;">📦 Send Stock</h3>
+                <h3 style="color: #8b5cf6;">Send Stock</h3>
             </div>
             <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 16px;">Transferring inventory to <strong id="transfer-target-name" style="color: #0f172a;">Desk Name</strong>.</p>
             
@@ -273,7 +272,7 @@
     <div id="modal-manager-cash" class="modal-overlay" style="z-index: 9500;">
         <div class="modal-content">
             <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
-                <h3 style="color: #10b981;">💵 Manager Cash Action</h3>
+                <h3 style="color: #10b981;">Manager Cash Action</h3>
             </div>
             <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
                 <div style="margin-bottom: 16px;">
@@ -296,7 +295,7 @@
     <div id="modal-main-stock" class="modal-overlay" style="z-index: 9500;">
         <div class="modal-content">
             <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
-                <h3 style="color: #0ea5e9;">📦 Receive Main Stock</h3>
+                <h3 style="color: #0ea5e9;">Receive Main Stock</h3>
             </div>
             <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px;">Log physical items brought from the main center inventory into your drawer.</p>
             <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
@@ -317,7 +316,7 @@
     <div id="modal-desk-transfer" class="modal-overlay" style="z-index: 9500;">
         <div class="modal-content">
             <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
-                <h3 style="color: #8b5cf6;">🔄 Transfer Stock</h3>
+                <h3 style="color: #8b5cf6;">Transfer Stock</h3>
             </div>
             <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px;">Send physical items directly to another active desk.</p>
             <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
@@ -339,31 +338,6 @@
         </div>
     </div>
 
-    <div id="modal-new-sim" class="modal-overlay">
-        <div class="modal-content">
-            <h3 class="modal-title">Select New SIM</h3>
-            <div class="list-menu-group" id="container-new-sim">
-                </div>
-            <button class="modal-close" onclick="closeModal('modal-new-sim')">Cancel</button>
-        </div>
-    </div>
-
-    <div id="modal-paid-rep" class="modal-overlay">
-        <div class="modal-content">
-            <h3 class="modal-title">Paid Replacement</h3>
-            <div class="list-menu-group" id="container-paid-rep"></div>
-            <button class="modal-close" onclick="closeModal('modal-paid-rep')">Cancel</button>
-        </div>
-    </div>
-
-    <div id="modal-foc" class="modal-overlay">
-        <div class="modal-content">
-            <h3 class="modal-title">Free of Cost</h3>
-            <div class="list-menu-group" id="container-foc"></div>
-            <button class="modal-close" onclick="closeModal('modal-foc')">Cancel</button>
-        </div>
-    </div>
-
     <div id="modal-settings" class="modal-overlay">
         <div class="modal-content">
             <div class="admin-header-bar">
@@ -372,24 +346,24 @@
             </div>
             
             <div class="admin-toolbar" style="flex-wrap: wrap; gap: 8px;">
-                <input type="text" id="admin-search" class="search-bar" style="flex: 1; min-width: 150px; margin-bottom: 0;" placeholder="🔍 Search catalog..." oninput="filterAdminCatalog()">
+                <input type="text" id="admin-search" class="search-bar" style="flex: 1; min-width: 150px; margin-bottom: 0;" placeholder="Search catalog..." oninput="filterAdminCatalog()">
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button class="btn-outline" onclick="toggleAddForm()">➕ Add Item</button>
-                    <button class="btn-outline" style="border-color: #0ea5e9; color: #0ea5e9;" onclick="openNicknameManager()">🏷️ Nicknames</button>
-                    <button class="btn-outline" style="border-color: #10b981; color: #10b981;" onclick="exportLedgerCSV()">📥 Export CSV</button>
-                    <button class="btn-outline" style="border-color: #f59e0b; color: #f59e0b;" onclick="openAuditModal()">📅 Audit Logs</button>
+                    <button class="btn-outline" onclick="toggleAddForm()">Add Item</button>
+                    <button class="btn-outline" style="color: #0ea5e9;" onclick="openNicknameManager()">Nicknames</button>
+                    <button class="btn-outline" style="color: #10b981;" onclick="exportLedgerCSV()">Export CSV</button>
+                    <button class="btn-outline" style="color: #f59e0b;" onclick="openAuditModal()">Audit Logs</button>
                 </div>
             </div>
 
             <div class="admin-body">
                 
-                <div class="admin-group-title">📦 Master Inventory</div>
+                <div class="admin-group-title">Master Inventory</div>
                 <div class="admin-form-card">
                     <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px;">Define the actual physical boxes/SIMs kept in the drawer. Menu buttons will deduct from these.</p>
                     <div id="admin-inventory-groups" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;"></div>
                     <div style="display: flex; gap: 8px;">
                         <input type="text" id="new-inv-group-name" class="settings-input" placeholder="e.g. Blank 4G SIM" style="flex: 1;">
-                        <button class="btn-outline" style="color: #8b5cf6; border-color: #8b5cf6;" onclick="addInventoryGroup()">Add SKU</button>
+                        <button class="btn-outline" style="color: #8b5cf6;" onclick="addInventoryGroup()">Add SKU</button>
                     </div>
                 </div>
 
@@ -397,7 +371,7 @@
                     <h4 style="margin-bottom: 16px; color: #0ea5e9; font-size: 1.1rem;">Create New Menu Button</h4>
                     <div style="margin-bottom: 12px;">
                         <label class="admin-label">Menu Button Name</label>
-                        <input type="text" id="new-item-name" class="settings-input" placeholder="e.g. 🆓 FOC Corporate">
+                        <input type="text" id="new-item-name" class="settings-input" placeholder="e.g. FOC Corporate">
                     </div>
                     <div class="admin-row-body" style="padding: 0; margin-bottom: 12px;">
                         <div>
@@ -407,11 +381,11 @@
                         <div>
                             <label class="admin-label">Category</label>
                             <select id="new-item-category" class="settings-input" style="padding: 10px; width: 100%; box-sizing: border-box;">
-                                <option value="new-sim">📱 New SIM</option>
-                                <option value="paid-rep">📦 Paid Replacement</option>
-                                <option value="foc">🆓 Free of Cost</option>
-                                <option value="service">🛠️ Service</option>
-                                <option value="free-action">🏢 Free Action</option>
+                                <option value="new-sim">New SIM</option>
+                                <option value="paid-rep">Paid Replacement</option>
+                                <option value="foc">Free of Cost</option>
+                                <option value="service">Service</option>
+                                <option value="free-action">Free Action</option>
                             </select>
                         </div>
                     </div>
@@ -424,28 +398,28 @@
 
                 <div class="settings-list" id="settings-list-container"></div>
                 
-                <div class="admin-group-title">👥 Active User Management</div>
+                <div class="admin-group-title">Active User Management</div>
                 <div class="admin-form-card">
                     <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">Kick specific agents off their desks or erase their test data.</p>
                     <div id="admin-user-management-list" style="display: flex; flex-direction: column; gap: 8px;">
                         </div>
                 </div>
 
-                <div class="admin-group-title" style="color: #ef4444;">🚨 Danger Zone</div>
+                <div class="admin-group-title" style="color: #ef4444;">Danger Zone</div>
                 <div class="admin-form-card">
                     <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">Use these to un-stick the app during testing.</p>
                     <div style="display: grid; gap: 8px;">
-                        <button class="btn-outline" style="color: #f59e0b; border-color: #f59e0b; background: #fff;" onclick="fixPastManagerDrops()">🔧 Fix Past 0 Tk Manager Drops</button>
-                        <button class="btn-outline" style="color: #ef4444; border-color: #ef4444; background: #fff;" onclick="resetMyDeskLock()">🔓 Free My Profile (Reset Desk Lock)</button>
-                        <button class="btn-outline" style="color: #ef4444; border-color: #ef4444; background: #fff;" onclick="forceCloseAllDesks()">🛑 Force Close All Desks</button>
-                        <button class="btn-outline" style="color: #ef4444; border-color: #ef4444; background: #fff;" onclick="nukeTodaysLedger()">☢️ Delete Today's Entire Ledger</button>
+                        <button class="btn-outline" style="color: #f59e0b; background: transparent;" onclick="fixPastManagerDrops()">Fix Past 0 Tk Manager Drops</button>
+                        <button class="btn-outline" style="color: #ef4444; background: transparent;" onclick="resetMyDeskLock()">Free My Profile (Reset Desk Lock)</button>
+                        <button class="btn-outline" style="color: #ef4444; background: transparent;" onclick="forceCloseAllDesks()">Force Close All Desks</button>
+                        <button class="btn-outline" style="color: #ef4444; background: transparent;" onclick="nukeTodaysLedger()">Delete Today's Entire Ledger</button>
                     </div>
                 </div>
 
             </div>
 
             <div class="admin-bottom-bar">
-                <button class="btn-primary-full" onclick="saveSettings()">💾 PUBLISH ALL CHANGES</button>
+                <button class="btn-primary-full" onclick="saveSettings()">PUBLISH ALL CHANGES</button>
             </div>
         </div>
     </div>
@@ -508,7 +482,7 @@
                     <input type="number" id="edit-tx-mfs" class="settings-input" style="text-align:center;" oninput="updateSplitTotal()">
                 </div>
             </div>
-            <button class="save-ers-btn" onclick="saveTxEdit()">💾 UPDATE</button>
+            <button class="save-ers-btn" onclick="saveTxEdit()">UPDATE</button>
             <button class="modal-close" onclick="closeModal('modal-edit-tx')">Cancel</button>
         </div>
     </div>
@@ -517,7 +491,7 @@
         <div class="modal-content">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                 <h3 class="modal-title" style="margin-bottom: 0;">Deleted Items</h3>
-                <button class="delete-btn" style="font-size: 0.9rem; padding: 6px 12px; border: 1px solid #ef4444; border-radius: 4px; cursor: pointer;" onclick="emptyTrash()">🗑️ Empty All</button>
+                <button class="delete-btn" style="font-size: 0.9rem; padding: 6px 12px; border: 1px solid #ef4444; border-radius: 4px; cursor: pointer;" onclick="emptyTrash()">Empty All</button>
             </div>
             <div id="trash-log" style="max-height: 50vh; overflow-y: auto; margin-bottom: 16px;"></div>
             <button class="modal-close" onclick="closeModal('modal-trash')">Close</button>
@@ -540,21 +514,21 @@
             <div class="admin-form-card" style="margin-bottom: 16px; padding: 16px;">
                 <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">Opening Balance</label>
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <span style="font-size: 1.5rem; font-weight: bold; color: #0f172a;">Tk</span>
+                    <span style="font-size: 1.5rem; font-weight: bold; color: var(--text-primary);">Tk</span>
                     <input type="number" id="open-cash-float" class="settings-input" style="font-size: 1.5rem; padding: 12px; height: auto;" placeholder="0">
                 </div>
             </div>
-            <div class="section-header">📦 Physical Inventory (Verify & Update)</div>
-            <div id="open-desk-inventory-container" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 24px; max-height: 250px; overflow-y: auto;">
+            <div class="section-header">Physical Inventory (Verify & Update)</div>
+            <div id="open-desk-inventory-container" style="background: transparent; border-radius: 8px; padding: 12px; margin-bottom: 24px; max-height: 250px; overflow-y: auto;">
                 Loading catalog...
             </div>
-            <button class="btn-primary-full" onclick="confirmOpenDesk()">🚀 CONFIRM & OPEN DESK</button>
+            <button class="btn-primary-full" onclick="confirmOpenDesk()">CONFIRM & OPEN DESK</button>
             <button class="modal-close" style="color: #64748b;" onclick="closeModal('modal-open-desk')">Cancel</button>
         </div>
     </div>
 
     <div id="modal-close-desk" class="modal-overlay" style="z-index: 9500;">
-        <div class="modal-content" id="close-desk-content" style="background-color: #f8fafc;">
+        <div class="modal-content" id="close-desk-content" style="background-color: var(--bg-color);">
         </div>
     </div>
 
@@ -575,14 +549,14 @@
     <div id="modal-audit" class="modal-overlay" style="z-index: 9600;">
         <div class="modal-content">
             <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
-                <h3 style="color: #f59e0b;">📅 Historic Audit Logs</h3>
+                <h3 style="color: #f59e0b;">Historic Audit Logs</h3>
                 <button class="delete-btn" style="color: #64748b; font-size: 1.5rem; padding: 0;" onclick="closeModal('modal-audit')">✕</button>
             </div>
             <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 16px;">Review end-of-day handovers, shortages, and overages for any past date.</p>
             
-            <div style="margin-bottom: 16px; display: flex; gap: 12px; align-items: center; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                <label style="font-weight: bold; color: #475569; font-size: 0.9rem; margin: 0;">Select Date:</label>
-                <input type="date" id="audit-date" class="settings-input" style="padding: 8px; width: auto; margin: 0; border-color: #cbd5e1;" onchange="fetchAuditLogs()">
+            <div style="margin-bottom: 16px; display: flex; gap: 12px; align-items: center; background: transparent; padding: 12px; border-radius: 8px;">
+                <label style="font-weight: bold; color: var(--text-secondary); font-size: 0.9rem; margin: 0;">Select Date:</label>
+                <input type="date" id="audit-date" class="settings-input" style="padding: 8px; width: auto; margin: 0; border-color: var(--border-color);" onchange="fetchAuditLogs()">
             </div>
             
             <div id="audit-results" style="max-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">

@@ -6,17 +6,11 @@ if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`)
           .then(reg => {
               console.log('Service Worker registered:', reg);
-              
-              // 1. Manually check for updates on load
               reg.update();
-
-              // 2. Listen for a new service worker installing in the background
               reg.addEventListener('updatefound', () => {
                   const newWorker = reg.installing;
                   newWorker.addEventListener('statechange', () => {
-                      // 3. If a new worker is installed and waiting to take over the old one
                       if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                          // Trigger your custom app alert!
                           showAppAlert(
                               "App Update Available 🚀", 
                               "A new version of Amolnama has been downloaded. Please refresh to apply the update.", 
@@ -31,7 +25,6 @@ if ('serviceWorker' in navigator) {
           .catch(err => console.error('Service Worker registration failed:', err));
     });
     
-    // Safety net: Force a reload if the service worker takes over cleanly
     let refreshing = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (!refreshing) {
@@ -46,30 +39,19 @@ if ('serviceWorker' in navigator) {
 // ==========================================
 let deferredPrompt;
 window.addEventListener('beforeinstallprompt', (e) => {
-    // Prevent the mini-infobar from appearing automatically on mobile
     e.preventDefault();
-    // Stash the event so it can be triggered later when the user clicks our button
     deferredPrompt = e;
-    
-    // Un-hide our custom install button on the Auth screen
     const installBtn = document.getElementById('install-app-btn');
     if (installBtn) installBtn.style.display = 'flex';
 });
 
 window.installPWA = async function() {
     if (!deferredPrompt) return;
-    
-    // Show the native browser install prompt
     deferredPrompt.prompt();
-    
-    // Wait for the user to accept or dismiss it
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === 'accepted') {
-        // If they installed it, hide our button
         document.getElementById('install-app-btn').style.display = 'none';
     }
-    
-    // The prompt can only be used once, so clear it
     deferredPrompt = null;
 }
 
@@ -87,18 +69,18 @@ import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged, G
 import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, getDocs, enableIndexedDbPersistence, orderBy, limit, serverTimestamp, onSnapshot } from "firebase/firestore";
 
 const firebaseConfig = {
-apiKey: "AIzaSyA4YyIOi1xSddHCeLMdBN5mwrjQbJPn_Iw",
-authDomain: "amolnama-cc2bf.firebaseapp.com",
-projectId: "amolnama-cc2bf",
-storageBucket: "amolnama-cc2bf.firebasestorage.app",
-messagingSenderId: "283254200113",
-appId: "1:283254200113:web:248a3bff50f167568ec210"
+    apiKey: "AIzaSyA4YyIOi1xSddHCeLMdBN5mwrjQbJPn_Iw",
+    authDomain: "amolnama-cc2bf.firebaseapp.com",
+    projectId: "amolnama-cc2bf",
+    storageBucket: "amolnama-cc2bf.firebasestorage.app",
+    messagingSenderId: "283254200113",
+    appId: "1:283254200113:web:248a3bff50f167568ec210"
 };
 
 let app, auth, db;
 
 if (Object.keys(firebaseConfig).length > 0) {
-  app = initializeApp(firebaseConfig);
+    app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
     enableIndexedDbPersistence(db).catch((err) => {
@@ -110,13 +92,63 @@ if (Object.keys(firebaseConfig).length > 0) {
 let currentUser = null;
 const userCurrency = 'Tk';
 let userDisplayName = 'ERS';
-let userNickname = ''; // Centralized nickname tracking
+let userNickname = ''; 
 let currentUserRole = 'user';
 
-// --- STRICT DATE FORMATTER ---
 function getStrictDate() { 
     const t = new Date(); 
     return `${String(t.getDate()).padStart(2,'0')}/${String(t.getMonth()+1).padStart(2,'0')}/${t.getFullYear()}`; 
+}
+
+// ==========================================
+//   UI: NATIVE ALERTS & MESSAGES
+// ==========================================
+let alertConfirmCallback = null;
+
+function showAppAlert(title, message, isConfirm = false, confirmCallback = null, confirmText = "OK") {
+    if (navigator.vibrate) navigator.vibrate([50, 50, 50]); 
+    
+    document.getElementById('app-alert-title').innerText = title;
+    document.getElementById('app-alert-message').innerText = message;
+    
+    let cancelBtn = document.getElementById('app-alert-cancel');
+    let confirmBtn = document.getElementById('app-alert-confirm');
+    let iconBox = document.getElementById('app-alert-icon');
+    
+    confirmBtn.innerText = confirmText;
+    
+    if (isConfirm) {
+        cancelBtn.style.display = 'block';
+        iconBox.style.color = '#f59e0b'; 
+        iconBox.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>';
+        confirmBtn.style.background = 'var(--accent-color)';
+    } else {
+        cancelBtn.style.display = 'none';
+        iconBox.style.color = '#ef4444'; 
+        iconBox.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>';
+        confirmBtn.style.background = '#ef4444'; 
+    }
+    
+    alertConfirmCallback = confirmCallback;
+    document.getElementById('modal-app-alert').classList.add('active');
+}
+
+window.executeAlertConfirm = function() {
+    closeModal('modal-app-alert');
+    if (alertConfirmCallback) alertConfirmCallback();
+}
+
+function showFlashMessage(text) {
+    if (navigator.vibrate) navigator.vibrate(50); 
+    let msg = document.createElement('div'); 
+    msg.className = 'flash-pill';
+    msg.innerHTML = `✅ ${text}`;
+    document.body.appendChild(msg); 
+    
+    setTimeout(() => {
+        msg.classList.add('fade-out');
+        setTimeout(() => msg.remove(), 300);
+    }, 2700);
 }
 
 // ==========================================
@@ -312,7 +344,6 @@ async function loadFloorMap() {
             `;
         });
         
-        // Strictly gated to Admin only
         if (currentUserRole === 'admin') {
             deskHTML += `
                 <div style="margin-top: 32px; border-top: 1px dashed var(--border-color); padding-top: 16px;">
@@ -342,24 +373,18 @@ function adminBypass() {
 }
 
 function enterSandboxMode() {
-    // 1. Disconnect from live database listeners
     if (txListenerUnsubscribe) { txListenerUnsubscribe(); txListenerUnsubscribe = null; }
-    
-    // 2. Set fake sandbox state
     currentDeskId = 'sandbox';
     currentSessionId = 'sandbox_session';
     currentDeskName = '🧪 Sandbox';
-    currentOpeningCash = 10000; // Fake float
+    currentOpeningCash = 10000; 
     
-    // 3. Fake 50 of every physical item
     currentOpeningInv = {};
     getPhysicalItems().forEach(item => currentOpeningInv[item] = 50);
     
-    // 4. Clear memory
     transactions = [];
     trashTransactions = [];
     
-    // 5. Update UI
     document.getElementById('modal-desk-select').classList.remove('active');
     document.getElementById('header-title').innerHTML = `🧪 Sandbox <span style="font-size:0.7rem; background:#ef4444; color:#fff; padding:2px 6px; border-radius:8px;">LOCAL</span>`;
     
@@ -441,7 +466,7 @@ async function confirmOpenDesk() {
     if (isProcessingDesk) return; 
 
     let floatAmount = parseFloat(document.getElementById('open-cash-float').value);
-    if (isNaN(floatAmount) || floatAmount < 0) return alert("You must enter the exact physical cash float provided by the manager.");
+    if (isNaN(floatAmount) || floatAmount < 0) { showAppAlert("Invalid Input", "You must enter the exact physical cash float provided by the manager."); return; }
 
     let verifiedStartingInventory = {};
     document.querySelectorAll('.open-inv-input').forEach(input => {
@@ -483,7 +508,7 @@ async function confirmOpenDesk() {
         await fetchTransactionsForDate();
         showFlashMessage(`${currentDeskName} is now OPEN!`);
 
-    } catch (e) { alert("System Error: " + e.message); } 
+    } catch (e) { showAppAlert("System Error", e.message); } 
     finally { isProcessingDesk = false; }
 }
 
@@ -495,7 +520,7 @@ let expectedClosingStats = { cash: 0, inventory: {} };
 let actualClosingStats = { cash: 0, inventory: {} };
 
 async function initiateCloseDesk() {
-    if (!currentSessionId) { alert("You are not assigned to an open desk."); return; }
+    if (!currentSessionId) { showAppAlert("Error", "You are not assigned to an open desk."); return; }
 
     const sessionSnap = await getDoc(doc(db, 'sessions', currentSessionId));
     if (!sessionSnap.exists()) return;
@@ -556,7 +581,7 @@ async function initiateCloseDesk() {
 
 function processCloseDeskStep2() {
     let actualCash = parseFloat(document.getElementById('actual-cash-input').value);
-    if (isNaN(actualCash) || actualCash < 0) { alert("Please enter the total physical cash."); return; }
+    if (isNaN(actualCash) || actualCash < 0) { showAppAlert("Invalid Input", "Please enter the total physical cash."); return; }
 
     actualClosingStats.cash = actualCash;
     actualClosingStats.inventory = {};
@@ -609,7 +634,7 @@ async function finalizeCloseDesk(variance) {
     let dropAmount = parseFloat(document.getElementById('manager-drop-input').value) || 0;
     let maxAllowedDrop = Math.min(actualClosingStats.cash, expectedClosingStats.cash);
 
-    if (dropAmount < 0 || dropAmount > maxAllowedDrop) return alert(`Error: You cannot drop more than ${maxAllowedDrop} Tk.`);
+    if (dropAmount < 0 || dropAmount > maxAllowedDrop) { showAppAlert("Error", `You cannot drop more than ${maxAllowedDrop} Tk.`); return; }
 
     let retainedFloat = actualClosingStats.cash - dropAmount;
     actualClosingStats.inventory = { ...actualClosingStats.inventory }; 
@@ -628,7 +653,7 @@ async function finalizeCloseDesk(variance) {
         
         await setDoc(doc(db, 'users', currentUser.uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
         loadFloorMap(); 
-    } catch (e) { alert("Offline: Could not close desk."); }
+    } catch (e) { showAppAlert("Offline", "Could not close desk right now. Queued for sync."); }
 }
 
 // ==========================================
@@ -636,14 +661,14 @@ async function finalizeCloseDesk(variance) {
 // ==========================================
 
 function openManagerCashModal() {
-    if(!currentSessionId) return alert("Desk not open.");
+    if(!currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
     document.getElementById('mgr-cash-amount').value = '';
     openModal('modal-manager-cash');
 }
 
-async function saveManagerCash() {
+function saveManagerCash() {
     let amount = parseFloat(document.getElementById('mgr-cash-amount').value) || 0;
-    if (amount <= 0) return alert("Enter a valid amount.");
+    if (amount <= 0) { showAppAlert("Invalid Input", "Enter a valid amount."); return; }
     let action = document.getElementById('mgr-cash-action').value; 
     let finalValue = action === 'receive' ? amount : -amount;
     let paymentLabel = action === 'receive' ? 'Received from Manager' : 'Dropped to Manager';
@@ -658,13 +683,13 @@ async function saveManagerCash() {
     closeModal('modal-manager-cash');
     let msg = action === 'receive' ? `Received ${amount} Tk Float!` : `Dropped ${amount} Tk!`;
     
-    // 💥 UPDATED to fire-and-forget for offline sync 💥
+    // Fire-and-forget for offline sync 
     addDoc(collection(db, 'transactions'), tx).catch(e => console.error(e));
     showFlashMessage(navigator.onLine ? msg : "📶 Offline: Cash queued");
 }
 
 function openMainStockModal() {
-    if(!currentSessionId) return alert("Desk not open.");
+    if(!currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
     document.getElementById('main-stock-qty').value = '';
     let selectEl = document.getElementById('main-stock-item');
     selectEl.innerHTML = '';
@@ -675,9 +700,9 @@ function openMainStockModal() {
     openModal('modal-main-stock');
 }
 
-async function saveMainStock() {
+function saveMainStock() {
     let qty = parseInt(document.getElementById('main-stock-qty').value) || 0;
-    if (qty <= 0) return alert("Enter a valid quantity.");
+    if (qty <= 0) { showAppAlert("Invalid Input", "Enter a valid quantity."); return; }
     let itemName = document.getElementById('main-stock-item').value;
 
     const tx = {
@@ -690,13 +715,13 @@ async function saveMainStock() {
     closeModal('modal-main-stock');
     let msg = `+${qty}x ${itemName} Added!`;
     
-    // 💥 UPDATED to fire-and-forget for offline sync 💥
+    // Fire-and-forget for offline sync
     addDoc(collection(db, 'transactions'), tx).catch(e => console.error(e));
     showFlashMessage(navigator.onLine ? msg : "📶 Offline: Stock queued");
 }
 
 async function openDeskTransfer() {
-    if(!currentSessionId) return alert("Desk not open.");
+    if(!currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
     document.getElementById('desk-transfer-qty').value = '';
     
     let itemSelect = document.getElementById('desk-transfer-item');
@@ -723,16 +748,16 @@ async function openDeskTransfer() {
     } catch(e) { targetSelect.innerHTML = '<option value="">Offline: Cannot fetch desks</option>'; }
 }
 
-async function executeDeskTransfer() {
+function executeDeskTransfer() {
     let qty = parseInt(document.getElementById('desk-transfer-qty').value) || 0;
-    if (qty <= 0) return alert("Enter valid quantity.");
+    if (qty <= 0) { showAppAlert("Invalid Input", "Enter valid quantity."); return; }
 
     let itemName = document.getElementById('desk-transfer-item').value;
     
     if (!passStockFirewall(itemName, qty)) return;
 
     let targetVal = document.getElementById('desk-transfer-target').value;
-    if (!targetVal) return alert("Please select an active destination desk.");
+    if (!targetVal) { showAppAlert("Error", "Please select an active destination desk."); return; }
     
     let [targetDeskId, targetSessionId] = targetVal.split('|');
     let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
@@ -744,7 +769,7 @@ async function executeDeskTransfer() {
     closeModal('modal-desk-transfer');
     let msg = `Sent ${qty}x ${itemName} to ${targetDeskId.replace('_', ' ').toUpperCase()}!`;
     
-    // 💥 UPDATED to fire-and-forget for offline sync 💥
+    // Fire-and-forget for offline sync
     addDoc(collection(db, 'transactions'), senderTx).catch(e => console.error(e));
     addDoc(collection(db, 'transactions'), receiverTx).catch(e => console.error(e));
     showFlashMessage(navigator.onLine ? msg : "📶 Offline: Transfer queued");
@@ -764,9 +789,9 @@ function openTransferModal(targetDesk, targetSession) {
     openModal('modal-transfer');
 }
 
-async function executeTransfer() {
+function executeTransfer() {
     let qty = parseInt(document.getElementById('transfer-qty').value) || 0;
-    if (qty <= 0) return alert("Enter valid quantity.");
+    if (qty <= 0) { showAppAlert("Invalid Input", "Enter valid quantity."); return; }
     let itemName = document.getElementById('transfer-item-select').value;
     let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     let dateStr = getStrictDate();
@@ -776,7 +801,7 @@ async function executeTransfer() {
 
     closeModal('modal-transfer');
     
-    // 💥 UPDATED to fire-and-forget for offline sync 💥
+    // Fire-and-forget for offline sync
     addDoc(collection(db, 'transactions'), senderTx).catch(e => console.error(e));
     addDoc(collection(db, 'transactions'), receiverTx).catch(e => console.error(e));
     showFlashMessage(navigator.onLine ? "Transfer Successful!" : "📶 Offline: Queued for sync.");
@@ -803,7 +828,6 @@ async function renderLiveFloorTab() {
                 let tx = txDoc.data();
                 liveCash += (tx.cashAmt || 0);
                 
-                // Traffic Cop calculates physical remaining stock ONLY
                 let change = getInventoryChange(tx);
                 if (change !== 0) {
                     liveInv[tx.trackAs] = (liveInv[tx.trackAs] || 0) + change;
@@ -834,7 +858,6 @@ async function renderLiveFloorTab() {
                 agentNamesStr = names.length > 0 ? names.join(', ') : 'Empty';
             } catch(e) { agentNamesStr = 'Unknown'; }
 
-            // 🔥 UI FIX: Removed Services, put Live Cash inline to save space
             floorHTML += `
                 <div class="admin-form-card" style="margin-bottom: 0; padding: 16px; border-top: 4px solid ${isMyDesk ? '#0ea5e9' : '#8b5cf6'};">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px;">
@@ -919,7 +942,7 @@ function toggleEditSplitFields() {
 
 function updateSplitTotal() {}
 
-async function saveTxEdit() {
+function saveTxEdit() {
     let txIndex = transactions.findIndex(t => t.id === currentEditTxId);
     if(txIndex === -1) return;
 
@@ -937,7 +960,7 @@ async function saveTxEdit() {
     else if (method === 'Split') {
         finalCash = parseFloat(document.getElementById('edit-tx-cash').value) || 0;
         finalMfs = parseFloat(document.getElementById('edit-tx-mfs').value) || 0;
-        if (finalCash + finalMfs !== newAmount) return alert("Cash + MFS must equal Total Tk.");
+        if (finalCash + finalMfs !== newAmount) { showAppAlert("Error", "Cash + MFS must equal Total Tk."); return; }
     }
 
     closeModal('modal-edit-tx');
@@ -951,35 +974,31 @@ async function saveTxEdit() {
 
     if (tx.docId) {
         let msg = `${tx.name} Updated!`;
-        // 💥 UPDATED to fire-and-forget for offline sync 💥
+        // Fire-and-forget for offline sync
         updateDoc(doc(db, 'transactions', tx.docId), { qty: newQty, amount: newAmount, payment: method === 'Split' ? 'Split' : method, cashAmt: finalCash, mfsAmt: finalMfs, isEdited: true }).catch(e => console.error(e));
         showFlashMessage(navigator.onLine ? msg : "📶 Offline: Edit queued");
     }
 }
 
-async function deleteTransaction(docId, localId) {
-    if(!confirm("Move to trash?")) return;
-    
-    // 🛑 SANDBOX INTERCEPTOR
-    if (currentDeskId === 'sandbox') {
-        let tx = transactions.find(t => t.id === localId);
-        if(tx) { 
-            tx.isDeleted = true; 
-            trashTransactions.push(tx); 
-            renderPersonalReport(); if (document.getElementById('tab-desk').classList.contains('active')) renderDeskDashboard();
-            showFlashMessage("Moved to Sandbox Trash!"); 
+function deleteTransaction(docId, localId) {
+    showAppAlert("Delete Item", "Are you sure you want to move this transaction to the trash?", true, () => {
+        // 🛑 SANDBOX INTERCEPTOR
+        if (currentDeskId === 'sandbox') {
+            let tx = transactions.find(t => t.id === localId);
+            if(tx) { 
+                tx.isDeleted = true; 
+                trashTransactions.push(tx); 
+                renderPersonalReport(); if (document.getElementById('tab-desk').classList.contains('active')) renderDeskDashboard();
+                showFlashMessage("Moved to Sandbox Trash!"); 
+            }
+            return;
         }
-        return;
-    }
 
-    let tx = transactions.find(t => t.id === localId);
-    let msg = tx ? `${tx.name} moved to Trash!` : "Moved to Trash!";
-
-    if(docId) {
-        // 💥 UPDATED to fire-and-forget for offline sync 💥
-        updateDoc(doc(db, 'transactions', docId), { isDeleted: true }).catch(e => console.error(e));
-        showFlashMessage(navigator.onLine ? msg : "📶 Offline: Trash queued");
-    }
+        if(docId) {
+            updateDoc(doc(db, 'transactions', docId), { isDeleted: true }).catch(e => console.error(e));
+            showFlashMessage(navigator.onLine ? "Moved to Trash!" : "📶 Offline: Trash queued");
+        }
+    }, "Move to Trash");
 }
 
 function openTrash() { renderTrash(); openModal('modal-trash'); }
@@ -990,16 +1009,20 @@ function renderTrash() {
     else {
         trashTransactions.sort((a,b) => b.id - a.id).forEach(tx => {
             html += `
-                <div style="border:1px solid #e2e8f0; padding:12px; margin-bottom:8px; border-radius:8px; background: #fff;">
+                <div style="border:1px solid var(--border-color); padding:12px; margin-bottom:8px; border-radius:8px; background: var(--surface-color);">
                     <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                        <strong style="color: #0f172a; text-decoration: line-through;">${tx.qty}x ${tx.name}</strong> 
+                        <strong style="color: var(--text-primary); text-decoration: line-through;">${tx.qty}x ${tx.name}</strong> 
                         <span style="font-weight:bold; color:#ef4444;">${tx.amount} Tk</span>
                     </div>
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-size:0.8rem; color:#64748b;">${tx.time} | ${tx.payment}</span>
-                        <div style="display:flex; gap: 4px;">
-                            <button class="btn-outline" style="padding:6px 12px; font-size:0.8rem; height:auto; color: #10b981; border-color: #10b981;" onclick="restoreTx('${tx.docId}', ${tx.id})">♻️ Restore</button>
-                            <button class="btn-outline" style="padding:6px 12px; font-size:0.8rem; height:auto; color: #ef4444; border-color: #ef4444;" onclick="permanentlyDeleteTx('${tx.docId}', ${tx.id})">❌</button>
+                        <span style="font-size:0.8rem; color:var(--text-secondary);">${tx.time} | ${tx.payment}</span>
+                        <div style="display:flex; gap: 8px;">
+                            <button class="btn-outline" style="padding:6px 12px; font-size:0.85rem; height:auto; color: #10b981; gap: 6px;" onclick="restoreTx('${tx.docId}', ${tx.id})">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg> Restore
+                            </button>
+                            <button class="btn-outline" style="padding:6px 12px; font-size:0.85rem; height:auto; color: #ef4444; gap: 6px; background: #fef2f2;" onclick="permanentlyDeleteTx('${tx.docId}', ${tx.id})">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg> Delete
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1009,7 +1032,7 @@ function renderTrash() {
     document.getElementById('trash-log').innerHTML = html;
 }
 
-async function restoreTx(docId, localId) {
+function restoreTx(docId, localId) {
     // 🛑 SANDBOX INTERCEPTOR
     if (currentDeskId === 'sandbox') {
         let txIndex = trashTransactions.findIndex(t => t.id === localId);
@@ -1030,7 +1053,6 @@ async function restoreTx(docId, localId) {
             let tx = trashTransactions.find(t => t.docId === docId);
             if (tx && !passStockFirewall(tx.name, tx.qty)) return;
 
-            // 💥 UPDATED to fire-and-forget for offline sync 💥
             updateDoc(doc(db, 'transactions', docId), { isDeleted: false, isRestored: true }).catch(e => console.error(e));
             showFlashMessage(navigator.onLine ? (tx ? `${tx.name} Restored!` : "Transaction Restored!") : "📶 Offline: Restore queued");
             setTimeout(() => { renderTrash(); if(trashTransactions.length === 0) closeModal('modal-trash'); }, 500);
@@ -1041,23 +1063,27 @@ async function restoreTx(docId, localId) {
     }
 }
 
-async function permanentlyDeleteTx(docId, localId) {
-    if (!confirm("Permanently delete this transaction?")) return;
-    if(docId) { 
-        // 💥 UPDATED to fire-and-forget for offline sync 💥
-        deleteDoc(doc(db, 'transactions', docId)).catch(e => console.error(e)); 
-        showFlashMessage(navigator.onLine ? "Permanently Deleted!" : "📶 Offline: Delete queued"); 
-    }
+function permanentlyDeleteTx(docId, localId) {
+    showAppAlert("Permanent Delete", "This transaction will be permanently erased. This cannot be undone.", true, () => {
+        if(docId) { 
+            deleteDoc(doc(db, 'transactions', docId)).catch(e => console.error(e)); 
+            showFlashMessage(navigator.onLine ? "Permanently Deleted!" : "📶 Offline: Delete queued"); 
+        }
+    }, "Delete Forever");
 }
 
-async function emptyTrash() {
-    if(!confirm("Permanently delete ALL items in trash?")) return;
-    const idsToDelete = trashTransactions.map(t => t.docId).filter(id => id);
-    closeModal('modal-trash');
-    for (const id of idsToDelete) { 
-        // 💥 UPDATED to fire-and-forget for offline sync 💥
-        deleteDoc(doc(db, 'transactions', id)).catch(e => console.error(`Error deleting trash item ${id}:`, e)); 
-    }
+function emptyTrash() {
+    if(trashTransactions.length === 0) return;
+    showAppAlert("Empty Trash", "Are you sure you want to permanently delete ALL items in the trash?", true, () => {
+        const idsToDelete = trashTransactions.map(t => t.docId).filter(id => id);
+        closeModal('modal-trash');
+        for (const id of idsToDelete) { 
+            deleteDoc(doc(db, 'transactions', id)).catch(e => console.error(`Error deleting trash item ${id}:`, e)); 
+        }
+        trashTransactions = [];
+        renderTrash();
+        showFlashMessage("Trash Emptied!");
+    }, "Empty Trash");
 }
 
 // ==========================================
@@ -1119,7 +1145,7 @@ function openModal(modalId) { document.getElementById(modalId).classList.add('ac
 function closeModal(modalId) { document.getElementById(modalId).classList.remove('active'); }
 
 window.addEventListener('click', (event) => {
-    if (event.target.classList.contains('modal-overlay') && !['modal-auth', 'splash-screen', 'modal-desk-select', 'modal-nicknames'].includes(event.target.id)) {
+    if (event.target.classList.contains('modal-overlay') && !['modal-auth', 'splash-screen', 'modal-desk-select', 'modal-nicknames', 'modal-app-alert'].includes(event.target.id)) {
         closeModal(event.target.id);
     }
 });
@@ -1153,10 +1179,7 @@ function saveQuantity() {
 function instantSaveItem(itemName, price) {
     if (!passStockFirewall(itemName, 1)) return;
     
-    // Log exactly 1 unit immediately
     addTransactionToCloud('Item', itemName, price, 1, (price > 0 && isMfs) ? "MFS" : "Cash");
-    
-    // Auto-close any open catalog modals (e.g., FOC, Paid Replacements)
     document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
 }
 
@@ -1178,7 +1201,6 @@ async function fetchTransactionsForDate() {
     if (txListenerUnsubscribe) { txListenerUnsubscribe(); txListenerUnsubscribe = null; }
 
     try {
-        // 💥 UPDATED to include metadata changes for offline sync tracking 💥
         txListenerUnsubscribe = onSnapshot(
             query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr)),
             { includeMetadataChanges: true },
@@ -1186,7 +1208,7 @@ async function fetchTransactionsForDate() {
             transactions = []; trashTransactions = []; 
             txSnapshot.forEach(doc => {
                 let tx = doc.data(); tx.docId = doc.id; 
-                tx.isPending = doc.metadata.hasPendingWrites; // <-- NEW
+                tx.isPending = doc.metadata.hasPendingWrites;
                 if (!tx.isDeleted) {
                     transactions.push(tx);
                 } else if (tx.agentId === currentUser.uid) {
@@ -1206,7 +1228,7 @@ async function fetchTransactionsForDate() {
             }
             
             const financialLabel = document.getElementById('financial-date-label');
-            if (financialLabel) financialLabel.innerHTML = `${dateLabel} 🗓️`;
+            if (financialLabel) financialLabel.innerHTML = `${dateLabel}`;
             if (document.getElementById('tab-floor').classList.contains('active')) renderLiveFloorTab();
         });
     } catch (e) { console.error(e); }
@@ -1232,20 +1254,19 @@ function renderAppUI() {
         let btn = document.createElement('button');
         btn.className = (isModal ? 'modal-item' : 'action-btn') + ' dynamic-item';
         
-        // UX Iteration 2: Pointer Event Long-Press Logic
         let pressTimer;
         let isLongPress = false;
         let isCancelled = false;
 
         const startPress = (e) => {
-            if (e.button && e.button !== 0) return; // Ignore right-clicks
+            if (e.button && e.button !== 0) return; 
             isLongPress = false;
             isCancelled = false;
             pressTimer = setTimeout(() => {
                 isLongPress = true;
-                if (navigator.vibrate) navigator.vibrate([50]); // Give a tiny haptic buzz to confirm long-press
-                selectItem(item.name, safePrice); // Open the Qty Keypad Modal
-            }, 500); // 500ms threshold
+                if (navigator.vibrate) navigator.vibrate([50]); 
+                selectItem(item.name, safePrice); 
+            }, 500); 
         };
 
         const cancelPress = () => {
@@ -1255,27 +1276,21 @@ function renderAppUI() {
 
         const endPress = (e) => {
             clearTimeout(pressTimer);
-            // Only save if it was a short tap AND the user didn't scroll away
             if (!isLongPress && !isCancelled) {
                 instantSaveItem(item.name, safePrice);
             }
         };
 
-        // Attach modern pointer events (handles both mouse and touch elegantly)
         btn.addEventListener('pointerdown', startPress);
         btn.addEventListener('pointerup', endPress);
         btn.addEventListener('pointerleave', cancelPress);
         btn.addEventListener('pointercancel', cancelPress);
-        
-        // Prevent mobile browsers from opening the default "copy text" or right-click menu on long-press
         btn.oncontextmenu = (e) => { e.preventDefault(); return false; };
         
         if (isModal) {
             btn.className = 'list-menu-item dynamic-item';
-            
-            // Format price: Show "Free" instead of "0 Tk" for better UX
             let priceDisplay = safePrice > 0 ? `${safePrice} ${userCurrency}` : 'Free';
-            let priceColorStyle = safePrice === 0 ? 'color: #10b981;' : ''; // Green for Free
+            let priceColorStyle = safePrice === 0 ? 'color: #10b981;' : ''; 
 
             btn.innerHTML = `
                 <div class="list-item-content">
@@ -1286,7 +1301,6 @@ function renderAppUI() {
                     <polyline points="9 18 15 12 9 6"></polyline>
                 </svg>
             `;
-            // Because we moved the close button outside the group in HTML, we just append now
             container.appendChild(btn); 
         } else {
             btn.innerText = item.display || item.name;
@@ -1328,7 +1342,6 @@ async function initUserData() {
             if (currentUserRole === 'admin') await setDoc(doc(db, 'global', 'settings'), { catalog: globalCatalog, inventoryGroups: globalInventoryGroups }, { merge: true });
         }
 
-        // Reverted to explicitly show the full Google Account name on the Report tab
         document.getElementById('report-user-name').innerText = userDisplayName;
         if (currentUser.email) document.getElementById('report-user-email').innerText = currentUser.email;
         if (currentUser.photoURL) {
@@ -1374,7 +1387,7 @@ async function initUserData() {
     }
 }
 
-async function addTransactionToCloud(type, name, amount, qty, payment, cashAmt = 0, mfsAmt = 0) {
+function addTransactionToCloud(type, name, amount, qty, payment, cashAmt = 0, mfsAmt = 0) {
     if(!currentUser) return;
     if (payment === 'Cash') { cashAmt = amount; mfsAmt = 0; }
     if (payment === 'MFS') { cashAmt = 0; mfsAmt = amount; }
@@ -1390,7 +1403,6 @@ async function addTransactionToCloud(type, name, amount, qty, payment, cashAmt =
         deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName
     };
 
-    // 🛑 SANDBOX INTERCEPTOR: Skip Firebase completely if in test mode
     if (currentDeskId === 'sandbox') {
         tx.docId = 'local_' + tx.id;
         transactions.push(tx);
@@ -1404,7 +1416,6 @@ async function addTransactionToCloud(type, name, amount, qty, payment, cashAmt =
 
     let confirmMsg = type === 'ERS' ? `ERS ${amount} Tk Logged!` : `${qty}x ${name} Logged!`;
 
-    // 💥 UPDATED to fire-and-forget for offline sync 💥
     addDoc(collection(db, 'transactions'), tx).catch(e => {
         showAppAlert("Storage Error", "Could not save locally. Check storage.");
         console.error(e);
@@ -1416,16 +1427,13 @@ async function addTransactionToCloud(type, name, amount, qty, payment, cashAmt =
         showFlashMessage("📶 Offline: Queued for sync");
     }
 
-    // UX Iteration 1: Smart Default (Auto-revert to Cash)
-    // If the transaction was made while the global toggle was on MFS, instantly spring it back to Cash 
-    // so the next rapid-fire customer isn't accidentally logged as MFS.
     if (isMfs) {
         toggleMFS();
     }
 }
 
 // ==========================================
-//    ADMIN DASHBOARD CONTROLS
+//   ADMIN DASHBOARD CONTROLS
 // ==========================================
 function filterAdminCatalog() {
     let text = document.getElementById('admin-search').value.toLowerCase();
@@ -1456,11 +1464,11 @@ function addInventoryGroup() {
 }
 
 function removeInventoryGroup(index) {
-    if(confirm("Remove this physical item from the Master List? Menu buttons tied to it will need to be reassigned.")) {
+    showAppAlert("Confirm Removal", "Remove this physical item from the Master List? Menu buttons tied to it will need to be reassigned.", true, () => {
         globalInventoryGroups.splice(index, 1);
         renderInventoryGroupsAdmin();
         openSettings();
-    }
+    });
 }
 
 function populateTrackAsDropdowns() {
@@ -1487,7 +1495,6 @@ function openSettings() {
     renderInventoryGroupsAdmin();
     renderUserManagementAdmin(); 
 
-    // Define visual categories for the Admin Dashboard
     const categories = [
         { id: 'new-sim', title: 'New SIMs', color: '#10b981' },
         { id: 'paid-rep', title: 'Paid Replacements', color: '#f59e0b' },
@@ -1501,7 +1508,6 @@ function openSettings() {
     categories.forEach(cat => {
         let catItems = activeItems.filter(i => i.cat === cat.id);
         if(catItems.length > 0) {
-            // Create a styled header for the category
             let catHeader = document.createElement('div');
             catHeader.className = 'admin-group-title';
             catHeader.style.color = cat.color;
@@ -1520,7 +1526,9 @@ function openSettings() {
                     <div class="admin-row-header">
                         <span class="drag-handle">⋮⋮</span>
                         <input type="text" class="settings-input i-name" style="flex:1; border:none; background:transparent; font-weight:700; color:#0f172a; padding:0; min-width:0;" value="${item.name}">
-                        <button class="delete-btn" style="color: #ef4444; padding: 4px 8px; font-size: 1.1rem; flex-shrink: 0;" onclick="removeRow(this)">🗑️</button>
+                        <button class="delete-btn" style="color: #ef4444; padding: 4px 8px; font-size: 1.1rem; flex-shrink: 0;" onclick="removeRow(this)">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                        </button>
                     </div>
                     <div class="admin-row-body">
                         <div><label class="admin-label">Price (${userCurrency})</label><input type="number" class="settings-input i-price" style="padding: 10px; width: 100%; box-sizing: border-box;" value="${item.price}"></div>
@@ -1560,9 +1568,13 @@ function setupDragAndDrop(row) {
     handle.addEventListener('touchend', () => { if(!draggedEl) return; draggedEl.style.opacity = '1'; draggedEl.style.boxShadow = 'none'; draggedEl = null; });
 }
 
-function removeRow(btn) { if(confirm("Are you sure you want to delete this menu button?")) { let row = btn.closest('.admin-row'); row.style.display = 'none'; row.classList.add('deleted-row'); } }
+function removeRow(btn) { 
+    showAppAlert("Delete Item", "Are you sure you want to delete this menu button?", true, () => {
+        let row = btn.closest('.admin-row'); row.style.display = 'none'; row.classList.add('deleted-row'); 
+    });
+}
 
-async function addNewItem() {
+function addNewItem() {
     let nameVal = document.getElementById('new-item-name').value.trim();
     let priceVal = parseFloat(document.getElementById('new-item-price').value);
     let catVal = document.getElementById('new-item-category').value;
@@ -1573,7 +1585,7 @@ async function addNewItem() {
         globalCatalog[newKey] = { name: nameVal, display: nameVal, price: priceVal, cat: catVal, trackAs: trackVal, isActive: true, order: newOrder };
         document.getElementById('new-item-name').value = ''; document.getElementById('new-item-price').value = '';
         renderAppUI(); openSettings(); showFlashMessage("Item Added! Click Save to publish.");
-    } else alert("Please enter a valid name and price.");
+    } else showAppAlert("Error", "Please enter a valid name and price.");
 }
 
 async function saveSettings() {
@@ -1596,62 +1608,11 @@ async function saveSettings() {
     try {
         if (currentUserRole === 'admin') await setDoc(doc(db, 'global', 'settings'), { catalog: globalCatalog, inventoryGroups: globalInventoryGroups }, { merge: true });
         renderAppUI(); closeModal('modal-settings'); showFlashMessage("Settings Saved & Synced!");
-    } catch(e) { showFlashMessage("Error saving settings."); }
-}
-
-let alertConfirmCallback = null;
-
-function showAppAlert(title, message, isConfirm = false, confirmCallback = null, confirmText = "OK") {
-    if (navigator.vibrate) navigator.vibrate([50, 50, 50]); // Warning vibration
-    
-    document.getElementById('app-alert-title').innerText = title;
-    document.getElementById('app-alert-message').innerText = message;
-    
-    let cancelBtn = document.getElementById('app-alert-cancel');
-    let confirmBtn = document.getElementById('app-alert-confirm');
-    let iconBox = document.getElementById('app-alert-icon');
-    
-    confirmBtn.innerText = confirmText;
-    
-    if (isConfirm) {
-        cancelBtn.style.display = 'block';
-        iconBox.style.color = '#f59e0b'; // Warning Orange
-        iconBox.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>';
-        confirmBtn.style.background = 'var(--accent-color)';
-    } else {
-        cancelBtn.style.display = 'none';
-        iconBox.style.color = '#ef4444'; // Error Red
-        iconBox.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>';
-        confirmBtn.style.background = '#ef4444'; 
-    }
-    
-    alertConfirmCallback = confirmCallback;
-    document.getElementById('modal-app-alert').classList.add('active');
-}
-
-window.executeAlertConfirm = function() {
-    closeModal('modal-app-alert');
-    if (alertConfirmCallback) alertConfirmCallback();
-}
-
-function showFlashMessage(text) {
-    if (navigator.vibrate) navigator.vibrate(50); // Tiny haptic tick
-    
-    let msg = document.createElement('div'); 
-    msg.className = 'flash-pill';
-    msg.innerHTML = `✅ ${text}`;
-    
-    document.body.appendChild(msg); 
-    
-    // Start exit animation at 2.7s, remove from DOM completely at 3s
-    setTimeout(() => {
-        msg.classList.add('fade-out');
-        setTimeout(() => msg.remove(), 300);
-    }, 2700);
+    } catch(e) { showAppAlert("Error", "Error saving settings."); }
 }
 
 // ==========================================
-//   ADMIN CENTRALIZED NICKNAME MANAGER
+//  ADMIN CENTRALIZED NICKNAME MANAGER
 // ==========================================
 async function openNicknameManager() {
     openModal('modal-nicknames');
@@ -1664,8 +1625,6 @@ async function openNicknameManager() {
         usersSnap.forEach(docSnap => {
             const u = docSnap.data();
             const uid = docSnap.id;
-            
-            // STRICTLY pull the email so the admin knows exactly who they are editing
             const userEmail = u.email || 'No email linked';
             const currentNick = u.nickname || '';
             
@@ -1691,7 +1650,6 @@ async function saveAdminNickname(uid, inputId) {
         await updateDoc(doc(db, 'users', uid), { nickname: newNick });
         showFlashMessage("Nickname saved!");
         
-        // If changing own nickname, update local UI instantly
         if (uid === currentUser.uid) {
             userNickname = newNick;
             document.getElementById('report-user-name').innerText = userNickname || userDisplayName;
@@ -1704,11 +1662,11 @@ async function saveAdminNickname(uid, inputId) {
         if (document.getElementById('tab-floor').classList.contains('active')) renderLiveFloorTab();
         renderUserManagementAdmin();
         
-    } catch(e) { showFlashMessage("Error saving nickname."); }
+    } catch(e) { showAppAlert("Error", "Error saving nickname."); }
 }
 
 // ==========================================
-//    USER MANAGEMENT & DANGER ZONE
+//   USER MANAGEMENT & DANGER ZONE
 // ==========================================
 async function renderUserManagementAdmin() {
     const container = document.getElementById('admin-user-management-list');
@@ -1744,73 +1702,78 @@ async function renderUserManagementAdmin() {
     } catch (e) { container.innerHTML = '<p style="color: #ef4444; font-size: 0.85rem;">Offline: Cannot fetch users.</p>'; }
 }
 
-async function kickAgent(uid) {
-    if(!confirm("Kick this agent from their desk? Their sales data will remain intact.")) return;
-    try {
-        await setDoc(doc(db, 'users', uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
-        showFlashMessage("Agent Kicked Successfully!");
-        renderUserManagementAdmin();
-    } catch(e) { alert("Error kicking agent."); }
+function kickAgent(uid) {
+    showAppAlert("Kick Agent", "Kick this agent from their desk? Their sales data will remain intact.", true, async () => {
+        try {
+            await setDoc(doc(db, 'users', uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
+            showFlashMessage("Agent Kicked Successfully!");
+            renderUserManagementAdmin();
+        } catch(e) { showAppAlert("Error", "Error kicking agent."); }
+    });
 }
 
-async function nukeAgent(uid, agentName) {
-    if(!confirm(`🔥 WARNING: You are about to kick ${agentName} AND permanently delete EVERY transaction they made today. Proceed?`)) return;
-    try {
-        await setDoc(doc(db, 'users', uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
-        const targetDateStr = getStrictDate();
-        const txSnap = await getDocs(query(collection(db, 'transactions'), where('agentId', '==', uid), where('dateStr', '==', targetDateStr)));
-        txSnap.forEach(async (t) => { await deleteDoc(doc(db, 'transactions', t.id)); });
-        showFlashMessage(`Agent Nixed & Data Erased!`);
-        renderUserManagementAdmin();
-    } catch(e) { alert("Error executing Burn Notice."); }
+function nukeAgent(uid, agentName) {
+    showAppAlert("Burn Notice", `WARNING: You are about to kick ${agentName} AND permanently delete EVERY transaction they made today. Proceed?`, true, async () => {
+        try {
+            await setDoc(doc(db, 'users', uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
+            const targetDateStr = getStrictDate();
+            const txSnap = await getDocs(query(collection(db, 'transactions'), where('agentId', '==', uid), where('dateStr', '==', targetDateStr)));
+            txSnap.forEach(async (t) => { await deleteDoc(doc(db, 'transactions', t.id)); });
+            showFlashMessage(`Agent Nixed & Data Erased!`);
+            renderUserManagementAdmin();
+        } catch(e) { showAppAlert("Error", "Error executing Burn Notice."); }
+    }, "Nuke Data");
 }
 
-async function resetMyDeskLock() {
-    if(!confirm("Release your desk assignment? You will be sent back to the floor map.")) return;
-    await setDoc(doc(db, 'users', currentUser.uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
-    alert("Desk lock removed. Reloading app..."); window.location.reload();
-}
-
-async function forceCloseAllDesks() {
-    if(!confirm("🛑 FORCE CLOSE ALL DESKS? This will instantly log out every agent on the floor.")) return;
-    const snap = await getDocs(collection(db, 'desks'));
-    snap.forEach(async (d) => { await setDoc(doc(db, 'desks', d.id), { status: 'closed', currentSessionId: null }, { merge: true }); });
-    const sSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'open')));
-    sSnap.forEach(async (s) => { await updateDoc(doc(db, 'sessions', s.id), { status: 'closed', closedBy: 'Admin Override' }); });
-    alert("All desks forcefully closed. Reloading..."); window.location.reload();
-}
-
-async function nukeTodaysLedger() {
-    if(!confirm("☢️ PERMANENTLY DELETE TODAY'S LEDGER? This cannot be undone!")) return;
-    const targetDateStr = getStrictDate();
-    const snap = await getDocs(query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr)));
-    snap.forEach(async (t) => { await deleteDoc(doc(db, 'transactions', t.id)); });
-    alert("Today's ledger completely wiped. Reloading..."); window.location.reload();
-}
-
-async function fixPastManagerDrops() {
-    if(!confirm("Fix past 0 Tk Manager Drops in the database?")) return;
-    try {
-        const q = query(collection(db, 'transactions'), where('type', '==', 'adjustment'));
-        const snap = await getDocs(q);
-        let count = 0;
-        
-        for (const docSnap of snap.docs) {
-            let tx = docSnap.data();
-            // Find physical cash adjustments where the visual amount was accidentally saved as 0
-            if (tx.name === 'Physical Cash' && tx.amount === 0 && tx.cashAmt !== 0) {
-                await updateDoc(doc(db, 'transactions', docSnap.id), {
-                    amount: Math.abs(tx.cashAmt), // Retrieve the true visual amount from the backend value
-                    qty: 1
-                });
-                count++;
-            }
-        }
-        alert(`Successfully fixed ${count} past manager drop(s)! Reloading...`);
+function resetMyDeskLock() {
+    showAppAlert("Release Desk", "Release your desk assignment? You will be sent back to the floor map.", true, async () => {
+        await setDoc(doc(db, 'users', currentUser.uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
         window.location.reload();
-    } catch (e) {
-        alert("Error fixing drops: " + e.message);
-    }
+    });
+}
+
+function forceCloseAllDesks() {
+    showAppAlert("Force Close All", "FORCE CLOSE ALL DESKS? This will instantly log out every agent on the floor.", true, async () => {
+        const snap = await getDocs(collection(db, 'desks'));
+        snap.forEach(async (d) => { await setDoc(doc(db, 'desks', d.id), { status: 'closed', currentSessionId: null }, { merge: true }); });
+        const sSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'open')));
+        sSnap.forEach(async (s) => { await updateDoc(doc(db, 'sessions', s.id), { status: 'closed', closedBy: 'Admin Override' }); });
+        window.location.reload();
+    }, "Force Close");
+}
+
+function nukeTodaysLedger() {
+    showAppAlert("Delete Ledger", "PERMANENTLY DELETE TODAY'S LEDGER? This cannot be undone!", true, async () => {
+        const targetDateStr = getStrictDate();
+        const snap = await getDocs(query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr)));
+        snap.forEach(async (t) => { await deleteDoc(doc(db, 'transactions', t.id)); });
+        window.location.reload();
+    }, "Delete Entire Ledger");
+}
+
+function fixPastManagerDrops() {
+    showAppAlert("Fix Drops", "Fix past 0 Tk Manager Drops in the database?", true, async () => {
+        try {
+            const q = query(collection(db, 'transactions'), where('type', '==', 'adjustment'));
+            const snap = await getDocs(q);
+            let count = 0;
+            
+            for (const docSnap of snap.docs) {
+                let tx = docSnap.data();
+                if (tx.name === 'Physical Cash' && tx.amount === 0 && tx.cashAmt !== 0) {
+                    await updateDoc(doc(db, 'transactions', docSnap.id), {
+                        amount: Math.abs(tx.cashAmt), 
+                        qty: 1
+                    });
+                    count++;
+                }
+            }
+            alert(`Successfully fixed ${count} past manager drop(s)! Reloading...`);
+            window.location.reload();
+        } catch (e) {
+            showAppAlert("Error", "Error fixing drops: " + e.message);
+        }
+    }, "Run Fix");
 }
 
 // ==========================================
@@ -1830,7 +1793,6 @@ function renderPersonalReport() {
             myCash += safeCashAmt; myMfs += safeMfsAmt;
             if (tx.name === 'ERS Flexiload') myErs += tx.amount;
             else if (tx.name !== 'Physical Cash') {
-                // FIXED: Now accurately tracks ALL items and services sold by you
                 myItemsSold[tx.name] = (myItemsSold[tx.name] || 0) + Math.abs(tx.qty); 
             }
         }
@@ -1838,7 +1800,6 @@ function renderPersonalReport() {
         let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
         let badges = '';
         
-        // 💥 NEW: Pending badge injection 💥
         if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">⏳ Pending</span>';
         if (tx.isEdited) badges += '<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Edited</span>';
         if (tx.isRestored) badges += '<span style="font-size: 0.7rem; background: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Restored</span>';
@@ -1849,9 +1810,13 @@ function renderPersonalReport() {
                     <div style="display: flex; align-items: center;"><span class="history-title">${tx.qty}x ${tx.name}</span>${badges}</div>
                     <span class="history-meta">${tx.time} • ${tx.amount} ${userCurrency} • ${payLabel}</span>
                 </div>
-                <div style="display: flex; gap: 4px;">
-                    <button class="delete-btn" style="color: var(--accent-color);" onclick="openEditTx(${tx.id})">✏️</button>
-                    <button class="delete-btn" onclick="deleteTransaction('${tx.docId}', ${tx.id})">🗑️</button>
+                <div style="display: flex; gap: 8px;">
+                    <button class="delete-btn" style="color: var(--accent-color); opacity: 0.8;" onclick="openEditTx(${tx.id})">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                    </button>
+                    <button class="delete-btn" style="opacity: 0.8;" onclick="deleteTransaction('${tx.docId}', ${tx.id})">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                    </button>
                 </div>
             </div>
         `;
@@ -1865,7 +1830,8 @@ function renderPersonalReport() {
     let invHTML = '';
     for (const [name, qty] of Object.entries(myItemsSold)) invHTML += `<div class="report-row"><span>${name}:</span> <span class="report-total">${qty}</span></div>`;
     document.getElementById('inventory-list').innerHTML = invHTML || '<div class="report-row" style="color: var(--text-secondary); font-style: italic;">No items sold yet</div>';
-    document.getElementById('history-log').innerHTML = historyHTML || '<div class="placeholder-text" style="margin-top:20px;">No personal transactions today</div>';
+    
+    document.getElementById('history-log').innerHTML = historyHTML || '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg><p>No transactions today</p></div>';
 }
 
 function shareReport() {
@@ -1889,11 +1855,10 @@ function shareReport() {
     else for (const [name, qty] of Object.entries(inventoryCounts)) reportText += `${qty}x ${name}\n`;
 
     if (navigator.share) navigator.share({ title: 'My Daily Report', text: reportText }).catch(e => console.log(e));
-    else { try { navigator.clipboard.writeText(reportText).then(() => alert("Report Copied!")).catch(() => fallbackCopy(reportText)); } catch (e) { fallbackCopy(reportText); } }
+    else { try { navigator.clipboard.writeText(reportText).then(() => showFlashMessage("Report Copied!")).catch(() => fallbackCopy(reportText)); } catch (e) { fallbackCopy(reportText); } }
 }
 
 function shareDeskReport() {
-    // Read the exact values currently painted on the screen
     let dateStr = formatToGBDate(document.getElementById('report-date-picker').value);
     let deskTitle = document.getElementById('desk-dashboard-title').innerText;
     let activeAgents = document.getElementById('desk-logged-agents').innerText;
@@ -1905,7 +1870,6 @@ function shareDeskReport() {
 
     let reportText = `📅 Desk Report: ${dateStr}\n🏢 ${deskTitle}\n👥 Agents: ${activeAgents}\n\n💰 DRAWER SUMMARY\nOpening Balance: ${opening}\nCash Sales: ${cashSales}\nManager Drops: ${mgrDrop}\n------------------------\nExpected Drawer Cash: ${expected}\n\n📦 DESK ITEMS & SERVICES SOLD\n`;
 
-    // Extract the items list elegantly
     let inventoryList = document.getElementById('desk-inventory-list');
     if (inventoryList.innerText.includes('No items')) {
         reportText += 'None\n';
@@ -1919,9 +1883,8 @@ function shareDeskReport() {
         });
     }
 
-    // Trigger Native Share or Fallback to Copy
     if (navigator.share) navigator.share({ title: 'Desk Report', text: reportText }).catch(e => console.log(e));
-    else { try { navigator.clipboard.writeText(reportText).then(() => alert("Desk Report Copied!")).catch(() => fallbackCopy(reportText)); } catch (e) { fallbackCopy(reportText); } }
+    else { try { navigator.clipboard.writeText(reportText).then(() => showFlashMessage("Desk Report Copied!")).catch(() => fallbackCopy(reportText)); } catch (e) { fallbackCopy(reportText); } }
 }
 
 // ==========================================
@@ -1932,7 +1895,7 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
 
     let deskCashSales = 0, mgrDropRcv = 0;
     let deskItemsSold = {}; 
-    let deskErsCount = 0, deskErsTotal = 0; // NEW: Dedicated ERS Trackers
+    let deskErsCount = 0, deskErsTotal = 0; 
     let historyHTML = '';
     let deskOpeningCash = 0;
     let activeSessionId = null;
@@ -1940,7 +1903,6 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
     const targetDateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
     const isToday = targetDateStr === getStrictDate();
 
-    // 1. Session Lock Logic
     if (targetDeskId === currentDeskId && isToday && currentSessionId) {
         activeSessionId = currentSessionId;
         deskOpeningCash = currentOpeningCash; 
@@ -1969,14 +1931,13 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
         if (tx.sessionId !== activeSessionId) return;
 
         let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
-        let safeMfsAmt = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0); // Needed for Split Label
+        let safeMfsAmt = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0); 
         
         if (tx.type === 'adjustment' && tx.name === 'Physical Cash') {
             mgrDropRcv += safeCashAmt; 
         } else if (tx.type !== 'adjustment' && tx.type !== 'transfer_out' && tx.type !== 'transfer_in') {
             deskCashSales += safeCashAmt; 
             
-            // Track ERS vs Standard Sales
             if (tx.name === 'ERS Flexiload') {
                 deskErsCount += Math.abs(tx.qty);
                 deskErsTotal += tx.amount;
@@ -1985,18 +1946,15 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
             }
         }
         
-        // Generate the advanced payment label matching Personal Report
         let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
         let badges = '';
         
-        // 💥 NEW: Pending badge injection 💥
         if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">⏳ Pending</span>';
         if (tx.isEdited) badges += '<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Edited</span>';
         if (tx.isRestored) badges += '<span style="font-size: 0.7rem; background: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Restored</span>';
         
         let agentBadge = `<span style="font-size: 0.7rem; background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">${tx.agentName.split(' ')[0]}</span>`;
 
-        // Updated Template: Now includes Price, Currency, Advanced Pay Label, and Status Badges
         historyHTML += `
             <div class="history-item">
                 <div class="history-info">
@@ -2014,7 +1972,6 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
 
     let invHTML = '';
     
-    // Prepend ERS Summary to the top of the items list if any occurred
     if (deskErsCount > 0) {
         invHTML += `<div class="report-row" style="color: var(--accent-color); border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 8px;">
                         <span>📱 ERS Disbursed (${deskErsCount}x):</span> 
@@ -2030,7 +1987,8 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
     if(titleEl) titleEl.innerText = "📦 Desk Items & Services Sold";
 
     document.getElementById('desk-inventory-list').innerHTML = invHTML || '<div class="report-row" style="color: var(--text-secondary); font-style: italic;">No items sold yet</div>';
-    document.getElementById('desk-history-log').innerHTML = historyHTML || '<div class="placeholder-text" style="margin-top:20px;">No transactions yet</div>';
+    
+    document.getElementById('desk-history-log').innerHTML = historyHTML || '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg><p>Drawer is empty</p></div>';
 
     try {
         const agentsSnap = await getDocs(query(collection(db, 'users'), where('assignedDeskId', '==', targetDeskId)));
@@ -2041,7 +1999,7 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
 }
 
 // ==========================================
-//    ADMIN CSV EXPORT & AUDIT LOGS
+//   ADMIN CSV EXPORT & AUDIT LOGS
 // ==========================================
 async function exportLedgerCSV() {
     let targetDateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
@@ -2066,7 +2024,7 @@ async function exportLedgerCSV() {
         link.setAttribute("href", encodedUri);
         link.setAttribute("download", `Amolnama_Ledger_${targetDateStr.replace(/\//g, '-')}.csv`);
         document.body.appendChild(link); link.click(); document.body.removeChild(link);
-    } catch(e) { alert("Error exporting CSV: " + e.message); }
+    } catch(e) { showAppAlert("Export Error", e.message); }
 }
 
 function openAuditModal() {
