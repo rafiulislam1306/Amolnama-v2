@@ -1994,6 +1994,51 @@ function buildLifecycleText(txList, openingInv) {
     return text;
 }
 
+function buildLifecycleText(txList, openingInv) {
+    let stats = {};
+    let hasItems = false;
+    
+    getPhysicalItems().forEach(item => {
+        let openQty = openingInv[item] || 0;
+        if (openQty > 0) {
+            stats[item] = { open: openQty, in: 0, out: 0, sold: 0, rem: openQty, rev: 0 };
+            hasItems = true;
+        }
+    });
+
+    txList.forEach(tx => {
+        if (tx.isDeleted || tx.name === 'Physical Cash' || tx.name === 'ERS Flexiload') return;
+        
+        let trackAs = tx.trackAs;
+        if (!globalInventoryGroups.includes(trackAs)) return;
+
+        if (!stats[trackAs]) stats[trackAs] = { open: 0, in: 0, out: 0, sold: 0, rem: 0, rev: 0 };
+        
+        hasItems = true;
+        let q = Math.abs(tx.qty);
+        
+        if (tx.type === 'transfer_in') { stats[trackAs].in += q; stats[trackAs].rem += q; }
+        else if (tx.type === 'transfer_out') { stats[trackAs].out += q; stats[trackAs].rem -= q; }
+        else if (tx.type === 'adjustment') { stats[trackAs].in += q; stats[trackAs].rem += q; }
+        else { 
+            stats[trackAs].sold += q; 
+            stats[trackAs].rem -= q; 
+            stats[trackAs].rev += (tx.amount || 0); 
+        }
+    });
+
+    if (!hasItems) return "None\n";
+
+    let text = "";
+    for (const [item, data] of Object.entries(stats)) {
+        if (data.open === 0 && data.in === 0 && data.sold === 0 && data.out === 0) continue;
+        text += `> ${item}\n`;
+        text += `  Opened: ${data.open} | In: ${data.in} | Out: ${data.out} | Sold: ${data.sold}\n`;
+        text += `  Remaining: ${data.rem} | Revenue: ${data.rev} Tk\n\n`;
+    }
+    return text;
+}
+
 function shareReport() {
     let dateStr = formatToGBDate(document.getElementById('report-date-picker').value);
     let totalRevenue = document.getElementById('report-total-all') ? document.getElementById('report-total-all').innerText : "0 Tk";
@@ -2031,35 +2076,6 @@ function shareDeskReport() {
     let reportText = `Desk Report: ${dateStr}\n${deskTitle}\nAgents: ${activeAgents}\n\nDRAWER SUMMARY\nOpening Cash: ${opening}\nCash Sales: ${cashSales}\nManager Drops: ${mgrDrop}\n------------------------\nExpected Cash: ${expected}\nExpected MFS: ${deskMfs} Tk\n\nPHYSICAL INVENTORY LIFECYCLE\n`;
 
     reportText += buildLifecycleText(deskTx, currentOpeningInv);
-
-    if (navigator.share) navigator.share({ title: 'Desk Report', text: reportText }).catch(e => console.log(e));
-    else { try { navigator.clipboard.writeText(reportText).then(() => showFlashMessage("Desk Report Copied!")).catch(() => fallbackCopy(reportText)); } catch (e) { fallbackCopy(reportText); } }
-}
-
-function shareDeskReport() {
-    let dateStr = formatToGBDate(document.getElementById('report-date-picker').value);
-    let deskTitle = document.getElementById('desk-dashboard-title').innerText;
-    let activeAgents = document.getElementById('desk-logged-agents').innerText;
-
-    let opening = document.getElementById('desk-tot-opening').innerText;
-    let cashSales = document.getElementById('desk-tot-cash-sales').innerText;
-    let mgrDrop = document.getElementById('desk-tot-manager').innerText;
-    let expected = document.getElementById('desk-tot-expected-cash').innerText;
-
-    let reportText = `Desk Report: ${dateStr}\n${deskTitle}\nAgents: ${activeAgents}\n\nDRAWER SUMMARY\nOpening Balance: ${opening}\nCash Sales: ${cashSales}\nManager Drops: ${mgrDrop}\n------------------------\nExpected Drawer Cash: ${expected}\n\nDESK ITEMS & SERVICES SOLD\n`;
-
-    let inventoryList = document.getElementById('desk-inventory-list');
-    if (inventoryList.innerText.includes('No items')) {
-        reportText += 'None\n';
-    } else {
-        let inventoryRows = inventoryList.querySelectorAll('.report-row');
-        inventoryRows.forEach(row => {
-            let spans = row.querySelectorAll('span');
-            if (spans.length >= 2) {
-                reportText += `${spans[0].innerText} ${spans[1].innerText}\n`;
-            }
-        });
-    }
 
     if (navigator.share) navigator.share({ title: 'Desk Report', text: reportText }).catch(e => console.log(e));
     else { try { navigator.clipboard.writeText(reportText).then(() => showFlashMessage("Desk Report Copied!")).catch(() => fallbackCopy(reportText)); } catch (e) { fallbackCopy(reportText); } }
