@@ -1202,10 +1202,14 @@ function saveQuantity() {
 }
 
 function instantSaveItem(itemName, price) {
-    if (!passStockFirewall(itemName, 1)) return;
-    
-    addTransactionToCloud('Item', itemName, price, 1, (price > 0 && isMfs) ? "MFS" : "Cash");
+  if (!passStockFirewall(itemName, 1)) return;
+ 
+  addTransactionToCloud('Item', itemName, price, 1, (price > 0 && isMfs) ? "MFS" : "Cash");
+ 
+  // Tiny delay to absorb the browser's synthetic ghost click
+  setTimeout(() => {
     document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
+  }, 100);
 }
 
 // --- DATE FILTER LOGIC ---
