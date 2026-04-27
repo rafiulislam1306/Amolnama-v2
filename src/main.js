@@ -635,29 +635,41 @@ function calculateRetained() {
 
 async function finalizeCloseDesk(variance) {
     let dropAmount = parseFloat(document.getElementById('manager-drop-input').value) || 0;
-    let maxAllowedDrop = actualClosingStats.cash;-
+    let maxAllowedDrop = actualClosingStats.cash;
 
-    if (dropAmount < 0 || dropAmount > maxAllowedDrop) { showAppAlert("Error", `You cannot drop more than ${maxAllowedDrop} Tk.`); return; }
+    if (dropAmount < 0 || dropAmount > maxAllowedDrop) { 
+        showAppAlert("Error", `You cannot drop more than ${maxAllowedDrop} Tk.`); 
+        return; 
+    }
 
     let retainedFloat = actualClosingStats.cash - dropAmount;
     actualClosingStats.inventory = { ...actualClosingStats.inventory }; 
 
     try {
-    await updateDoc(doc(db, 'sessions', currentSessionId), {
-      closedBy: userNickname || userDisplayName, closedByUid: currentUser.uid, closedAt: serverTimestamp(), status: 'closed',
-      expectedClosing: expectedClosingStats, actualClosing: actualClosingStats, variance: variance,
-      hasDiscrepancy: variance !== 0, managerDrop: dropAmount, retainedFloat: retainedFloat
-    });
-    await setDoc(doc(db, 'desks', currentDeskId), { status: 'closed', currentSessionId: null }, { merge: true });
-    await setDoc(doc(db, 'users', currentUser.uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
-  } catch (e) { 
-    showFlashMessage("Offline: Desk close queued for sync."); 
-  } finally {
-    currentDeskId = null; currentSessionId = null; currentDeskName = '';
-    closeModal('modal-close-desk');
-    showFlashMessage("Desk Successfully Closed!");
-    loadFloorMap();
-  }
+        await updateDoc(doc(db, 'sessions', currentSessionId), {
+            closedBy: userNickname || userDisplayName, 
+            closedByUid: currentUser.uid, 
+            closedAt: serverTimestamp(), 
+            status: 'closed',
+            expectedClosing: expectedClosingStats, 
+            actualClosing: actualClosingStats, 
+            variance: variance,
+            hasDiscrepancy: variance !== 0, 
+            managerDrop: dropAmount, 
+            retainedFloat: retainedFloat
+        });
+        await setDoc(doc(db, 'desks', currentDeskId), { status: 'closed', currentSessionId: null }, { merge: true });
+        await setDoc(doc(db, 'users', currentUser.uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
+    } catch (e) { 
+        showFlashMessage("Offline: Desk close queued for sync."); 
+    } finally {
+        currentDeskId = null; 
+        currentSessionId = null; 
+        currentDeskName = '';
+        closeModal('modal-close-desk');
+        showFlashMessage("Desk Successfully Closed!");
+        loadFloorMap();
+    }
 }
 
 // ==========================================
