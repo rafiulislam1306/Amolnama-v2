@@ -555,7 +555,7 @@ async function initiateCloseDesk() {
                     <input type="number" class="settings-input actual-inv-input" data-name="${itemName}" style="width:80px; text-align:center; padding:8px; border-color:#cbd5e1;" placeholder="0">
                 </div>
             `;
-        }
+        });
     }
 
     const modalContent = `
