@@ -13,10 +13,13 @@ if ('serviceWorker' in navigator) {
                       if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                           showAppAlert(
                               "App Update Available", 
-                              "A new version of Amolnama has been downloaded. Please refresh to apply the update.", 
-                              true, 
-                              () => window.location.reload(), 
-                              "Refresh Now"
+                              "A new version of Amolnama has been downloaded. Please refresh to apply the update.",
+                                true,
+                                () => {
+                                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                                    setTimeout(() => window.location.reload(), 200);
+                                },
+                                "Refresh Now"
                           );
                       }
                   });
@@ -640,20 +643,21 @@ async function finalizeCloseDesk(variance) {
     actualClosingStats.inventory = { ...actualClosingStats.inventory }; 
 
     try {
-        await updateDoc(doc(db, 'sessions', currentSessionId), {
-            closedBy: userNickname || userDisplayName, closedByUid: currentUser.uid, closedAt: serverTimestamp(), status: 'closed',
-            expectedClosing: expectedClosingStats, actualClosing: actualClosingStats, variance: variance,
-            hasDiscrepancy: variance !== 0, managerDrop: dropAmount, retainedFloat: retainedFloat
-        });
-        await setDoc(doc(db, 'desks', currentDeskId), { status: 'closed', currentSessionId: null }, { merge: true });
-
-        currentDeskId = null; currentSessionId = null; currentDeskName = '';
-        closeModal('modal-close-desk');
-        showFlashMessage("Desk Successfully Closed!");
-        
-        await setDoc(doc(db, 'users', currentUser.uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
-        loadFloorMap(); 
-    } catch (e) { showAppAlert("Offline", "Could not close desk right now. Queued for sync."); }
+    await updateDoc(doc(db, 'sessions', currentSessionId), {
+      closedBy: userNickname || userDisplayName, closedByUid: currentUser.uid, closedAt: serverTimestamp(), status: 'closed',
+      expectedClosing: expectedClosingStats, actualClosing: actualClosingStats, variance: variance,
+      hasDiscrepancy: variance !== 0, managerDrop: dropAmount, retainedFloat: retainedFloat
+    });
+    await setDoc(doc(db, 'desks', currentDeskId), { status: 'closed', currentSessionId: null }, { merge: true });
+    await setDoc(doc(db, 'users', currentUser.uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
+  } catch (e) { 
+    showFlashMessage("Offline: Desk close queued for sync."); 
+  } finally {
+    currentDeskId = null; currentSessionId = null; currentDeskName = '';
+    closeModal('modal-close-desk');
+    showFlashMessage("Desk Successfully Closed!");
+    loadFloorMap();
+  }
 }
 
 // ==========================================
@@ -762,7 +766,7 @@ function executeDeskTransfer() {
     let dateStr = getStrictDate();
 
     const senderTx = { id: Date.now(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName };
-    const receiverTx = { id: Date.now() + 1, type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${currentDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: "system", agentName: `Transfer from ${userNickname || userDisplayName}` };
+  const receiverTx = { id: Date.now() + 1, type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${currentDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: currentUser.uid, agentName: `System Transfer (from ${userNickname || userDisplayName})` };
 
     closeModal('modal-desk-transfer');
     let msg = `Sent ${qty}x ${itemName} to ${targetDeskId.replace('_', ' ').toUpperCase()}!`;
@@ -794,7 +798,7 @@ function executeTransfer() {
     let dateStr = getStrictDate();
 
     const senderTx = { id: Date.now(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetTransferDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: currentDeskId || "Admin", sessionId: currentSessionId || "Admin", agentId: currentUser.uid, agentName: userNickname || userDisplayName };
-    const receiverTx = { id: Date.now() + 1, type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${currentDeskId || "Admin"}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetTransferDeskId, sessionId: targetTransferSessionId, agentId: "system", agentName: `Transfer from ${userNickname || userDisplayName}` };
+  const receiverTx = { id: Date.now() + 1, type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${currentDeskId || "Admin"}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetTransferDeskId, sessionId: targetTransferSessionId, agentId: currentUser.uid, agentName: `System Transfer (from ${userNickname || userDisplayName})` };
 
     closeModal('modal-transfer');
     
@@ -818,26 +822,32 @@ async function renderLiveFloorTab() {
             const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', sid), where('isDeleted', '==', false)));
 
             let liveCash = parseFloat(session.openingBalances.cash) || 0;
-            let liveInv = { ...(session.openingBalances.inventory || {}) };
+      let liveInv = { ...(session.openingBalances.inventory || {}) };
+      let liveServicesCount = 0;
 
-            txSnap.forEach(txDoc => {
-                let tx = txDoc.data();
-                liveCash += (tx.cashAmt || 0);
-                
-                let change = getInventoryChange(tx);
-                if (change !== 0) {
-                    liveInv[tx.trackAs] = (liveInv[tx.trackAs] || 0) + change;
-                }
-            });
+      txSnap.forEach(txDoc => {
+        let tx = txDoc.data();
+        liveCash += (tx.cashAmt || 0);
+       
+        let change = getInventoryChange(tx);
+        if (change !== 0) {
+          liveInv[tx.trackAs] = (liveInv[tx.trackAs] || 0) + change;
+        } else if (tx.cat === 'service' || tx.cat === 'free-action') {
+          liveServicesCount += Math.abs(tx.qty);
+        }
+      });
 
-            let invDisplay = '';
-            for (const [name, qty] of Object.entries(liveInv)) {
-                if (qty !== 0) {
-                    let color = qty < 3 ? '#ef4444' : '#475569';
-                    invDisplay += `<span style="display:inline-block; background:#f1f5f9; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin:2px; color:${color}; font-weight:600;">${name}: ${qty}</span>`;
-                }
-            }
-            if(!invDisplay) invDisplay = '<span style="font-size:0.8rem; color:#94a3b8;">No physical stock.</span>';
+      let invDisplay = '';
+      for (const [name, qty] of Object.entries(liveInv)) {
+        if (qty !== 0) {
+          let color = qty < 3 ? '#ef4444' : '#475569';
+          invDisplay += `<span style="display:inline-block; background:#f1f5f9; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin:2px; color:${color}; font-weight:600;">${name}: ${qty}</span>`;
+        }
+      }
+      if (liveServicesCount > 0) {
+        invDisplay += `<span style="display:inline-block; background:#fef3c7; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin:2px; color:#92400e; font-weight:600;">Services: ${liveServicesCount}</span>`;
+      }
+      if(!invDisplay) invDisplay = '<span style="font-size:0.8rem; color:#94a3b8;">No physical stock.</span>';
 
             const isMyDesk = sid === currentSessionId;
             const badge = isMyDesk ? '<span style="background:#0ea5e9; color:white; font-size:0.7rem; padding:2px 6px; border-radius:12px; font-weight:bold; margin-left: 8px;">YOUR DESK</span>' : '';
