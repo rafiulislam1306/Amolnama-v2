@@ -2166,3 +2166,4 @@ window.kickAgent = kickAgent; window.nukeAgent = nukeAgent;
 window.openNicknameManager = openNicknameManager; window.saveAdminNickname = saveAdminNickname;
 window.shareDeskReport = shareDeskReport;
 window.exportLedgerCSV = exportLedgerCSV; window.openAuditModal = openAuditModal; window.fetchAuditLogs = fetchAuditLogs;
+window.renderPersonalReport = renderPersonalReport; window.renderDeskDashboard = renderDeskDashboard;
