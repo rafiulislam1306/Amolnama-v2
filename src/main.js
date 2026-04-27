@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
                   newWorker.addEventListener('statechange', () => {
                       if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                           showAppAlert(
-                              "App Update Available 🚀", 
+                              "App Update Available", 
                               "A new version of Amolnama has been downloaded. Please refresh to apply the update.", 
                               true, 
                               () => window.location.reload(), 
@@ -142,7 +142,7 @@ function showFlashMessage(text) {
     if (navigator.vibrate) navigator.vibrate(50); 
     let msg = document.createElement('div'); 
     msg.className = 'flash-pill';
-    msg.innerHTML = `✅ ${text}`;
+    msg.innerHTML = `${text}`;
     document.body.appendChild(msg); 
     
     setTimeout(() => {
@@ -327,7 +327,7 @@ async function loadFloorMap() {
             const desk = docSnap.data();
             const isOpen = desk.status === 'open';
             const btnColor = isOpen ? '#10b981' : '#0ea5e9'; 
-            const actionText = isOpen ? '🤝 Join Active Desk' : '🔑 Open Desk';
+            const actionText = isOpen ? 'Join Active Desk' : 'Open Desk';
 
             deskHTML += `
                 <div class="admin-form-card" style="margin-bottom: 0; padding: 16px; border-left: 4px solid ${btnColor};">
@@ -350,10 +350,10 @@ async function loadFloorMap() {
                     <span style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; text-align: center;">Admin & Developer Tools</span>
                     <div style="display: flex; gap: 8px;">
                         <button class="btn-outline" style="flex: 1; padding: 12px 8px; font-size: 0.85rem; font-weight: 600; border-color: var(--border-color); color: var(--text-secondary); display: flex; flex-direction: column; align-items: center; gap: 6px; background: transparent; transition: all 0.2s;" onclick="adminBypass()">
-                            <span style="font-size: 1.25rem;">🛡️</span> Global View
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Global View
                         </button>
                         <button class="btn-outline" style="flex: 1; padding: 12px 8px; font-size: 0.85rem; font-weight: 600; border-color: var(--border-color); color: var(--text-secondary); display: flex; flex-direction: column; align-items: center; gap: 6px; background: transparent; transition: all 0.2s;" onclick="enterSandboxMode()">
-                            <span style="font-size: 1.25rem;">🧪</span> Test Env
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v7.31"/><path d="M14 9.3V1.99"/><path d=\"M8.5 2h7\"/><path d="M14 9.3a6.5 6.5 0 1 1-4 0"/><path d=\"M5.52 16h12.96\"/></svg> Test Env
                         </button>
                     </div>
                 </div>
@@ -376,7 +376,7 @@ function enterSandboxMode() {
     if (txListenerUnsubscribe) { txListenerUnsubscribe(); txListenerUnsubscribe = null; }
     currentDeskId = 'sandbox';
     currentSessionId = 'sandbox_session';
-    currentDeskName = '🧪 Sandbox';
+    currentDeskName = 'Sandbox';
     currentOpeningCash = 10000; 
     
     currentOpeningInv = {};
@@ -386,7 +386,7 @@ function enterSandboxMode() {
     trashTransactions = [];
     
     document.getElementById('modal-desk-select').classList.remove('active');
-    document.getElementById('header-title').innerHTML = `🧪 Sandbox <span style="font-size:0.7rem; background:#ef4444; color:#fff; padding:2px 6px; border-radius:8px;">LOCAL</span>`;
+    document.getElementById('header-title').innerHTML = `Sandbox <span style="font-size:0.7rem; background:#ef4444; color:#fff; padding:2px 6px; border-radius:8px;">LOCAL</span>`;
     
     renderPersonalReport();
     if (document.getElementById('tab-desk').classList.contains('active')) renderDeskDashboard();
@@ -555,7 +555,7 @@ async function initiateCloseDesk() {
                     <input type="number" class="settings-input actual-inv-input" data-name="${itemName}" style="width:80px; text-align:center; padding:8px; border-color:#cbd5e1;" placeholder="0">
                 </div>
             `;
-        });
+        }
     }
 
     const modalContent = `
@@ -593,9 +593,9 @@ function processCloseDeskStep2() {
 
     let variance = actualCash - expectedClosingStats.cash;
     let warningHTML = '';
-    if (variance < 0) warningHTML = `<div style="background: #fef2f2; border: 2px solid #ef4444; border-radius: 12px; padding: 16px; margin-bottom: 24px;"><h4 style="color: #b91c1c; margin-bottom: 8px;">⚠️ SHORTAGE DETECTED</h4><p style="color: #991b1b; font-size: 0.95rem; margin-bottom: 0;">You are short <strong>${Math.abs(variance)} Tk</strong>. Expected: ${expectedClosingStats.cash} Tk.</p></div>`;
-    else if (variance > 0) warningHTML = `<div style="background: #f0fdf4; border: 2px solid #22c55e; border-radius: 12px; padding: 16px; margin-bottom: 24px;"><h4 style="color: #15803d; margin-bottom: 8px;">✅ OVERAGE DETECTED</h4><p style="color: #166534; font-size: 0.95rem; margin-bottom: 0;">You have an overage of <strong>+${variance} Tk</strong>. Expected: ${expectedClosingStats.cash} Tk.</p></div>`;
-    else warningHTML = `<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 24px; text-align: center;"><h4 style="color: #0ea5e9; margin-bottom: 0;">⚖️ DRAWER IS PERFECTLY BALANCED</h4></div>`;
+    if (variance < 0) warningHTML = `<div style="background: #fef2f2; border: 2px solid #ef4444; border-radius: 12px; padding: 16px; margin-bottom: 24px;"><h4 style="color: #b91c1c; margin-bottom: 8px;">SHORTAGE DETECTED</h4><p style="color: #991b1b; font-size: 0.95rem; margin-bottom: 0;">You are short <strong>${Math.abs(variance)} Tk</strong>. Expected: ${expectedClosingStats.cash} Tk.</p></div>`;
+    else if (variance > 0) warningHTML = `<div style="background: #f0fdf4; border: 2px solid #22c55e; border-radius: 12px; padding: 16px; margin-bottom: 24px;"><h4 style="color: #15803d; margin-bottom: 8px;">OVERAGE DETECTED</h4><p style="color: #166534; font-size: 0.95rem; margin-bottom: 0;">You have an overage of <strong>+${variance} Tk</strong>. Expected: ${expectedClosingStats.cash} Tk.</p></div>`;
+    else warningHTML = `<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 24px; text-align: center;"><h4 style="color: #0ea5e9; margin-bottom: 0;">DRAWER IS PERFECTLY BALANCED</h4></div>`;
 
     const modalContent = `
         <h3 class="modal-title" style="color: #0f172a; margin-bottom: 4px;">Finalize Handover</h3>
@@ -613,9 +613,9 @@ function processCloseDeskStep2() {
             </div>
         </div>
         <button class="btn-primary-full" style="background: ${variance < 0 ? '#ef4444' : '#0ea5e9'};" onclick="finalizeCloseDesk(${variance})">
-            ${variance < 0 ? '🚨 FORCE CLOSE & LOG SHORTAGE' : '🔒 CONFIRM & CLOSE DESK'}
+            ${variance < 0 ? 'FORCE CLOSE & LOG SHORTAGE' : 'CONFIRM & CLOSE DESK'}
         </button>
-        <button class="modal-close" style="color: #64748b;" onclick="initiateCloseDesk()">⬅️ Go Back to Edit Counts</button>
+        <button class="modal-close" style="color: #64748b;" onclick="initiateCloseDesk()">Go Back to Edit Counts</button>
     `;
     document.getElementById('close-desk-content').innerHTML = modalContent;
 }
@@ -626,7 +626,7 @@ function calculateRetained() {
     let maxAllowedDrop = Math.min(actualClosingStats.cash, expectedClosingStats.cash);
     
     let displayEl = document.getElementById('retained-float-display');
-    if (drop > maxAllowedDrop) displayEl.innerHTML = `<span style="color: #ef4444;">❌ Error: Exceeds System Total</span>`;
+    if (drop > maxAllowedDrop) displayEl.innerHTML = `<span style="color: #ef4444;">Error: Exceeds System Total</span>`;
     else displayEl.innerText = retained + " Tk";
 }
 
@@ -683,9 +683,8 @@ function saveManagerCash() {
     closeModal('modal-manager-cash');
     let msg = action === 'receive' ? `Received ${amount} Tk Float!` : `Dropped ${amount} Tk!`;
     
-    // Fire-and-forget for offline sync 
     addDoc(collection(db, 'transactions'), tx).catch(e => console.error(e));
-    showFlashMessage(navigator.onLine ? msg : "📶 Offline: Cash queued");
+    showFlashMessage(navigator.onLine ? msg : "Offline: Cash queued");
 }
 
 function openMainStockModal() {
@@ -715,9 +714,8 @@ function saveMainStock() {
     closeModal('modal-main-stock');
     let msg = `+${qty}x ${itemName} Added!`;
     
-    // Fire-and-forget for offline sync
     addDoc(collection(db, 'transactions'), tx).catch(e => console.error(e));
-    showFlashMessage(navigator.onLine ? msg : "📶 Offline: Stock queued");
+    showFlashMessage(navigator.onLine ? msg : "Offline: Stock queued");
 }
 
 async function openDeskTransfer() {
@@ -769,10 +767,9 @@ function executeDeskTransfer() {
     closeModal('modal-desk-transfer');
     let msg = `Sent ${qty}x ${itemName} to ${targetDeskId.replace('_', ' ').toUpperCase()}!`;
     
-    // Fire-and-forget for offline sync
     addDoc(collection(db, 'transactions'), senderTx).catch(e => console.error(e));
     addDoc(collection(db, 'transactions'), receiverTx).catch(e => console.error(e));
-    showFlashMessage(navigator.onLine ? msg : "📶 Offline: Transfer queued");
+    showFlashMessage(navigator.onLine ? msg : "Offline: Transfer queued");
 }
 
 let targetTransferDeskId = null; let targetTransferSessionId = null;
@@ -801,10 +798,9 @@ function executeTransfer() {
 
     closeModal('modal-transfer');
     
-    // Fire-and-forget for offline sync
     addDoc(collection(db, 'transactions'), senderTx).catch(e => console.error(e));
     addDoc(collection(db, 'transactions'), receiverTx).catch(e => console.error(e));
-    showFlashMessage(navigator.onLine ? "Transfer Successful!" : "📶 Offline: Queued for sync.");
+    showFlashMessage(navigator.onLine ? "Transfer Successful!" : "Offline: Queued for sync.");
 }
 
 // --- RENDER FLOOR MAP & PEEK AT DESK ---
@@ -847,8 +843,8 @@ async function renderLiveFloorTab() {
             const badge = isMyDesk ? '<span style="background:#0ea5e9; color:white; font-size:0.7rem; padding:2px 6px; border-radius:12px; font-weight:bold; margin-left: 8px;">YOUR DESK</span>' : '';
 
             let actionBtn = isMyDesk 
-                ? `<button class="btn-primary-full" style="width: 100%; background: #0ea5e9; padding: 10px; margin-top: 12px;" onclick="openMyDeskDashboard()">💼 Open My Drawer</button>`
-                : `<button class="btn-outline" style="width: 100%; color: #8b5cf6; border-color: #8b5cf6; background: #faf5ff; padding: 10px; margin-top: 12px;" onclick="peekAtDesk('${session.deskId}', '${session.deskId.replace('_', ' ').toUpperCase()}')">👁️ View Details</button>`;
+                ? `<button class="btn-primary-full" style="width: 100%; background: #0ea5e9; padding: 10px; margin-top: 12px;" onclick="openMyDeskDashboard()">Open My Drawer</button>`
+                : `<button class="btn-outline" style="width: 100%; color: #8b5cf6; border-color: #8b5cf6; background: transparent; padding: 10px; margin-top: 12px;" onclick="peekAtDesk('${session.deskId}', '${session.deskId.replace('_', ' ').toUpperCase()}')">View Details</button>`;
 
             let agentNamesStr = 'Loading...';
             try {
@@ -860,22 +856,22 @@ async function renderLiveFloorTab() {
 
             floorHTML += `
                 <div class="admin-form-card" style="margin-bottom: 0; padding: 16px; border-top: 4px solid ${isMyDesk ? '#0ea5e9' : '#8b5cf6'};">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px;">
-                        <h4 style="margin: 0; color: #0f172a; font-size: 1.1rem; display: flex; align-items: center;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+                        <h4 style="margin: 0; color: var(--text-primary); font-size: 1.1rem; display: flex; align-items: center;">
                             ${session.deskId.replace('_', ' ').toUpperCase()} ${badge}
                         </h4>
-                        <div style="font-size: 0.85rem; color: #64748b; font-weight: 600; text-align: right; max-width: 50%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                            👤 ${agentNamesStr}
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; text-align: right; max-width: 50%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            ${agentNamesStr}
                         </div>
                     </div>
                     
                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-                        <span style="font-size: 0.85rem; font-weight: bold; color: #64748b;">Live Cash:</span>
+                        <span style="font-size: 0.85rem; font-weight: bold; color: var(--text-secondary);">Live Cash:</span>
                         <span style="font-size: 1.1rem; font-weight: bold; color: #10b981;">${liveCash} Tk</span>
                     </div>
 
-                    <div style="margin-bottom: 16px; padding-top: 12px; border-top: 1px dashed #e2e8f0;">
-                        <span style="display: block; font-size: 0.8rem; font-weight: bold; color: #64748b; margin-bottom: 6px;">📦 Remaining Physical Stock:</span>
+                    <div style="margin-bottom: 16px; padding-top: 12px; border-top: 1px dashed var(--border-color);">
+                        <span style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--text-secondary); margin-bottom: 6px;">Remaining Physical Stock:</span>
                         <div>${invDisplay}</div>
                     </div>
                     
@@ -965,7 +961,6 @@ function saveTxEdit() {
 
     closeModal('modal-edit-tx');
     
-    // 🛑 SANDBOX INTERCEPTOR
     if (currentDeskId === 'sandbox') {
         tx.qty = newQty; tx.amount = newAmount; tx.payment = method === 'Split' ? 'Split' : method; tx.cashAmt = finalCash; tx.mfsAmt = finalMfs; tx.isEdited = true;
         renderPersonalReport(); if (document.getElementById('tab-desk').classList.contains('active')) renderDeskDashboard();
@@ -974,15 +969,13 @@ function saveTxEdit() {
 
     if (tx.docId) {
         let msg = `${tx.name} Updated!`;
-        // Fire-and-forget for offline sync
         updateDoc(doc(db, 'transactions', tx.docId), { qty: newQty, amount: newAmount, payment: method === 'Split' ? 'Split' : method, cashAmt: finalCash, mfsAmt: finalMfs, isEdited: true }).catch(e => console.error(e));
-        showFlashMessage(navigator.onLine ? msg : "📶 Offline: Edit queued");
+        showFlashMessage(navigator.onLine ? msg : "Offline: Edit queued");
     }
 }
 
 function deleteTransaction(docId, localId) {
     showAppAlert("Delete Item", "Are you sure you want to move this transaction to the trash?", true, () => {
-        // 🛑 SANDBOX INTERCEPTOR
         if (currentDeskId === 'sandbox') {
             let tx = transactions.find(t => t.id === localId);
             if(tx) { 
@@ -996,7 +989,7 @@ function deleteTransaction(docId, localId) {
 
         if(docId) {
             updateDoc(doc(db, 'transactions', docId), { isDeleted: true }).catch(e => console.error(e));
-            showFlashMessage(navigator.onLine ? "Moved to Trash!" : "📶 Offline: Trash queued");
+            showFlashMessage(navigator.onLine ? "Moved to Trash!" : "Offline: Trash queued");
         }
     }, "Move to Trash");
 }
@@ -1033,7 +1026,6 @@ function renderTrash() {
 }
 
 function restoreTx(docId, localId) {
-    // 🛑 SANDBOX INTERCEPTOR
     if (currentDeskId === 'sandbox') {
         let txIndex = trashTransactions.findIndex(t => t.id === localId);
         if (txIndex > -1) {
@@ -1054,7 +1046,7 @@ function restoreTx(docId, localId) {
             if (tx && !passStockFirewall(tx.name, tx.qty)) return;
 
             updateDoc(doc(db, 'transactions', docId), { isDeleted: false, isRestored: true }).catch(e => console.error(e));
-            showFlashMessage(navigator.onLine ? (tx ? `${tx.name} Restored!` : "Transaction Restored!") : "📶 Offline: Restore queued");
+            showFlashMessage(navigator.onLine ? (tx ? `${tx.name} Restored!` : "Transaction Restored!") : "Offline: Restore queued");
             setTimeout(() => { renderTrash(); if(trashTransactions.length === 0) closeModal('modal-trash'); }, 500);
         } catch(e) {
             showAppAlert("Restore Failed", "Could not restore. Please check your connection.");
@@ -1067,7 +1059,7 @@ function permanentlyDeleteTx(docId, localId) {
     showAppAlert("Permanent Delete", "This transaction will be permanently erased. This cannot be undone.", true, () => {
         if(docId) { 
             deleteDoc(doc(db, 'transactions', docId)).catch(e => console.error(e)); 
-            showFlashMessage(navigator.onLine ? "Permanently Deleted!" : "📶 Offline: Delete queued"); 
+            showFlashMessage(navigator.onLine ? "Permanently Deleted!" : "Offline: Delete queued"); 
         }
     }, "Delete Forever");
 }
@@ -1175,7 +1167,6 @@ function saveQuantity() {
     closeModal('modal-quantity');
 }
 
-// UX Iteration 2: Instant 1x Save (Short Tap)
 function instantSaveItem(itemName, price) {
     if (!passStockFirewall(itemName, 1)) return;
     
@@ -1424,7 +1415,7 @@ function addTransactionToCloud(type, name, amount, qty, payment, cashAmt = 0, mf
     if (navigator.onLine) {
         showFlashMessage(confirmMsg);
     } else {
-        showFlashMessage("📶 Offline: Queued for sync");
+        showFlashMessage("Offline: Queued for sync");
     }
 
     if (isMfs) {
@@ -1474,7 +1465,7 @@ function removeInventoryGroup(index) {
 function populateTrackAsDropdowns() {
     let newSelect = document.getElementById('new-item-track');
     if(newSelect) {
-        let options = '<option value="">🚫 None (Digital/Service)</option>';
+        let options = '<option value="">None (Digital/Service)</option>';
         globalInventoryGroups.forEach(g => options += `<option value="${g}">${g}</option>`);
         newSelect.innerHTML = options;
     }
@@ -1515,7 +1506,7 @@ function openSettings() {
             container.appendChild(catHeader);
 
             catItems.forEach(item => {
-                let trackOptions = '<option value="">🚫 None (Digital/Service)</option>';
+                let trackOptions = '<option value="">None (Digital/Service)</option>';
                 globalInventoryGroups.forEach(g => {
                     let sel = (item.trackAs === g) ? 'selected' : '';
                     trackOptions += `<option value="${g}" ${sel}>${g}</option>`;
@@ -1535,11 +1526,11 @@ function openSettings() {
                         <div>
                             <label class="admin-label">Category</label>
                             <select class="settings-input i-cat" style="padding: 10px; width: 100%; box-sizing: border-box;">
-                                <option value="new-sim" ${item.cat==='new-sim'?'selected':''}>📱 New SIM</option>
-                                <option value="paid-rep" ${item.cat==='paid-rep'?'selected':''}>📦 Paid Rep</option>
-                                <option value="foc" ${item.cat==='foc'?'selected':''}>🆓 FOC</option>
-                                <option value="service" ${item.cat==='service'?'selected':''}>🛠️ Service</option>
-                                <option value="free-action" ${item.cat==='free-action'?'selected':''}>🏢 Free Action</option>
+                                <option value="new-sim" ${item.cat==='new-sim'?'selected':''}>New SIM</option>
+                                <option value="paid-rep" ${item.cat==='paid-rep'?'selected':''}>Paid Rep</option>
+                                <option value="foc" ${item.cat==='foc'?'selected':''}>FOC</option>
+                                <option value="service" ${item.cat==='service'?'selected':''}>Service</option>
+                                <option value="free-action" ${item.cat==='free-action'?'selected':''}>Free Action</option>
                             </select>
                         </div>
                         <div style="grid-column: span 2;">
@@ -1631,7 +1622,7 @@ async function openNicknameManager() {
             html += `
                 <div class="admin-form-card" style="padding: 12px; margin-bottom: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                     <div style="flex: 1; min-width: 150px;">
-                        <div style="font-size: 0.85rem; font-weight: 600; color: #0ea5e9; margin-bottom: 4px;">📧 ${userEmail}</div>
+                        <div style="font-size: 0.85rem; font-weight: 600; color: #0ea5e9; margin-bottom: 4px;">${userEmail}</div>
                         <input type="text" id="nick_${uid}" class="settings-input" style="padding: 8px;" placeholder="Set nickname..." value="${currentNick}">
                     </div>
                     <button class="btn-outline" style="height: auto; padding: 8px 16px; border-color: #10b981; color: #10b981; margin-top: auto;" onclick="saveAdminNickname('${uid}', 'nick_${uid}')">Save</button>
@@ -1688,11 +1679,11 @@ async function renderUserManagementAdmin() {
                     <div style="background: #ffffff; border: 1px solid #fcd34d; padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                         <div>
                             <strong style="color: #92400e; font-size: 0.95rem;">${displayName}</strong>
-                            <div style="font-size: 0.8rem; color: #b45309;">📍 ${deskName}</div>
+                            <div style="font-size: 0.8rem; color: #b45309;">${deskName}</div>
                         </div>
                         <div style="display: flex; gap: 6px;">
-                            <button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: auto; border-color: #f59e0b; color: #d97706;" onclick="kickAgent('${uid}')">🦵 Kick</button>
-                            <button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: auto; border-color: #ef4444; color: #ef4444; background: #fef2f2;" onclick="nukeAgent('${uid}', '${displayName}')">🔥 Nuke & Kick</button>
+                            <button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: auto; border-color: #f59e0b; color: #d97706;" onclick="kickAgent('${uid}')">Kick</button>
+                            <button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: auto; border-color: #ef4444; color: #ef4444; background: #fef2f2;" onclick="nukeAgent('${uid}', '${displayName}')">Nuke & Kick</button>
                         </div>
                     </div>
                 `;
@@ -1800,7 +1791,7 @@ function renderPersonalReport() {
         let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
         let badges = '';
         
-        if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">⏳ Pending</span>';
+        if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
         if (tx.isEdited) badges += '<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Edited</span>';
         if (tx.isRestored) badges += '<span style="font-size: 0.7rem; background: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Restored</span>';
 
@@ -1841,7 +1832,7 @@ function shareReport() {
     let totalCash = document.getElementById('tot-cash-sales').innerText;
     let totalErs = document.getElementById('tot-ers').innerText;
     
-    let reportText = `📅 My Daily Report: ${dateStr}\n👤 Agent: ${userNickname || userDisplayName}\n\n💰 PERSONAL SALES SUMMARY\nTotal Revenue: ${totalRevenue}\nCash Collected: ${totalCash}\nMFS Collected: ${totalMfs}\n\n📱 ERS Disbursed: ${totalErs}\n\n📦 MY ITEMS & SERVICES SOLD\n`;
+    let reportText = `My Daily Report: ${dateStr}\nAgent: ${userNickname || userDisplayName}\n\nPERSONAL SALES SUMMARY\nTotal Revenue: ${totalRevenue}\nCash Collected: ${totalCash}\nMFS Collected: ${totalMfs}\n\nERS Disbursed: ${totalErs}\n\nMY ITEMS & SERVICES SOLD\n`;
     
     let inventoryCounts = {}; let hasItems = false;
     transactions.forEach(tx => {
@@ -1868,7 +1859,7 @@ function shareDeskReport() {
     let mgrDrop = document.getElementById('desk-tot-manager').innerText;
     let expected = document.getElementById('desk-tot-expected-cash').innerText;
 
-    let reportText = `📅 Desk Report: ${dateStr}\n🏢 ${deskTitle}\n👥 Agents: ${activeAgents}\n\n💰 DRAWER SUMMARY\nOpening Balance: ${opening}\nCash Sales: ${cashSales}\nManager Drops: ${mgrDrop}\n------------------------\nExpected Drawer Cash: ${expected}\n\n📦 DESK ITEMS & SERVICES SOLD\n`;
+    let reportText = `Desk Report: ${dateStr}\n${deskTitle}\nAgents: ${activeAgents}\n\nDRAWER SUMMARY\nOpening Balance: ${opening}\nCash Sales: ${cashSales}\nManager Drops: ${mgrDrop}\n------------------------\nExpected Drawer Cash: ${expected}\n\nDESK ITEMS & SERVICES SOLD\n`;
 
     let inventoryList = document.getElementById('desk-inventory-list');
     if (inventoryList.innerText.includes('No items')) {
@@ -1949,7 +1940,7 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
         let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
         let badges = '';
         
-        if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">⏳ Pending</span>';
+        if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
         if (tx.isEdited) badges += '<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Edited</span>';
         if (tx.isRestored) badges += '<span style="font-size: 0.7rem; background: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Restored</span>';
         
@@ -1974,7 +1965,7 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
     
     if (deskErsCount > 0) {
         invHTML += `<div class="report-row" style="color: var(--accent-color); border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 8px;">
-                        <span>📱 ERS Disbursed (${deskErsCount}x):</span> 
+                        <span>ERS Disbursed (${deskErsCount}x):</span> 
                         <span class="report-total">${deskErsTotal} Tk</span>
                     </div>`;
     }
@@ -1984,7 +1975,7 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
     }
     
     let titleEl = document.getElementById('desk-inventory-title');
-    if(titleEl) titleEl.innerText = "📦 Desk Items & Services Sold";
+    if(titleEl) titleEl.innerText = "Desk Items & Services Sold";
 
     document.getElementById('desk-inventory-list').innerHTML = invHTML || '<div class="report-row" style="color: var(--text-secondary); font-style: italic;">No items sold yet</div>';
     
