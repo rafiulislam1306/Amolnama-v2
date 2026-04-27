@@ -626,7 +626,7 @@ function processCloseDeskStep2() {
 function calculateRetained() {
     let drop = parseFloat(document.getElementById('manager-drop-input').value) || 0;
     let retained = actualClosingStats.cash - drop;
-    let maxAllowedDrop = Math.min(actualClosingStats.cash, expectedClosingStats.cash);
+    let maxAllowedDrop = actualClosingStats.cash;
     
     let displayEl = document.getElementById('retained-float-display');
     if (drop > maxAllowedDrop) displayEl.innerHTML = `<span style="color: #ef4444;">Error: Exceeds System Total</span>`;
@@ -635,7 +635,7 @@ function calculateRetained() {
 
 async function finalizeCloseDesk(variance) {
     let dropAmount = parseFloat(document.getElementById('manager-drop-input').value) || 0;
-    let maxAllowedDrop = Math.min(actualClosingStats.cash, expectedClosingStats.cash);
+    let maxAllowedDrop = actualClosingStats.cash;-
 
     if (dropAmount < 0 || dropAmount > maxAllowedDrop) { showAppAlert("Error", `You cannot drop more than ${maxAllowedDrop} Tk.`); return; }
 
@@ -766,7 +766,7 @@ function executeDeskTransfer() {
     let dateStr = getStrictDate();
 
     const senderTx = { id: Date.now(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName };
-  const receiverTx = { id: Date.now() + 1, type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${currentDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: currentUser.uid, agentName: `System Transfer (from ${userNickname || userDisplayName})` };
+    const receiverTx = { id: Date.now() + 1, type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${currentDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName, isRemoteTransfer: true };
 
     closeModal('modal-desk-transfer');
     let msg = `Sent ${qty}x ${itemName} to ${targetDeskId.replace('_', ' ').toUpperCase()}!`;
@@ -798,7 +798,7 @@ function executeTransfer() {
     let dateStr = getStrictDate();
 
     const senderTx = { id: Date.now(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetTransferDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: currentDeskId || "Admin", sessionId: currentSessionId || "Admin", agentId: currentUser.uid, agentName: userNickname || userDisplayName };
-  const receiverTx = { id: Date.now() + 1, type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${currentDeskId || "Admin"}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetTransferDeskId, sessionId: targetTransferSessionId, agentId: currentUser.uid, agentName: `System Transfer (from ${userNickname || userDisplayName})` };
+    const receiverTx = { id: Date.now() + 1, type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${currentDeskId || "Admin"}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetTransferDeskId, sessionId: targetTransferSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName, isRemoteTransfer: true };
 
     closeModal('modal-transfer');
     
@@ -1785,7 +1785,9 @@ function renderPersonalReport() {
     let myItemsSold = {}; let historyHTML = '';
 
     [...transactions].reverse().forEach(tx => {
-        if (tx.agentId !== currentUser.uid) return; 
+        if (tx.isDeleted) return;
+        if (tx.agentId !== currentUser.uid) return;
+        if (tx.isRemoteTransfer) return;
 
         let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
         let safeMfsAmt = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0);
@@ -1929,6 +1931,7 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
     }
 
     [...transactions].reverse().forEach(tx => {
+        if (tx.isDeleted) return;
         if (tx.sessionId !== activeSessionId) return;
 
         let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
@@ -2072,6 +2075,20 @@ async function fetchAuditLogs() {
         });
         container.innerHTML = html;
     } catch(e) { container.innerHTML = `<p style="color:#ef4444;">Error loading logs.</p>`; }
+}
+
+function fallbackCopy(text) {
+    try {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+        showFlashMessage("Report Copied!");
+    } catch (err) {
+        showAppAlert("Error", "Could not copy report to clipboard.");
+    }
 }
 
 // --- VITE EXPORTS ---
