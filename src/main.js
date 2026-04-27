@@ -1805,6 +1805,7 @@ function fixPastManagerDrops() {
 //     ENGINE A: PERSONAL REPORT LOGIC
 // ==========================================
 function renderPersonalReport() {
+    let filterVal = document.getElementById('personal-history-filter') ? document.getElementById('personal-history-filter').value : 'all';
     let myCash = 0, myMfs = 0, myErs = 0;
     let myItemsSold = {}; let historyHTML = '';
 
@@ -1823,6 +1824,18 @@ function renderPersonalReport() {
                 myItemsSold[tx.name] = (myItemsSold[tx.name] || 0) + Math.abs(tx.qty); 
             }
         }
+        
+        let catItem = Object.values(globalCatalog).find(c => c.name === tx.name);
+        let txCat = catItem ? catItem.cat : null;
+        let showTx = false;
+        
+        if (filterVal === 'all') showTx = true;
+        else if (filterVal === 'ers' && tx.name === 'ERS Flexiload') showTx = true;
+        else if (filterVal === 'cash_ops' && tx.type === 'adjustment' && tx.name === 'Physical Cash') showTx = true;
+        else if (filterVal === 'transfers' && (tx.type === 'transfer_in' || tx.type === 'transfer_out')) showTx = true;
+        else if (filterVal === txCat) showTx = true;
+
+        if (!showTx) return;
         
         let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
         let badges = '';
@@ -1920,6 +1933,7 @@ function shareDeskReport() {
 async function renderDeskDashboard(targetDeskId = currentDeskId) {
     if (!targetDeskId) return;
 
+    let filterVal = document.getElementById('desk-history-filter') ? document.getElementById('desk-history-filter').value : 'all';
     let deskCashSales = 0, mgrDropRcv = 0;
     let deskItemsSold = {}; 
     let deskErsCount = 0, deskErsTotal = 0; 
@@ -1973,6 +1987,18 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
                 deskItemsSold[tx.name] = (deskItemsSold[tx.name] || 0) + Math.abs(tx.qty);
             }
         }
+        
+        let catItem = Object.values(globalCatalog).find(c => c.name === tx.name);
+        let txCat = catItem ? catItem.cat : null;
+        let showTx = false;
+        
+        if (filterVal === 'all') showTx = true;
+        else if (filterVal === 'ers' && tx.name === 'ERS Flexiload') showTx = true;
+        else if (filterVal === 'cash_ops' && tx.type === 'adjustment' && tx.name === 'Physical Cash') showTx = true;
+        else if (filterVal === 'transfers' && (tx.type === 'transfer_in' || tx.type === 'transfer_out')) showTx = true;
+        else if (filterVal === txCat) showTx = true;
+
+        if (!showTx) return;
         
         let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
         let badges = '';
