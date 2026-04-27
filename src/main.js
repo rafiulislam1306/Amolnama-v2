@@ -303,8 +303,8 @@ async function performLazyAutoClose() {
                 await updateDoc(doc(db, 'sessions', docSnap.id), {
                     status: 'closed', closedBy: 'System Auto-Close', closedByUid: 'system', closedAt: serverTimestamp(),
                     hasDiscrepancy: true, variance: 'Unknown - Auto Closed',
-                    expectedClosing: { inventory: expectedInv },
-                    actualClosing: { inventory: expectedInv }
+                    expectedClosing: { cash: sessionData.openingBalances.cash, inventory: expectedInv },
+                    actualClosing: { cash: 0, inventory: expectedInv }
                 });
                 
                 await setDoc(doc(db, 'desks', sessionData.deskId), { status: 'closed', currentSessionId: null }, { merge: true });
@@ -332,6 +332,11 @@ async function loadFloorMap() {
     try {
         const desksSnapshot = await getDocs(collection(db, 'desks'));
         let deskHTML = '';
+        let personalDeskHTML = '';
+        
+        const personalDeskId = 'personal_' + currentUser.uid;
+        const personalDeskName = 'Personal Drawer (' + (userNickname || userDisplayName.split(' ')[0]) + ')';
+        let foundPersonal = false;
 
         if (desksSnapshot.empty) {
             await setDoc(doc(db, 'desks', 'desk_1'), { name: 'Desk 1', status: 'closed', currentSessionId: null });
@@ -343,26 +348,65 @@ async function loadFloorMap() {
         desksSnapshot.forEach(docSnap => {
             const desk = docSnap.data();
             const isOpen = desk.status === 'open';
-            const btnColor = isOpen ? '#10b981' : '#0ea5e9'; 
-            const actionText = isOpen ? 'Join Active Desk' : 'Open Desk';
-
-            deskHTML += `
-                <div class="admin-form-card" style="margin-bottom: 0; padding: 16px; border-left: 4px solid ${btnColor};">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <h3 style="margin: 0; font-size: 1.2rem; color: #0f172a;">${desk.name}</h3>
-                        <span style="font-size: 0.8rem; font-weight: bold; color: ${btnColor}; background: ${isOpen ? '#d1fae5' : '#e0f2fe'}; padding: 4px 8px; border-radius: 12px;">
-                            ${isOpen ? 'OPEN' : 'CLOSED'}
-                        </span>
+            
+            if (docSnap.id === personalDeskId) {
+                foundPersonal = true;
+                const btnColor = isOpen ? '#10b981' : '#8b5cf6'; 
+                const actionText = isOpen ? 'Join Personal Drawer' : 'Open Personal Drawer';
+                
+                personalDeskHTML = `
+                    <div class="admin-form-card" style="margin-bottom: 24px; padding: 16px; border-left: 4px solid ${btnColor}; background: #f8fafc;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <h3 style="margin: 0; font-size: 1.2rem; color: #0f172a;">${desk.name}</h3>
+                            <span style="font-size: 0.8rem; font-weight: bold; color: ${btnColor}; background: ${isOpen ? '#d1fae5' : '#ede9fe'}; padding: 4px 8px; border-radius: 12px;">
+                                ${isOpen ? 'OPEN' : 'CLOSED'}
+                            </span>
+                        </div>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px;">Operate independently from shared floor desks.</p>
+                        <button class="btn-primary-full" style="background: ${btnColor};" onclick="handleDeskSelect('${docSnap.id}', '${desk.name}', '${desk.status}', '${desk.currentSessionId}')">
+                            ${actionText}
+                        </button>
                     </div>
-                    <button class="btn-primary-full" style="background: ${btnColor};" onclick="handleDeskSelect('${docSnap.id}', '${desk.name}', '${desk.status}', '${desk.currentSessionId}')">
-                        ${actionText}
+                `;
+            } else if (!desk.isPersonal && docSnap.id !== 'sandbox') {
+                const btnColor = isOpen ? '#10b981' : '#0ea5e9'; 
+                const actionText = isOpen ? 'Join Active Desk' : 'Open Desk';
+
+                deskHTML += `
+                    <div class="admin-form-card" style="margin-bottom: 0; padding: 16px; border-left: 4px solid ${btnColor};">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <h3 style="margin: 0; font-size: 1.2rem; color: #0f172a;">${desk.name}</h3>
+                            <span style="font-size: 0.8rem; font-weight: bold; color: ${btnColor}; background: ${isOpen ? '#d1fae5' : '#e0f2fe'}; padding: 4px 8px; border-radius: 12px;">
+                                ${isOpen ? 'OPEN' : 'CLOSED'}
+                            </span>
+                        </div>
+                        <button class="btn-primary-full" style="background: ${btnColor};" onclick="handleDeskSelect('${docSnap.id}', '${desk.name}', '${desk.status}', '${desk.currentSessionId}')">
+                            ${actionText}
+                        </button>
+                    </div>
+                `;
+            }
+        });
+
+        if (!foundPersonal) {
+            await setDoc(doc(db, 'desks', personalDeskId), { name: personalDeskName, status: 'closed', currentSessionId: null, isPersonal: true });
+            personalDeskHTML = `
+                <div class="admin-form-card" style="margin-bottom: 24px; padding: 16px; border-left: 4px solid #8b5cf6; background: #f8fafc;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <h3 style="margin: 0; font-size: 1.2rem; color: #0f172a;">${personalDeskName}</h3>
+                        <span style="font-size: 0.8rem; font-weight: bold; color: #8b5cf6; background: #ede9fe; padding: 4px 8px; border-radius: 12px;">CLOSED</span>
+                    </div>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px;">Operate independently from shared floor desks.</p>
+                    <button class="btn-primary-full" style="background: #8b5cf6;" onclick="handleDeskSelect('${personalDeskId}', '${personalDeskName}', 'closed', 'null')">
+                        Open Personal Drawer
                     </button>
                 </div>
             `;
-        });
+        }
         
+        let adminToolsHTML = '';
         if (currentUserRole === 'admin') {
-            deskHTML += `
+            adminToolsHTML = `
                 <div style="margin-top: 32px; border-top: 1px dashed var(--border-color); padding-top: 16px;">
                     <span style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; text-align: center;">Admin & Developer Tools</span>
                     <div style="display: flex; gap: 8px;">
@@ -377,7 +421,7 @@ async function loadFloorMap() {
             `;
         }
         
-        container.innerHTML = deskHTML;
+        container.innerHTML = personalDeskHTML + deskHTML + adminToolsHTML;
     } catch (e) { container.innerHTML = `<div style="color:#ef4444; padding:16px;">Error loading map. Refresh app.</div>`; }
 }
 
@@ -544,6 +588,7 @@ async function initiateCloseDesk() {
 
     const sessionData = sessionSnap.data();
     let expectedCash = parseFloat(sessionData.openingBalances.cash) || 0;
+    let expectedMfs = 0;
     let expectedInv = { ...(sessionData.openingBalances.inventory || {}) };
 
     const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', currentSessionId), where('isDeleted', '==', false)));
@@ -551,6 +596,7 @@ async function initiateCloseDesk() {
     txSnap.forEach(docSnap => {
         let tx = docSnap.data();
         expectedCash += (tx.cashAmt || 0); 
+        expectedMfs += (tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0));
         
         let change = getInventoryChange(tx);
         if (change !== 0) {
@@ -558,7 +604,7 @@ async function initiateCloseDesk() {
         }
     });
 
-    expectedClosingStats = { cash: expectedCash, inventory: expectedInv };
+    expectedClosingStats = { cash: expectedCash, mfs: expectedMfs, inventory: expectedInv };
 
     let invHTML = '';
     let itemsToCount = Object.keys(expectedInv);
@@ -569,7 +615,7 @@ async function initiateCloseDesk() {
             invHTML += `
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
                     <label class="admin-label" style="margin:0; font-size:0.85rem; color:#334155;">${itemName}</label>
-                    <input type="number" class="settings-input actual-inv-input" data-name="${itemName}" style="width:80px; text-align:center; padding:8px; border-color:#cbd5e1;" placeholder="0">
+                    <input type="number" class="actual-inv-input settings-input" data-name="${itemName}" style="width:80px; text-align:center; padding:8px; border-color:#cbd5e1;" placeholder="0">
                 </div>
             `;
         });
@@ -577,7 +623,13 @@ async function initiateCloseDesk() {
 
     const modalContent = `
         <h3 class="modal-title" style="color: #0f172a; margin-bottom: 4px;">Close ${currentDeskName}</h3>
-        <p style="text-align: center; color: #64748b; font-size: 0.9rem; margin-bottom: 24px;">Step 1: Physical Reconciliation</p>
+        <p style="text-align: center; color: #64748b; font-size: 0.9rem; margin-bottom: 16px;">Step 1: Physical Reconciliation</p>
+        
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 12px; border-radius: 8px; margin-bottom: 24px; text-align: center;">
+            <span style="font-size: 0.85rem; color: #166534; font-weight: 600;">Total MFS Collected Today:</span>
+            <div style="font-size: 1.25rem; font-weight: bold; color: #15803d;">${expectedClosingStats.mfs} Tk</div>
+        </div>
+
         <div class="admin-form-card" style="padding: 16px; margin-bottom: 16px;">
             <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #64748b; margin-bottom: 8px;">Actual Cash in Drawer</label>
             <div style="display: flex; align-items: center; gap: 12px;">
@@ -1897,6 +1949,51 @@ function renderPersonalReport() {
     document.getElementById('history-log').innerHTML = historyHTML || '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg><p>No transactions today</p></div>';
 }
 
+function buildLifecycleText(txList, openingInv) {
+    let stats = {};
+    let hasItems = false;
+    
+    getPhysicalItems().forEach(item => {
+        let openQty = openingInv[item] || 0;
+        if (openQty > 0) {
+            stats[item] = { open: openQty, in: 0, out: 0, sold: 0, rem: openQty, rev: 0 };
+            hasItems = true;
+        }
+    });
+
+    txList.forEach(tx => {
+        if (tx.isDeleted || tx.name === 'Physical Cash' || tx.name === 'ERS Flexiload') return;
+        
+        let trackAs = tx.trackAs;
+        if (!globalInventoryGroups.includes(trackAs)) return;
+
+        if (!stats[trackAs]) stats[trackAs] = { open: 0, in: 0, out: 0, sold: 0, rem: 0, rev: 0 };
+        
+        hasItems = true;
+        let q = Math.abs(tx.qty);
+        
+        if (tx.type === 'transfer_in') { stats[trackAs].in += q; stats[trackAs].rem += q; }
+        else if (tx.type === 'transfer_out') { stats[trackAs].out += q; stats[trackAs].rem -= q; }
+        else if (tx.type === 'adjustment') { stats[trackAs].in += q; stats[trackAs].rem += q; }
+        else { 
+            stats[trackAs].sold += q; 
+            stats[trackAs].rem -= q; 
+            stats[trackAs].rev += (tx.amount || 0); 
+        }
+    });
+
+    if (!hasItems) return "None\n";
+
+    let text = "";
+    for (const [item, data] of Object.entries(stats)) {
+        if (data.open === 0 && data.in === 0 && data.sold === 0 && data.out === 0) continue;
+        text += `> ${item}\n`;
+        text += `  Opened: ${data.open} | In: ${data.in} | Out: ${data.out} | Sold: ${data.sold}\n`;
+        text += `  Remaining: ${data.rem} | Revenue: ${data.rev} Tk\n\n`;
+    }
+    return text;
+}
+
 function shareReport() {
     let dateStr = formatToGBDate(document.getElementById('report-date-picker').value);
     let totalRevenue = document.getElementById('report-total-all') ? document.getElementById('report-total-all').innerText : "0 Tk";
@@ -1904,21 +2001,39 @@ function shareReport() {
     let totalCash = document.getElementById('tot-cash-sales').innerText;
     let totalErs = document.getElementById('tot-ers').innerText;
     
-    let reportText = `My Daily Report: ${dateStr}\nAgent: ${userNickname || userDisplayName}\n\nPERSONAL SALES SUMMARY\nTotal Revenue: ${totalRevenue}\nCash Collected: ${totalCash}\nMFS Collected: ${totalMfs}\n\nERS Disbursed: ${totalErs}\n\nMY ITEMS & SERVICES SOLD\n`;
+    let reportText = `My Daily Report: ${dateStr}\nAgent: ${userNickname || userDisplayName}\n\nPERSONAL SALES SUMMARY\nTotal Revenue: ${totalRevenue}\nCash Collected: ${totalCash}\nMFS Collected: ${totalMfs}\nERS Disbursed: ${totalErs}\n\nPHYSICAL INVENTORY LIFECYCLE\n`;
     
-    let inventoryCounts = {}; let hasItems = false;
-    transactions.forEach(tx => {
-        if (tx.agentId === currentUser.uid && tx.name !== 'ERS Flexiload' && tx.type !== 'adjustment' && tx.type !== 'transfer_in' && tx.type !== 'transfer_out' && tx.name !== 'Physical Cash') { 
-            inventoryCounts[tx.name] = (inventoryCounts[tx.name] || 0) + Math.abs(tx.qty); 
-            hasItems = true; 
-        }
-    });
-
-    if (!hasItems) reportText += `None\n`;
-    else for (const [name, qty] of Object.entries(inventoryCounts)) reportText += `${qty}x ${name}\n`;
+    let myTx = transactions.filter(t => t.agentId === currentUser.uid);
+    reportText += buildLifecycleText(myTx, currentOpeningInv);
 
     if (navigator.share) navigator.share({ title: 'My Daily Report', text: reportText }).catch(e => console.log(e));
     else { try { navigator.clipboard.writeText(reportText).then(() => showFlashMessage("Report Copied!")).catch(() => fallbackCopy(reportText)); } catch (e) { fallbackCopy(reportText); } }
+}
+
+function shareDeskReport() {
+    let dateStr = formatToGBDate(document.getElementById('report-date-picker').value);
+    let deskTitle = document.getElementById('desk-dashboard-title').innerText;
+    let activeAgents = document.getElementById('desk-logged-agents').innerText;
+
+    let opening = document.getElementById('desk-tot-opening').innerText;
+    let cashSales = document.getElementById('desk-tot-cash-sales').innerText;
+    let mgrDrop = document.getElementById('desk-tot-manager').innerText;
+    let expected = document.getElementById('desk-tot-expected-cash').innerText;
+    
+    let deskTx = transactions.filter(t => t.deskId === currentDeskId && t.dateStr === dateStr);
+    let deskMfs = 0;
+    deskTx.forEach(tx => {
+        if(!tx.isDeleted) {
+            deskMfs += (tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0));
+        }
+    });
+
+    let reportText = `Desk Report: ${dateStr}\n${deskTitle}\nAgents: ${activeAgents}\n\nDRAWER SUMMARY\nOpening Cash: ${opening}\nCash Sales: ${cashSales}\nManager Drops: ${mgrDrop}\n------------------------\nExpected Cash: ${expected}\nExpected MFS: ${deskMfs} Tk\n\nPHYSICAL INVENTORY LIFECYCLE\n`;
+
+    reportText += buildLifecycleText(deskTx, currentOpeningInv);
+
+    if (navigator.share) navigator.share({ title: 'Desk Report', text: reportText }).catch(e => console.log(e));
+    else { try { navigator.clipboard.writeText(reportText).then(() => showFlashMessage("Desk Report Copied!")).catch(() => fallbackCopy(reportText)); } catch (e) { fallbackCopy(reportText); } }
 }
 
 function shareDeskReport() {
