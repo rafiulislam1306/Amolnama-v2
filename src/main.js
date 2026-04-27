@@ -289,22 +289,36 @@ async function performLazyAutoClose() {
         for (const docSnap of activeSessionsSnap.docs) {
             const sessionData = docSnap.data();
             if (sessionData.dateStr !== todayStr) {
+                
+                let expectedInv = { ...(sessionData.openingBalances.inventory || {}) };
+                const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', docSnap.id), where('isDeleted', '==', false)));
+                
+                txSnap.forEach(txDoc => {
+                    let change = getInventoryChange(txDoc.data());
+                    if (change !== 0) {
+                        expectedInv[txDoc.data().trackAs] = (expectedInv[txDoc.data().trackAs] || 0) + change;
+                    }
+                });
+
                 await updateDoc(doc(db, 'sessions', docSnap.id), {
                     status: 'closed', closedBy: 'System Auto-Close', closedByUid: 'system', closedAt: serverTimestamp(),
-                    hasDiscrepancy: true, variance: 'Unknown - Auto Closed'
+                    hasDiscrepancy: true, variance: 'Unknown - Auto Closed',
+                    expectedClosing: { inventory: expectedInv },
+                    actualClosing: { inventory: expectedInv }
                 });
+                
                 await setDoc(doc(db, 'desks', sessionData.deskId), { status: 'closed', currentSessionId: null }, { merge: true });
                 
                 const stuckUsers = await getDocs(query(collection(db, 'users'), where('assignedDeskId', '==', sessionData.deskId)));
                 stuckUsers.forEach(async (u) => {
-                        await updateDoc(doc(db, 'users', u.id), { assignedDeskId: null, assignedDate: null });
-                    });
-                }
+                    await updateDoc(doc(db, 'users', u.id), { assignedDeskId: null, assignedDate: null });
+                });
             }
-        } catch(e) {
-            console.error("System Error: Lazy auto-close failed. Some desks may still appear open.", e);
         }
+    } catch(e) {
+        console.error("System Error: Lazy auto-close failed. Some desks may still appear open.", e);
     }
+}
 
 
 // ==========================================
@@ -763,6 +777,11 @@ async function openDeskTransfer() {
 }
 
 function executeDeskTransfer() {
+    if (!navigator.onLine) {
+        showAppAlert("Connection Required", "Desk-to-desk transfers require an active internet connection so the receiving desk gets the stock immediately. Please connect and try again.");
+        return;
+    }
+
     let qty = parseInt(document.getElementById('desk-transfer-qty').value) || 0;
     if (qty <= 0) { showAppAlert("Invalid Input", "Enter valid quantity."); return; }
 
