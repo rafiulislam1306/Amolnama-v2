@@ -273,7 +273,8 @@ function signInWithGoogle() { const provider = new GoogleAuthProvider(); signInW
 function logout() {
   signOut(auth).then(() => {
         closeModal('modal-settings');
-        transactions = []; trashTransactions = []; 
+        document.getElementById('dev-note-fab').style.display = 'none';
+        transactions = []; trashTransactions = [];
         renderPersonalReport();
         switchTab('ers', 'ERS'); 
     });
@@ -1426,6 +1427,9 @@ async function initUserData() {
             userData = userDocSnap.data();
             currentUserRole = userData.role || 'user';
             userNickname = userData.nickname || ''; 
+            if (userData.devNotes) {
+                document.getElementById('dev-notes-text').value = userData.devNotes;
+            }
         } else { 
             currentUserRole = 'user'; 
         }
@@ -1449,6 +1453,8 @@ async function initUserData() {
             document.getElementById('header-user-photo').src = currentUser.photoURL;
         }
         if(document.getElementById('tab-ers').classList.contains('active')) document.getElementById('header-title').innerText = userNickname || userDisplayName;
+
+        document.getElementById('dev-note-fab').style.display = 'flex';
 
         updateCurrencyUI(); renderAppUI();
         
@@ -1994,51 +2000,6 @@ function buildLifecycleText(txList, openingInv) {
     return text;
 }
 
-function buildLifecycleText(txList, openingInv) {
-    let stats = {};
-    let hasItems = false;
-    
-    getPhysicalItems().forEach(item => {
-        let openQty = openingInv[item] || 0;
-        if (openQty > 0) {
-            stats[item] = { open: openQty, in: 0, out: 0, sold: 0, rem: openQty, rev: 0 };
-            hasItems = true;
-        }
-    });
-
-    txList.forEach(tx => {
-        if (tx.isDeleted || tx.name === 'Physical Cash' || tx.name === 'ERS Flexiload') return;
-        
-        let trackAs = tx.trackAs;
-        if (!globalInventoryGroups.includes(trackAs)) return;
-
-        if (!stats[trackAs]) stats[trackAs] = { open: 0, in: 0, out: 0, sold: 0, rem: 0, rev: 0 };
-        
-        hasItems = true;
-        let q = Math.abs(tx.qty);
-        
-        if (tx.type === 'transfer_in') { stats[trackAs].in += q; stats[trackAs].rem += q; }
-        else if (tx.type === 'transfer_out') { stats[trackAs].out += q; stats[trackAs].rem -= q; }
-        else if (tx.type === 'adjustment') { stats[trackAs].in += q; stats[trackAs].rem += q; }
-        else { 
-            stats[trackAs].sold += q; 
-            stats[trackAs].rem -= q; 
-            stats[trackAs].rev += (tx.amount || 0); 
-        }
-    });
-
-    if (!hasItems) return "None\n";
-
-    let text = "";
-    for (const [item, data] of Object.entries(stats)) {
-        if (data.open === 0 && data.in === 0 && data.sold === 0 && data.out === 0) continue;
-        text += `> ${item}\n`;
-        text += `  Opened: ${data.open} | In: ${data.in} | Out: ${data.out} | Sold: ${data.sold}\n`;
-        text += `  Remaining: ${data.rem} | Revenue: ${data.rev} Tk\n\n`;
-    }
-    return text;
-}
-
 function shareReport() {
     let dateStr = formatToGBDate(document.getElementById('report-date-picker').value);
     let totalRevenue = document.getElementById('report-total-all') ? document.getElementById('report-total-all').innerText : "0 Tk";
@@ -2295,8 +2256,25 @@ function fallbackCopy(text) {
     }
 }
 
+function openDevNotes() {
+    openModal('modal-dev-notes');
+}
+
+async function saveDevNotes() {
+    if (!currentUser) return;
+    const notes = document.getElementById('dev-notes-text').value;
+    try {
+        await updateDoc(doc(db, 'users', currentUser.uid), { devNotes: notes }, { merge: true });
+        showFlashMessage("Notes Saved!");
+        closeModal('modal-dev-notes');
+    } catch(e) {
+        showAppAlert("Error", "Could not save notes. Please check your connection.");
+    }
+}
+
 // --- VITE EXPORTS ---
 window.signInWithGoogle = signInWithGoogle; window.logout = logout; window.switchTab = switchTab;
+window.openDevNotes = openDevNotes; window.saveDevNotes = saveDevNotes;
 window.ersKeyPress = ersKeyPress; window.ersBackspace = ersBackspace; window.saveErs = saveErs;
 window.toggleMFS = toggleMFS; window.openModal = openModal; window.closeModal = closeModal;
 window.selectItem = selectItem; window.qtyKeyPress = qtyKeyPress; window.qtyBackspace = qtyBackspace;
