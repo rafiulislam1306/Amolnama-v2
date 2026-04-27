@@ -828,8 +828,20 @@ async function renderLiveFloorTab() {
         const activeSessionsSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'open')));
         if (activeSessionsSnap.empty) { container.innerHTML = '<p class="placeholder-text">No desks open.</p>'; return; }
 
+        let docsArray = [...activeSessionsSnap.docs];
+        
+        // 1. Sort all desks numerically (Desk 1, Desk 2, Desk 3...)
+        docsArray.sort((a, b) => a.data().deskId.localeCompare(b.data().deskId, undefined, { numeric: true }));
+        
+        // 2. If the current user has a desk, pin it to the very top (Index 0)
+        let myIndex = docsArray.findIndex(doc => doc.id === currentSessionId);
+        if (myIndex > 0) {
+            let myDoc = docsArray.splice(myIndex, 1)[0];
+            docsArray.unshift(myDoc);
+        }
+
         let floorHTML = '';
-        for (const docSnap of activeSessionsSnap.docs) {
+        for (const docSnap of docsArray) {
             const session = docSnap.data(); const sid = docSnap.id;
             const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', sid), where('isDeleted', '==', false)));
 
