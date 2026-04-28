@@ -1383,6 +1383,69 @@ window.addEventListener('click', (event) => {
     }
 });
 
+// --- NATIVE BOTTOM SHEET DRAG PHYSICS ---
+function setupBottomSheetDrag() {
+    document.querySelectorAll('.bottom-sheet').forEach(sheet => {
+        let startY = 0;
+        let currentY = 0;
+        let isDragging = false;
+
+        sheet.addEventListener('touchstart', (e) => {
+            // Only allow the sheet to be dragged if the user is scrolled to the very top
+            if (sheet.scrollTop > 0) return; 
+            
+            startY = e.touches[0].clientY;
+            isDragging = true;
+            
+            // Remove CSS animation transitions so the sheet sticks to the thumb perfectly 1:1
+            sheet.style.transition = 'none'; 
+        }, { passive: true });
+
+        sheet.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            currentY = e.touches[0].clientY;
+            let delta = currentY - startY;
+
+            // Only allow dragging downwards (positive delta)
+            if (delta > 0) {
+                sheet.style.transform = `translateY(${delta}px)`;
+            }
+        }, { passive: true });
+
+        sheet.addEventListener('touchend', (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            let delta = currentY - startY;
+            let threshold = sheet.offsetHeight * 0.25; // 25% threshold to trigger a close
+
+            // Re-apply the smooth bezier transition for the snap-back or close animation
+            sheet.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
+
+            if (delta > threshold) {
+                // User dragged far enough -> Slide it completely off screen
+                sheet.style.transform = `translateY(100%)`;
+                
+                // Wait for the animation to finish, then safely remove it from the DOM
+                setTimeout(() => {
+                    let modal = sheet.closest('.modal-overlay');
+                    if (modal) closeModal(modal.id);
+                    
+                    // Reset the inline styles so it works normally the next time it's opened
+                    setTimeout(() => { sheet.style.transform = ''; sheet.style.transition = ''; }, 50);
+                }, 250);
+            } else {
+                // User didn't drag far enough -> Snap it smoothly back into place
+                sheet.style.transform = 'translateY(0)';
+                setTimeout(() => { sheet.style.transform = ''; sheet.style.transition = ''; }, 250);
+            }
+        });
+    });
+}
+
+// Initialize the drag listeners once the DOM is fully loaded
+document.addEventListener('DOMContentLoaded', setupBottomSheetDrag);
+
 function selectItem(itemName, price) {
     document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
     currentItemName = itemName; currentItemPrice = price; currentQty = '1';
@@ -1637,6 +1700,7 @@ async function initUserData() {
     } catch(e) { console.error(e); } finally {
         if (isInitialLoad) { document.getElementById('splash-screen').classList.remove('active'); isInitialLoad = false; }
     }
+    setTimeout(setupBottomSheetDrag, 300); // Failsafe to attach drag physics
 }
 
 function addTransactionToCloud(type, name, amount, qty, payment, cashAmt = 0, mfsAmt = 0) {
