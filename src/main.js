@@ -2253,8 +2253,12 @@ function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, servicesCo
     let { opening, sales, drops, expected } = cashMath;
     
     let invRows = '';
+    let activeItemCount = 0; // Tracks items with movement for the Smart Summary
+    
     for (const [item, d] of Object.entries(invStats)) {
         if (d.open === 0 && d.inOut === 0 && d.sold === 0 && d.rem === 0) continue;
+        
+        activeItemCount++; // We found active stock!
         
         let inOutColor = d.inOut > 0 ? '#10b981' : (d.inOut < 0 ? '#ef4444' : 'var(--text-secondary)');
         let inOutStr = d.inOut > 0 ? `+${d.inOut}` : (d.inOut < 0 ? `${d.inOut}` : `0`);
@@ -2275,6 +2279,12 @@ function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, servicesCo
     }
     
     let formattedDrops = drops !== 0 ? drops : '0';
+    
+    // SMART SUMMARY LOGIC: Change color and text based on active items
+    let summaryText = activeItemCount > 0 ? `Physical Stock: ${activeItemCount} Active Items` : 'Physical Stock: No Movement';
+    let summaryColor = activeItemCount > 0 ? '#0ea5e9' : '#64748b';
+    let summaryBg = activeItemCount > 0 ? '#f0f9ff' : '#f8fafc';
+    let summaryBorder = activeItemCount > 0 ? '#bae6fd' : 'var(--border-color)';
 
     return `
         <div class="admin-form-card" style="padding: 16px; margin-bottom: 16px; background: #f8fafc; border: 1px solid #e2e8f0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
@@ -2297,7 +2307,7 @@ function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, servicesCo
             </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
             <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 12px; text-align: center; box-shadow: 0 2px 4px rgba(22,101,52,0.05);">
                 <div style="font-size: 0.75rem; font-weight: 800; color: #166534; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">Total MFS</div>
                 <div style="font-size: 1.35rem; font-weight: 800; color: #15803d;">${mfsTotal} Tk</div>
@@ -2308,49 +2318,54 @@ function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, servicesCo
             </div>
         </div>
 
-        <div class="admin-form-card" style="padding: 0; margin-bottom: 16px; overflow: hidden; border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
-            <div style="background: #f8fafc; padding: 16px; border-bottom: 1px solid var(--border-color);">
-                <div style="font-size: 0.85rem; font-weight: 800; color: #334155; text-transform: uppercase; letter-spacing: 0.5px;">Live Inventory Grid</div>
-            </div>
-            <div style="padding: 0 16px;">
-                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; padding: 12px 0; border-bottom: 2px solid var(--border-color); font-size: 0.7rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
-                    <div>Item</div>
-                    <div style="text-align: center;">Start</div>
-                    <div style="text-align: center;">In/Out</div>
-                    <div style="text-align: center;">Sold</div>
-                    <div style="text-align: center; color: #0ea5e9;">Exp.</div>
+        <div class="admin-form-card" style="padding: 0; margin-bottom: 24px; overflow: hidden; border: 1px solid ${summaryBorder}; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+            <div style="background: ${summaryBg}; padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="const c = document.getElementById('inv-grid-content'); const i = document.getElementById('inv-grid-icon'); if(c.style.display==='none'){c.style.display='block'; i.style.transform='rotate(180deg)';}else{c.style.display='none'; i.style.transform='rotate(0deg)';}">
+                <div style="font-size: 0.85rem; font-weight: 800; color: ${summaryColor}; text-transform: uppercase; letter-spacing: 0.5px;">
+                    ${summaryText}
                 </div>
-                ${invRows}
+                <svg id="inv-grid-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${summaryColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div id="inv-grid-content" style="display: none; background: #ffffff; border-top: 1px solid ${summaryBorder};">
+                <div style="padding: 0 16px;">
+                    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; padding: 12px 0; border-bottom: 2px solid var(--border-color); font-size: 0.7rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
+                        <div>Item</div>
+                        <div style="text-align: center;">Start</div>
+                        <div style="text-align: center;">In/Out</div>
+                        <div style="text-align: center;">Sold</div>
+                        <div style="text-align: center; color: #0ea5e9;">Exp.</div>
+                    </div>
+                    ${invRows}
+                </div>
             </div>
         </div>
 
         ${(function() {
             if (servicesCount.total === 0) {
-                return `
+                return \`
                 <div style="display: flex; align-items: center; justify-content: space-between; background: var(--surface-color); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 24px;">
                     <span style="font-size: 0.95rem; font-weight: 700; color: var(--text-secondary);">No Digital Services</span>
                     <span style="background: #f1f5f9; color: #94a3b8; padding: 4px 12px; border-radius: 20px; font-size: 0.95rem; font-weight: 800;">0</span>
-                </div>`;
+                </div>\`;
             }
             
             let sRows = '';
             for (const [sName, sQty] of Object.entries(servicesCount.breakdown)) {
-                sRows += `
+                sRows += \`
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-top: 1px dashed var(--border-color);">
-                        <span style="font-weight: 600; color: var(--text-primary); font-size: 0.95rem;">${sName}</span>
-                        <span style="font-weight: 800; color: #8b5cf6; font-size: 1rem;">${sQty}x</span>
+                        <span style="font-weight: 600; color: var(--text-primary); font-size: 0.95rem;">\${sName}</span>
+                        <span style="font-weight: 800; color: #8b5cf6; font-size: 1rem;">\${sQty}x</span>
                     </div>
-                `;
+                \`;
             }
             
-            return `
+            return \`
             <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px; background: var(--surface-color); border: 1px solid var(--border-color); box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
                     <span style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary);">Digital Services Processed</span>
-                    <span style="background: #ede9fe; color: #8b5cf6; padding: 4px 12px; border-radius: 20px; font-size: 0.9rem; font-weight: 800;">${servicesCount.total} Total</span>
+                    <span style="background: #ede9fe; color: #8b5cf6; padding: 4px 12px; border-radius: 20px; font-size: 0.9rem; font-weight: 800;">\${servicesCount.total} Total</span>
                 </div>
-                ${sRows}
-            </div>`;
+                \${sRows}
+            </div>\`;
         })()}
     `;
 }
