@@ -2132,26 +2132,108 @@ function shareDeskReport() {
     else { try { navigator.clipboard.writeText(reportText).then(() => showFlashMessage("Desk Report Copied!")).catch(() => fallbackCopy(reportText)); } catch (e) { fallbackCopy(reportText); } }
 }
 
+function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, servicesCount) {
+    let { opening, sales, drops, expected } = cashMath;
+    
+    let invRows = '';
+    for (const [item, d] of Object.entries(invStats)) {
+        if (d.open === 0 && d.inOut === 0 && d.sold === 0 && d.rem === 0) continue;
+        
+        let inOutColor = d.inOut > 0 ? '#10b981' : (d.inOut < 0 ? '#ef4444' : 'var(--text-secondary)');
+        let inOutStr = d.inOut > 0 ? `+${d.inOut}` : (d.inOut < 0 ? `${d.inOut}` : `0`);
+
+        invRows += `
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-color); font-size: 0.85rem;">
+                <div style="font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${item}">${item}</div>
+                <div style="text-align: center; color: var(--text-secondary); font-weight: 600;">${d.open}</div>
+                <div style="text-align: center; color: ${inOutColor}; font-weight: 700;">${inOutStr}</div>
+                <div style="text-align: center; color: #f59e0b; font-weight: 700;">${d.sold}</div>
+                <div style="text-align: center; color: #0ea5e9; font-weight: 800; font-size: 1rem;">${d.rem}</div>
+            </div>
+        `;
+    }
+
+    if (!invRows) {
+        invRows = `<div style="padding: 20px; text-align: center; color: var(--text-secondary); font-size: 0.85rem; font-style: italic;">No physical stock recorded today</div>`;
+    }
+    
+    let formattedDrops = drops !== 0 ? drops : '0';
+
+    return `
+        <div class="admin-form-card" style="padding: 16px; margin-bottom: 16px; background: #f8fafc; border: 1px solid #e2e8f0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+            <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px;">Physical Cash Formula</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <span style="font-size: 0.95rem; color: var(--text-secondary); font-weight: 500;">Opening Float</span>
+                <strong style="font-size: 1.05rem; color: var(--text-primary);">${opening} Tk</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <span style="font-size: 0.95rem; color: var(--text-secondary); font-weight: 500;">+ Cash Sales</span>
+                <strong style="font-size: 1.05rem; color: #10b981;">+${sales} Tk</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 16px;">
+                <span style="font-size: 0.95rem; color: var(--text-secondary); font-weight: 500;">- Manager Drops</span>
+                <strong style="font-size: 1.05rem; color: #ef4444;">${formattedDrops} Tk</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 1rem; font-weight: 800; color: #0ea5e9; text-transform: uppercase;">Expected Cash</span>
+                <strong style="font-size: 1.5rem; font-weight: 800; color: #0ea5e9;">${expected} Tk</strong>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 12px; text-align: center; box-shadow: 0 2px 4px rgba(22,101,52,0.05);">
+                <div style="font-size: 0.75rem; font-weight: 800; color: #166534; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">Total MFS</div>
+                <div style="font-size: 1.35rem; font-weight: 800; color: #15803d;">${mfsTotal} Tk</div>
+            </div>
+            <div style="background: #fffbeb; border: 1px solid #fde68a; padding: 16px; border-radius: 12px; text-align: center; box-shadow: 0 2px 4px rgba(180,83,9,0.05);">
+                <div style="font-size: 0.75rem; font-weight: 800; color: #b45309; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">ERS Sent (${ersData.count}x)</div>
+                <div style="font-size: 1.35rem; font-weight: 800; color: #d97706;">${ersData.total} Tk</div>
+            </div>
+        </div>
+
+        <div class="admin-form-card" style="padding: 0; margin-bottom: 16px; overflow: hidden; border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+            <div style="background: #f8fafc; padding: 16px; border-bottom: 1px solid var(--border-color);">
+                <div style="font-size: 0.85rem; font-weight: 800; color: #334155; text-transform: uppercase; letter-spacing: 0.5px;">Live Inventory Grid</div>
+            </div>
+            <div style="padding: 0 16px;">
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; padding: 12px 0; border-bottom: 2px solid var(--border-color); font-size: 0.7rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
+                    <div>Item</div>
+                    <div style="text-align: center;">Start</div>
+                    <div style="text-align: center;">In/Out</div>
+                    <div style="text-align: center;">Sold</div>
+                    <div style="text-align: center; color: #0ea5e9;">Exp.</div>
+                </div>
+                ${invRows}
+            </div>
+        </div>
+
+        <div style="display: flex; align-items: center; justify-content: space-between; background: var(--surface-color); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+            <span style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary);">Digital Services Processed</span>
+            <span style="background: #ede9fe; color: #8b5cf6; padding: 6px 16px; border-radius: 20px; font-size: 1rem; font-weight: 800;">${servicesCount}</span>
+        </div>
+    `;
+}
+
 // ==========================================
-//     ENGINE B: DESK DASHBOARD LOGIC
+//   ENGINE B: DESK DASHBOARD LOGIC
 // ==========================================
 async function renderDeskDashboard(targetDeskId = currentDeskId) {
     if (!targetDeskId) return;
 
     let filterVal = document.getElementById('desk-history-filter') ? document.getElementById('desk-history-filter').value : 'all';
-    let deskCashSales = 0, mgrDropRcv = 0;
-    let deskItemsSold = {}; 
-    let deskErsCount = 0, deskErsTotal = 0; 
     let historyHTML = '';
+    
     let deskOpeningCash = 0;
     let activeSessionId = null;
+    let activeOpeningInv = {};
 
     const targetDateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
     const isToday = targetDateStr === getStrictDate();
 
     if (targetDeskId === currentDeskId && isToday && currentSessionId) {
         activeSessionId = currentSessionId;
-        deskOpeningCash = currentOpeningCash; 
+        deskOpeningCash = currentOpeningCash;
+        activeOpeningInv = currentOpeningInv;
     } else {
         try {
             const sessSnap = await getDocs(query(collection(db, 'sessions'), where('dateStr', '==', targetDateStr)));
@@ -2168,10 +2250,19 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
                 activeSessionId = bestSession.id;
                 if (bestSession.openingBalances) {
                     deskOpeningCash = parseFloat(bestSession.openingBalances.cash) || 0;
+                    activeOpeningInv = bestSession.openingBalances.inventory || {};
                 }
             }
         } catch(e) { console.error(e); }
     }
+
+    let deskCashSales = 0, mgrDropRcv = 0, deskMfs = 0, deskErsCount = 0, deskErsTotal = 0, servicesCount = 0;
+    let invStats = {};
+    
+    getPhysicalItems().forEach(item => {
+        let o = activeOpeningInv[item] || 0;
+        invStats[item] = { open: o, inOut: 0, sold: 0, rem: o };
+    });
 
     [...transactions].reverse().forEach(tx => {
         if (tx.isDeleted) return;
@@ -2180,6 +2271,8 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
         let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
         let safeMfsAmt = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0); 
         
+        deskMfs += safeMfsAmt;
+
         if (tx.type === 'adjustment' && tx.name === 'Physical Cash') {
             mgrDropRcv += safeCashAmt; 
         } else if (tx.type !== 'adjustment' && tx.type !== 'transfer_out' && tx.type !== 'transfer_in') {
@@ -2188,8 +2281,21 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
             if (tx.name === 'ERS Flexiload') {
                 deskErsCount += Math.abs(tx.qty);
                 deskErsTotal += tx.amount;
-            } else if (tx.name !== 'Physical Cash') {
-                deskItemsSold[tx.name] = (deskItemsSold[tx.name] || 0) + Math.abs(tx.qty);
+            } else if (!globalInventoryGroups.includes(tx.trackAs) && tx.name !== 'Physical Cash') {
+                servicesCount += Math.abs(tx.qty);
+            }
+        }
+
+        if (globalInventoryGroups.includes(tx.trackAs)) {
+            let trackAs = tx.trackAs;
+            let q = Math.abs(tx.qty);
+            
+            if (tx.type === 'transfer_in') { invStats[trackAs].inOut += q; invStats[trackAs].rem += q; }
+            else if (tx.type === 'transfer_out') { invStats[trackAs].inOut -= q; invStats[trackAs].rem -= q; }
+            else if (tx.type === 'adjustment') { invStats[trackAs].inOut += q; invStats[trackAs].rem += q; }
+            else { 
+                invStats[trackAs].sold += q; 
+                invStats[trackAs].rem -= q; 
             }
         }
         
@@ -2224,29 +2330,10 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
         `;
     });
 
-    if(document.getElementById('desk-tot-opening')) document.getElementById('desk-tot-opening').innerText = deskOpeningCash + ' ' + userCurrency;
-    if(document.getElementById('desk-tot-cash-sales')) document.getElementById('desk-tot-cash-sales').innerText = deskCashSales + ' ' + userCurrency;
-    if(document.getElementById('desk-tot-manager')) document.getElementById('desk-tot-manager').innerText = mgrDropRcv + ' ' + userCurrency;
-    if(document.getElementById('desk-tot-expected-cash')) document.getElementById('desk-tot-expected-cash').innerText = (deskOpeningCash + deskCashSales + mgrDropRcv) + ' ' + userCurrency;
+    let cashMath = { opening: deskOpeningCash, sales: deskCashSales, drops: mgrDropRcv, expected: (deskOpeningCash + deskCashSales + mgrDropRcv) };
+    let ersData = { count: deskErsCount, total: deskErsTotal };
 
-    let invHTML = '';
-    
-    if (deskErsCount > 0) {
-        invHTML += `<div class="report-row" style="color: var(--accent-color); border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 8px;">
-                        <span>ERS Disbursed (${deskErsCount}x):</span> 
-                        <span class="report-total">${deskErsTotal} Tk</span>
-                    </div>`;
-    }
-
-    for (const [name, qty] of Object.entries(deskItemsSold)) {
-        invHTML += `<div class="report-row"><span>${name}:</span> <span class="report-total">${qty}</span></div>`;
-    }
-    
-    let titleEl = document.getElementById('desk-inventory-title');
-    if(titleEl) titleEl.innerText = "Desk Items & Services Sold";
-
-    document.getElementById('desk-inventory-list').innerHTML = invHTML || '<div class="report-row" style="color: var(--text-secondary); font-style: italic;">No items sold yet</div>';
-    
+    document.getElementById('live-dashboard-wrapper').innerHTML = generateDashboardHTML(cashMath, deskMfs, ersData, invStats, servicesCount);
     document.getElementById('desk-history-log').innerHTML = historyHTML || '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg><p>Drawer is empty</p></div>';
 
     try {
