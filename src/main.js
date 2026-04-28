@@ -332,11 +332,10 @@ async function loadFloorMap() {
 
     try {
         const desksSnapshot = await getDocs(collection(db, 'desks'));
-        let deskHTML = '';
+        let sharedDesksHTML = '';
         let personalDeskHTML = '';
         
         const personalDeskId = 'personal_' + currentUser.uid;
-        const personalDeskName = 'Personal Drawer (' + (userNickname || userDisplayName.split(' ')[0]) + ')';
         let foundPersonal = false;
 
         if (desksSnapshot.empty) {
@@ -349,58 +348,78 @@ async function loadFloorMap() {
         desksSnapshot.forEach(docSnap => {
             const desk = docSnap.data();
             const isOpen = desk.status === 'open';
+            const statusDot = isOpen ? '<div style="width: 10px; height: 10px; border-radius: 50%; background-color: #10b981; box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);"></div>' : '<div style="width: 10px; height: 10px; border-radius: 50%; background-color: #94a3b8;"></div>';
+            const statusText = isOpen ? '<span style="color: #10b981; font-size: 0.8rem; font-weight: 600;">Open</span>' : '<span style="color: #94a3b8; font-size: 0.8rem; font-weight: 600;">Closed</span>';
             
             if (docSnap.id === personalDeskId) {
                 foundPersonal = true;
-                const btnColor = isOpen ? '#10b981' : '#8b5cf6'; 
-                const actionText = isOpen ? 'Join Personal Drawer' : 'Open Personal Drawer';
-                
                 personalDeskHTML = `
-                    <div class="admin-form-card" style="margin-bottom: 24px; padding: 16px; border-left: 4px solid ${btnColor}; background: #f8fafc;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                            <h3 style="margin: 0; font-size: 1.2rem; color: #0f172a;">${desk.name}</h3>
-                            <span style="font-size: 0.8rem; font-weight: bold; color: ${btnColor}; background: ${isOpen ? '#d1fae5' : '#ede9fe'}; padding: 4px 8px; border-radius: 12px;">
-                                ${isOpen ? 'OPEN' : 'CLOSED'}
-                            </span>
+                    <div style="margin-bottom: 32px;">
+                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; margin-left: 4px;">My Workspace</div>
+                        <div class="admin-form-card" style="padding: 16px; margin-bottom: 0; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.04);" onclick="handleDeskSelect('${docSnap.id}', 'Personal Drawer', '${desk.status}', '${desk.currentSessionId}')">
+                            <div style="display: flex; align-items: center; gap: 16px;">
+                                <div style="width: 48px; height: 48px; border-radius: 12px; background: #ede9fe; color: #8b5cf6; display: flex; align-items: center; justify-content: center;">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+                                </div>
+                                <div>
+                                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #0f172a;">Personal Drawer</h3>
+                                    <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
+                                        ${statusDot} ${statusText}
+                                    </div>
+                                </div>
+                            </div>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                         </div>
-                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px;">Operate independently from shared floor desks.</p>
-                        <button class="btn-primary-full" style="background: ${btnColor};" onclick="handleDeskSelect('${docSnap.id}', '${desk.name}', '${desk.status}', '${desk.currentSessionId}')">
-                            ${actionText}
-                        </button>
                     </div>
                 `;
             } else if (!desk.isPersonal && docSnap.id !== 'sandbox') {
-                const btnColor = isOpen ? '#10b981' : '#0ea5e9'; 
-                const actionText = isOpen ? 'Join Active Desk' : 'Open Desk';
-
-                deskHTML += `
-                    <div class="admin-form-card" style="margin-bottom: 0; padding: 16px; border-left: 4px solid ${btnColor};">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                            <h3 style="margin: 0; font-size: 1.2rem; color: #0f172a;">${desk.name}</h3>
-                            <span style="font-size: 0.8rem; font-weight: bold; color: ${btnColor}; background: ${isOpen ? '#d1fae5' : '#e0f2fe'}; padding: 4px 8px; border-radius: 12px;">
-                                ${isOpen ? 'OPEN' : 'CLOSED'}
-                            </span>
+                sharedDesksHTML += `
+                    <div class="admin-form-card" style="padding: 16px; margin-bottom: 12px; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.02);" onclick="handleDeskSelect('${docSnap.id}', '${desk.name}', '${desk.status}', '${desk.currentSessionId}')">
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <div style="width: 48px; height: 48px; border-radius: 12px; background: #f1f5f9; color: #475569; display: flex; align-items: center; justify-content: center;">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                            </div>
+                            <div>
+                                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #0f172a;">${desk.name}</h3>
+                                <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
+                                    ${statusDot} ${statusText}
+                                </div>
+                            </div>
                         </div>
-                        <button class="btn-primary-full" style="background: ${btnColor};" onclick="handleDeskSelect('${docSnap.id}', '${desk.name}', '${desk.status}', '${desk.currentSessionId}')">
-                            ${actionText}
-                        </button>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                     </div>
                 `;
             }
         });
 
         if (!foundPersonal) {
-            await setDoc(doc(db, 'desks', personalDeskId), { name: personalDeskName, status: 'closed', currentSessionId: null, isPersonal: true });
+            await setDoc(doc(db, 'desks', personalDeskId), { name: 'Personal Drawer', status: 'closed', currentSessionId: null, isPersonal: true });
             personalDeskHTML = `
-                <div class="admin-form-card" style="margin-bottom: 24px; padding: 16px; border-left: 4px solid #8b5cf6; background: #f8fafc;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <h3 style="margin: 0; font-size: 1.2rem; color: #0f172a;">${personalDeskName}</h3>
-                        <span style="font-size: 0.8rem; font-weight: bold; color: #8b5cf6; background: #ede9fe; padding: 4px 8px; border-radius: 12px;">CLOSED</span>
+                <div style="margin-bottom: 32px;">
+                    <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; margin-left: 4px;">My Workspace</div>
+                    <div class="admin-form-card" style="padding: 16px; margin-bottom: 0; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.04);" onclick="handleDeskSelect('${personalDeskId}', 'Personal Drawer', 'closed', 'null')">
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <div style="width: 48px; height: 48px; border-radius: 12px; background: #ede9fe; color: #8b5cf6; display: flex; align-items: center; justify-content: center;">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+                            </div>
+                            <div>
+                                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #0f172a;">Personal Drawer</h3>
+                                <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
+                                    <div style="width: 10px; height: 10px; border-radius: 50%; background-color: #94a3b8;"></div> <span style="color: #94a3b8; font-size: 0.8rem; font-weight: 600;">Closed</span>
+                                </div>
+                            </div>
+                        </div>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                     </div>
-                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px;">Operate independently from shared floor desks.</p>
-                    <button class="btn-primary-full" style="background: #8b5cf6;" onclick="handleDeskSelect('${personalDeskId}', '${personalDeskName}', 'closed', 'null')">
-                        Open Personal Drawer
-                    </button>
+                </div>
+            `;
+        }
+
+        if (sharedDesksHTML) {
+            sharedDesksHTML = `
+                <div style="margin-bottom: 24px;">
+                    <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; margin-left: 4px;">Shared Floor Desks</div>
+                    ${sharedDesksHTML}
                 </div>
             `;
         }
@@ -408,21 +427,15 @@ async function loadFloorMap() {
         let adminToolsHTML = '';
         if (currentUserRole === 'admin') {
             adminToolsHTML = `
-                <div style="margin-top: 32px; border-top: 1px dashed var(--border-color); padding-top: 16px;">
-                    <span style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; text-align: center;">Admin & Developer Tools</span>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="btn-outline" style="flex: 1; padding: 12px 8px; font-size: 0.85rem; font-weight: 600; border-color: var(--border-color); color: var(--text-secondary); display: flex; flex-direction: column; align-items: center; gap: 6px; background: transparent; transition: all 0.2s;" onclick="adminBypass()">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Global View
-                        </button>
-                        <button class="btn-outline" style="flex: 1; padding: 12px 8px; font-size: 0.85rem; font-weight: 600; border-color: var(--border-color); color: var(--text-secondary); display: flex; flex-direction: column; align-items: center; gap: 6px; background: transparent; transition: all 0.2s;" onclick="enterSandboxMode()">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v7.31"/><path d="M14 9.3V1.99"/><path d=\"M8.5 2h7\"/><path d="M14 9.3a6.5 6.5 0 1 1-4 0"/><path d=\"M5.52 16h12.96\"/></svg> Test Env
-                        </button>
-                    </div>
+                <div style="margin-top: auto; padding-top: 24px; display: flex; gap: 16px; justify-content: center; opacity: 0.8;">
+                    <button style="border: none; background: transparent; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); cursor: pointer;" onclick="adminBypass()">Global View</button>
+                    <span style="color: var(--border-color);">|</span>
+                    <button style="border: none; background: transparent; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); cursor: pointer;" onclick="enterSandboxMode()">Test Sandbox</button>
                 </div>
             `;
         }
         
-        container.innerHTML = personalDeskHTML + deskHTML + adminToolsHTML;
+        container.innerHTML = personalDeskHTML + sharedDesksHTML + adminToolsHTML;
     } catch (e) { container.innerHTML = `<div style="color:#ef4444; padding:16px;">Error loading map. Refresh app.</div>`; }
 }
 
@@ -948,9 +961,18 @@ async function renderLiveFloorTab() {
             const isMyDesk = sid === currentSessionId;
             const badge = isMyDesk ? '<span style="background:#0ea5e9; color:white; font-size:0.7rem; padding:2px 6px; border-radius:12px; font-weight:bold; margin-left: 8px;">YOUR DESK</span>' : '';
 
+            let displayDeskName = session.deskId.replace('_', ' ').toUpperCase();
+            if (session.deskId.startsWith('personal_')) {
+                if (isMyDesk) {
+                    displayDeskName = "My Drawer";
+                } else {
+                    displayDeskName = `${session.openedBy.split(' ')[0]}'s Drawer`;
+                }
+            }
+
             let actionBtn = isMyDesk 
                 ? `<button class="btn-primary-full" style="width: 100%; background: #0ea5e9; padding: 10px; margin-top: 12px;" onclick="openMyDeskDashboard()">Open My Drawer</button>`
-                : `<button class="btn-outline" style="width: 100%; color: #8b5cf6; border-color: #8b5cf6; background: transparent; padding: 10px; margin-top: 12px;" onclick="peekAtDesk('${session.deskId}', '${session.deskId.replace('_', ' ').toUpperCase()}')">View Details</button>`;
+                : `<button class="btn-outline" style="width: 100%; color: #8b5cf6; border-color: #8b5cf6; background: transparent; padding: 10px; margin-top: 12px;" onclick="peekAtDesk('${session.deskId}', '${displayDeskName}')">View Details</button>`;
 
             let agentNamesStr = 'Loading...';
             try {
@@ -964,7 +986,7 @@ async function renderLiveFloorTab() {
                 <div class="admin-form-card" style="margin-bottom: 0; padding: 16px; border-top: 4px solid ${isMyDesk ? '#0ea5e9' : '#8b5cf6'};">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
                         <h4 style="margin: 0; color: var(--text-primary); font-size: 1.1rem; display: flex; align-items: center;">
-                            ${session.deskId.replace('_', ' ').toUpperCase()} ${badge}
+                            ${displayDeskName} ${badge}
                         </h4>
                         <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; text-align: right; max-width: 50%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                             ${agentNamesStr}

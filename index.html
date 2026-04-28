@@ -560,10 +560,9 @@
     </div>
 
     <div id="modal-desk-select" class="modal-overlay" style="z-index: 9000; background-color: var(--bg-color);">
-        <div class="modal-content" style="height: 100dvh; max-height: 100dvh; display: flex; flex-direction: column; justify-content: center; border-radius: 0; padding: 24px;">
-            <h2 class="modal-title" style="font-size: 2rem; color: var(--accent-color); margin-bottom: 8px;">Floor Map</h2>
-            <p style="text-align: center; color: var(--text-secondary); margin-bottom: 32px;">Select your desk to begin your shift.</p>
-            <div id="desk-list-container" style="display: flex; flex-direction: column; gap: 16px;">
+        <div class="modal-content" style="height: 100dvh; max-height: 100dvh; display: flex; flex-direction: column; justify-content: flex-start; border-radius: 0; padding: 24px; padding-top: calc(32px + env(safe-area-inset-top));">
+            <h2 style="font-size: 1.75rem; font-weight: 700; color: var(--text-primary); margin-bottom: 32px; letter-spacing: -0.5px;">Where are you working today?</h2>
+            <div id="desk-list-container" style="display: flex; flex-direction: column; gap: 0;">
                 <div class="spinner" style="align-self: center;"></div>
             </div>
         </div>
