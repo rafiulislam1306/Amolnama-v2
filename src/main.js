@@ -636,27 +636,34 @@ async function initiateCloseDesk() {
     }
 
     const modalContent = `
-        <h3 class="modal-title" style="color: #0f172a; margin-bottom: 4px;">Close ${currentDeskName}</h3>
-        <p style="text-align: center; color: #64748b; font-size: 0.9rem; margin-bottom: 16px;">Step 1: Physical Reconciliation</p>
-        
-        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 12px; border-radius: 8px; margin-bottom: 24px; text-align: center;">
-            <span style="font-size: 0.85rem; color: #166534; font-weight: 600;">Total MFS Collected Today:</span>
-            <div style="font-size: 1.25rem; font-weight: bold; color: #15803d;">${expectedClosingStats.mfs} Tk</div>
+        <div style="background-color: var(--surface-color); padding: calc(16px + env(safe-area-inset-top)) 20px 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 10;">
+            <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">Close ${currentDeskName}</h3>
+            <button style="background: none; border: none; color: #ef4444; font-weight: 600; font-size: 1rem; padding: 4px 0; cursor: pointer;" onclick="closeModal('modal-close-desk')">Cancel</button>
         </div>
 
-        <div class="admin-form-card" style="padding: 16px; margin-bottom: 16px;">
-            <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #64748b; margin-bottom: 8px;">Actual Cash in Drawer</label>
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <span style="font-size: 1.5rem; font-weight: bold;">Tk</span>
-                <input type="number" id="actual-cash-input" class="settings-input" style="font-size: 1.5rem; padding: 12px;" placeholder="0">
+        <div style="flex: 1; overflow-y: auto; padding: 24px 20px; padding-bottom: calc(24px + env(safe-area-inset-bottom));">
+            <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 24px;">Step 1 of 2: Reconcile your drawer.</p>
+            
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 12px; margin-bottom: 24px; text-align: center; box-shadow: 0 2px 8px rgba(22, 101, 52, 0.05);">
+                <span style="font-size: 0.85rem; color: #166534; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total MFS Collected Today</span>
+                <div style="font-size: 1.75rem; font-weight: 800; color: #15803d; margin-top: 4px;">${expectedClosingStats.mfs} Tk</div>
             </div>
+
+            <div class="admin-form-card" style="margin-bottom: 24px; padding: 20px; border: 2px solid #0ea5e9; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.1);">
+                <label style="display: block; font-size: 0.85rem; font-weight: 700; color: #0ea5e9; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Actual Cash in Drawer</label>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 1.75rem; font-weight: bold; color: #0ea5e9;">Tk</span>
+                    <input type="number" id="actual-cash-input" class="settings-input" style="font-size: 1.75rem; font-weight: 800; padding: 12px 16px; border-color: #0ea5e9; color: #0ea5e9; background: #f0f9ff;" placeholder="0">
+                </div>
+            </div>
+
+            <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Count Physical Inventory</div>
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 32px;">
+                ${invHTML}
+            </div>
+
+            <button class="btn-primary-full" style="padding: 16px; font-size: 1.1rem; background-color: #0ea5e9;" onclick="processCloseDeskStep2()">NEXT: MANAGER DROP ➡️</button>
         </div>
-        <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
-            <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #64748b; margin-bottom: 16px;">Count Physical Inventory</label>
-            ${invHTML}
-        </div>
-        <button class="btn-primary-full" onclick="processCloseDeskStep2()">NEXT STEP ➡️</button>
-        <button class="modal-close" style="color: #ef4444;" onclick="closeModal('modal-close-desk')">Cancel</button>
     `;
     document.getElementById('close-desk-content').innerHTML = modalContent;
     openModal('modal-close-desk');
@@ -681,24 +688,33 @@ function processCloseDeskStep2() {
     else warningHTML = `<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 24px; text-align: center;"><h4 style="color: #0ea5e9; margin-bottom: 0;">DRAWER IS PERFECTLY BALANCED</h4></div>`;
 
     const modalContent = `
-        <h3 class="modal-title" style="color: #0f172a; margin-bottom: 4px;">Finalize Handover</h3>
-        <p style="text-align: center; color: #64748b; font-size: 0.9rem; margin-bottom: 24px;">Step 2: Manager Drop & Close</p>
-        ${warningHTML}
-        <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
-            <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #64748b; margin-bottom: 8px;">Cash Drop to Manager</label>
-            <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 12px;">How much of the <strong>${actualCash} Tk</strong> are you handing to the manager?</p>
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <span style="font-size: 1.5rem; font-weight: bold;">Tk</span>
-                <input type="number" id="manager-drop-input" class="settings-input" style="font-size: 1.5rem; padding: 12px;" placeholder="0" oninput="calculateRetained()">
-            </div>
-            <div style="margin-top: 16px; font-size: 0.95rem; color: #475569; padding-top: 12px; border-top: 1px solid #e2e8f0;">
-                Retained Drawer Float: <strong id="retained-float-display" style="color: #0ea5e9;">${actualCash} Tk</strong>
-            </div>
+        <div style="background-color: var(--surface-color); padding: calc(16px + env(safe-area-inset-top)) 20px 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 10;">
+            <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">Finalize Handover</h3>
+            <button style="background: none; border: none; color: #64748b; font-weight: 600; font-size: 1rem; padding: 4px 0; cursor: pointer;" onclick="initiateCloseDesk()">Back</button>
         </div>
-        <button class="btn-primary-full" style="background: ${variance < 0 ? '#ef4444' : '#0ea5e9'};" onclick="finalizeCloseDesk(${variance})">
-            ${variance < 0 ? 'FORCE CLOSE & LOG SHORTAGE' : 'CONFIRM & CLOSE DESK'}
-        </button>
-        <button class="modal-close" style="color: #64748b;" onclick="initiateCloseDesk()">Go Back to Edit Counts</button>
+
+        <div style="flex: 1; overflow-y: auto; padding: 24px 20px; padding-bottom: calc(24px + env(safe-area-inset-bottom));">
+            <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 24px;">Step 2 of 2: Log your manager cash drop.</p>
+            
+            ${warningHTML}
+
+            <div class="admin-form-card" style="margin-bottom: 32px; padding: 20px; border: 2px solid #8b5cf6; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.1);">
+                <label style="display: block; font-size: 0.85rem; font-weight: 700; color: #8b5cf6; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Manager Drop</label>
+                <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px;">How much of the <strong>${actualCash} Tk</strong> are you handing to the manager?</p>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 1.75rem; font-weight: bold; color: #8b5cf6;">Tk</span>
+                    <input type="number" id="manager-drop-input" class="settings-input" style="font-size: 1.75rem; font-weight: 800; padding: 12px 16px; border-color: #8b5cf6; color: #8b5cf6; background: #f5f3ff;" placeholder="0" oninput="calculateRetained()">
+                </div>
+                <div style="margin-top: 20px; font-size: 1rem; color: #475569; padding-top: 16px; border-top: 1px dashed #cbd5e1; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 600;">Retained Float:</span> 
+                    <strong id="retained-float-display" style="color: #0f172a; font-size: 1.2rem;">${actualCash} Tk</strong>
+                </div>
+            </div>
+
+            <button class="btn-primary-full" style="padding: 16px; font-size: 1.1rem; background: ${variance < 0 ? '#ef4444' : '#8b5cf6'};" onclick="finalizeCloseDesk(${variance})">
+                ${variance < 0 ? 'FORCE CLOSE & LOG SHORTAGE' : 'CONFIRM & CLOSE DESK'}
+            </button>
+        </div>
     `;
     document.getElementById('close-desk-content').innerHTML = modalContent;
 }
