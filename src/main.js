@@ -975,7 +975,6 @@ async function renderLiveFloorTab() {
       if(!invDisplay) invDisplay = '<span style="font-size:0.8rem; color:#94a3b8;">No physical stock.</span>';
 
             const isMyDesk = sid === currentSessionId;
-            const badge = isMyDesk ? '<span style="background:#0ea5e9; color:white; font-size:0.7rem; padding:2px 6px; border-radius:12px; font-weight:bold; margin-left: 8px;">YOUR DESK</span>' : '';
 
             let displayDeskName = session.deskId.replace('_', ' ').toUpperCase();
             if (session.deskId.startsWith('personal_')) {
@@ -987,7 +986,7 @@ async function renderLiveFloorTab() {
             }
 
             let actionBtn = isMyDesk 
-                ? `<button class="btn-primary-full" style="width: 100%; background: #0ea5e9; padding: 10px; margin-top: 12px;" onclick="openMyDeskDashboard()">Open My Drawer</button>`
+                ? `<button class="btn-primary-full" style="width: 100%; background: #0ea5e9; padding: 10px; margin-top: 12px; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);" onclick="openMyDeskDashboard()">Open My Drawer</button>`
                 : `<button class="btn-outline" style="width: 100%; color: #8b5cf6; border-color: #8b5cf6; background: transparent; padding: 10px; margin-top: 12px;" onclick="peekAtDesk('${session.deskId}', '${displayDeskName}')">View Details</button>`;
 
             let agentNamesStr = 'Loading...';
@@ -998,24 +997,28 @@ async function renderLiveFloorTab() {
                 agentNamesStr = names.length > 0 ? names.join(', ') : 'Empty';
             } catch(e) { agentNamesStr = 'Unknown'; }
 
+            let cardStyle = isMyDesk 
+                ? `margin-bottom: 0; padding: 16px; background: #f0f9ff; border: 1px solid #bae6fd; border-left: 4px solid #0ea5e9; border-radius: 12px; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.1);`
+                : `margin-bottom: 0; padding: 16px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);`;
+
             floorHTML += `
-                <div class="admin-form-card" style="margin-bottom: 0; padding: 16px; border-top: 4px solid ${isMyDesk ? '#0ea5e9' : '#8b5cf6'};">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
-                        <h4 style="margin: 0; color: var(--text-primary); font-size: 1.1rem; display: flex; align-items: center;">
-                            ${displayDeskName} ${badge}
+                <div style="${cardStyle}">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid ${isMyDesk ? '#bae6fd' : 'var(--border-color)'}; padding-bottom: 12px;">
+                        <h4 style="margin: 0; color: ${isMyDesk ? '#0369a1' : 'var(--text-primary)'}; font-size: 1.15rem; font-weight: 700; display: flex; align-items: center;">
+                            ${displayDeskName}
                         </h4>
-                        <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; text-align: right; max-width: 50%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        <div style="font-size: 0.85rem; color: ${isMyDesk ? '#0284c7' : 'var(--text-secondary)'}; font-weight: 600; text-align: right; max-width: 50%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                             ${agentNamesStr}
                         </div>
                     </div>
                     
                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-                        <span style="font-size: 0.85rem; font-weight: bold; color: var(--text-secondary);">Live Cash:</span>
+                        <span style="font-size: 0.85rem; font-weight: bold; color: ${isMyDesk ? '#0284c7' : 'var(--text-secondary)'};">Live Cash:</span>
                         <span style="font-size: 1.1rem; font-weight: bold; color: #10b981;">${liveCash} Tk</span>
                     </div>
 
-                    <div style="margin-bottom: 16px; padding-top: 12px; border-top: 1px dashed var(--border-color);">
-                        <span style="display: block; font-size: 0.8rem; font-weight: bold; color: var(--text-secondary); margin-bottom: 6px;">Remaining Physical Stock:</span>
+                    <div style="margin-bottom: 16px; padding-top: 12px; border-top: 1px dashed ${isMyDesk ? '#bae6fd' : 'var(--border-color)'};">
+                        <span style="display: block; font-size: 0.8rem; font-weight: bold; color: ${isMyDesk ? '#0284c7' : 'var(--text-secondary)'}; margin-bottom: 6px;">Remaining Physical Stock:</span>
                         <div>${invDisplay}</div>
                     </div>
                     
