@@ -1977,25 +1977,41 @@ function fixPastManagerDrops() {
 // ==========================================
 function renderPersonalReport() {
     let filterVal = document.getElementById('personal-history-filter') ? document.getElementById('personal-history-filter').value : 'all';
-    let myCash = 0, myMfs = 0, myErs = 0;
-    let myItemsSold = {}; let historyHTML = '';
+    
+    // Agent Scorecard Metrics
+    let myCash = 0, myMfs = 0;
+    let myErsCount = 0, myErsTotal = 0;
+    let myServicesCount = 0;
+    let myItemsSold = {}; 
+    let historyHTML = '';
 
     [...transactions].reverse().forEach(tx => {
         if (tx.isDeleted) return;
-        if (tx.agentId !== currentUser.uid) return;
+        if (tx.agentId !== currentUser.uid) return; // ONLY my actions
         if (tx.isRemoteTransfer) return;
 
         let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
         let safeMfsAmt = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0);
         
+        // SCORECARD MATH: Only count real sales and services. 
+        // We strictly ignore adjustment (Manager Drops/Floats) and transfers (Stock Movement).
         if (tx.type !== 'adjustment' && tx.type !== 'transfer_out' && tx.type !== 'transfer_in') {
-            myCash += safeCashAmt; myMfs += safeMfsAmt;
-            if (tx.name === 'ERS Flexiload') myErs += tx.amount;
-            else if (tx.name !== 'Physical Cash') {
+            myCash += safeCashAmt; 
+            myMfs += safeMfsAmt;
+            
+            if (tx.name === 'ERS Flexiload') {
+                myErsCount += Math.abs(tx.qty);
+                myErsTotal += tx.amount;
+            } else if (!globalInventoryGroups.includes(tx.trackAs) && tx.name !== 'Physical Cash') {
+                // If it's not a physical item (e.g., MNP, Ownership Transfer, FOC Corporate)
+                myServicesCount += Math.abs(tx.qty);
+            } else if (globalInventoryGroups.includes(tx.trackAs)) {
+                // If it's a physical item sold (e.g., Skitto Kit)
                 myItemsSold[tx.name] = (myItemsSold[tx.name] || 0) + Math.abs(tx.qty); 
             }
         }
         
+        // FILTER & UI RENDERING
         let catItem = Object.values(globalCatalog).find(c => c.name === tx.name);
         let txCat = catItem ? catItem.cat : null;
         let showTx = false;
@@ -2011,6 +2027,7 @@ function renderPersonalReport() {
         let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
         let badges = '';
         
+        // Audit Trail Badges
         if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
         if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
         if (tx.isRestored) badges += `<span style="font-size: 0.7rem; background: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Restored</span>`;
@@ -2033,16 +2050,57 @@ function renderPersonalReport() {
         `;
     });
 
-    if(document.getElementById('tot-cash-sales')) document.getElementById('tot-cash-sales').innerText = myCash + ' ' + userCurrency;
-    if(document.getElementById('tot-mfs')) document.getElementById('tot-mfs').innerText = myMfs + ' ' + userCurrency;
-    if(document.getElementById('tot-ers')) document.getElementById('tot-ers').innerText = myErs + ' ' + userCurrency;
-    if(document.getElementById('report-total-all')) document.getElementById('report-total-all').innerText = (myCash + myMfs) + ' ' + userCurrency;
-
-    let invHTML = '';
-    for (const [name, qty] of Object.entries(myItemsSold)) invHTML += `<div class="report-row"><span>${name}:</span> <span class="report-total">${qty}</span></div>`;
-    document.getElementById('inventory-list').innerHTML = invHTML || '<div class="report-row" style="color: var(--text-secondary); font-style: italic;">No items sold yet</div>';
+    // UPDATE UI METRICS
+    if(document.getElementById('report-total-all')) {
+        document.getElementById('report-total-all').innerText = (myCash + myMfs) + ' ' + userCurrency;
+    }
     
-    document.getElementById('history-log').innerHTML = historyHTML || '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg><p>No transactions today</p></div>';
+    if(document.getElementById('tot-cash-sales')) {
+        document.getElementById('tot-cash-sales').innerText = myCash + ' ' + userCurrency;
+        document.getElementById('tot-cash-sales').style.color = '#0ea5e9';
+    }
+    if(document.getElementById('tot-mfs')) {
+        document.getElementById('tot-mfs').innerText = myMfs + ' ' + userCurrency;
+        document.getElementById('tot-mfs').style.color = '#10b981';
+    }
+    if(document.getElementById('tot-ers')) {
+        document.getElementById('tot-ers').innerText = myErsTotal + ' ' + userCurrency;
+        document.getElementById('tot-ers').style.color = '#f59e0b';
+    }
+
+    // PREMIUM SCORECARD: Items & Services List
+    let invHTML = '';
+    
+    if (myServicesCount > 0) {
+        invHTML += `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 10px; margin-bottom: 16px;">
+                <span style="font-weight: 700; color: #7c3aed; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px;">Digital Services</span>
+                <span style="font-weight: 800; color: #6d28d9; font-size: 1.1rem; background: #ede9fe; padding: 4px 12px; border-radius: 20px;">${myServicesCount}</span>
+            </div>
+        `;
+    }
+
+    for (const [name, qty] of Object.entries(myItemsSold)) {
+        invHTML += `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 4px; border-bottom: 1px solid var(--border-color);">
+                <span style="font-weight: 600; color: var(--text-primary); font-size: 1rem;">${name}</span>
+                <span style="font-weight: 800; color: var(--text-secondary); font-size: 1.1rem;">${qty}x</span>
+            </div>
+        `;
+    }
+
+    document.getElementById('inventory-list').innerHTML = invHTML || '<div class="report-row" style="color: var(--text-secondary); font-style: italic; padding: 12px 4px;">No items sold yet</div>';
+    
+    // UPDATE HISTORY LOG
+    document.getElementById('history-log').innerHTML = historyHTML || `
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+            </svg>
+            <p>No transactions today</p>
+        </div>`;
 }
 
 function buildLifecycleText(txList, openingInv) {
