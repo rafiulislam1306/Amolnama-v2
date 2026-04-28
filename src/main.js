@@ -865,6 +865,40 @@ function saveMainStock() {
     showFlashMessage(navigator.onLine ? msg : "Offline: Stock queued");
 }
 
+function openReturnStockModal() {
+    if(!currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
+    document.getElementById('return-stock-qty').value = '';
+    let selectEl = document.getElementById('return-stock-item');
+    selectEl.innerHTML = '';
+    getPhysicalItems().forEach(itemName => {
+        let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
+        selectEl.appendChild(opt);
+    });
+    openModal('modal-return-stock');
+}
+
+function saveReturnStock() {
+    let qty = parseInt(document.getElementById('return-stock-qty').value) || 0;
+    if (qty <= 0) { showAppAlert("Invalid Input", "Enter a valid quantity."); return; }
+    let itemName = document.getElementById('return-stock-item').value;
+
+    // The Stock Firewall ensures the agent actually has the stock to return
+    if (!passStockFirewall(itemName, qty)) return;
+
+    const tx = {
+        id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty,
+        payment: 'Returned to Main Stock', cashAmt: 0, mfsAmt: 0, isDeleted: false,
+        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        dateStr: getStrictDate(), deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName
+    };
+
+    closeModal('modal-return-stock');
+    let msg = `-${qty}x ${itemName} Returned!`;
+    
+    addDoc(collection(db, 'transactions'), tx).catch(e => console.error(e));
+    showFlashMessage(navigator.onLine ? msg : "Offline: Return queued");
+}
+
 async function openDeskTransfer() {
     if(!currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
     document.getElementById('desk-transfer-qty').value = '';
@@ -2532,6 +2566,7 @@ window.initiateCloseDesk = initiateCloseDesk; window.processCloseDeskStep2 = pro
 window.finalizeCloseDesk = finalizeCloseDesk; 
 window.openManagerCashModal = openManagerCashModal; window.saveManagerCash = saveManagerCash;
 window.openMainStockModal = openMainStockModal; window.saveMainStock = saveMainStock;
+window.openReturnStockModal = openReturnStockModal; window.saveReturnStock = saveReturnStock;
 window.openDeskTransfer = openDeskTransfer; window.executeDeskTransfer = executeDeskTransfer;
 window.renderLiveFloorTab = renderLiveFloorTab; window.openTransferModal = openTransferModal; window.executeTransfer = executeTransfer;
 window.openEditTx = openEditTx; window.toggleEditSplitFields = toggleEditSplitFields; window.updateSplitTotal = updateSplitTotal; window.showAuditTrail = showAuditTrail;
