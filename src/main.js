@@ -2221,16 +2221,16 @@ function shareDeskReport() {
     else { try { navigator.clipboard.writeText(reportText).then(() => showFlashMessage("Desk Report Copied!")).catch(() => fallbackCopy(reportText)); } catch (e) { fallbackCopy(reportText); } }
 }
 
-function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, servicesCount) {
+function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, deskItemsSold) {
     let { opening, sales, drops, expected } = cashMath;
     
+    // --- 1. BUILD THE SMART ACCORDION FOR PHYSICAL STOCK ---
     let invRows = '';
-    let activeItemCount = 0; // Tracks items with movement for the Smart Summary
+    let activeItemCount = 0; 
     
     for (const [item, d] of Object.entries(invStats)) {
         if (d.open === 0 && d.inOut === 0 && d.sold === 0 && d.rem === 0) continue;
-        
-        activeItemCount++; // We found active stock!
+        activeItemCount++; 
         
         let inOutColor = d.inOut > 0 ? '#10b981' : (d.inOut < 0 ? '#ef4444' : 'var(--text-secondary)');
         let inOutStr = d.inOut > 0 ? `+${d.inOut}` : (d.inOut < 0 ? `${d.inOut}` : `0`);
@@ -2246,18 +2246,28 @@ function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, servicesCo
         `;
     }
 
-    if (!invRows) {
-        invRows = `<div style="padding: 20px; text-align: center; color: var(--text-secondary); font-size: 0.85rem; font-style: italic;">No physical stock recorded today</div>`;
-    }
+    if (!invRows) invRows = `<div style="padding: 20px; text-align: center; color: var(--text-secondary); font-size: 0.85rem; font-style: italic;">No physical stock recorded today</div>`;
     
-    let formattedDrops = drops !== 0 ? drops : '0';
-    
-    // SMART SUMMARY LOGIC: Change color and text based on active items
     let summaryText = activeItemCount > 0 ? `Physical Stock: ${activeItemCount} Active Items` : 'Physical Stock: No Movement';
     let summaryColor = activeItemCount > 0 ? '#0ea5e9' : '#64748b';
     let summaryBg = activeItemCount > 0 ? '#f0f9ff' : '#f8fafc';
     let summaryBorder = activeItemCount > 0 ? '#bae6fd' : 'var(--border-color)';
 
+    // --- 2. BUILD THE UNIFIED FLAT LIST ---
+    let itemsHTML = '';
+    for (const [name, qty] of Object.entries(deskItemsSold)) {
+        itemsHTML += `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 4px; border-bottom: 1px solid var(--border-color);">
+                <span style="font-weight: 600; color: var(--text-primary); font-size: 1rem;">${name}</span>
+                <span style="font-weight: 800; color: var(--text-secondary); font-size: 1.1rem;">${qty}x</span>
+            </div>
+        `;
+    }
+    if (!itemsHTML) itemsHTML = '<div style="color: var(--text-secondary); font-style: italic; padding: 12px 4px;">No items or services sold yet</div>';
+
+    let formattedDrops = drops !== 0 ? drops : '0';
+
+    // --- 3. RETURN THE FINAL ASSEMBLED HTML ---
     return `
         <div class="admin-form-card" style="padding: 16px; margin-bottom: 16px; background: #f8fafc; border: 1px solid #e2e8f0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
             <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px;">Physical Cash Formula</div>
@@ -2311,34 +2321,10 @@ function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, servicesCo
             </div>
         </div>
 
-        ${(function() {
-            if (servicesCount.total === 0) {
-                return `
-                <div style="display: flex; align-items: center; justify-content: space-between; background: var(--surface-color); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 24px;">
-                    <span style="font-size: 0.95rem; font-weight: 700; color: var(--text-secondary);">No Digital Services</span>
-                    <span style="background: #f1f5f9; color: #94a3b8; padding: 4px 12px; border-radius: 20px; font-size: 0.95rem; font-weight: 800;">0</span>
-                </div>`;
-            }
-            
-            let sRows = '';
-            for (const [sName, sQty] of Object.entries(servicesCount.breakdown)) {
-                sRows += `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-top: 1px dashed var(--border-color);">
-                        <span style="font-weight: 600; color: var(--text-primary); font-size: 0.95rem;">${sName}</span>
-                        <span style="font-weight: 800; color: #8b5cf6; font-size: 1rem;">${sQty}x</span>
-                    </div>
-                `;
-            }
-            
-            return `
-            <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px; background: var(--surface-color); border: 1px solid var(--border-color); box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                    <span style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary);">Digital Services Processed</span>
-                    <span style="background: #ede9fe; color: #8b5cf6; padding: 4px 12px; border-radius: 20px; font-size: 0.9rem; font-weight: 800;">${servicesCount.total} Total</span>
-                </div>
-                ${sRows}
-            </div>`;
-        })()}
+        <div style="margin-bottom: 24px;">
+            <div style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; padding: 0 4px; border-bottom: 2px solid var(--border-color); padding-bottom: 8px;">Desk Items & Services Sold</div>
+            ${itemsHTML}
+        </div>
     `;
 }
 
@@ -2384,9 +2370,10 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
         } catch(e) { console.error(e); }
     }
 
+    // Engine Variables
     let deskCashSales = 0, mgrDropRcv = 0, deskMfs = 0, deskErsCount = 0, deskErsTotal = 0;
-    let servicesData = { total: 0, breakdown: {} };
-    let invStats = {};
+    let deskItemsSold = {}; // Tracks BOTH physical and digital in one flat list
+    let invStats = {}; // Strictly for the physical counting accordion
     
     getPhysicalItems().forEach(item => {
         let o = activeOpeningInv[item] || 0;
@@ -2402,6 +2389,7 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
         
         deskMfs += safeMfsAmt;
 
+        // Sales Math & Flat List Generation
         if (tx.type === 'adjustment' && tx.name === 'Physical Cash') {
             mgrDropRcv += safeCashAmt; 
         } else if (tx.type !== 'adjustment' && tx.type !== 'transfer_out' && tx.type !== 'transfer_in') {
@@ -2410,12 +2398,13 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
             if (tx.name === 'ERS Flexiload') {
                 deskErsCount += Math.abs(tx.qty);
                 deskErsTotal += tx.amount;
-            } else if (!globalInventoryGroups.includes(tx.trackAs) && tx.name !== 'Physical Cash') {
-                servicesData.total += Math.abs(tx.qty);
-                servicesData.breakdown[tx.name] = (servicesData.breakdown[tx.name] || 0) + Math.abs(tx.qty);
+            } else if (tx.name !== 'Physical Cash') {
+                // ADD TO FLAT LIST (Captures Skitto Kits, MNP, Ownership Transfers alike)
+                deskItemsSold[tx.name] = (deskItemsSold[tx.name] || 0) + Math.abs(tx.qty);
             }
         }
 
+        // Strict Physical Inventory Grid Math
         if (globalInventoryGroups.includes(tx.trackAs)) {
             let trackAs = tx.trackAs;
             let q = Math.abs(tx.qty);
@@ -2429,6 +2418,7 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
             }
         }
         
+        // Filter Logic for History Log
         let catItem = Object.values(globalCatalog).find(c => c.name === tx.name);
         let txCat = catItem ? catItem.cat : null;
         let showTx = false;
@@ -2463,7 +2453,7 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
     let cashMath = { opening: deskOpeningCash, sales: deskCashSales, drops: mgrDropRcv, expected: (deskOpeningCash + deskCashSales + mgrDropRcv) };
     let ersData = { count: deskErsCount, total: deskErsTotal };
 
-    document.getElementById('live-dashboard-wrapper').innerHTML = generateDashboardHTML(cashMath, deskMfs, ersData, invStats, servicesData);
+    document.getElementById('live-dashboard-wrapper').innerHTML = generateDashboardHTML(cashMath, deskMfs, ersData, invStats, deskItemsSold);
     document.getElementById('desk-history-log').innerHTML = historyHTML || '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg><p>Drawer is empty</p></div>';
 
     try {
