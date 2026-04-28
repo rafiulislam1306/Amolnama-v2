@@ -886,7 +886,15 @@ async function openDeskTransfer() {
         activeSessionsSnap.forEach(docSnap => {
             let deskData = docSnap.data();
             if(deskData.deskId !== currentDeskId) {
-                optionsHTML += `<option value="${deskData.deskId}|${docSnap.id}">${deskData.deskId.replace('_', ' ').toUpperCase()}</option>`;
+                let displayName = deskData.deskId.replace('_', ' ').toUpperCase();
+                
+                // If it's a personal drawer, grab the agent's first name
+                if (deskData.deskId.startsWith('personal_')) {
+                    let agentFirstName = deskData.openedBy ? deskData.openedBy.split(' ')[0] : 'Agent';
+                    displayName = `${agentFirstName}'s Drawer`;
+                }
+                
+                optionsHTML += `<option value="${deskData.deskId}|${docSnap.id}">${displayName}</option>`;
             }
         });
         targetSelect.innerHTML = optionsHTML || '<option value="">No other desks open</option>';
@@ -1020,9 +1028,12 @@ async function renderLiveFloorTab() {
                 }
             }
 
+            // ESCAPE THE APOSTROPHE so it doesn't break the HTML onclick tag
+            let safeDeskName = displayDeskName.replace(/'/g, "\\'");
+
             let actionBtn = isMyDesk 
                 ? `<button class="btn-primary-full" style="width: 100%; background: #0ea5e9; padding: 10px; margin-top: 12px; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);" onclick="openMyDeskDashboard()">Open My Drawer</button>`
-                : `<button class="btn-outline" style="width: 100%; color: #8b5cf6; border-color: #8b5cf6; background: transparent; padding: 10px; margin-top: 12px;" onclick="peekAtDesk('${session.deskId}', '${displayDeskName}')">View Details</button>`;
+                : `<button class="btn-outline" style="width: 100%; color: #8b5cf6; border-color: #8b5cf6; background: transparent; padding: 10px; margin-top: 12px;" onclick="peekAtDesk('${session.deskId}', '${safeDeskName}')">View Details</button>`;
 
             let agentNamesStr = 'Loading...';
             try {
