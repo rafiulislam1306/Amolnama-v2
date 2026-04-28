@@ -2026,7 +2026,7 @@ function renderPersonalReport() {
     // Agent Scorecard Metrics
     let myCash = 0, myMfs = 0;
     let myErsCount = 0, myErsTotal = 0;
-    let myServicesCount = 0;
+    let myServicesData = { total: 0, breakdown: {} };
     let myItemsSold = {}; 
     let historyHTML = '';
 
@@ -2049,7 +2049,8 @@ function renderPersonalReport() {
                 myErsTotal += tx.amount;
             } else if (!globalInventoryGroups.includes(tx.trackAs) && tx.name !== 'Physical Cash') {
                 // If it's not a physical item (e.g., MNP, Ownership Transfer, FOC Corporate)
-                myServicesCount += Math.abs(tx.qty);
+                myServicesData.total += Math.abs(tx.qty);
+                myServicesData.breakdown[tx.name] = (myServicesData.breakdown[tx.name] || 0) + Math.abs(tx.qty);
             } else if (globalInventoryGroups.includes(tx.trackAs)) {
                 // If it's a physical item sold (e.g., Skitto Kit)
                 myItemsSold[tx.name] = (myItemsSold[tx.name] || 0) + Math.abs(tx.qty); 
@@ -2116,11 +2117,24 @@ function renderPersonalReport() {
     // PREMIUM SCORECARD: Items & Services List
     let invHTML = '';
     
-    if (myServicesCount > 0) {
+    if (myServicesData.total > 0) {
+        let sRows = '';
+        for (const [sName, sQty] of Object.entries(myServicesData.breakdown)) {
+            sRows += `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0;">
+                    <span style="font-weight: 600; color: #5b21b6; font-size: 0.95rem;">${sName}</span>
+                    <span style="font-weight: 800; color: #7c3aed; font-size: 1rem;">${sQty}x</span>
+                </div>
+            `;
+        }
+
         invHTML += `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 10px; margin-bottom: 16px;">
-                <span style="font-weight: 700; color: #7c3aed; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px;">Digital Services</span>
-                <span style="font-weight: 800; color: #6d28d9; font-size: 1.1rem; background: #ede9fe; padding: 4px 12px; border-radius: 20px;">${myServicesCount}</span>
+            <div style="padding: 14px; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 10px; margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px dashed #c4b5fd; padding-bottom: 8px;">
+                    <span style="font-weight: 700; color: #7c3aed; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px;">Digital Services</span>
+                    <span style="font-weight: 800; color: #6d28d9; font-size: 0.9rem; background: #ede9fe; padding: 4px 12px; border-radius: 20px;">${myServicesData.total} Total</span>
+                </div>
+                ${sRows}
             </div>
         `;
     }
@@ -2310,10 +2324,34 @@ function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, servicesCo
             </div>
         </div>
 
-        <div style="display: flex; align-items: center; justify-content: space-between; background: var(--surface-color); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
-            <span style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary);">Digital Services Processed</span>
-            <span style="background: #ede9fe; color: #8b5cf6; padding: 6px 16px; border-radius: 20px; font-size: 1rem; font-weight: 800;">${servicesCount}</span>
-        </div>
+        ${(function() {
+            if (servicesCount.total === 0) {
+                return `
+                <div style="display: flex; align-items: center; justify-content: space-between; background: var(--surface-color); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 24px;">
+                    <span style="font-size: 0.95rem; font-weight: 700; color: var(--text-secondary);">No Digital Services</span>
+                    <span style="background: #f1f5f9; color: #94a3b8; padding: 4px 12px; border-radius: 20px; font-size: 0.95rem; font-weight: 800;">0</span>
+                </div>`;
+            }
+            
+            let sRows = '';
+            for (const [sName, sQty] of Object.entries(servicesCount.breakdown)) {
+                sRows += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-top: 1px dashed var(--border-color);">
+                        <span style="font-weight: 600; color: var(--text-primary); font-size: 0.95rem;">${sName}</span>
+                        <span style="font-weight: 800; color: #8b5cf6; font-size: 1rem;">${sQty}x</span>
+                    </div>
+                `;
+            }
+            
+            return `
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px; background: var(--surface-color); border: 1px solid var(--border-color); box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                    <span style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary);">Digital Services Processed</span>
+                    <span style="background: #ede9fe; color: #8b5cf6; padding: 4px 12px; border-radius: 20px; font-size: 0.9rem; font-weight: 800;">${servicesCount.total} Total</span>
+                </div>
+                ${sRows}
+            </div>`;
+        })()}
     `;
 }
 
@@ -2359,7 +2397,8 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
         } catch(e) { console.error(e); }
     }
 
-    let deskCashSales = 0, mgrDropRcv = 0, deskMfs = 0, deskErsCount = 0, deskErsTotal = 0, servicesCount = 0;
+    let deskCashSales = 0, mgrDropRcv = 0, deskMfs = 0, deskErsCount = 0, deskErsTotal = 0;
+    let servicesData = { total: 0, breakdown: {} };
     let invStats = {};
     
     getPhysicalItems().forEach(item => {
@@ -2385,7 +2424,8 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
                 deskErsCount += Math.abs(tx.qty);
                 deskErsTotal += tx.amount;
             } else if (!globalInventoryGroups.includes(tx.trackAs) && tx.name !== 'Physical Cash') {
-                servicesCount += Math.abs(tx.qty);
+                servicesData.total += Math.abs(tx.qty);
+                servicesData.breakdown[tx.name] = (servicesData.breakdown[tx.name] || 0) + Math.abs(tx.qty);
             }
         }
 
@@ -2436,7 +2476,7 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
     let cashMath = { opening: deskOpeningCash, sales: deskCashSales, drops: mgrDropRcv, expected: (deskOpeningCash + deskCashSales + mgrDropRcv) };
     let ersData = { count: deskErsCount, total: deskErsTotal };
 
-    document.getElementById('live-dashboard-wrapper').innerHTML = generateDashboardHTML(cashMath, deskMfs, ersData, invStats, servicesCount);
+    document.getElementById('live-dashboard-wrapper').innerHTML = generateDashboardHTML(cashMath, deskMfs, ersData, invStats, servicesData);
     document.getElementById('desk-history-log').innerHTML = historyHTML || '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg><p>Drawer is empty</p></div>';
 
     try {
