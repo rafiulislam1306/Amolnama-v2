@@ -2026,7 +2026,6 @@ function renderPersonalReport() {
     // Agent Scorecard Metrics
     let myCash = 0, myMfs = 0;
     let myErsCount = 0, myErsTotal = 0;
-    let myServicesData = { total: 0, breakdown: {} };
     let myItemsSold = {}; 
     let historyHTML = '';
 
@@ -2039,7 +2038,6 @@ function renderPersonalReport() {
         let safeMfsAmt = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0);
         
         // SCORECARD MATH: Only count real sales and services. 
-        // We strictly ignore adjustment (Manager Drops/Floats) and transfers (Stock Movement).
         if (tx.type !== 'adjustment' && tx.type !== 'transfer_out' && tx.type !== 'transfer_in') {
             myCash += safeCashAmt; 
             myMfs += safeMfsAmt;
@@ -2047,12 +2045,8 @@ function renderPersonalReport() {
             if (tx.name === 'ERS Flexiload') {
                 myErsCount += Math.abs(tx.qty);
                 myErsTotal += tx.amount;
-            } else if (!globalInventoryGroups.includes(tx.trackAs) && tx.name !== 'Physical Cash') {
-                // If it's not a physical item (e.g., MNP, Ownership Transfer, FOC Corporate)
-                myServicesData.total += Math.abs(tx.qty);
-                myServicesData.breakdown[tx.name] = (myServicesData.breakdown[tx.name] || 0) + Math.abs(tx.qty);
-            } else if (globalInventoryGroups.includes(tx.trackAs)) {
-                // If it's a physical item sold (e.g., Skitto Kit)
+            } else if (tx.name !== 'Physical Cash') {
+                // BOTH Physical Items and Digital Services go directly into the same flat list
                 myItemsSold[tx.name] = (myItemsSold[tx.name] || 0) + Math.abs(tx.qty); 
             }
         }
@@ -2114,30 +2108,8 @@ function renderPersonalReport() {
         document.getElementById('tot-ers').style.color = '#f59e0b';
     }
 
-    // PREMIUM SCORECARD: Items & Services List
+    // PREMIUM SCORECARD: Unified Flat List
     let invHTML = '';
-    
-    if (myServicesData.total > 0) {
-        let sRows = '';
-        for (const [sName, sQty] of Object.entries(myServicesData.breakdown)) {
-            sRows += `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0;">
-                    <span style="font-weight: 600; color: #5b21b6; font-size: 0.95rem;">${sName}</span>
-                    <span style="font-weight: 800; color: #7c3aed; font-size: 1rem;">${sQty}x</span>
-                </div>
-            `;
-        }
-
-        invHTML += `
-            <div style="padding: 14px; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 10px; margin-bottom: 16px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px dashed #c4b5fd; padding-bottom: 8px;">
-                    <span style="font-weight: 700; color: #7c3aed; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px;">Digital Services</span>
-                    <span style="font-weight: 800; color: #6d28d9; font-size: 0.9rem; background: #ede9fe; padding: 4px 12px; border-radius: 20px;">${myServicesData.total} Total</span>
-                </div>
-                ${sRows}
-            </div>
-        `;
-    }
 
     for (const [name, qty] of Object.entries(myItemsSold)) {
         invHTML += `
