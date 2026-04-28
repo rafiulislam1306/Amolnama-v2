@@ -401,27 +401,55 @@
         </div>
     </div>
 
-    <div id="modal-new-sim" class="modal-overlay">
-        <div class="modal-content">
-            <h3 class="modal-title">New SIMs</h3>
-            <div class="list-menu-group" id="container-new-sim"></div>
-            <button class="modal-close" onclick="closeModal('modal-new-sim')">Cancel</button>
+    <style>
+        .bottom-sheet {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--surface-color);
+            border-radius: 20px 20px 0 0;
+            padding: 0;
+            max-height: 85vh;
+            overflow-y: auto;
+            transform: translateY(100%);
+            animation: slideUpSheet 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
+            width: 100%;
+            margin: 0;
+        }
+        @keyframes slideUpSheet {
+            to { transform: translateY(0); }
+        }
+    </style>
+
+    <div id="modal-new-sim" class="modal-overlay" style="align-items: flex-end; padding: 0;">
+        <div class="bottom-sheet">
+            <div style="position: sticky; top: 0; background: var(--surface-color); padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); z-index: 10; border-radius: 20px 20px 0 0;">
+                <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">Select New SIM</h3>
+                <button style="background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #64748b; cursor: pointer; font-size: 1.2rem; font-weight: bold;" onclick="closeModal('modal-new-sim')">✕</button>
+            </div>
+            <div id="container-new-sim" style="padding-bottom: calc(20px + env(safe-area-inset-bottom));"></div>
         </div>
     </div>
 
-    <div id="modal-paid-rep" class="modal-overlay">
-        <div class="modal-content">
-            <h3 class="modal-title">Paid Replacements</h3>
-            <div class="list-menu-group" id="container-paid-rep"></div>
-            <button class="modal-close" onclick="closeModal('modal-paid-rep')">Cancel</button>
+    <div id="modal-paid-rep" class="modal-overlay" style="align-items: flex-end; padding: 0;">
+        <div class="bottom-sheet">
+            <div style="position: sticky; top: 0; background: var(--surface-color); padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); z-index: 10; border-radius: 20px 20px 0 0;">
+                <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">Select Replacement</h3>
+                <button style="background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #64748b; cursor: pointer; font-size: 1.2rem; font-weight: bold;" onclick="closeModal('modal-paid-rep')">✕</button>
+            </div>
+            <div id="container-paid-rep" style="padding-bottom: calc(20px + env(safe-area-inset-bottom));"></div>
         </div>
     </div>
 
-    <div id="modal-foc" class="modal-overlay">
-        <div class="modal-content">
-            <h3 class="modal-title">Free Actions</h3>
-            <div class="list-menu-group" id="container-foc"></div>
-            <button class="modal-close" onclick="closeModal('modal-foc')">Cancel</button>
+    <div id="modal-foc" class="modal-overlay" style="align-items: flex-end; padding: 0;">
+        <div class="bottom-sheet">
+            <div style="position: sticky; top: 0; background: var(--surface-color); padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); z-index: 10; border-radius: 20px 20px 0 0;">
+                <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">Select Free Action</h3>
+                <button style="background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #64748b; cursor: pointer; font-size: 1.2rem; font-weight: bold;" onclick="closeModal('modal-foc')">✕</button>
+            </div>
+            <div id="container-foc" style="padding-bottom: calc(20px + env(safe-area-inset-bottom));"></div>
         </div>
     </div>
 
