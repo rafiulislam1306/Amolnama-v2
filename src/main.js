@@ -1476,19 +1476,32 @@ function renderAppUI() {
     Object.values(globalCatalog).sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(item => {
         if (!item.isActive) return;
         let safePrice = parseFloat(item.price) || 0;
-        let containerId = "", isModal = false;
-        
-        if (item.cat === 'new-sim') { containerId = 'container-new-sim'; isModal = true; }
-        else if (item.cat === 'paid-rep') { containerId = 'container-paid-rep'; isModal = true; }
-        else if (item.cat === 'foc') { containerId = 'container-foc'; isModal = true; }
-        else if (item.cat === 'service') containerId = 'container-services';
-        else if (item.cat === 'free-action') containerId = 'container-free-actions';
+        let containerId = "";
+        let iconSVG = "";
+
+        if (item.cat === 'new-sim') {
+            containerId = 'container-new-sim';
+            iconSVG = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`;
+        }
+        else if (item.cat === 'paid-rep') {
+            containerId = 'container-paid-rep';
+            iconSVG = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`;
+        }
+        else if (item.cat === 'foc' || item.cat === 'free-action') {
+            containerId = item.cat === 'foc' ? 'container-foc' : 'container-free-actions';
+            iconSVG = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
+        }
+        else if (item.cat === 'service') {
+            containerId = 'container-services';
+            iconSVG = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`;
+        }
 
         let container = document.getElementById(containerId);
         if (!container) return;
 
-        let btn = document.createElement('button');
-        btn.className = (isModal ? 'modal-item' : 'action-btn') + ' dynamic-item';
+        let row = document.createElement('div');
+        row.className = 'dynamic-item';
+        row.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border-color); cursor: pointer; user-select: none; transition: background-color 0.1s;';
         
         let pressTimer;
         let isLongPress = false;
@@ -1498,50 +1511,48 @@ function renderAppUI() {
             if (e.button && e.button !== 0) return; 
             isLongPress = false;
             isCancelled = false;
+            row.style.backgroundColor = 'var(--bg-color)'; 
             pressTimer = setTimeout(() => {
                 isLongPress = true;
                 if (navigator.vibrate) navigator.vibrate([50]); 
                 selectItem(item.name, safePrice); 
+                row.style.backgroundColor = 'transparent';
             }, 500); 
         };
 
         const cancelPress = () => {
             isCancelled = true;
+            row.style.backgroundColor = 'transparent';
             clearTimeout(pressTimer);
         };
 
         const endPress = (e) => {
             clearTimeout(pressTimer);
+            row.style.backgroundColor = 'transparent';
             if (!isLongPress && !isCancelled) {
                 instantSaveItem(item.name, safePrice);
             }
         };
 
-        btn.addEventListener('pointerdown', startPress);
-        btn.addEventListener('pointerup', endPress);
-        btn.addEventListener('pointerleave', cancelPress);
-        btn.addEventListener('pointercancel', cancelPress);
-        btn.oncontextmenu = (e) => { e.preventDefault(); return false; };
+        row.addEventListener('pointerdown', startPress);
+        row.addEventListener('pointerup', endPress);
+        row.addEventListener('pointerleave', cancelPress);
+        row.addEventListener('pointercancel', cancelPress);
+        row.oncontextmenu = (e) => { e.preventDefault(); return false; };
         
-        if (isModal) {
-            btn.className = 'list-menu-item dynamic-item';
-            let priceDisplay = safePrice > 0 ? `${safePrice} ${userCurrency}` : 'Free';
-            let priceColorStyle = safePrice === 0 ? 'color: #10b981;' : ''; 
+        let priceDisplay = safePrice > 0 ? `<span style="font-size: 0.9rem; font-weight: 700; color: var(--text-secondary);">${safePrice} ${userCurrency}</span>` : `<span style="font-size: 0.9rem; font-weight: 700; color: #10b981;">Free</span>`;
 
-            btn.innerHTML = `
-                <div class="list-item-content">
-                    <span class="list-item-title">${item.display || item.name}</span>
-                    <span class="list-item-price" style="${priceColorStyle}">${priceDisplay}</span>
-                </div>
-                <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-            `;
-            container.appendChild(btn); 
-        } else {
-            btn.innerText = item.display || item.name;
-            container.appendChild(btn);
-        }
+        row.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 14px;">
+                ${iconSVG}
+                <span style="font-weight: 600; color: var(--text-primary); font-size: 1.05rem;">${item.display || item.name}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                ${priceDisplay}
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+            </div>
+        `;
+        container.appendChild(row);
     });
 }
 
