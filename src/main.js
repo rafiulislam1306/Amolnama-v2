@@ -2341,31 +2341,31 @@ function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, servicesCo
 
         ${(function() {
             if (servicesCount.total === 0) {
-                return \`
+                return `
                 <div style="display: flex; align-items: center; justify-content: space-between; background: var(--surface-color); padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 24px;">
                     <span style="font-size: 0.95rem; font-weight: 700; color: var(--text-secondary);">No Digital Services</span>
                     <span style="background: #f1f5f9; color: #94a3b8; padding: 4px 12px; border-radius: 20px; font-size: 0.95rem; font-weight: 800;">0</span>
-                </div>\`;
+                </div>`;
             }
             
             let sRows = '';
             for (const [sName, sQty] of Object.entries(servicesCount.breakdown)) {
-                sRows += \`
+                sRows += `
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-top: 1px dashed var(--border-color);">
-                        <span style="font-weight: 600; color: var(--text-primary); font-size: 0.95rem;">\${sName}</span>
-                        <span style="font-weight: 800; color: #8b5cf6; font-size: 1rem;">\${sQty}x</span>
+                        <span style="font-weight: 600; color: var(--text-primary); font-size: 0.95rem;">${sName}</span>
+                        <span style="font-weight: 800; color: #8b5cf6; font-size: 1rem;">${sQty}x</span>
                     </div>
-                \`;
+                `;
             }
             
-            return \`
+            return `
             <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px; background: var(--surface-color); border: 1px solid var(--border-color); box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
                     <span style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary);">Digital Services Processed</span>
-                    <span style="background: #ede9fe; color: #8b5cf6; padding: 4px 12px; border-radius: 20px; font-size: 0.9rem; font-weight: 800;">\${servicesCount.total} Total</span>
+                    <span style="background: #ede9fe; color: #8b5cf6; padding: 4px 12px; border-radius: 20px; font-size: 0.9rem; font-weight: 800;">${servicesCount.total} Total</span>
                 </div>
-                \${sRows}
-            </div>\`;
+                ${sRows}
+            </div>`;
         })()}
     `;
 }
