@@ -409,7 +409,8 @@
             right: 0;
             background: var(--surface-color);
             border-radius: 20px 20px 0 0;
-            padding: 0;
+            /* Pushes the content up so the last item isn't hidden behind the nav bar */
+            padding: 0 0 calc(76px + env(safe-area-inset-bottom)) 0;
             max-height: 85vh;
             overflow-y: auto;
             transform: translateY(100%);
@@ -423,7 +424,7 @@
         }
     </style>
 
-    <div id="modal-new-sim" class="modal-overlay" style="z-index: 9500; align-items: flex-end; padding: 0;">
+    <div id="modal-new-sim" class="modal-overlay" style="z-index: 8000; align-items: flex-end; padding: 0;">
         <div class="bottom-sheet">
             <div style="position: sticky; top: 0; background: var(--surface-color); padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); z-index: 10; border-radius: 20px 20px 0 0;">
                 <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">Select New SIM</h3>
@@ -433,7 +434,7 @@
         </div>
     </div>
 
-    <div id="modal-paid-rep" class="modal-overlay" style="z-index: 9500; align-items: flex-end; padding: 0;">
+    <div id="modal-paid-rep" class="modal-overlay" style="z-index: 8000; align-items: flex-end; padding: 0;">
         <div class="bottom-sheet">
             <div style="position: sticky; top: 0; background: var(--surface-color); padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); z-index: 10; border-radius: 20px 20px 0 0;">
                 <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">Select Replacement</h3>
@@ -443,7 +444,7 @@
         </div>
     </div>
 
-    <div id="modal-foc" class="modal-overlay" style="z-index: 9500; align-items: flex-end; padding: 0;">
+    <div id="modal-foc" class="modal-overlay" style="z-index: 8000; align-items: flex-end; padding: 0;">
         <div class="bottom-sheet">
             <div style="position: sticky; top: 0; background: var(--surface-color); padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); z-index: 10; border-radius: 20px 20px 0 0;">
                 <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">Select Free Action</h3>
