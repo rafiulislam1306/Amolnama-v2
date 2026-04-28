@@ -103,6 +103,41 @@ function getStrictDate() {
     return `${String(t.getDate()).padStart(2,'0')}/${String(t.getMonth()+1).padStart(2,'0')}/${t.getFullYear()}`; 
 }
 
+function generateReceiptNo() {
+    const date = new Date();
+    const d = String(date.getDate()).padStart(2, '0');
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `TXN-${d}${m}-${random}`;
+}
+
+function showAuditTrail(txId) {
+    let tx = transactions.find(t => t.id == txId) || trashTransactions.find(t => t.id == txId);
+    if (!tx) return;
+    
+    let msg = `Receipt: ${tx.receiptNo || tx.id}\nCreated by: ${tx.agentName} at ${tx.time}\n\n`;
+    
+    if (tx.editHistory && tx.editHistory.length > 0) {
+        msg += `--- EDIT HISTORY ---\n`;
+        tx.editHistory.forEach((edit, idx) => {
+            let d = new Date(edit.editedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            msg += `[${idx+1}] Changed by ${edit.editedBy} at ${d}.\nPrevious State: ${edit.qty}x, ${edit.amount} Tk (${edit.payment})\n\n`;
+        });
+    }
+    
+    if (tx.isRestored) {
+        let rd = tx.restoredAt ? new Date(tx.restoredAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Unknown';
+        msg += `--- RESTORED ---\nRestored by ${tx.restoredBy || 'Unknown'} at ${rd}\n\n`;
+    }
+    
+    if (tx.isDeleted) {
+        let dd = tx.deletedAt ? new Date(tx.deletedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Unknown';
+        msg += `--- DELETED ---\nDeleted by ${tx.deletedBy || 'Unknown'} at ${dd}\n\n`;
+    }
+    
+    showAppAlert("Transaction Audit Trail", msg);
+}
+
 // ==========================================
 //   UI: NATIVE ALERTS & MESSAGES
 // ==========================================
@@ -786,7 +821,7 @@ function saveManagerCash() {
     let paymentLabel = action === 'receive' ? 'Received from Manager' : 'Dropped to Manager';
 
     const tx = {
-        id: Date.now(), type: 'adjustment', name: 'Physical Cash', trackAs: 'Physical Cash', amount: amount, qty: 1,
+        id: Date.now(), receiptNo: generateReceiptNo(), type: 'adjustment', name: 'Physical Cash', trackAs: 'Physical Cash', amount: amount, qty: 1,
         payment: paymentLabel, cashAmt: finalValue, mfsAmt: 0, isDeleted: false,
         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
         dateStr: getStrictDate(), deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName
@@ -817,7 +852,7 @@ function saveMainStock() {
     let itemName = document.getElementById('main-stock-item').value;
 
     const tx = {
-        id: Date.now(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty,
+        id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty,
         payment: 'Received from Main Stock', cashAmt: 0, mfsAmt: 0, isDeleted: false,
         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
         dateStr: getStrictDate(), deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName
@@ -878,8 +913,8 @@ function executeDeskTransfer() {
     let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     let dateStr = getStrictDate();
 
-    const senderTx = { id: Date.now(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName };
-    const receiverTx = { id: Date.now() + 1, type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${currentDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName, isRemoteTransfer: true };
+    const senderTx = { id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName };
+    const receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${currentDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName, isRemoteTransfer: true };
 
     closeModal('modal-desk-transfer');
     let msg = `Sent ${qty}x ${itemName} to ${targetDeskId.replace('_', ' ').toUpperCase()}!`;
@@ -910,8 +945,8 @@ function executeTransfer() {
     let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     let dateStr = getStrictDate();
 
-    const senderTx = { id: Date.now(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetTransferDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: currentDeskId || "Admin", sessionId: currentSessionId || "Admin", agentId: currentUser.uid, agentName: userNickname || userDisplayName };
-    const receiverTx = { id: Date.now() + 1, type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${currentDeskId || "Admin"}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetTransferDeskId, sessionId: targetTransferSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName, isRemoteTransfer: true };
+    const senderTx = { id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetTransferDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: currentDeskId || "Admin", sessionId: currentSessionId || "Admin", agentId: currentUser.uid, agentName: userNickname || userDisplayName };
+    const receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${currentDeskId || "Admin"}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetTransferDeskId, sessionId: targetTransferSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName, isRemoteTransfer: true };
 
     closeModal('modal-transfer');
     
@@ -1106,27 +1141,37 @@ function saveTxEdit() {
         if (finalCash + finalMfs !== newAmount) { showAppAlert("Error", "Cash + MFS must equal Total Tk."); return; }
     }
 
+    let prevTxState = {
+        qty: tx.qty, amount: tx.amount, payment: tx.payment, cashAmt: tx.cashAmt, mfsAmt: tx.mfsAmt,
+        editedAt: new Date().toISOString(), editedBy: userNickname || userDisplayName, editedByUid: currentUser.uid
+    };
+    let updatedEditHistory = tx.editHistory ? [...tx.editHistory, prevTxState] : [prevTxState];
+
     closeModal('modal-edit-tx');
     
     if (currentDeskId === 'sandbox') {
-        tx.qty = newQty; tx.amount = newAmount; tx.payment = method === 'Split' ? 'Split' : method; tx.cashAmt = finalCash; tx.mfsAmt = finalMfs; tx.isEdited = true;
+        tx.qty = newQty; tx.amount = newAmount; tx.payment = method === 'Split' ? 'Split' : method; tx.cashAmt = finalCash; tx.mfsAmt = finalMfs; tx.isEdited = true; tx.editHistory = updatedEditHistory;
         renderPersonalReport(); if (document.getElementById('tab-desk').classList.contains('active')) renderDeskDashboard();
         showFlashMessage("Sandbox Transaction Updated!"); return;
     }
 
     if (tx.docId) {
         let msg = `${tx.name} Updated!`;
-        updateDoc(doc(db, 'transactions', tx.docId), { qty: newQty, amount: newAmount, payment: method === 'Split' ? 'Split' : method, cashAmt: finalCash, mfsAmt: finalMfs, isEdited: true }).catch(e => console.error(e));
+        updateDoc(doc(db, 'transactions', tx.docId), { qty: newQty, amount: newAmount, payment: method === 'Split' ? 'Split' : method, cashAmt: finalCash, mfsAmt: finalMfs, isEdited: true, editHistory: updatedEditHistory }).catch(e => console.error(e));
         showFlashMessage(navigator.onLine ? msg : "Offline: Edit queued");
     }
 }
 
 function deleteTransaction(docId, localId) {
     showAppAlert("Delete Item", "Are you sure you want to move this transaction to the trash?", true, () => {
+        let nowStr = new Date().toISOString();
+        let agentStr = userNickname || userDisplayName;
+
         if (currentDeskId === 'sandbox') {
             let tx = transactions.find(t => t.id === localId);
             if(tx) { 
                 tx.isDeleted = true; 
+                tx.deletedBy = agentStr; tx.deletedByUid = currentUser.uid; tx.deletedAt = nowStr;
                 trashTransactions.push(tx); 
                 renderPersonalReport(); if (document.getElementById('tab-desk').classList.contains('active')) renderDeskDashboard();
                 showFlashMessage("Moved to Sandbox Trash!"); 
@@ -1135,7 +1180,7 @@ function deleteTransaction(docId, localId) {
         }
 
         if(docId) {
-            updateDoc(doc(db, 'transactions', docId), { isDeleted: true }).catch(e => console.error(e));
+            updateDoc(doc(db, 'transactions', docId), { isDeleted: true, deletedBy: agentStr, deletedByUid: currentUser.uid, deletedAt: nowStr }).catch(e => console.error(e));
             showFlashMessage(navigator.onLine ? "Moved to Trash!" : "Offline: Trash queued");
         }
     }, "Move to Trash");
@@ -1173,12 +1218,16 @@ function renderTrash() {
 }
 
 function restoreTx(docId, localId) {
+    let nowStr = new Date().toISOString();
+    let agentStr = userNickname || userDisplayName;
+
     if (currentDeskId === 'sandbox') {
         let txIndex = trashTransactions.findIndex(t => t.id === localId);
         if (txIndex > -1) {
             let tx = trashTransactions[txIndex];
             if (!passStockFirewall(tx.name, tx.qty)) return;
             tx.isDeleted = false; tx.isRestored = true;
+            tx.restoredBy = agentStr; tx.restoredByUid = currentUser.uid; tx.restoredAt = nowStr;
             trashTransactions.splice(txIndex, 1);
             renderPersonalReport(); if (document.getElementById('tab-desk').classList.contains('active')) renderDeskDashboard();
             showFlashMessage("Sandbox Transaction Restored!");
@@ -1192,7 +1241,7 @@ function restoreTx(docId, localId) {
             let tx = trashTransactions.find(t => t.docId === docId);
             if (tx && !passStockFirewall(tx.name, tx.qty)) return;
 
-            updateDoc(doc(db, 'transactions', docId), { isDeleted: false, isRestored: true }).catch(e => console.error(e));
+            updateDoc(doc(db, 'transactions', docId), { isDeleted: false, isRestored: true, restoredBy: agentStr, restoredByUid: currentUser.uid, restoredAt: nowStr }).catch(e => console.error(e));
             showFlashMessage(navigator.onLine ? (tx ? `${tx.name} Restored!` : "Transaction Restored!") : "Offline: Restore queued");
             setTimeout(() => { renderTrash(); if(trashTransactions.length === 0) closeModal('modal-trash'); }, 500);
         } catch(e) {
@@ -1543,7 +1592,7 @@ function addTransactionToCloud(type, name, amount, qty, payment, cashAmt = 0, mf
     let trackAs = catItem ? (catItem.trackAs || name) : name; 
 
     const tx = {
-        id: Date.now(), type: type, name: name, trackAs: trackAs, amount: amount, qty: qty,
+        id: Date.now(), receiptNo: generateReceiptNo(), type: type, name: name, trackAs: trackAs, amount: amount, qty: qty,
         payment: payment, cashAmt: cashAmt, mfsAmt: mfsAmt, isDeleted: false,
         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
         dateStr: getStrictDate(),
@@ -1963,14 +2012,14 @@ function renderPersonalReport() {
         let badges = '';
         
         if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
-        if (tx.isEdited) badges += '<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Edited</span>';
-        if (tx.isRestored) badges += '<span style="font-size: 0.7rem; background: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Restored</span>';
+        if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
+        if (tx.isRestored) badges += `<span style="font-size: 0.7rem; background: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Restored</span>`;
 
         historyHTML += `
             <div class="history-item">
                 <div class="history-info">
                     <div style="display: flex; align-items: center;"><span class="history-title">${tx.qty}x ${tx.name}</span>${badges}</div>
-                    <span class="history-meta">${tx.time} • ${tx.amount} ${userCurrency} • ${payLabel}</span>
+                    <span class="history-meta">${tx.receiptNo || tx.id} • ${tx.time} • ${tx.amount} ${userCurrency} • ${payLabel}</span>
                 </div>
                 <div style="display: flex; gap: 8px;">
                     <button class="delete-btn" style="color: var(--accent-color); opacity: 0.8;" onclick="openEditTx(${tx.id})">
@@ -2160,8 +2209,8 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
         let badges = '';
         
         if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
-        if (tx.isEdited) badges += '<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Edited</span>';
-        if (tx.isRestored) badges += '<span style="font-size: 0.7rem; background: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Restored</span>';
+        if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
+        if (tx.isRestored) badges += `<span style="font-size: 0.7rem; background: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Restored</span>`;
         
         let agentBadge = `<span style="font-size: 0.7rem; background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">${tx.agentName.split(' ')[0]}</span>`;
 
@@ -2169,7 +2218,7 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
             <div class="history-item">
                 <div class="history-info">
                     <div style="display: flex; align-items: center;"><span class="history-title">${tx.qty}x ${tx.name}</span>${agentBadge}${badges}</div>
-                    <span class="history-meta">${tx.time} • ${tx.amount} ${userCurrency} • ${payLabel}</span>
+                    <span class="history-meta">${tx.receiptNo || tx.id} • ${tx.time} • ${tx.amount} ${userCurrency} • ${payLabel}</span>
                 </div>
             </div>
         `;
@@ -2329,7 +2378,7 @@ window.openManagerCashModal = openManagerCashModal; window.saveManagerCash = sav
 window.openMainStockModal = openMainStockModal; window.saveMainStock = saveMainStock;
 window.openDeskTransfer = openDeskTransfer; window.executeDeskTransfer = executeDeskTransfer;
 window.renderLiveFloorTab = renderLiveFloorTab; window.openTransferModal = openTransferModal; window.executeTransfer = executeTransfer;
-window.openEditTx = openEditTx; window.toggleEditSplitFields = toggleEditSplitFields; window.updateSplitTotal = updateSplitTotal;
+window.openEditTx = openEditTx; window.toggleEditSplitFields = toggleEditSplitFields; window.updateSplitTotal = updateSplitTotal; window.showAuditTrail = showAuditTrail;
 window.saveTxEdit = saveTxEdit; window.deleteTransaction = deleteTransaction; window.openTrash = openTrash;
 window.restoreTx = restoreTx; window.emptyTrash = emptyTrash; window.permanentlyDeleteTx = permanentlyDeleteTx;
 window.addInventoryGroup = addInventoryGroup; window.removeInventoryGroup = removeInventoryGroup;
