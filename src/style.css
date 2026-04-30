@@ -233,7 +233,15 @@ header {
 .qty-calc { text-align: center; font-size: 1rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 20px; }
 
 /* Fullscreen Auth Modal */
-#modal-auth.active { display: flex; align-items: center; justify-content: center; background-color: var(--bg-color); z-index: 9999; backdrop-filter: none; }
+#modal-auth.active, #splash-screen.active { 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    background-color: var(--bg-color) !important; 
+    z-index: 9999; 
+    backdrop-filter: none; 
+    animation: none; 
+}
 #modal-auth .modal-content.auth-fullscreen { background: transparent; box-shadow: none; display: flex; flex-direction: column; justify-content: center; height: 100%; max-width: 400px; padding: 32px; }
 #modal-auth .modal-content::before { display: none; }
 
