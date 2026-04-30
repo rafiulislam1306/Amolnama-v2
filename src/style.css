@@ -124,23 +124,27 @@ header {
     transition: color 0.2s ease;
     touch-action: manipulation; /* Forces immediate tap response on mobile */
 }
-.nav-item.active { color: var(--accent-color); }
+.nav-item.active { color: var(--text-primary); font-weight: 700; }
 
 .nav-icon-svg { 
     display: block; 
-    width: 22px; 
-    height: 22px; 
+    width: 24px; 
+    height: 24px; 
     margin-bottom: 4px; 
-    transition: all 0.2s ease; 
+    padding: 4px;
+    border-radius: 12px;
+    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
     color: var(--text-secondary); 
     opacity: 0.8; 
     stroke-width: 2px; 
 }
 .nav-item.active .nav-icon-svg { 
     transform: translateY(-2px); 
+    background-color: var(--bg-color);
     color: var(--accent-color); 
     opacity: 1; 
     stroke-width: 2.5px; 
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
 }
 
 /* --- 5. ERS CALCULATOR & KEYPAD --- */
@@ -167,8 +171,8 @@ header {
 
 .btn-outline { height: 44px; border: none; background: transparent; padding: 0 16px; border-radius: 8px; font-weight: 500; color: var(--accent-color); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin: 0; transition: background-color 0.1s; }
 .btn-outline:active { background-color: var(--border-color); }
-.btn-primary-full { background: var(--accent-color); color: #ffffff; border: none; width: 100%; padding: 14px; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: transform 0.1s, opacity 0.1s; }
-.btn-primary-full:active { transform: scale(0.97); opacity: 0.9; }
+.btn-primary-full { background: var(--accent-color); color: #ffffff; border: none; width: 100%; padding: 14px; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 12px rgba(51, 144, 236, 0.2); }
+.btn-primary-full:active { transform: scale(0.95) translateY(2px); box-shadow: 0 1px 4px rgba(51, 144, 236, 0.1); opacity: 0.9; }
 
 /* --- 7. TOGGLE SWITCH (SEGMENTED CONTROL) --- */
 .toggle-container { display: flex; align-items: center; justify-content: space-between; background-color: transparent; padding: 0 4px; margin-bottom: 20px; }
@@ -179,8 +183,12 @@ header {
 .toggle-option.active { background-color: var(--surface-color); color: var(--text-primary); box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
 
 /* --- 8. MODALS & BOTTOM SHEETS --- */
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.4); display: none; justify-content: center; align-items: flex-end; z-index: 9500; backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
-.modal-overlay.active { display: flex; }
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.4); display: none; justify-content: center; align-items: flex-end; z-index: 9500; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+.modal-overlay.active { display: flex; animation: fadeOverlay 0.25s ease-out forwards; }
+@keyframes fadeOverlay {
+    0% { background-color: rgba(0,0,0,0); backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px); }
+    100% { background-color: rgba(0,0,0,0.4); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+}
 
 .modal-content { 
     background-color: var(--surface-color); 
