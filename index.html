@@ -219,6 +219,15 @@
             </button>
         </div>
 
+        <!-- ADMIN ONLY: Floor View Toggle -->
+        <div id="admin-report-toggle-wrapper" class="toggle-container" style="display: none; margin-bottom: 16px;">
+            <span class="toggle-label" style="color: var(--accent-color);">View Scope:</span>
+            <div class="toggle-switch">
+                <div id="toggle-personal" class="toggle-option active" onclick="toggleReportMode('personal')">Personal</div>
+                <div id="toggle-floor" class="toggle-option" onclick="toggleReportMode('floor')">Entire Floor</div>
+            </div>
+        </div>
+
         <div class="report-section" style="margin-bottom: 16px;">
             <div class="report-header">
                 <h3>Sales Summary</h3>

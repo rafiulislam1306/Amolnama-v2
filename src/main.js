@@ -1657,6 +1657,8 @@ async function initUserData() {
 
         document.getElementById('report-user-name').innerText = userDisplayName;
         if (currentUser.email) document.getElementById('report-user-email').innerText = currentUser.email;
+        let toggleWrapper = document.getElementById('admin-report-toggle-wrapper');
+        if (toggleWrapper) toggleWrapper.style.display = currentUserRole === 'admin' ? 'flex' : 'none';
         if (currentUser.photoURL) {
             document.getElementById('report-user-photo').src = currentUser.photoURL;
             document.getElementById('header-user-photo').src = currentUser.photoURL;
@@ -2093,27 +2095,62 @@ function fixPastManagerDrops() {
 }
 
 // ==========================================
-//     ENGINE A: PERSONAL REPORT LOGIC
+//   ENGINE A: PERSONAL & FLOOR REPORT LOGIC
 // ==========================================
-function renderPersonalReport() {
+let currentReportMode = 'personal';
+
+window.toggleReportMode = function(mode) {
+    currentReportMode = mode;
+    document.getElementById('toggle-personal').classList.toggle('active', mode === 'personal');
+    document.getElementById('toggle-floor').classList.toggle('active', mode === 'floor');
+    renderPersonalReport();
+}
+
+async function renderPersonalReport() {
     let filterVal = document.getElementById('personal-history-filter') ? document.getElementById('personal-history-filter').value : 'all';
     
-    // Agent Scorecard Metrics
     let myCash = 0, myMfs = 0;
     let myErsCount = 0, myErsTotal = 0;
     let myItemsSold = {}; 
     let historyHTML = '';
 
+    let targetDateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
+
+    let floorOpeningCash = 0;
+    let floorOpeningInv = {};
+    let floorManagerDrops = 0;
+
+    // IF ADMIN VIEW: Fetch all opening balances for the day
+    if (currentReportMode === 'floor') {
+        try {
+            const sessSnap = await getDocs(query(collection(db, 'sessions'), where('dateStr', '==', targetDateStr)));
+            sessSnap.forEach(docSnap => {
+                let s = docSnap.data();
+                floorOpeningCash += parseFloat(s.openingBalances?.cash) || 0;
+                let inv = s.openingBalances?.inventory || {};
+                for (let [item, qty] of Object.entries(inv)) {
+                    floorOpeningInv[item] = (floorOpeningInv[item] || 0) + qty;
+                }
+            });
+        } catch(e) { console.error("Could not fetch floor sessions", e); }
+    }
+
+    let liveInv = { ...floorOpeningInv };
+
     [...transactions].reverse().forEach(tx => {
         if (tx.isDeleted) return;
-        if (tx.agentId !== currentUser.uid) return; // ONLY my actions
-        if (tx.isRemoteTransfer) return;
+        
+        // Mode Branching: Filter out other agents if we are in Personal view
+        if (currentReportMode === 'personal' && tx.agentId !== currentUser.uid) return;
+        if (currentReportMode === 'personal' && tx.isRemoteTransfer) return; // Hide ghost transfers for personal view
 
         let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
         let safeMfsAmt = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0);
         
-        // SCORECARD MATH: Only count real sales and services. 
-        if (tx.type !== 'adjustment' && tx.type !== 'transfer_out' && tx.type !== 'transfer_in') {
+        // Track Aggregated Sales
+        if (tx.type === 'adjustment' && tx.name === 'Physical Cash') {
+            floorManagerDrops += safeCashAmt;
+        } else if (tx.type !== 'adjustment' && tx.type !== 'transfer_out' && tx.type !== 'transfer_in') {
             myCash += safeCashAmt; 
             myMfs += safeMfsAmt;
             
@@ -2121,9 +2158,14 @@ function renderPersonalReport() {
                 myErsCount += Math.abs(tx.qty);
                 myErsTotal += tx.amount;
             } else if (tx.name !== 'Physical Cash') {
-                // BOTH Physical Items and Digital Services go directly into the same flat list
                 myItemsSold[tx.name] = (myItemsSold[tx.name] || 0) + Math.abs(tx.qty); 
             }
+        }
+
+        // Track Floor-Wide Inventory Math
+        if (currentReportMode === 'floor') {
+            let change = getInventoryChange(tx);
+            if (change !== 0) liveInv[tx.trackAs] = (liveInv[tx.trackAs] || 0) + change;
         }
         
         // FILTER & UI RENDERING
@@ -2142,17 +2184,17 @@ function renderPersonalReport() {
         let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
         let badges = '';
         
-        // Audit Trail Badges
         if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
         if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
         if (tx.isRestored) badges += `<span style="font-size: 0.7rem; background: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Restored</span>`;
 
-        historyHTML += `
-            <div class="history-item">
-                <div class="history-info">
-                    <div style="display: flex; align-items: center;"><span class="history-title">${tx.qty}x ${tx.name}</span>${badges}</div>
-                    <span class="history-meta">${tx.receiptNo || tx.id} • ${tx.time} • ${tx.amount} ${userCurrency} • ${payLabel}</span>
-                </div>
+        // Inject the agent's name on every receipt if we are looking at the whole floor
+        let agentBadge = currentReportMode === 'floor' ? `<span style="font-size: 0.7rem; background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">${tx.agentName.split(' ')[0]}</span>` : '';
+
+        // Only render Edit/Delete buttons if you are looking at your own stuff, OR if you are an admin
+        let actionBtns = '';
+        if (currentReportMode === 'personal' || currentUserRole === 'admin') {
+            actionBtns = `
                 <div style="display: flex; gap: 8px;">
                     <button class="delete-btn" style="color: var(--accent-color); opacity: 0.8;" onclick="openEditTx(${tx.id})">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
@@ -2161,15 +2203,32 @@ function renderPersonalReport() {
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                     </button>
                 </div>
+            `;
+        }
+
+        historyHTML += `
+            <div class="history-item">
+                <div class="history-info">
+                    <div style="display: flex; align-items: center;"><span class="history-title">${tx.qty}x ${tx.name}</span>${agentBadge}${badges}</div>
+                    <span class="history-meta">${tx.receiptNo || tx.id} • ${tx.time} • ${tx.amount} ${userCurrency} • ${payLabel}</span>
+                </div>
+                ${actionBtns}
             </div>
         `;
     });
 
-    // UPDATE UI METRICS
-    if(document.getElementById('report-total-all')) {
-        document.getElementById('report-total-all').innerText = (myCash + myMfs) + ' ' + userCurrency;
+    // UPDATE UI METRICS & HEADER
+    if (currentReportMode === 'floor') {
+        document.getElementById('report-user-name').innerText = "Consolidated Floor Report";
+        document.getElementById('report-user-email').innerText = `Floor Opening Cash: ${floorOpeningCash} Tk | Manager Drops: ${floorManagerDrops} Tk`;
+        document.getElementById('report-user-photo').src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666666'%3E%3Cpath d='M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z'/%3E%3C/svg%3E";
+    } else {
+        document.getElementById('report-user-name').innerText = userDisplayName;
+        document.getElementById('report-user-email').innerText = currentUser.email || 'email@example.com';
+        if (currentUser.photoURL) document.getElementById('report-user-photo').src = currentUser.photoURL;
     }
-    
+
+    if(document.getElementById('report-total-all')) document.getElementById('report-total-all').innerText = (myCash + myMfs) + ' ' + userCurrency;
     if(document.getElementById('tot-cash-sales')) {
         document.getElementById('tot-cash-sales').innerText = myCash + ' ' + userCurrency;
         document.getElementById('tot-cash-sales').style.color = '#0ea5e9';
@@ -2185,7 +2244,6 @@ function renderPersonalReport() {
 
     // PREMIUM SCORECARD: Unified Flat List
     let invHTML = '';
-
     for (const [name, qty] of Object.entries(myItemsSold)) {
         invHTML += `
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 4px; border-bottom: 1px solid var(--border-color);">
@@ -2195,7 +2253,29 @@ function renderPersonalReport() {
         `;
     }
 
-    document.getElementById('inventory-list').innerHTML = invHTML || '<div class="report-row" style="color: var(--text-secondary); font-style: italic; padding: 12px 4px;">No items sold yet</div>';
+    let finalInventoryListHTML = invHTML || '<div class="report-row" style="color: var(--text-secondary); font-style: italic; padding: 12px 4px;">No items sold yet</div>';
+
+    // Inject Live Stock for Floor Mode
+    if (currentReportMode === 'floor') {
+        let liveStockHTML = '<div style="margin-top: 24px; font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; padding: 0 4px; border-bottom: 2px solid var(--border-color); padding-bottom: 8px;">Live Floor Stock</div>';
+        let hasLiveStock = false;
+        for (const [name, qty] of Object.entries(liveInv)) {
+            if (qty !== 0) {
+                let color = qty < 5 ? '#ef4444' : '#10b981';
+                liveStockHTML += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 4px; border-bottom: 1px dashed var(--border-color);">
+                        <span style="font-weight: 600; color: var(--text-secondary); font-size: 0.95rem;">${name}</span>
+                        <span style="font-weight: 800; color: ${color}; font-size: 1.1rem;">${qty}</span>
+                    </div>
+                `;
+                hasLiveStock = true;
+            }
+        }
+        if (!hasLiveStock) liveStockHTML += '<div style="color: var(--text-secondary); font-style: italic; padding: 12px 4px;">No physical stock on floor</div>';
+        finalInventoryListHTML += liveStockHTML;
+    }
+
+    document.getElementById('inventory-list').innerHTML = finalInventoryListHTML;
     
     // UPDATE HISTORY LOG
     document.getElementById('history-log').innerHTML = historyHTML || `
@@ -2205,7 +2285,7 @@ function renderPersonalReport() {
                 <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>
                 <line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
             </svg>
-            <p>No transactions today</p>
+            <p>No transactions found</p>
         </div>`;
 }
 
@@ -2261,12 +2341,18 @@ function shareReport() {
     let totalCash = document.getElementById('tot-cash-sales').innerText;
     let totalErs = document.getElementById('tot-ers').innerText;
     
-    let reportText = `My Daily Report: ${dateStr}\nAgent: ${userNickname || userDisplayName}\n\nPERSONAL SALES SUMMARY\nTotal Revenue: ${totalRevenue}\nCash Collected: ${totalCash}\nMFS Collected: ${totalMfs}\nERS Disbursed: ${totalErs}\n\nPHYSICAL INVENTORY LIFECYCLE\n`;
+    let reportText = "";
     
-    let myTx = transactions.filter(t => t.agentId === currentUser.uid);
-    reportText += buildLifecycleText(myTx, currentOpeningInv);
+    if (currentReportMode === 'floor') {
+        reportText = `CONSOLIDATED FLOOR REPORT: ${dateStr}\n\nSALES SUMMARY\nTotal Revenue: ${totalRevenue}\nCash Collected: ${totalCash}\nMFS Collected: ${totalMfs}\nERS Disbursed: ${totalErs}\n\n`;
+        // Only shares the top line financial math for the whole store for quick text messages
+    } else {
+        reportText = `My Daily Report: ${dateStr}\nAgent: ${userNickname || userDisplayName}\n\nPERSONAL SALES SUMMARY\nTotal Revenue: ${totalRevenue}\nCash Collected: ${totalCash}\nMFS Collected: ${totalMfs}\nERS Disbursed: ${totalErs}\n\nPHYSICAL INVENTORY LIFECYCLE\n`;
+        let myTx = transactions.filter(t => t.agentId === currentUser.uid);
+        reportText += buildLifecycleText(myTx, currentOpeningInv);
+    }
 
-    if (navigator.share) navigator.share({ title: 'My Daily Report', text: reportText }).catch(e => console.log(e));
+    if (navigator.share) navigator.share({ title: 'Report', text: reportText }).catch(e => console.log(e));
     else { try { navigator.clipboard.writeText(reportText).then(() => showFlashMessage("Report Copied!")).catch(() => fallbackCopy(reportText)); } catch (e) { fallbackCopy(reportText); } }
 }
 
@@ -2672,3 +2758,4 @@ window.openNicknameManager = openNicknameManager; window.saveAdminNickname = sav
 window.shareDeskReport = shareDeskReport;
 window.exportLedgerCSV = exportLedgerCSV; window.openAuditModal = openAuditModal; window.fetchAuditLogs = fetchAuditLogs;
 window.renderPersonalReport = renderPersonalReport; window.renderDeskDashboard = renderDeskDashboard;
+window.toggleReportMode = toggleReportMode;
