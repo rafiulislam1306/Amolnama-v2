@@ -1103,10 +1103,10 @@ async function renderLiveFloorTab() {
             floorHTML += `
                 <div style="${cardStyle}">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid ${isMyDesk ? '#bae6fd' : 'var(--border-color)'}; padding-bottom: 12px;">
-                        <h4 style="margin: 0; color: ${isMyDesk ? '#0369a1' : 'var(--text-primary)'}; font-size: 1.15rem; font-weight: 700; display: flex; align-items: center;">
+                        <h4 style="margin: 0; color: ${isMyDesk ? '#0369a1' : 'var(--text-primary)'}; font-size: 1.15rem; font-weight: 700; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px; min-width: 0; flex: 1;">
                             ${displayDeskName}
                         </h4>
-                        <div style="font-size: 0.85rem; color: ${isMyDesk ? '#0284c7' : 'var(--text-secondary)'}; font-weight: 600; text-align: right; max-width: 50%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        <div style="font-size: 0.85rem; color: ${isMyDesk ? '#0284c7' : 'var(--text-secondary)'}; font-weight: 600; text-align: right; max-width: 50%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0;">
                             ${agentNamesStr}
                         </div>
                     </div>
@@ -1642,11 +1642,11 @@ function renderAppUI() {
         let priceDisplay = safePrice > 0 ? `<span style="font-size: 0.9rem; font-weight: 700; color: var(--text-secondary);">${safePrice} ${userCurrency}</span>` : `<span style="font-size: 0.9rem; font-weight: 700; color: #10b981;">Free</span>`;
 
         row.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 14px;">
-                ${iconSVG}
-                <span style="font-weight: 600; color: var(--text-primary); font-size: 1.05rem;">${item.display || item.name}</span>
+            <div style="display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1;">
+                <div style="flex-shrink: 0;">${iconSVG}</div>
+                <span style="font-weight: 600; color: var(--text-primary); font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.display || item.name}</span>
             </div>
-            <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px; flex-shrink: 0; padding-left: 12px;">
                 ${priceDisplay}
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
             </div>
@@ -2316,8 +2316,8 @@ async function renderPersonalReport() {
     for (const [name, qty] of Object.entries(myItemsSold)) {
         invHTML += `
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 4px; border-bottom: 1px solid var(--border-color);">
-                <span style="font-weight: 600; color: var(--text-primary); font-size: 1rem;">${name}</span>
-                <span style="font-weight: 800; color: var(--text-secondary); font-size: 1.1rem;">${qty}x</span>
+                <span style="font-weight: 600; color: var(--text-primary); font-size: 1rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px;">${name}</span>
+                <span style="font-weight: 800; color: var(--text-secondary); font-size: 1.1rem; flex-shrink: 0;">${qty}x</span>
             </div>
         `;
     }
@@ -2517,8 +2517,8 @@ function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, deskItemsS
     for (const [name, qty] of Object.entries(deskItemsSold)) {
         itemsHTML += `
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 4px; border-bottom: 1px solid var(--border-color);">
-                <span style="font-weight: 600; color: var(--text-primary); font-size: 1rem;">${name}</span>
-                <span style="font-weight: 800; color: var(--text-secondary); font-size: 1.1rem;">${qty}x</span>
+                <span style="font-weight: 600; color: var(--text-primary); font-size: 1rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px;">${name}</span>
+                <span style="font-weight: 800; color: var(--text-secondary); font-size: 1.1rem; flex-shrink: 0;">${qty}x</span>
             </div>
         `;
     }

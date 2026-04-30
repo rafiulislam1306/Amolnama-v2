@@ -340,9 +340,9 @@ header {
 
 .history-item { background-color: transparent; border: none; border-bottom: 1px solid var(--border-color); border-radius: 0; padding: 16px 0; margin-bottom: 0; display: flex; justify-content: space-between; align-items: center; box-shadow: none; }
 .history-item:last-child { border-bottom: none; }
-.history-info { display: flex; flex-direction: column; gap: 4px; }
-.history-title { font-weight: 700; font-size: 1rem; color: var(--text-primary); }
-.history-meta { font-size: 0.85rem; color: var(--text-secondary); }
+.history-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.history-title { font-weight: 700; font-size: 1rem; color: var(--text-primary); word-break: break-word; line-height: 1.3; }
+.history-meta { font-size: 0.85rem; color: var(--text-secondary); display: block; margin-top: 2px; line-height: 1.4; word-break: break-word; }
 
 .delete-btn { background: none; border: none; color: #ef4444; font-size: 1.25rem; cursor: pointer; padding: 4px 8px; transition: transform 0.1s; }
 .delete-btn:active { transform: scale(0.9); }
