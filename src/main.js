@@ -2216,28 +2216,6 @@ async function renderPersonalReport() {
         
         if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
         if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
-        if (tx.isRestored) badges += `<span style="font-size: 0.7rem; background: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Restored</span>`;
-
-        let agentBadge = currentReportMode === 'floor' ? `<span style="font-size: 0.7rem; background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">${tx.agentName.split(' ')[0]}</span>` : '';
-
-        let actionBtns = '';
-        let expandIcon = '';
-        
-        if (currentReportMode === 'personal' || currentUserRole === 'admin') {
-            expandIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><polyline points="6 9 12 15 18 9"/></svg>`;
-            
-            actionBtns = `
-                <div class="tx-actions" style="display: none; width: 100%; padding-top: 12px; margin-top: 12px; border-top: 1px dashed var(--border-color); justify-content: flex-end; gap: 8px;">
-                    <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: var(--accent-color); border-color: var(--accent-color); gap: 6px;" onclick="event.stopPropagation(); openEditTx(${tx.id})">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> Edit
-                    </button>
-                    <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: #ef4444; border-color: #fca5a5; background: #fef2f2; gap: 6px;" onclick="event.stopPropagation(); deleteTransaction('${tx.docId}', ${tx.id})">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg> Trash
-                    </button>
-                </div>
-            `;
-        }
-
         let agentBadge = currentReportMode === 'floor' ? `<span style="font-size: 0.7rem; background: #e0f2fe; color: #0284c7; padding: 4px 8px; border-radius: 12px; font-weight: 700; letter-spacing: 0.5px;">${tx.agentName.split(' ')[0]}</span>` : '';
 
         let actionBtns = '';
@@ -2258,7 +2236,6 @@ async function renderPersonalReport() {
         historyHTML += `
             <div class="history-item" style="cursor: pointer; flex-direction: column; align-items: stretch; transition: background-color 0.15s;" onclick="const actions = this.querySelector('.tx-actions'); if(actions) { actions.style.display = actions.style.display === 'none' ? 'flex' : 'none'; }">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
-                    
                     <div class="history-info" style="flex: 1; padding-right: 12px;">
                         <div style="display: flex; align-items: center; flex-wrap: wrap; margin-bottom: 2px;">
                             <span class="history-title" style="margin-right: 8px;">${tx.qty}x ${tx.name}</span>
@@ -2266,11 +2243,9 @@ async function renderPersonalReport() {
                         </div>
                         <span class="history-meta">${tx.receiptNo || tx.id} • ${tx.time} • ${tx.amount} ${userCurrency} • ${payLabel}</span>
                     </div>
-                    
                     <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0; padding-top: 2px;">
                         ${agentBadge}
                     </div>
-                    
                 </div>
                 ${actionBtns}
             </div>
@@ -2673,10 +2648,6 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
         
         if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
         if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
-        if (tx.isRestored) badges += `<span style="font-size: 0.7rem; background: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Restored</span>`;
-        
-        let agentBadge = `<span style="font-size: 0.7rem; background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">${tx.agentName.split(' ')[0]}</span>`;
-
         let agentBadge = `<span style="font-size: 0.7rem; background: #e0f2fe; color: #0284c7; padding: 4px 8px; border-radius: 12px; font-weight: 700; letter-spacing: 0.5px;">${tx.agentName.split(' ')[0]}</span>`;
 
         let actionBtns = '';
@@ -2698,7 +2669,6 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
         historyHTML += `
             <div class="history-item" style="cursor: pointer; flex-direction: column; align-items: stretch; transition: background-color 0.15s;" onclick="const actions = this.querySelector('.tx-actions'); if(actions) { actions.style.display = actions.style.display === 'none' ? 'flex' : 'none'; }">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
-                    
                     <div class="history-info" style="flex: 1; padding-right: 12px;">
                         <div style="display: flex; align-items: center; flex-wrap: wrap; margin-bottom: 2px;">
                             <span class="history-title" style="margin-right: 8px;">${tx.qty}x ${tx.name}</span>
@@ -2706,11 +2676,9 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
                         </div>
                         <span class="history-meta">${tx.receiptNo || tx.id} • ${tx.time} • ${tx.amount} ${userCurrency} • ${payLabel}</span>
                     </div>
-                    
                     <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0; padding-top: 2px;">
                         ${agentBadge}
                     </div>
-                    
                 </div>
                 ${actionBtns}
             </div>
