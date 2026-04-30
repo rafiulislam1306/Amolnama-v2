@@ -948,18 +948,23 @@ function executeDeskTransfer() {
     
     if (!passStockFirewall(itemName, qty)) return;
 
-    let targetVal = document.getElementById('desk-transfer-target').value;
+    let targetSelect = document.getElementById('desk-transfer-target');
+    let targetVal = targetSelect.value;
     if (!targetVal) { showAppAlert("Error", "Please select an active destination desk."); return; }
+    
+    // Grab the clean name directly from the dropdown text
+    let targetDeskName = targetSelect.options[targetSelect.selectedIndex].text;
     
     let [targetDeskId, targetSessionId] = targetVal.split('|');
     let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     let dateStr = getStrictDate();
 
-    const senderTx = { id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName };
-    const receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${currentDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName, isRemoteTransfer: true };
+    // Use the clean targetDeskName instead of the raw ID
+    const senderTx = { id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName };
+    const receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${currentDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName, isRemoteTransfer: true };
 
     closeModal('modal-desk-transfer');
-    let msg = `Sent ${qty}x ${itemName} to ${targetDeskId.replace('_', ' ').toUpperCase()}!`;
+    let msg = `Sent ${qty}x ${itemName} to ${targetDeskName}!`;
     
     addDoc(collection(db, 'transactions'), senderTx).catch(e => console.error(e));
     addDoc(collection(db, 'transactions'), receiverTx).catch(e => console.error(e));
@@ -980,6 +985,25 @@ function openTransferModal(targetDesk, targetSession) {
     openModal('modal-transfer');
 }
 
+let targetTransferDeskName = ''; // Add this tracking variable
+
+function openTransferModal(targetDesk, targetSession, targetName) {
+    targetTransferDeskId = targetDesk; targetTransferSessionId = targetSession;
+    
+    // Determine the clean name
+    targetTransferDeskName = targetDesk.startsWith('personal_') ? (targetName || "Personal Drawer") : targetDesk.replace('_', ' ').toUpperCase();
+    
+    document.getElementById('transfer-target-name').innerText = targetTransferDeskName;
+    document.getElementById('transfer-qty').value = '';
+    let selectEl = document.getElementById('transfer-item-select');
+    selectEl.innerHTML = '';
+    getPhysicalItems().forEach(itemName => {
+        let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
+        selectEl.appendChild(opt);
+    });
+    openModal('modal-transfer');
+}
+
 function executeTransfer() {
     let qty = parseInt(document.getElementById('transfer-qty').value) || 0;
     if (qty <= 0) { showAppAlert("Invalid Input", "Enter valid quantity."); return; }
@@ -987,14 +1011,17 @@ function executeTransfer() {
     let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     let dateStr = getStrictDate();
 
-    const senderTx = { id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetTransferDeskId}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: currentDeskId || "Admin", sessionId: currentSessionId || "Admin", agentId: currentUser.uid, agentName: userNickname || userDisplayName };
-    const receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${currentDeskId || "Admin"}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetTransferDeskId, sessionId: targetTransferSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName, isRemoteTransfer: true };
+    // Admin transfers use "Admin" or the current desk name as the sender
+    let senderName = currentDeskName || "Admin";
+
+    const senderTx = { id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetTransferDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: currentDeskId || "Admin", sessionId: currentSessionId || "Admin", agentId: currentUser.uid, agentName: userNickname || userDisplayName };
+    const receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${senderName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetTransferDeskId, sessionId: targetTransferSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName, isRemoteTransfer: true };
 
     closeModal('modal-transfer');
     
     addDoc(collection(db, 'transactions'), senderTx).catch(e => console.error(e));
     addDoc(collection(db, 'transactions'), receiverTx).catch(e => console.error(e));
-    showFlashMessage(navigator.onLine ? "Transfer Successful!" : "Offline: Queued for sync.");
+    showFlashMessage(navigator.onLine ? `Sent to ${targetTransferDeskName}!` : "Offline: Queued for sync.");
 }
 
 // --- RENDER FLOOR MAP & PEEK AT DESK ---
