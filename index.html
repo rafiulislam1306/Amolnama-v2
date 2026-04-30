@@ -16,6 +16,13 @@
 </head>
 <body>
 
+    <div id="offline-banner" style="display: none; position: fixed; top: 0; left: 0; width: 100%; background-color: #ef4444; color: white; text-align: center; padding: 6px 0; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.5px; z-index: 100000; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4); text-transform: uppercase;">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m2 2 20 20"/><path d="M8.53 8.53a9 9 0 0 1 11.23 3.86"/><path d="M4.68 4.68a13 13 0 0 0-2.6 1.74"/><path d="M2.08 9.5A13 13 0 0 1 4.5 7.1"/></svg>
+            OFFLINE - Changes Queued Locally
+        </div>
+    </div>
+
     <div id="splash-screen" class="modal-overlay active" style="background-color: var(--bg-color); z-index: 10000; flex-direction: column; align-items: center; justify-content: center;">
         <div class="spinner"></div>
     </div>

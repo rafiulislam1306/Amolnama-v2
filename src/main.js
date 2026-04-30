@@ -3096,6 +3096,31 @@ window.openProfileHub = function() {
     openModal('modal-profile-hub');
 }
 
+// ==========================================
+//    NETWORK STATUS ENGINE
+// ==========================================
+function updateNetworkStatus() {
+    const banner = document.getElementById('offline-banner');
+    if (!banner) return;
+    
+    if (!navigator.onLine) {
+        banner.style.display = 'block';
+    } else {
+        // Only show the back online message if the banner was actually visible
+        if (banner.style.display === 'block') {
+            showFlashMessage("Back Online! Syncing...");
+        }
+        banner.style.display = 'none';
+    }
+}
+
+// Listen for network changes in real-time
+window.addEventListener('online', updateNetworkStatus);
+window.addEventListener('offline', updateNetworkStatus);
+
+// Run a check immediately when the app loads
+updateNetworkStatus();
+
 // --- VITE EXPORTS ---
 window.signInWithGoogle = signInWithGoogle; window.logout = logout; window.switchTab = switchTab;
 window.openDevNotes = openDevNotes; window.saveDevNotes = saveDevNotes;
