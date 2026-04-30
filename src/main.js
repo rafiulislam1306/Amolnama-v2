@@ -2241,11 +2241,8 @@ async function renderPersonalReport() {
         let agentBadge = currentReportMode === 'floor' ? `<span style="font-size: 0.7rem; background: #e0f2fe; color: #0284c7; padding: 4px 8px; border-radius: 12px; font-weight: 700; letter-spacing: 0.5px;">${tx.agentName.split(' ')[0]}</span>` : '';
 
         let actionBtns = '';
-        let expandIcon = '';
         
         if (currentReportMode === 'personal' || currentUserRole === 'admin') {
-            expandIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><polyline points="6 9 12 15 18 9"/></svg>`;
-            
             actionBtns = `
                 <div class="tx-actions" style="display: none; width: 100%; padding-top: 12px; margin-top: 12px; border-top: 1px dashed var(--border-color); justify-content: flex-end; gap: 8px;">
                     <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: var(--accent-color); border-color: var(--accent-color); gap: 6px;" onclick="event.stopPropagation(); openEditTx(${tx.id})">
@@ -2272,7 +2269,6 @@ async function renderPersonalReport() {
                     
                     <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0; padding-top: 2px;">
                         ${agentBadge}
-                        ${expandIcon}
                     </div>
                     
                 </div>
@@ -2684,12 +2680,9 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
         let agentBadge = `<span style="font-size: 0.7rem; background: #e0f2fe; color: #0284c7; padding: 4px 8px; border-radius: 12px; font-weight: 700; letter-spacing: 0.5px;">${tx.agentName.split(' ')[0]}</span>`;
 
         let actionBtns = '';
-        let expandIcon = '';
         
         // Only show edit/trash inside the desk view if it's the user's active desk, or if they are an admin
         if (targetDeskId === currentDeskId || currentUserRole === 'admin') {
-            expandIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><polyline points="6 9 12 15 18 9"/></svg>`;
-            
             actionBtns = `
                 <div class="tx-actions" style="display: none; width: 100%; padding-top: 12px; margin-top: 12px; border-top: 1px dashed var(--border-color); justify-content: flex-end; gap: 8px;">
                     <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: var(--accent-color); border-color: var(--accent-color); gap: 6px;" onclick="event.stopPropagation(); openEditTx(${tx.id})">
@@ -2716,7 +2709,6 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
                     
                     <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0; padding-top: 2px;">
                         ${agentBadge}
-                        ${expandIcon}
                     </div>
                     
                 </div>
