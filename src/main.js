@@ -993,6 +993,42 @@ function openTransferModal(targetDesk, targetSession, targetName) {
     openModal('modal-transfer');
 }
 
+<div id="modal-admin-reallocate" class="modal-overlay">
+        <div class="bottom-sheet" style="max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="background: #fef2f2; border-bottom: 1px solid #fecaca; padding-top: 20px;">
+                <h3 style="color: #b91c1c; display: flex; align-items: center; gap: 8px; font-size: 1.1rem; font-weight: 800;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                    FORCE REALLOCATE
+                </h3>
+                <button class="close-btn" onclick="closeModal('modal-admin-reallocate')" style="color: #b91c1c; background: #fee2e2;">✕</button>
+            </div>
+            
+            <div class="modal-body" style="padding: 20px;">
+                <div style="background: #fffbeb; color: #92400e; padding: 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; margin-bottom: 20px; border: 1px solid #fde68a;">
+                    Warning: This tool bypasses session locks to move stock from absent agents. This action will be permanently logged under your Admin ID.
+                </div>
+
+                <label class="form-label">Pull Stock FROM (Absent Agent):</label>
+                <select id="force-transfer-from" class="form-input" style="margin-bottom: 16px;">
+                    <option value="">Loading users...</option>
+                </select>
+
+                <label class="form-label">Send Stock TO (Active Desk):</label>
+                <select id="force-transfer-to" class="form-input" style="margin-bottom: 16px;">
+                    <option value="">Loading active desks...</option>
+                </select>
+
+                <label class="form-label">Select Item:</label>
+                <select id="force-transfer-item" class="form-input" style="margin-bottom: 16px;"></select>
+
+                <label class="form-label">Quantity:</label>
+                <input type="number" id="force-transfer-qty" class="form-input" placeholder="Enter quantity to move" style="margin-bottom: 24px;">
+
+                <button class="btn-primary-full" style="background: #b91c1c; box-shadow: 0 4px 12px rgba(185, 28, 28, 0.2);" onclick="executeForceTransfer()">Execute Force Transfer</button>
+            </div>
+        </div>
+    </div>
+
 function executeTransfer() {
     let qty = parseInt(document.getElementById('transfer-qty').value) || 0;
     if (qty <= 0) { showAppAlert("Invalid Input", "Enter valid quantity."); return; }
@@ -2962,6 +2998,94 @@ window.openHistoricalSession = async function(sessionId) {
         showAppAlert("Vault Error", "Could not retrieve historical data. Ensure the session ID is valid.");
     }
 };
+
+// ==========================================
+//   ADMIN VAULT: FORCE REALLOCATION
+// ==========================================
+window.openForceReallocate = async function() {
+    if (!navigator.onLine) { showAppAlert("Offline", "Admin tools require an active internet connection."); return; }
+    
+    // 1. Populate the Physical Items
+    let itemSelect = document.getElementById('force-transfer-item');
+    itemSelect.innerHTML = '';
+    getPhysicalItems().forEach(itemName => {
+        let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
+        itemSelect.appendChild(opt);
+    });
+
+    document.getElementById('force-transfer-qty').value = '';
+    openModal('modal-admin-reallocate');
+
+    try {
+        // 2. Fetch ALL Users for the "FROM" dropdown (even if offline/absent)
+        const usersSnap = await getDocs(collection(db, 'users'));
+        let fromHTML = '<option value="">-- Select Absent Agent --</option>';
+        fromHTML += `<option value="main_vault">Main Vault (Center Stock)</option>`; // Optional fallback
+        
+        usersSnap.forEach(docSnap => {
+            let u = docSnap.data();
+            let safeName = u.displayName || u.email || 'Unknown Agent';
+            // Assuming desks are formatted as personal_uid
+            fromHTML += `<option value="personal_${docSnap.id}">${safeName}'s Drawer</option>`;
+        });
+        document.getElementById('force-transfer-from').innerHTML = fromHTML;
+
+        // 3. Fetch ONLY ACTIVE Sessions for the "TO" dropdown
+        const activeSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'open')));
+        let toHTML = '<option value="">-- Select Active Destination --</option>';
+        activeSnap.forEach(docSnap => {
+            let s = docSnap.data();
+            let agentFirstName = s.openedBy ? s.openedBy.split(' ')[0] : 'Agent';
+            let displayName = s.deskId.startsWith('personal_') ? `${agentFirstName}'s Drawer` : s.deskId.replace('_', ' ').toUpperCase();
+            
+            // We pass both the Desk ID and the Active Session ID
+            toHTML += `<option value="${s.deskId}|${docSnap.id}">${displayName}</option>`;
+        });
+        document.getElementById('force-transfer-to').innerHTML = toHTML || '<option value="">No other desks open</option>';
+
+    } catch(e) { 
+        console.error("Error loading reallocation targets:", e); 
+        document.getElementById('force-transfer-from').innerHTML = '<option value="">Database Error</option>';
+    }
+}
+
+window.executeForceTransfer = function() {
+    let qty = parseInt(document.getElementById('force-transfer-qty').value) || 0;
+    if (qty <= 0) { showAppAlert("Invalid Input", "Enter a valid quantity to transfer."); return; }
+
+    let fromVal = document.getElementById('force-transfer-from').value;
+    let toVal = document.getElementById('force-transfer-to').value;
+    let itemName = document.getElementById('force-transfer-item').value;
+
+    if (!fromVal || !toVal) { showAppAlert("Missing Targets", "Please select both a Source and a Destination."); return; }
+    
+    // Parse target data
+    let [toDeskId, toSessionId] = toVal.split('|');
+    if (fromVal === toDeskId) { showAppAlert("Error", "Source and Destination cannot be the same."); return; }
+
+    // Grab clean names for the receipts
+    let fromSelect = document.getElementById('force-transfer-from');
+    let toSelect = document.getElementById('force-transfer-to');
+    let fromName = fromSelect.options[fromSelect.selectedIndex].text;
+    let toName = toSelect.options[toSelect.selectedIndex].text;
+
+    let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    let dateStr = getStrictDate();
+    let receiptStr = "ADMIN-" + generateReceiptNo();
+
+    // SENDER TX: The absent agent (Using a hardcoded 'admin_override' session so it doesn't crash)
+    const senderTx = { id: Date.now(), receiptNo: receiptStr, type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Admin Reallocated to ${toName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: fromVal, sessionId: `admin_override_${dateStr}`, agentId: currentUser.uid, agentName: `Admin (${userNickname || userDisplayName})` };
+    
+    // RECEIVER TX: The active agent
+    const receiverTx = { id: Date.now() + 1, receiptNo: receiptStr, type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Admin Reallocated from ${fromName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: toDeskId, sessionId: toSessionId, agentId: currentUser.uid, agentName: `Admin (${userNickname || userDisplayName})`, isRemoteTransfer: true };
+
+    closeModal('modal-admin-reallocate');
+    
+    addDoc(collection(db, 'transactions'), senderTx).catch(e => console.error(e));
+    addDoc(collection(db, 'transactions'), receiverTx).catch(e => console.error(e));
+    
+    showFlashMessage(`Successfully pulled ${qty}x ${itemName} from ${fromName}`);
+}
 
 // --- VITE EXPORTS ---
 window.signInWithGoogle = signInWithGoogle; window.logout = logout; window.switchTab = switchTab;
