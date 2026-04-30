@@ -2834,6 +2834,108 @@ window.showTooltip = function(element, text) {
     }, 2500);
 };
 
+// ==========================================
+//   ADMIN VAULT: HISTORICAL TIME MACHINE
+// ==========================================
+window.openHistoricalSession = async function(sessionId) {
+    if (!navigator.onLine) { showAppAlert("Offline", "Cannot access the vault while offline."); return; }
+    
+    showAppAlert("Accessing Vault...", "Retrieving locked historical data.");
+    
+    try {
+        // 1. Fetch Session Data
+        const sessionDoc = await getDoc(doc(db, 'sessions', sessionId));
+        if(!sessionDoc.exists()) throw new Error("Session not found");
+        let sData = sessionDoc.data();
+
+        // 2. Fetch Only Transactions from THIS Session
+        const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', sessionId)));
+        let pastTx = [];
+        txSnap.forEach(d => pastTx.push({docId: d.id, ...d.data()}));
+        pastTx.sort((a,b) => b.id - a.id); // Newest first
+
+        // 3. Calculate Variance & Closing Math
+        let closingMathHTML = '';
+        if (sData.status === 'closed' && sData.closingBalances) {
+            let expected = parseFloat(sData.closingBalances.expectedCash) || 0;
+            let actual = parseFloat(sData.closingBalances.actualCash) || 0;
+            let variance = actual - expected;
+            
+            let varColor = variance >= 0 ? '#10b981' : '#ef4444';
+            let varBg = variance >= 0 ? '#d1fae5' : '#fee2e2';
+            let varText = variance >= 0 ? `+${variance} Tk (Over/Exact)` : `${variance} Tk (Short)`;
+
+            closingMathHTML = `
+                <div style="background: var(--surface-color); border-radius: 16px; padding: 16px; margin-bottom: 24px; border: 1px solid var(--border-color); box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+                    <div style="font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 800; margin-bottom: 16px; letter-spacing: 0.5px;">Shift Closing Declaration</div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.95rem;">
+                        <span style="color: var(--text-secondary); font-weight: 600;">System Expected:</span>
+                        <span style="font-weight: 800; color: var(--text-primary);">${expected} Tk</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 0.95rem;">
+                        <span style="color: var(--text-secondary); font-weight: 600;">Agent Declared:</span>
+                        <span style="font-weight: 800; color: var(--text-primary);">${actual} Tk</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px dashed var(--border-color);">
+                        <span style="color: var(--text-secondary); font-weight: 800; font-size: 0.85rem; text-transform: uppercase;">Variance:</span>
+                        <span style="font-weight: 800; color: ${varColor}; background: ${varBg}; padding: 4px 10px; border-radius: 8px; font-size: 0.9rem;">${varText}</span>
+                    </div>
+                    ${sData.closingBalances.note ? `<div style="margin-top: 16px; padding: 12px; background: #f8fafc; border-radius: 8px; border-left: 4px solid #cbd5e1; font-size: 0.85rem; font-style: italic; color: var(--text-secondary); line-height: 1.4;">" ${sData.closingBalances.note} "</div>` : ''}
+                </div>
+            `;
+        } else {
+            closingMathHTML = `<div style="padding: 12px; background: #fffbeb; color: #b45309; border-radius: 10px; margin-bottom: 24px; font-weight: 600; font-size: 0.9rem; text-align: center; border: 1px solid #fde68a;">This session is still marked as OPEN or was closed improperly.</div>`;
+        }
+
+        // 4. Build Read-Only Transaction List
+        let txHTML = '<div style="font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 800; margin-bottom: 12px; margin-top: 8px; letter-spacing: 0.5px;">Shift Receipts</div>';
+
+        if (pastTx.length === 0) {
+            txHTML += `<div style="text-align: center; padding: 30px 20px; color: var(--text-secondary); font-style: italic; background: var(--surface-color); border-radius: 12px; border: 1px dashed var(--border-color);">No receipts found for this shift.</div>`;
+        } else {
+            pastTx.forEach(tx => {
+                let payLabel = tx.payment === 'Split' ? `Split` : tx.payment;
+                // Notice there are NO edit or trash buttons rendered here at all.
+                txHTML += `
+                    <div class="history-item" style="flex-direction: column; align-items: stretch; margin-bottom: 10px; padding: 14px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+                            <div class="history-info" style="flex: 1; padding-right: 12px;">
+                                <div style="display: flex; align-items: center; flex-wrap: wrap; margin-bottom: 4px;">
+                                    <span class="history-title" style="margin-right: 8px; font-size: 1rem;">${tx.qty}x ${tx.name}</span>
+                                </div>
+                                <span class="history-meta" style="font-size: 0.8rem;">${tx.receiptNo || tx.id} • ${tx.time} • ${tx.amount} ${userCurrency} • ${payLabel}</span>
+                            </div>
+                            <div style="display: flex; align-items: center; flex-shrink: 0;">
+                                <span style="font-size: 0.65rem; background: #f1f5f9; color: #475569; padding: 4px 8px; border-radius: 12px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;">${tx.type.replace('_', ' ')}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // 5. Inject and Open
+        let agentName = sData.openedBy ? sData.openedBy.split(' ')[0] : 'Agent';
+        let deskTitle = sData.deskId.startsWith('personal_') ? `${agentName}'s Drawer` : sData.deskId.replace('_', ' ').toUpperCase();
+
+        let headerHTML = `
+            <div style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid var(--border-color);">
+                <h2 style="margin: 0; color: var(--text-primary); font-size: 1.5rem; font-weight: 800;">${deskTitle}</h2>
+                <div style="color: var(--text-secondary); font-size: 0.95rem; margin-top: 6px; font-weight: 600;">Shift Date: <span style="color: var(--text-primary);">${sData.dateStr}</span></div>
+            </div>
+        `;
+
+        document.getElementById('historical-content').innerHTML = headerHTML + closingMathHTML + txHTML;
+        closeModal('modal-app-alert');
+        openModal('modal-historical');
+
+    } catch (error) {
+        console.error(error);
+        closeModal('modal-app-alert');
+        showAppAlert("Vault Error", "Could not retrieve historical data. Ensure the session ID is valid.");
+    }
+};
+
 // --- VITE EXPORTS ---
 window.signInWithGoogle = signInWithGoogle; window.logout = logout; window.switchTab = switchTab;
 window.openDevNotes = openDevNotes; window.saveDevNotes = saveDevNotes;
@@ -2863,3 +2965,4 @@ window.shareDeskReport = shareDeskReport;
 window.exportLedgerCSV = exportLedgerCSV; window.openAuditModal = openAuditModal; window.fetchAuditLogs = fetchAuditLogs;
 window.renderPersonalReport = renderPersonalReport; window.renderDeskDashboard = renderDeskDashboard;
 window.toggleReportMode = toggleReportMode;
+window.openHistoricalSession = openHistoricalSession;
