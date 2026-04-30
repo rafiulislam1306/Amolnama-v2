@@ -89,54 +89,37 @@
         </div>
     </main>
 
-    <main id="tab-sims" class="tab-content">
-        <div class="toggle-container">
+    <main id="tab-store" class="tab-content">
+        <div class="toggle-container" style="margin-bottom: 16px;">
             <span class="toggle-label">Payment Mode:</span>
             <div class="toggle-switch" onclick="toggleMFS()">
                 <div class="toggle-option sync-cash active">Cash</div>
                 <div class="toggle-option sync-mfs">MFS</div>
             </div>
         </div>
-        <div class="section-header" style="margin-bottom: 8px;">PAID ACTIONS</div>
-        <div style="background: var(--surface-color); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); margin: 0 -20px 24px -20px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border-color); cursor: pointer;" onclick="openModal('modal-new-sim')">
-                <div style="display: flex; align-items: center; gap: 14px;">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-                    <span style="font-weight: 600; color: var(--text-primary); font-size: 1.05rem;">New SIMs</span>
-                </div>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; cursor: pointer;" onclick="openModal('modal-paid-rep')">
-                <div style="display: flex; align-items: center; gap: 14px;">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-                    <span style="font-weight: 600; color: var(--text-primary); font-size: 1.05rem;">Replacement</span>
-                </div>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-            </div>
+
+        <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 16px; margin-bottom: 8px; scrollbar-width: none; -webkit-overflow-scrolling: touch;">
+            <button class="store-pill active" onclick="switchStoreCategory('cat-new-sim', this)">New SIMs</button>
+            <button class="store-pill" onclick="switchStoreCategory('cat-paid-rep', this)">Replacements</button>
+            <button class="store-pill" onclick="switchStoreCategory('cat-services', this)">Services</button>
+            <button class="store-pill" onclick="switchStoreCategory('cat-free', this)">Free Actions</button>
         </div>
 
-        <div class="section-header" style="margin-bottom: 8px;">FREE ACTIONS</div>
-        <div id="container-free-actions" style="background: var(--surface-color); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); margin: 0 -20px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; cursor: pointer;" onclick="openModal('modal-foc')">
-                <div style="display: flex; align-items: center; gap: 14px;">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                    <span style="font-weight: 600; color: var(--text-primary); font-size: 1.05rem;">Free Replacements</span>
-                </div>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; margin-bottom: 40px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+            <div id="cat-new-sim" class="store-cat-group">
+                <div id="container-new-sim"></div>
+            </div>
+            <div id="cat-paid-rep" class="store-cat-group" style="display: none;">
+                <div id="container-paid-rep"></div>
+            </div>
+            <div id="cat-services" class="store-cat-group" style="display: none;">
+                <div id="container-services"></div>
+            </div>
+            <div id="cat-free" class="store-cat-group" style="display: none;">
+                <div id="container-foc"></div>
+                <div id="container-free-actions"></div>
             </div>
         </div>
-    </main>
-
-    <main id="tab-services" class="tab-content">
-        <div class="toggle-container">
-            <span class="toggle-label">Payment Mode:</span>
-            <div class="toggle-switch" onclick="toggleMFS()">
-                <div class="toggle-option sync-cash active">Cash</div>
-                <div class="toggle-option sync-mfs">MFS</div>
-            </div>
-        </div>
-        <div class="section-header" style="margin-bottom: 8px;">OTHER SERVICES</div>
-        <div id="container-services" style="background: var(--surface-color); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); margin: 0 -20px;"></div>
     </main>
 
     <main id="tab-desk" class="tab-content">
@@ -501,36 +484,6 @@
         }
     </style>
 
-    <div id="modal-new-sim" class="modal-overlay" style="z-index: 8000; align-items: flex-end; padding: 0;">
-        <div class="bottom-sheet">
-            <div style="position: sticky; top: 0; background: var(--surface-color); padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); z-index: 10; border-radius: 20px 20px 0 0;">
-                <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">Select New SIM</h3>
-                <button style="background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #64748b; cursor: pointer; font-size: 1.2rem; font-weight: bold;" onclick="closeModal('modal-new-sim')">✕</button>
-            </div>
-            <div id="container-new-sim" style="padding-bottom: calc(20px + env(safe-area-inset-bottom));"></div>
-        </div>
-    </div>
-
-    <div id="modal-paid-rep" class="modal-overlay" style="z-index: 8000; align-items: flex-end; padding: 0;">
-        <div class="bottom-sheet">
-            <div style="position: sticky; top: 0; background: var(--surface-color); padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); z-index: 10; border-radius: 20px 20px 0 0;">
-                <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">Select Replacement</h3>
-                <button style="background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #64748b; cursor: pointer; font-size: 1.2rem; font-weight: bold;" onclick="closeModal('modal-paid-rep')">✕</button>
-            </div>
-            <div id="container-paid-rep" style="padding-bottom: calc(20px + env(safe-area-inset-bottom));"></div>
-        </div>
-    </div>
-
-    <div id="modal-foc" class="modal-overlay" style="z-index: 8000; align-items: flex-end; padding: 0;">
-        <div class="bottom-sheet">
-            <div style="position: sticky; top: 0; background: var(--surface-color); padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); z-index: 10; border-radius: 20px 20px 0 0;">
-                <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">Select Free Action</h3>
-                <button style="background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #64748b; cursor: pointer; font-size: 1.2rem; font-weight: bold;" onclick="closeModal('modal-foc')">✕</button>
-            </div>
-            <div id="container-foc" style="padding-bottom: calc(20px + env(safe-area-inset-bottom));"></div>
-        </div>
-    </div>
-
     <div id="modal-settings" class="modal-overlay">
         <div class="modal-content">
             <div class="admin-header-bar">
@@ -790,20 +743,18 @@
             <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg>
             ERS
         </button>
-        <button class="nav-item" onclick="switchTab('sims', 'SIMs')">
-            <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M7 8h.01"/><path d="M17 8h.01"/><path d="M12 8h.01"/><path d="M7 12h.01"/><path d="M17 12h.01"/><path d="M12 12h.01"/><path d="M7 16h.01"/><path d="M17 16h.01"/><path d="M12 16h.01"/></svg>
-            SIMs
+        <button class="nav-item" onclick="switchTab('store', 'Store')">
+            <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+            Store
         </button>
-        <button class="nav-item" onclick="switchTab('services', 'Services')">
-            <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-            Serv.
+        <button id="nav-drawer-btn" class="nav-item" onclick="handleMyDrawerNav()">
+            <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            Drawer
         </button>
-        
         <button class="nav-item" onclick="switchTab('floor', 'Live Floor Map')">
             <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
             Floor
         </button>
-        
         <button class="nav-item" onclick="switchTab('report', 'My Report')">
             <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></svg>
             Rep.

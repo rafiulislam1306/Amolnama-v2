@@ -387,3 +387,27 @@ header {
     opacity: 1;
     transform: translate(-50%, -15px); /* Bubbles up smoothly */
 }
+
+/* --- STORE PILLS --- */
+.store-pill {
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 8px 18px;
+    border-radius: 24px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+.store-pill.active {
+    background: #0f172a; 
+    color: #ffffff;
+    border-color: #0f172a;
+}
+@media (prefers-color-scheme: dark) {
+    .store-pill.active { background: #38bdf8; color: #0f172a; border-color: #38bdf8; }
+}
+.store-cat-group::-webkit-scrollbar { display: none; }

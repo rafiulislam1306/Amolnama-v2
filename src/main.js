@@ -3051,6 +3051,31 @@ window.executeForceTransfer = function() {
     showFlashMessage(`Successfully pulled ${qty}x ${itemName} from ${fromName}`);
 }
 
+// ==========================================
+//    NEW STORE & DRAWER ROUTING LOGIC
+// ==========================================
+window.switchStoreCategory = function(catId, btn) {
+    // Visually highlight the correct pill
+    document.querySelectorAll('.store-pill').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    
+    // Show the correct grid
+    document.querySelectorAll('.store-cat-group').forEach(c => c.style.display = 'none');
+    document.getElementById(catId).style.display = 'block';
+}
+
+window.handleMyDrawerNav = function() {
+    if (currentDeskId && currentDeskId !== 'sandbox') {
+        openMyDeskDashboard();
+        // Manually move the active nav highlight since switchTab wasn't triggered directly from HTML
+        document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('nav-drawer-btn').classList.add('active');
+    } else {
+        showAppAlert("No Active Desk", "You are not currently assigned to an open desk. Please open or join one from the Live Floor map first.");
+        switchTab('floor', 'Live Floor Map');
+    }
+}
+
 // --- VITE EXPORTS ---
 window.signInWithGoogle = signInWithGoogle; window.logout = logout; window.switchTab = switchTab;
 window.openDevNotes = openDevNotes; window.saveDevNotes = saveDevNotes;
@@ -3081,3 +3106,4 @@ window.exportLedgerCSV = exportLedgerCSV; window.openAuditModal = openAuditModal
 window.renderPersonalReport = renderPersonalReport; window.renderDeskDashboard = renderDeskDashboard;
 window.toggleReportMode = toggleReportMode;
 window.openHistoricalSession = openHistoricalSession;
+window.switchStoreCategory = switchStoreCategory; window.handleMyDrawerNav = handleMyDrawerNav;
