@@ -810,6 +810,10 @@ function openManagerCashModal() {
     if(!currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
     document.getElementById('mgr-cash-amount').value = '';
     openModal('modal-manager-cash');
+    setTimeout(() => {
+        const amtInput = document.getElementById('mgr-cash-amount');
+        if (amtInput) { amtInput.focus(); }
+    }, 100);
 }
 
 function saveManagerCash() {
@@ -1168,6 +1172,10 @@ function openEditTx(id) {
         document.getElementById('edit-tx-mfs').value = tx.mfsAmt;
     } else { paymentSelect.value = tx.payment; splitFields.style.display = 'none'; }
     openModal('modal-edit-tx');
+    setTimeout(() => {
+        const qtyInput = document.getElementById('edit-tx-qty');
+        if (qtyInput) { qtyInput.focus(); qtyInput.select(); }
+    }, 100);
 }
 
 function toggleEditSplitFields() {
@@ -1363,14 +1371,21 @@ function updateCurrencyUI() { document.querySelectorAll('.ers-currency').forEach
 // --- ERS LOGIC ---
 let currentErsAmount = '0';
 const ersDisplay = document.getElementById('ers-display');
-function updateErsDisplay() { ersDisplay.innerText = currentErsAmount; }
+function updateErsDisplay() { 
+    ersDisplay.innerText = Number(currentErsAmount).toLocaleString('en-IN'); 
+}
 
 function ersKeyPress(num) {
+    if (navigator.vibrate) navigator.vibrate(10);
     if (currentErsAmount === '0') { if (num !== '00' && num !== '0') currentErsAmount = num; } 
     else { if ((currentErsAmount + num).length <= 5) currentErsAmount += num; }
     updateErsDisplay();
 }
-function ersBackspace() { currentErsAmount = currentErsAmount.length > 1 ? currentErsAmount.slice(0, -1) : '0'; updateErsDisplay(); }
+function ersBackspace() { 
+    if (navigator.vibrate) navigator.vibrate(15);
+    currentErsAmount = currentErsAmount.length > 1 ? currentErsAmount.slice(0, -1) : '0'; 
+    updateErsDisplay(); 
+}
 function saveErs(paymentMethod) {
     const amount = parseInt(currentErsAmount);
     if (amount <= 0) { showAppAlert("Invalid Input", "Please enter a valid amount."); return; }
@@ -1472,8 +1487,16 @@ function updateQtyDisplay() {
     document.getElementById('qty-calc-display').innerText = currentItemPrice === 0 ? `Inventory Update (0 ${userCurrency})` : `${qtyInt} x ${currentItemPrice} = ${qtyInt * currentItemPrice} ${userCurrency}`;
 }
 
-function qtyKeyPress(num) { if (currentQty === '0') currentQty = num; else if (currentQty.length < 3) currentQty += num; updateQtyDisplay(); }
-function qtyBackspace() { currentQty = currentQty.length > 1 ? currentQty.slice(0, -1) : '0'; updateQtyDisplay(); }
+function qtyKeyPress(num) { 
+    if (navigator.vibrate) navigator.vibrate(10);
+    if (currentQty === '0') currentQty = num; else if (currentQty.length < 3) currentQty += num; 
+    updateQtyDisplay(); 
+}
+function qtyBackspace() { 
+    if (navigator.vibrate) navigator.vibrate(15);
+    currentQty = currentQty.length > 1 ? currentQty.slice(0, -1) : '0'; 
+    updateQtyDisplay(); 
+}
 function saveQuantity() {
     let qtyInt = parseInt(currentQty) || 0;
     if (qtyInt <= 0) { showAppAlert("Invalid Input", "Please enter a quantity of 1 or more."); return; }
