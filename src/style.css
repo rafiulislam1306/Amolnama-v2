@@ -56,7 +56,9 @@ input, textarea, select {
 
 /* --- 3. LAYOUT COMPONENTS --- */
 header { 
-    background-color: var(--surface-color); 
+    background-color: rgba(255, 255, 255, 0.85); 
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     padding: env(safe-area-inset-top) 16px 0 16px; 
     height: calc(64px + env(safe-area-inset-top)); 
     min-height: calc(64px + env(safe-area-inset-top)); 
@@ -65,6 +67,12 @@ header {
     align-items: center; 
     border-bottom: 1px solid var(--border-color); 
     box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+    position: sticky;
+    top: 0;
+    z-index: 8500;
+}
+@media (prefers-color-scheme: dark) { 
+    header { background-color: rgba(23, 33, 43, 0.85); } 
 }
 
 .header-title { font-size: 1.25rem; font-weight: 600; }
@@ -154,16 +162,16 @@ header {
 .ers-display { font-size: 4rem; font-weight: 800; color: var(--text-primary); word-break: break-all; letter-spacing: -2px; line-height: 1; }
 
 .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; flex: 1; }
-.keypad-btn { background-color: transparent; border: none; border-radius: 12px; font-size: 2rem; font-weight: 400; color: var(--text-primary); cursor: pointer; display: flex; align-items: center; justify-content: center; -webkit-user-select: none; user-select: none; transition: background-color 0.1s; }
-.keypad-btn:active { background-color: var(--border-color); }
+.keypad-btn { background-color: transparent; border: none; border-radius: 12px; font-size: 2rem; font-weight: 400; color: var(--text-primary); cursor: pointer; display: flex; align-items: center; justify-content: center; -webkit-user-select: none; user-select: none; transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1); }
+.keypad-btn:active { background-color: var(--border-color); transform: scale(0.92); }
 .backspace-btn { color: #ef4444; }
 
 .save-ers-btn { background-color: var(--accent-color); color: #ffffff; border: none; border-radius: 10px; padding: 16px; font-size: 1.25rem; font-weight: 600; cursor: pointer; width: 100%; -webkit-user-select: none; user-select: none; transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.1s; box-shadow: none; }
 .save-ers-btn:active { transform: scale(0.96); opacity: 0.9; }
 
 /* --- 6. FORMS & BUTTONS --- */
-.settings-input { width: 100%; padding: 14px 16px; border: 1px solid transparent; border-radius: 12px; background-color: var(--bg-color); color: var(--text-primary); font-size: 1rem; font-weight: 500; transition: all 0.2s ease; -webkit-appearance: none; appearance: none; }
-.settings-input:focus { border-color: var(--accent-color); background-color: var(--surface-color); outline: none; box-shadow: 0 0 0 3px rgba(51, 144, 236, 0.15); }
+.settings-input { width: 100%; padding: 14px 16px; border: 1.5px solid transparent; border-radius: 12px; background-color: var(--bg-color); color: var(--text-primary); font-size: 1rem; font-weight: 500; transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1); -webkit-appearance: none; appearance: none; box-shadow: inset 0 1px 3px rgba(0,0,0,0.02); }
+.settings-input:focus { border-color: var(--accent-color); background-color: var(--surface-color); outline: none; box-shadow: 0 0 0 4px rgba(51, 144, 236, 0.15), inset 0 1px 2px rgba(0,0,0,0.01); transform: translateY(-1px); }
 
 .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .action-btn { background-color: var(--surface-color); border: none; border-radius: 10px; padding: 16px 12px; font-size: 1rem; font-weight: 500; color: var(--text-primary); cursor: pointer; text-align: center; transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.1s; }
