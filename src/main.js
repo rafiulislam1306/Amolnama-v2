@@ -2117,8 +2117,13 @@ async function renderPersonalReport() {
     let targetDateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
 
     let floorOpeningCash = 0;
-    let floorOpeningInv = {};
     let floorManagerDrops = 0;
+    
+    // NEW: Detailed Floor Inventory Stats Object
+    let floorInvStats = {};
+    getPhysicalItems().forEach(item => {
+        floorInvStats[item] = { open: 0, inOut: 0, sold: 0, rem: 0 };
+    });
 
     // IF ADMIN VIEW: Fetch all opening balances for the day
     if (currentReportMode === 'floor') {
@@ -2129,13 +2134,14 @@ async function renderPersonalReport() {
                 floorOpeningCash += parseFloat(s.openingBalances?.cash) || 0;
                 let inv = s.openingBalances?.inventory || {};
                 for (let [item, qty] of Object.entries(inv)) {
-                    floorOpeningInv[item] = (floorOpeningInv[item] || 0) + qty;
+                    if (floorInvStats[item]) {
+                        floorInvStats[item].open += qty;
+                        floorInvStats[item].rem += qty;
+                    }
                 }
             });
         } catch(e) { console.error("Could not fetch floor sessions", e); }
     }
-
-    let liveInv = { ...floorOpeningInv };
 
     [...transactions].reverse().forEach(tx => {
         if (tx.isDeleted) return;
@@ -2162,10 +2168,18 @@ async function renderPersonalReport() {
             }
         }
 
-        // Track Floor-Wide Inventory Math
-        if (currentReportMode === 'floor') {
-            let change = getInventoryChange(tx);
-            if (change !== 0) liveInv[tx.trackAs] = (liveInv[tx.trackAs] || 0) + change;
+        // Track Floor-Wide Detailed Inventory Math
+        if (currentReportMode === 'floor' && globalInventoryGroups.includes(tx.trackAs)) {
+            let trackAs = tx.trackAs;
+            let q = Math.abs(tx.qty);
+            
+            if (tx.type === 'transfer_in') { floorInvStats[trackAs].inOut += q; floorInvStats[trackAs].rem += q; }
+            else if (tx.type === 'transfer_out') { floorInvStats[trackAs].inOut -= q; floorInvStats[trackAs].rem -= q; }
+            else if (tx.type === 'adjustment') { floorInvStats[trackAs].inOut += q; floorInvStats[trackAs].rem += q; }
+            else { 
+                floorInvStats[trackAs].sold += q; 
+                floorInvStats[trackAs].rem -= q; 
+            }
         }
         
         // FILTER & UI RENDERING
@@ -2188,10 +2202,8 @@ async function renderPersonalReport() {
         if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
         if (tx.isRestored) badges += `<span style="font-size: 0.7rem; background: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Restored</span>`;
 
-        // Inject the agent's name on every receipt if we are looking at the whole floor
         let agentBadge = currentReportMode === 'floor' ? `<span style="font-size: 0.7rem; background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">${tx.agentName.split(' ')[0]}</span>` : '';
 
-        // Only render Edit/Delete buttons if you are looking at your own stuff, OR if you are an admin
         let actionBtns = '';
         if (currentReportMode === 'personal' || currentUserRole === 'admin') {
             actionBtns = `
@@ -2255,23 +2267,39 @@ async function renderPersonalReport() {
 
     let finalInventoryListHTML = invHTML || '<div class="report-row" style="color: var(--text-secondary); font-style: italic; padding: 12px 4px;">No items sold yet</div>';
 
-    // Inject Live Stock for Floor Mode
+    // Inject Detailed Grid for Floor Mode
     if (currentReportMode === 'floor') {
-        let liveStockHTML = '<div style="margin-top: 24px; font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; padding: 0 4px; border-bottom: 2px solid var(--border-color); padding-bottom: 8px;">Live Floor Stock</div>';
+        let liveStockHTML = `
+            <div style="margin-top: 24px; font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; padding: 0 4px; border-bottom: 2px solid var(--border-color); padding-bottom: 8px;">Consolidated Floor Stock</div>
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; padding: 12px 4px 8px 4px; border-bottom: 2px solid var(--border-color); font-size: 0.7rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
+                <div>Item</div>
+                <div style="text-align: center;">Start</div>
+                <div style="text-align: center;">In/Out</div>
+                <div style="text-align: center;">Sold</div>
+                <div style="text-align: center; color: #0ea5e9;">Exp.</div>
+            </div>
+        `;
+        
         let hasLiveStock = false;
-        for (const [name, qty] of Object.entries(liveInv)) {
-            if (qty !== 0) {
-                let color = qty < 5 ? '#ef4444' : '#10b981';
-                liveStockHTML += `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 4px; border-bottom: 1px dashed var(--border-color);">
-                        <span style="font-weight: 600; color: var(--text-secondary); font-size: 0.95rem;">${name}</span>
-                        <span style="font-weight: 800; color: ${color}; font-size: 1.1rem;">${qty}</span>
-                    </div>
-                `;
-                hasLiveStock = true;
-            }
+        for (const [item, d] of Object.entries(floorInvStats)) {
+            if (d.open === 0 && d.inOut === 0 && d.sold === 0 && d.rem === 0) continue;
+            hasLiveStock = true;
+            
+            let inOutColor = d.inOut > 0 ? '#10b981' : (d.inOut < 0 ? '#ef4444' : 'var(--text-secondary)');
+            let inOutStr = d.inOut > 0 ? `+${d.inOut}` : (d.inOut < 0 ? `${d.inOut}` : `0`);
+
+            liveStockHTML += `
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; align-items: center; padding: 12px 4px; border-bottom: 1px dashed var(--border-color); font-size: 0.85rem;">
+                    <div style="font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${item}">${item}</div>
+                    <div style="text-align: center; color: var(--text-secondary); font-weight: 600;">${d.open}</div>
+                    <div style="text-align: center; color: ${inOutColor}; font-weight: 700;">${inOutStr}</div>
+                    <div style="text-align: center; color: #f59e0b; font-weight: 700;">${d.sold}</div>
+                    <div style="text-align: center; color: #0ea5e9; font-weight: 800; font-size: 1rem;">${d.rem}</div>
+                </div>
+            `;
         }
-        if (!hasLiveStock) liveStockHTML += '<div style="color: var(--text-secondary); font-style: italic; padding: 12px 4px;">No physical stock on floor</div>';
+        
+        if (!hasLiveStock) liveStockHTML += '<div style="color: var(--text-secondary); font-style: italic; padding: 12px 4px;">No physical stock recorded today</div>';
         finalInventoryListHTML += liveStockHTML;
     }
 
