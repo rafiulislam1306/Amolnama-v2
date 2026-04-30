@@ -2306,7 +2306,7 @@ async function renderPersonalReport() {
 
             liveStockHTML += `
                 <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; align-items: center; padding: 12px 4px; border-bottom: 1px dashed var(--border-color); font-size: 0.85rem;">
-                    <div style="font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${item}">${item}</div>
+                    <div style="font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; cursor: pointer;" onclick="showTooltip(this, '${item}')">${item}</div>
                     <div style="text-align: center; color: var(--text-secondary); font-weight: 600;">${d.open}</div>
                     <div style="text-align: center; color: ${inOutColor}; font-weight: 700;">${inOutStr}</div>
                     <div style="text-align: center; color: #f59e0b; font-weight: 700;">${d.sold}</div>
@@ -2442,7 +2442,7 @@ function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, deskItemsS
 
         invRows += `
             <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-color); font-size: 0.85rem;">
-                <div style="font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${item}">${item}</div>
+                <div style="font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; cursor: pointer;" onclick="showTooltip(this, '${item}')">${item}</div>
                 <div style="text-align: center; color: var(--text-secondary); font-weight: 600;">${d.open}</div>
                 <div style="text-align: center; color: ${inOutColor}; font-weight: 700;">${inOutStr}</div>
                 <div style="text-align: center; color: #f59e0b; font-weight: 700;">${d.sold}</div>
@@ -2773,6 +2773,36 @@ async function saveDevNotes() {
         showAppAlert("Error", "Could not save notes. Please check your connection.");
     }
 }
+
+// ==========================================
+//    NATIVE TOOLTIP ENGINE
+// ==========================================
+window.showTooltip = function(element, text) {
+    // 1. Destroy any existing tooltips instantly so they don't pile up
+    document.querySelectorAll('.mobile-tooltip').forEach(el => el.remove());
+    
+    // 2. Create the new bubble
+    let tooltip = document.createElement('div');
+    tooltip.className = 'mobile-tooltip';
+    tooltip.innerText = text;
+    document.body.appendChild(tooltip);
+    
+    // 3. Measure where the user tapped
+    let rect = element.getBoundingClientRect();
+    
+    // 4. Center it directly above the item they tapped
+    tooltip.style.left = (rect.left + (rect.width / 2)) + 'px';
+    tooltip.style.top = (rect.top - 10) + 'px'; 
+    
+    // 5. Trigger the fluid CSS animation
+    setTimeout(() => tooltip.classList.add('show'), 10);
+    
+    // 6. Auto-destroy after 2.5 seconds
+    setTimeout(() => {
+        tooltip.classList.remove('show');
+        setTimeout(() => tooltip.remove(), 200); // Wait for fade-out before removing from DOM
+    }, 2500);
+};
 
 // --- VITE EXPORTS ---
 window.signInWithGoogle = signInWithGoogle; window.logout = logout; window.switchTab = switchTab;
