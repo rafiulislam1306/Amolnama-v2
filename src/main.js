@@ -971,24 +971,13 @@ function executeDeskTransfer() {
     showFlashMessage(navigator.onLine ? msg : "Offline: Transfer queued");
 }
 
-let targetTransferDeskId = null; let targetTransferSessionId = null;
-function openTransferModal(targetDesk, targetSession) {
-    targetTransferDeskId = targetDesk; targetTransferSessionId = targetSession;
-    document.getElementById('transfer-target-name').innerText = targetDesk.replace('_', ' ').toUpperCase();
-    document.getElementById('transfer-qty').value = '';
-    let selectEl = document.getElementById('transfer-item-select');
-    selectEl.innerHTML = '';
-    getPhysicalItems().forEach(itemName => {
-        let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
-        selectEl.appendChild(opt);
-    });
-    openModal('modal-transfer');
-}
-
+let targetTransferDeskId = null; 
+let targetTransferSessionId = null;
 let targetTransferDeskName = ''; // Add this tracking variable
 
 function openTransferModal(targetDesk, targetSession, targetName) {
-    targetTransferDeskId = targetDesk; targetTransferSessionId = targetSession;
+    targetTransferDeskId = targetDesk; 
+    targetTransferSessionId = targetSession;
     
     // Determine the clean name
     targetTransferDeskName = targetDesk.startsWith('personal_') ? (targetName || "Personal Drawer") : targetDesk.replace('_', ' ').toUpperCase();
