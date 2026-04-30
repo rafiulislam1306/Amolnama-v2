@@ -290,8 +290,6 @@ setPersistence(auth, browserLocalPersistence)
                 currentUser = user;
                 userDisplayName = user.displayName || 'User';
                 document.getElementById('modal-auth').classList.remove('active');
-                document.getElementById('settings-btn').style.display = 'none';
-                document.getElementById('logout-btn').style.display = 'none';
                 initUserData(); 
             } else {
                 currentUser = null;
@@ -308,6 +306,7 @@ function signInWithGoogle() { const provider = new GoogleAuthProvider(); signInW
 function logout() {
   signOut(auth).then(() => {
         closeModal('modal-settings');
+        closeModal('modal-profile-hub');
         document.getElementById('dev-note-fab').style.display = 'none';
         transactions = []; trashTransactions = [];
         renderPersonalReport();
@@ -1342,11 +1341,17 @@ function switchTab(tabId, title) {
     document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
 
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-    document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
     document.getElementById('tab-' + tabId).classList.add('active');
     
-    if(event && event.currentTarget) {
-         event.currentTarget.classList.add('active');
+    // Fix: Robust Navigation Highlighting
+    document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+    const navBtns = document.querySelectorAll('.nav-item');
+    if (navBtns.length >= 5) {
+        if (tabId === 'ers') navBtns[0].classList.add('active');
+        else if (tabId === 'store') navBtns[1].classList.add('active');
+        else if (tabId === 'desk') navBtns[2].classList.add('active');
+        else if (tabId === 'floor') navBtns[3].classList.add('active');
+        else if (tabId === 'report') navBtns[4].classList.add('active');
     }
     
     document.getElementById('header-title').innerText = tabId === 'ers' ? (currentDeskName || userNickname || userDisplayName) : title;
@@ -3057,11 +3062,8 @@ window.switchStoreCategory = function(catId, btn) {
 }
 
 window.handleMyDrawerNav = function() {
-    if (currentDeskId && currentDeskId !== 'sandbox') {
+    if (currentDeskId) {
         openMyDeskDashboard();
-        // Manually move the active nav highlight since switchTab wasn't triggered directly from HTML
-        document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
-        document.getElementById('nav-drawer-btn').classList.add('active');
     } else {
         showAppAlert("No Active Desk", "You are not currently assigned to an open desk. Please open or join one from the Live Floor map first.");
         switchTab('floor', 'Live Floor Map');
