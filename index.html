@@ -41,18 +41,13 @@
         </div>
     </div>
 
-    <header>
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <img id="header-user-photo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666666'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E" alt="Profile" style="width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border-color); object-fit: cover; background-color: var(--bg-color);">
-            <div class="header-title" id="header-title">ERS</div>
-        </div>
-        <div style="display: flex; align-items: center; gap: 16px;">
-            <button class="settings-btn" id="logout-btn" style="display: none; color: #ef4444;" onclick="logout()">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
-            </button>
-            <button class="settings-btn" id="settings-btn" style="display: none;" onclick="openSettings()">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            </button>
+    <header style="cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;" onclick="openProfileHub()">
+        <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
+            <img id="header-user-photo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666666'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E" alt="Profile" style="width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border-color); object-fit: cover; background-color: var(--bg-color);">
+            <div class="header-title" id="header-title" style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">ERS</div>
+            <div style="background: var(--bg-color); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </div>
         </div>
     </header>
 
@@ -461,6 +456,68 @@
         </div>
     </div>
 
+    <div id="modal-profile-hub" class="modal-overlay" style="z-index: 9700;">
+        <div class="bottom-sheet" style="padding: 0;">
+            
+            <div style="background: var(--surface-color); padding: 24px 20px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid var(--border-color); border-radius: 20px 20px 0 0;">
+                <img id="hub-user-photo" src="" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); background: var(--bg-color);">
+                <div style="flex: 1; overflow: hidden;">
+                    <h3 id="hub-user-name" style="margin: 0 0 4px 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Name</h3>
+                    <div id="hub-user-email" style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">email</div>
+                    <span id="hub-user-role" style="font-size: 0.7rem; font-weight: 700; padding: 4px 8px; border-radius: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Role</span>
+                </div>
+                <button style="background: var(--bg-color); border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; font-weight: bold;" onclick="closeModal('modal-profile-hub')">✕</button>
+            </div>
+
+            <div style="padding: 12px 20px;">
+                <div class="list-menu-item" onclick="closeModal('modal-profile-hub'); openNicknameManager();">
+                    <div class="list-item-content">
+                        <span class="list-item-title">Edit Nickname</span>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">Change how you appear on the floor map</span>
+                    </div>
+                    <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </div>
+                <div class="list-menu-item" onclick="closeModal('modal-profile-hub'); openDevNotes();">
+                    <div class="list-item-content">
+                        <span class="list-item-title">My Notes</span>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">Personal scratchpad & reminders</span>
+                    </div>
+                    <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </div>
+            </div>
+
+            <div id="hub-admin-section" style="display: none; border-top: 4px solid var(--bg-color); padding: 12px 20px;">
+                <div style="font-size: 0.75rem; font-weight: 800; color: #b91c1c; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; padding-left: 4px;">Admin Controls</div>
+                <div class="list-menu-item" onclick="closeModal('modal-profile-hub'); openSettings();">
+                    <div class="list-item-content">
+                        <span class="list-item-title" style="color: #0ea5e9;">Master Catalog & Inventory Setup</span>
+                    </div>
+                    <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </div>
+                <div class="list-menu-item" onclick="closeModal('modal-profile-hub'); openAuditModal();">
+                    <div class="list-item-content">
+                        <span class="list-item-title" style="color: #f59e0b;">Historic Audit Logs</span>
+                    </div>
+                    <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </div>
+                <div class="list-menu-item" onclick="closeModal('modal-profile-hub'); exportLedgerCSV();">
+                    <div class="list-item-content">
+                        <span class="list-item-title" style="color: #10b981;">Export CSV Ledger</span>
+                    </div>
+                    <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </div>
+            </div>
+
+            <div style="padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border-color);">
+                <button class="btn-primary-full" style="background-color: #ef4444; color: white; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);" onclick="logout()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                    SIGN OUT
+                </button>
+            </div>
+            
+        </div>
+    </div>
+
     <style>
         .bottom-sheet {
             position: absolute;
@@ -493,12 +550,7 @@
             
             <div class="admin-toolbar" style="flex-wrap: wrap; gap: 8px;">
                 <input type="text" id="admin-search" class="search-bar" style="flex: 1; min-width: 150px; margin-bottom: 0;" placeholder="Search catalog..." oninput="filterAdminCatalog()">
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button class="btn-outline" onclick="toggleAddForm()">Add Item</button>
-                    <button class="btn-outline" style="color: #0ea5e9;" onclick="openNicknameManager()">Nicknames</button>
-                    <button class="btn-outline" style="color: #10b981;" onclick="exportLedgerCSV()">Export CSV</button>
-                    <button class="btn-outline" style="color: #f59e0b;" onclick="openAuditModal()">Audit Logs</button>
-                </div>
+                <button class="btn-primary-full" style="width: auto; padding: 10px 16px; margin: 0;" onclick="toggleAddForm()">+ Add New Item</button>
             </div>
 
             <div class="admin-body">
