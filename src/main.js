@@ -95,8 +95,9 @@ if (Object.keys(firebaseConfig).length > 0) {
 let currentUser = null;
 const userCurrency = 'Tk';
 let userDisplayName = 'ERS';
-let userNickname = ''; 
+let userNickname = '';
 let currentUserRole = 'user';
+let devNotesQueue = [];
 
 function getStrictDate() { 
     const t = new Date(); 
@@ -696,9 +697,12 @@ async function initiateCloseDesk() {
                 ${invHTML}
             </div>
 
-            <button class="btn-primary-full" style="padding: 16px; font-size: 1.1rem; background-color: #0ea5e9;" onclick="processCloseDeskStep2()">NEXT: MANAGER DROP ➡️</button>
-        </div>
-    `;
+        <button class="btn-primary-full" style="padding: 16px; font-size: 1.1rem; background-color: #0ea5e9; display: flex; justify-content: center; align-items: center; gap: 8px;" onclick="processCloseDeskStep2()">
+            NEXT: MANAGER DROP
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      </button>
+    </div>
+  `;
     document.getElementById('close-desk-content').innerHTML = modalContent;
     openModal('modal-close-desk');
 }
@@ -1669,13 +1673,13 @@ async function initUserData() {
 
         let userData = {};
         if (userDocSnap.exists()) {
-            userData = userDocSnap.data();
-            currentUserRole = userData.role || 'user';
-            userNickname = userData.nickname || ''; 
-            if (userData.devNotes) {
-                document.getElementById('dev-notes-text').value = userData.devNotes;
-            }
-        } else { 
+      userData = userDocSnap.data();
+      currentUserRole = userData.role || 'user';
+      userNickname = userData.nickname || '';
+      if (userData.devNotesQueue) {
+        devNotesQueue = userData.devNotesQueue;
+      }
+    } else {
             currentUserRole = 'user'; 
         }
 
@@ -1698,12 +1702,16 @@ async function initUserData() {
         if (currentUser.photoURL) {
             document.getElementById('report-user-photo').src = currentUser.photoURL;
             document.getElementById('header-user-photo').src = currentUser.photoURL;
-        }
-        if(document.getElementById('tab-ers').classList.contains('active')) document.getElementById('header-title').innerText = userNickname || userDisplayName;
+    }
+    if(document.getElementById('tab-ers').classList.contains('active')) document.getElementById('header-title').innerText = userNickname || userDisplayName;
 
-        document.getElementById('dev-note-fab').style.display = 'flex';
+    if (currentUserRole === 'admin') {
+      document.getElementById('dev-note-fab').style.display = 'flex';
+    } else {
+      document.getElementById('dev-note-fab').style.display = 'none';
+    }
 
-        updateCurrencyUI(); renderAppUI();
+    updateCurrencyUI(); renderAppUI();
         
         const t = new Date(); 
         document.getElementById('report-date-picker').value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
@@ -2835,20 +2843,94 @@ function fallbackCopy(text) {
     }
 }
 
-function openDevNotes() {
-    openModal('modal-dev-notes');
+function renderDevNotes() {
+  const container = document.getElementById('dev-notes-list-container');
+  if (!devNotesQueue || devNotesQueue.length === 0) {
+    container.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 30px 20px; font-size: 0.95rem; font-style: italic;">Your improvement queue is empty.</div>';
+    return;
+  }
+
+  const priorityWeight = { 'High': 3, 'Normal': 2, 'Low': 1 };
+  const sorted = [...devNotesQueue].sort((a, b) => {
+    if (a.status !== b.status) return a.status === 'pending' ? -1 : 1;
+    if (priorityWeight[a.priority] !== priorityWeight[b.priority]) return priorityWeight[b.priority] - priorityWeight[a.priority];
+    return b.id - a.id;
+  });
+
+  let html = '';
+  sorted.forEach(note => {
+    const isRes = note.status === 'resolved';
+    const pColor = note.priority === 'High' ? '#ef4444' : (note.priority === 'Normal' ? '#f59e0b' : '#10b981');
+    const pBg = note.priority === 'High' ? '#fef2f2' : (note.priority === 'Normal' ? '#fffbeb' : '#ecfdf5');
+
+    html += `
+      <div style="background: var(--surface-color); border: 1px solid ${isRes ? 'var(--border-color)' : pColor}; border-left: 4px solid ${isRes ? 'var(--border-color)' : pColor}; padding: 12px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; opacity: ${isRes ? '0.6' : '1'}; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+        <div style="display: flex; align-items: center; gap: 12px; flex: 1; overflow: hidden; cursor: pointer;" onclick="toggleDevNote(${note.id})">
+          <div style="width: 24px; height: 24px; border-radius: 50%; border: 2px solid ${isRes ? 'var(--text-secondary)' : pColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: ${isRes ? 'var(--text-secondary)' : 'transparent'}; color: white; transition: all 0.2s;">
+            ${isRes ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); text-decoration: ${isRes ? 'line-through' : 'none'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${note.text}</div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; display: flex; gap: 8px; align-items: center;">
+              <span style="background: ${isRes ? 'var(--bg-color)' : pBg}; color: ${isRes ? 'var(--text-secondary)' : pColor}; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">${note.priority}</span>
+            </div>
+          </div>
+        </div>
+        <button style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 8px; border-radius: 8px;" onclick="deleteDevNote(${note.id})">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+        </button>
+      </div>
+    `;
+  });
+  container.innerHTML = html;
 }
 
-async function saveDevNotes() {
-    if (!currentUser) return;
-    const notes = document.getElementById('dev-notes-text').value;
-    try {
-        await updateDoc(doc(db, 'users', currentUser.uid), { devNotes: notes }, { merge: true });
-        showFlashMessage("Notes Saved!");
-        closeModal('modal-dev-notes');
-    } catch(e) {
-        showAppAlert("Error", "Could not save notes. Please check your connection.");
-    }
+function openDevNotes() {
+  renderDevNotes();
+  openModal('modal-dev-notes');
+}
+
+async function syncDevNotes() {
+  if (!currentUser) return;
+  try {
+    await updateDoc(doc(db, 'users', currentUser.uid), { devNotesQueue: devNotesQueue }, { merge: true });
+  } catch(e) {
+    showAppAlert("Sync Error", "Could not sync notes to the cloud.");
+  }
+}
+
+async function addDevNote() {
+  const text = document.getElementById('dev-note-input').value.trim();
+  const priority = document.getElementById('dev-note-priority').value;
+  if (!text) return;
+
+  const newNote = {
+    id: Date.now(),
+    text: text,
+    priority: priority,
+    status: 'pending',
+    createdAt: new Date().toISOString()
+  };
+
+  devNotesQueue.push(newNote);
+  document.getElementById('dev-note-input').value = '';
+  renderDevNotes();
+  await syncDevNotes();
+}
+
+async function toggleDevNote(id) {
+  const note = devNotesQueue.find(n => n.id === id);
+  if (note) {
+    note.status = note.status === 'pending' ? 'resolved' : 'pending';
+    renderDevNotes();
+    await syncDevNotes();
+  }
+}
+
+async function deleteDevNote(id) {
+  devNotesQueue = devNotesQueue.filter(n => n.id !== id);
+  renderDevNotes();
+  await syncDevNotes();
 }
 
 // ==========================================
@@ -3146,7 +3228,7 @@ updateNetworkStatus();
 
 // --- VITE EXPORTS ---
 window.signInWithGoogle = signInWithGoogle; window.logout = logout; window.switchTab = switchTab;
-window.openDevNotes = openDevNotes; window.saveDevNotes = saveDevNotes;
+window.openDevNotes = openDevNotes; window.addDevNote = addDevNote; window.toggleDevNote = toggleDevNote; window.deleteDevNote = deleteDevNote;
 window.ersKeyPress = ersKeyPress; window.ersBackspace = ersBackspace; window.saveErs = saveErs;
 window.toggleMFS = toggleMFS; window.openModal = openModal; window.closeModal = closeModal;
 window.selectItem = selectItem; window.qtyKeyPress = qtyKeyPress; window.qtyBackspace = qtyBackspace;
