@@ -69,6 +69,11 @@ window.addEventListener('appinstalled', () => {
 // ==========================================
 import { auth, db } from './config/firebase.js';
 import { getStrictDate, generateReceiptNo, formatToGBDate } from './utils/helpers.js';
+import { showAppAlert, executeAlertConfirm, showFlashMessage, openModal, closeModal, showTooltip } from './utils/ui-helpers.js';
+
+// Bind UI Helpers to the window so HTML buttons can click them
+window.executeAlertConfirm = executeAlertConfirm;
+window.showTooltip = showTooltip;
 import { setPersistence, browserLocalPersistence, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 import { collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, getDocs, orderBy, limit, serverTimestamp, onSnapshot } from "firebase/firestore";
 
@@ -106,57 +111,6 @@ function showAuditTrail(txId) {
     }
     
     showAppAlert("Transaction Audit Trail", msg);
-}
-
-// ==========================================
-//   UI: NATIVE ALERTS & MESSAGES
-// ==========================================
-let alertConfirmCallback = null;
-
-function showAppAlert(title, message, isConfirm = false, confirmCallback = null, confirmText = "OK") {
-    if (navigator.vibrate) navigator.vibrate([50, 50, 50]); 
-    
-    document.getElementById('app-alert-title').innerText = title;
-    document.getElementById('app-alert-message').innerText = message;
-    
-    let cancelBtn = document.getElementById('app-alert-cancel');
-    let confirmBtn = document.getElementById('app-alert-confirm');
-    let iconBox = document.getElementById('app-alert-icon');
-    
-    confirmBtn.innerText = confirmText;
-    
-    if (isConfirm) {
-        cancelBtn.style.display = 'block';
-        iconBox.style.color = '#f59e0b'; 
-        iconBox.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>';
-        confirmBtn.style.background = 'var(--accent-color)';
-    } else {
-        cancelBtn.style.display = 'none';
-        iconBox.style.color = '#ef4444'; 
-        iconBox.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>';
-        confirmBtn.style.background = '#ef4444'; 
-    }
-    
-    alertConfirmCallback = confirmCallback;
-    document.getElementById('modal-app-alert').classList.add('active');
-}
-
-window.executeAlertConfirm = function() {
-    closeModal('modal-app-alert');
-    if (alertConfirmCallback) alertConfirmCallback();
-}
-
-function showFlashMessage(text) {
-    if (navigator.vibrate) navigator.vibrate(50); 
-    let msg = document.createElement('div'); 
-    msg.className = 'flash-pill';
-    msg.innerHTML = `${text}`;
-    document.body.appendChild(msg); 
-    
-    setTimeout(() => {
-        msg.classList.add('fade-out');
-        setTimeout(() => msg.remove(), 300);
-    }, 2700);
 }
 
 // ==========================================
@@ -1348,9 +1302,6 @@ function toggleMFS() {
     document.querySelectorAll('.sync-cash').forEach(el => el.classList.toggle('active', !isMfs));
     document.querySelectorAll('.sync-mfs').forEach(el => el.classList.toggle('active', isMfs));
 }
-
-function openModal(modalId) { document.getElementById(modalId).classList.add('active'); }
-function closeModal(modalId) { document.getElementById(modalId).classList.remove('active'); }
 
 window.addEventListener('click', (event) => {
     if (event.target.classList.contains('modal-overlay') && !['modal-auth', 'splash-screen', 'modal-desk-select', 'modal-nicknames', 'modal-app-alert'].includes(event.target.id)) {
@@ -2937,36 +2888,6 @@ async function deleteDevNote(id) {
   renderDevNotes();
   await syncDevNotes();
 }
-
-// ==========================================
-//    NATIVE TOOLTIP ENGINE
-// ==========================================
-window.showTooltip = function(element, text) {
-    // 1. Destroy any existing tooltips instantly so they don't pile up
-    document.querySelectorAll('.mobile-tooltip').forEach(el => el.remove());
-    
-    // 2. Create the new bubble
-    let tooltip = document.createElement('div');
-    tooltip.className = 'mobile-tooltip';
-    tooltip.innerText = text;
-    document.body.appendChild(tooltip);
-    
-    // 3. Measure where the user tapped
-    let rect = element.getBoundingClientRect();
-    
-    // 4. Center it directly above the item they tapped
-    tooltip.style.left = (rect.left + (rect.width / 2)) + 'px';
-    tooltip.style.top = (rect.top - 10) + 'px'; 
-    
-    // 5. Trigger the fluid CSS animation
-    setTimeout(() => tooltip.classList.add('show'), 10);
-    
-    // 6. Auto-destroy after 2.5 seconds
-    setTimeout(() => {
-        tooltip.classList.remove('show');
-        setTimeout(() => tooltip.remove(), 200); // Wait for fade-out before removing from DOM
-    }, 2500);
-};
 
 // ==========================================
 //   ADMIN VAULT: HISTORICAL TIME MACHINE
