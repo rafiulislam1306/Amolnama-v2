@@ -312,3 +312,293 @@ export async function confirmOpenDesk() {
     } catch (e) { showAppAlert("System Error", e.message); } 
     finally { isProcessingDesk = false; }
 }
+
+// ==========================================
+//    FLOOR MAP UI & DRAWER ROUTING
+// ==========================================
+export async function renderLiveFloorTab() {
+    const container = document.getElementById('live-floor-container');
+    container.innerHTML = '<div class="spinner" style="align-self: center; margin-top: 40px;"></div>';
+
+    try {
+        const activeSessionsSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'open')));
+        if (activeSessionsSnap.empty) { container.innerHTML = '<p class="placeholder-text">No desks open.</p>'; return; }
+
+        let docsArray = [...activeSessionsSnap.docs];
+        docsArray.sort((a, b) => a.data().deskId.localeCompare(b.data().deskId, undefined, { numeric: true }));
+        
+        let myIndex = docsArray.findIndex(doc => doc.id === AppState.currentSessionId);
+        if (myIndex > 0) {
+            let myDoc = docsArray.splice(myIndex, 1)[0];
+            docsArray.unshift(myDoc);
+        }
+
+        let floorHTML = '';
+        for (const docSnap of docsArray) {
+            const session = docSnap.data(); const sid = docSnap.id;
+            const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', sid), where('isDeleted', '==', false)));
+
+            let liveCash = parseFloat(session.openingBalances.cash) || 0;
+            let liveInv = { ...(session.openingBalances.inventory || {}) };
+            let liveServicesCount = 0;
+
+            txSnap.forEach(txDoc => {
+                let tx = txDoc.data();
+                liveCash += (tx.cashAmt || 0);
+                
+                let change = getInventoryChange(tx);
+                if (change !== 0) {
+                    liveInv[tx.trackAs] = (liveInv[tx.trackAs] || 0) + change;
+                } else if (tx.cat === 'service' || tx.cat === 'free-action') {
+                    liveServicesCount += Math.abs(tx.qty);
+                }
+            });
+
+            let invDisplay = '';
+            for (const [name, qty] of Object.entries(liveInv)) {
+                if (qty !== 0) {
+                    let color = qty < 3 ? '#ef4444' : '#475569';
+                    invDisplay += `<span style="display:inline-block; background:#f1f5f9; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin:2px; color:${color}; font-weight:600;">${name}: ${qty}</span>`;
+                }
+            }
+            if (liveServicesCount > 0) {
+                invDisplay += `<span style="display:inline-block; background:#fef3c7; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin:2px; color:#92400e; font-weight:600;">Services: ${liveServicesCount}</span>`;
+            }
+            if(!invDisplay) invDisplay = '<span style="font-size:0.8rem; color:#94a3b8;">No physical stock.</span>';
+
+            const isMyDesk = sid === AppState.currentSessionId;
+
+            let displayDeskName = session.deskId.replace('_', ' ').toUpperCase();
+            if (session.deskId.startsWith('personal_')) {
+                if (isMyDesk) {
+                    displayDeskName = "My Drawer";
+                } else {
+                    displayDeskName = `${session.openedBy.split(' ')[0]}'s Drawer`;
+                }
+            }
+
+            let safeDeskName = displayDeskName.replace(/'/g, "\\'");
+
+            let actionBtn = isMyDesk 
+                ? `<button class="btn-primary-full" style="width: 100%; background: #0ea5e9; padding: 10px; margin-top: 12px; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);" onclick="openMyDeskDashboard()">Open My Drawer</button>`
+                : `<button class="btn-outline" style="width: 100%; color: #8b5cf6; border-color: #8b5cf6; background: transparent; padding: 10px; margin-top: 12px;" onclick="peekAtDesk('${session.deskId}', '${safeDeskName}')">View Details</button>`;
+
+            let agentNamesStr = 'Loading...';
+            try {
+                const agentsSnap = await getDocs(query(collection(db, 'users'), where('assignedDeskId', '==', session.deskId)));
+                let names = [];
+                agentsSnap.forEach(aDoc => { names.push(aDoc.data().nickname || aDoc.data().displayName || aDoc.data().email?.split('@')[0] || 'Agent'); });
+                agentNamesStr = names.length > 0 ? names.join(', ') : 'Empty';
+            } catch(e) { agentNamesStr = 'Unknown'; }
+
+            let cardStyle = isMyDesk 
+                ? `margin-bottom: 0; padding: 16px; background: #f0f9ff; border: 1px solid #bae6fd; border-left: 4px solid #0ea5e9; border-radius: 12px; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.1);`
+                : `margin-bottom: 0; padding: 16px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);`;
+
+            floorHTML += `
+                <div style="${cardStyle}">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid ${isMyDesk ? '#bae6fd' : 'var(--border-color)'}; padding-bottom: 12px;">
+                        <h4 style="margin: 0; color: ${isMyDesk ? '#0369a1' : 'var(--text-primary)'}; font-size: 1.15rem; font-weight: 700; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px; min-width: 0; flex: 1;">
+                            ${displayDeskName}
+                        </h4>
+                        <div style="font-size: 0.85rem; color: ${isMyDesk ? '#0284c7' : 'var(--text-secondary)'}; font-weight: 600; text-align: right; max-width: 50%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0;">
+                            ${agentNamesStr}
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <span style="font-size: 0.85rem; font-weight: bold; color: ${isMyDesk ? '#0284c7' : 'var(--text-secondary)'};">Live Cash:</span>
+                        <span style="font-size: 1.1rem; font-weight: bold; color: #10b981;">${liveCash} Tk</span>
+                    </div>
+
+                    <div style="margin-bottom: 16px; padding-top: 12px; border-top: 1px dashed ${isMyDesk ? '#bae6fd' : 'var(--border-color)'};">
+                        <span style="display: block; font-size: 0.8rem; font-weight: bold; color: ${isMyDesk ? '#0284c7' : 'var(--text-secondary)'}; margin-bottom: 6px;">Remaining Physical Stock:</span>
+                        <div>${invDisplay}</div>
+                    </div>
+                    
+                    ${actionBtn}
+                </div>
+            `;
+        }
+        container.innerHTML = floorHTML;
+    } catch (e) { container.innerHTML = '<p class="placeholder-text" style="color: #ef4444;">Offline: Could not load.</p>'; }
+}
+
+export function openMyDeskDashboard() {
+    document.getElementById('desk-peek-header').style.display = 'none';
+    document.getElementById('desk-action-buttons').style.display = 'block';
+    document.getElementById('desk-dashboard-title').innerText = AppState.currentDeskName + ' (My Drawer)';
+    if(window.switchTab) window.switchTab('desk', AppState.currentDeskName);
+    if(window.renderDeskDashboard) window.renderDeskDashboard(AppState.currentDeskId);
+}
+
+export function peekAtDesk(targetDeskId, targetDeskName) {
+    if (targetDeskId === AppState.currentDeskId) {
+        openMyDeskDashboard(); 
+    } else {
+        document.getElementById('desk-action-buttons').style.display = 'none';
+        document.getElementById('desk-peek-header').style.display = 'flex';
+        document.getElementById('desk-dashboard-title').innerText = targetDeskName;
+        if(window.switchTab) window.switchTab('desk', targetDeskName + ' (Peek)');
+        if(window.renderDeskDashboard) window.renderDeskDashboard(targetDeskId);
+    }
+}
+
+export function handleMyDrawerNav() {
+    if (AppState.currentDeskId) {
+        openMyDeskDashboard();
+    } else {
+        showAppAlert("No Active Desk", "You are not currently assigned to an open desk. Please open or join one from the Live Floor map first.");
+        if(window.switchTab) window.switchTab('floor', 'Live Floor Map');
+    }
+}
+
+// ==========================================
+//    CLOSE DESK & RECONCILIATION
+// ==========================================
+let expectedClosingStats = { cash: 0, inventory: {} };
+let actualClosingStats = { cash: 0, inventory: {} };
+
+export async function initiateCloseDesk() {
+    if (!AppState.currentSessionId) { showAppAlert("Error", "You are not assigned to an open desk."); return; }
+
+    const sessionSnap = await getDoc(doc(db, 'sessions', AppState.currentSessionId));
+    if (!sessionSnap.exists()) return;
+
+    const sessionData = sessionSnap.data();
+    let expectedCash = parseFloat(sessionData.openingBalances.cash) || 0;
+    let expectedMfs = 0;
+    let expectedInv = { ...(sessionData.openingBalances.inventory || {}) };
+
+    const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', AppState.currentSessionId), where('isDeleted', '==', false)));
+
+    txSnap.forEach(docSnap => {
+        let tx = docSnap.data();
+        expectedCash += (tx.cashAmt || 0); 
+        expectedMfs += (tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0));
+        
+        let change = getInventoryChange(tx);
+        if (change !== 0) {
+            expectedInv[tx.trackAs] = (expectedInv[tx.trackAs] || 0) + change;
+        }
+    });
+
+    expectedClosingStats = { cash: expectedCash, mfs: expectedMfs, inventory: expectedInv };
+
+    let invHTML = '';
+    let itemsToCount = Object.keys(expectedInv);
+    
+    if(itemsToCount.length === 0) invHTML = '<p style="text-align:center; color: var(--text-secondary);">No physical inventory tracked today.</p>';
+    else {
+        itemsToCount.forEach(itemName => {
+            invHTML += `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
+                    <label class="admin-label" style="margin:0; font-size:0.85rem; color:#334155;">${itemName}</label>
+                    <input type="number" class="actual-inv-input settings-input" data-name="${itemName}" style="width:80px; text-align:center; padding:8px; border-color:#cbd5e1;" placeholder="0">
+                </div>
+            `;
+        });
+    }
+
+    const modalContent = `
+        <div style="background-color: var(--surface-color); padding: calc(16px + env(safe-area-inset-top)) 20px 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 10;">
+            <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">Close Shift</h3>
+            <button style="background: none; border: none; color: #ef4444; font-weight: 600; font-size: 1rem; padding: 4px 0; cursor: pointer;" onclick="closeModal('modal-close-desk')">Cancel</button>
+        </div>
+
+        <div style="flex: 1; overflow-y: auto; padding: 24px 20px; padding-bottom: calc(24px + env(safe-area-inset-bottom));">
+      <div style="background: var(--warning-bg); border: 1px solid var(--warning-border); padding: 12px; border-radius: 8px; margin-bottom: 24px;">
+        <p style="color: var(--warning-text); font-size: 0.85rem; margin: 0; font-weight: 600; line-height: 1.4;">Blind Count: Count your physical cash and stock. Enter the totals below to submit your report to the manager.</p>
+      </div>
+      
+      <div class="admin-form-card" style="margin-bottom: 24px; padding: 20px; border: 2px solid var(--info-border); background: var(--info-bg);">
+        <label style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--info-text); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">1. Actual Cash in Drawer</label>
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+          <span style="font-size: 1.75rem; font-weight: bold; color: var(--info-text);">Tk</span>
+          <input type="number" id="actual-cash-input" class="settings-input" style="font-size: 1.75rem; font-weight: 800; padding: 12px 16px; border-color: var(--info-border); color: var(--info-text); background: transparent;" placeholder="0" oninput="calculateBlindRetained()">
+        </div>
+
+        <label style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--purple-text); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; border-top: 1px dashed var(--border-color); padding-top: 16px;">2. Manager Drop</label>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="font-size: 1.5rem; font-weight: bold; color: var(--purple-text);">Tk</span>
+          <input type="number" id="manager-drop-input" class="settings-input" style="font-size: 1.5rem; font-weight: 800; padding: 10px 16px; border-color: var(--purple-border); color: var(--purple-text); background: var(--purple-bg);" placeholder="0" oninput="calculateBlindRetained()">
+        </div>
+                <div style="margin-top: 16px; font-size: 0.95rem; color: #475569; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 600;">Retained Float (For Tomorrow):</span> 
+                    <strong id="retained-float-display" style="color: #0f172a; font-size: 1.1rem;">0 Tk</strong>
+                </div>
+            </div>
+
+            <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">3. Physical Inventory Count</div>
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 32px;">
+                ${invHTML}
+            </div>
+
+            <button class="btn-primary-full" style="padding: 16px; font-size: 1.1rem; background-color: #10b981; display: flex; justify-content: center; align-items: center; gap: 8px;" onclick="submitClosingReport()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                SUBMIT TO MANAGER
+            </button>
+        </div>
+    `;
+    document.getElementById('close-desk-content').innerHTML = modalContent;
+    openModal('modal-close-desk');
+}
+
+export function calculateBlindRetained() {
+    let actual = parseFloat(document.getElementById('actual-cash-input').value) || 0;
+    let drop = parseFloat(document.getElementById('manager-drop-input').value) || 0;
+    let retained = actual - drop;
+    
+    let displayEl = document.getElementById('retained-float-display');
+    if (drop > actual) displayEl.innerHTML = `<span style="color: #ef4444;">Error: Exceeds Drawer Total</span>`;
+    else displayEl.innerText = retained + " Tk";
+}
+
+export async function submitClosingReport() {
+    let actualCash = parseFloat(document.getElementById('actual-cash-input').value);
+    let dropAmount = parseFloat(document.getElementById('manager-drop-input').value) || 0;
+
+    if (isNaN(actualCash) || actualCash < 0) { showAppAlert("Invalid Input", "Please enter your total physical cash."); return; }
+    if (dropAmount < 0 || dropAmount > actualCash) { 
+        showAppAlert("Error", "Manager drop cannot exceed your total physical cash."); 
+        return; 
+    }
+
+    actualClosingStats.cash = actualCash;
+    actualClosingStats.inventory = {};
+
+    document.querySelectorAll('.actual-inv-input').forEach(input => {
+        let itemName = input.getAttribute('data-name');
+        actualClosingStats.inventory[itemName] = parseInt(input.value) || 0;
+    });
+
+    let variance = actualCash - expectedClosingStats.cash;
+    let retainedFloat = actualCash - dropAmount;
+
+    try {
+        await updateDoc(doc(db, 'sessions', AppState.currentSessionId), {
+            closedBy: AppState.userNickname || AppState.userDisplayName, 
+            closedByUid: AppState.currentUser.uid, 
+            closedAt: serverTimestamp(), 
+            status: 'pending', 
+            expectedClosing: expectedClosingStats, 
+            actualClosing: actualClosingStats, 
+            variance: variance,
+            hasDiscrepancy: variance !== 0, 
+            managerDrop: dropAmount, 
+            retainedFloat: retainedFloat
+        });
+        
+        await setDoc(doc(db, 'desks', AppState.currentDeskId), { status: 'closed', currentSessionId: null }, { merge: true });
+        await setDoc(doc(db, 'users', AppState.currentUser.uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
+    } catch (e) { 
+        showFlashMessage("Offline: Report queued for sync."); 
+    } finally {
+        AppState.currentDeskId = null; 
+        AppState.currentSessionId = null; 
+        AppState.currentDeskName = '';
+        closeModal('modal-close-desk');
+        showFlashMessage("Report Submitted! See Manager.");
+        loadFloorMap(); // Automatically reload the floor map
+    }
+}
