@@ -2585,45 +2585,6 @@ function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, deskItemsS
     `;
 }
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 12px; text-align: center; box-shadow: 0 2px 4px rgba(22,101,52,0.05);">
-                <div style="font-size: 0.75rem; font-weight: 800; color: #166534; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">Total MFS</div>
-                <div style="font-size: 1.35rem; font-weight: 800; color: #15803d;">${mfsTotal} Tk</div>
-            </div>
-            <div style="background: #fffbeb; border: 1px solid #fde68a; padding: 16px; border-radius: 12px; text-align: center; box-shadow: 0 2px 4px rgba(180,83,9,0.05);">
-                <div style="font-size: 0.75rem; font-weight: 800; color: #b45309; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">ERS Sent (${ersData.count}x)</div>
-                <div style="font-size: 1.35rem; font-weight: 800; color: #d97706;">${ersData.total} Tk</div>
-            </div>
-        </div>
-
-        <div class="admin-form-card" style="padding: 0; margin-bottom: 24px; overflow: hidden; border: 1px solid ${summaryBorder}; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
-            <div style="background: ${summaryBg}; padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="const c = document.getElementById('inv-grid-content'); const i = document.getElementById('inv-grid-icon'); if(c.style.display==='none'){c.style.display='block'; i.style.transform='rotate(180deg)';}else{c.style.display='none'; i.style.transform='rotate(0deg)';}">
-                <div style="font-size: 0.85rem; font-weight: 800; color: ${summaryColor}; text-transform: uppercase; letter-spacing: 0.5px;">
-                    ${summaryText}
-                </div>
-                <svg id="inv-grid-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${summaryColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
-            </div>
-            <div id="inv-grid-content" style="display: none; background: #ffffff; border-top: 1px solid ${summaryBorder};">
-                <div style="padding: 0 16px;">
-                    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; padding: 12px 0; border-bottom: 2px solid var(--border-color); font-size: 0.7rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
-                        <div>Item</div>
-                        <div style="text-align: center;">Start</div>
-                        <div style="text-align: center;">In/Out</div>
-                        <div style="text-align: center;">Sold</div>
-                        <div style="text-align: center; color: #0ea5e9;">Exp.</div>
-                    </div>
-                    ${invRows}
-                </div>
-            </div>
-        </div>
-
-        <div style="margin-bottom: 24px;">
-            <div style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; padding: 0 4px; border-bottom: 2px solid var(--border-color); padding-bottom: 8px;">Desk Items & Services Sold</div>
-            ${itemsHTML}
-        </div>
-    `;
-}
-
 // ==========================================
 //   ENGINE B: DESK DASHBOARD LOGIC
 // ==========================================
