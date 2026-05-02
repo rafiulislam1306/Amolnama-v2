@@ -281,6 +281,7 @@ function cancelTxEdit() {
 window.cancelTxEdit = cancelTxEdit;
 
 function saveTxEdit() {
+    if(!currentUser) return;
     let txIndex = transactions.findIndex(t => t.id === currentEditTxId);
     if(txIndex === -1) return;
 
@@ -331,6 +332,7 @@ function saveTxEdit() {
 }
 
 function deleteTransaction(docId, localId) {
+    if(!currentUser) return;
     showAppAlert("Delete Item", "Are you sure you want to move this transaction to the trash?", true, () => {
         let nowStr = new Date().toISOString();
         let agentStr = userNickname || userDisplayName;
@@ -387,6 +389,7 @@ function renderTrash() {
 }
 
 function restoreTx(docId, localId) {
+    if(!currentUser) return;
     let nowStr = new Date().toISOString();
     let agentStr = userNickname || userDisplayName;
 

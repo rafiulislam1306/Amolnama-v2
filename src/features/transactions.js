@@ -79,6 +79,13 @@ export function saveQuantity() {
     let qtyInt = parseInt(currentQty) || 0;
     if (qtyInt <= 0) { showAppAlert("Invalid Input", "Please enter a quantity of 1 or more."); return; }
     
+    // Prevent sales while viewing historical dates
+    const datePicker = document.getElementById('report-date-picker');
+    if (datePicker && datePicker.value && datePicker.value !== new Date().toISOString().split('T')[0]) {
+        showAppAlert("Action Blocked", "You cannot process new transactions while viewing a past date. Please return to 'Today'.");
+        return;
+    }
+
     if (!passStockFirewall(currentItemName, qtyInt)) return;
 
     addTransactionToCloud('Item', currentItemName, qtyInt * currentItemPrice, qtyInt, (currentItemPrice > 0 && AppState.isMfs) ? "MFS" : "Cash");
@@ -86,6 +93,13 @@ export function saveQuantity() {
 }
 
 export function instantSaveItem(itemName, price) {
+  // Prevent sales while viewing historical dates
+  const datePicker = document.getElementById('report-date-picker');
+  if (datePicker && datePicker.value && datePicker.value !== new Date().toISOString().split('T')[0]) {
+      showAppAlert("Action Blocked", "You cannot process new transactions while viewing a past date. Please return to 'Today'.");
+      return;
+  }
+
   if (!passStockFirewall(itemName, 1)) return;
  
   addTransactionToCloud('Item', itemName, price, 1, (price > 0 && AppState.isMfs) ? "MFS" : "Cash");
@@ -100,6 +114,13 @@ export function instantSaveItem(itemName, price) {
 // ==========================================
 export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt = 0, mfsAmt = 0) {
     if(!AppState.currentUser) return;
+    
+    // Prevent transactions if the desk hasn't been opened
+    if (!AppState.currentSessionId && AppState.currentDeskId !== 'sandbox') {
+        showAppAlert("Desk Closed", "You must open your desk and verify your float before making transactions.");
+        return;
+    }
+
     if (payment === 'Cash') { cashAmt = amount; mfsAmt = 0; }
     if (payment === 'MFS') { cashAmt = 0; mfsAmt = amount; }
 
