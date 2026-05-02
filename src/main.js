@@ -11,7 +11,7 @@ import { loadFloorMap, adminBypass, enterSandboxMode, handleDeskSelect, confirmO
 import { toggleReportMode, renderPersonalReport, shareReport, shareDeskReport, renderDeskDashboard, fetchTransactionsForDate, getTxListenerUnsubscribe, setTxListenerUnsubscribe } from './features/reports.js';
 import { openManagerCashModal, saveManagerCash, openMainStockModal, saveMainStock, openReturnStockModal, saveReturnStock, openDeskTransfer, executeDeskTransfer, openTransferModal, executeTransfer } from './features/transfers.js';
 import { filterAdminCatalog, toggleAddForm, addInventoryGroup, removeInventoryGroup, openSettings, removeRow, addNewItem, saveSettings, openNicknameManager, saveAdminNickname, kickAgent, nukeAgent, resetMyDeskLock, forceCloseAllDesks, nukeTodaysLedger, fixPastManagerDrops, exportLedgerCSV, openAuditModal, fetchAuditLogs, openForceReallocate, executeForceTransfer } from './features/admin.js';
-import { openDevNotes, addDevNote, editDevNote, toggleDevNote, deleteDevNote } from './features/devNotes.js';
+import { openDevNotes, addDevNote, editDevNote, cancelInlineEdit, saveInlineEdit, toggleDevNote, deleteDevNote } from './features/devNotes.js';
 import { renderAppUI } from './features/catalog.js';
 import { initUserData } from './core/app-init.js';
 
@@ -108,6 +108,8 @@ window.executeForceTransfer = executeForceTransfer;
 window.openDevNotes = openDevNotes;
 window.addDevNote = addDevNote;
 window.editDevNote = editDevNote;
+window.cancelInlineEdit = cancelInlineEdit;
+window.saveInlineEdit = saveInlineEdit;
 window.toggleDevNote = toggleDevNote;
 window.deleteDevNote = deleteDevNote;
 window.renderLiveFloorTab = renderLiveFloorTab;
