@@ -245,7 +245,19 @@ function toggleEditSplitFields() {
     } else document.getElementById('edit-split-fields').style.display = 'none';
 }
 
-function updateSplitTotal() {}
+function updateSplitTotal() {
+    let totalAmount = parseFloat(document.getElementById('edit-tx-amount').value) || 0;
+    let cashInput = document.getElementById('edit-tx-cash');
+    let mfsInput = document.getElementById('edit-tx-mfs');
+    
+    if (document.activeElement === cashInput) {
+        let cashAmt = parseFloat(cashInput.value) || 0;
+        mfsInput.value = Math.max(0, totalAmount - cashAmt);
+    } else if (document.activeElement === mfsInput) {
+        let mfsAmt = parseFloat(mfsInput.value) || 0;
+        cashInput.value = Math.max(0, totalAmount - mfsAmt);
+    }
+}
 
 function saveTxEdit() {
     let txIndex = transactions.findIndex(t => t.id === currentEditTxId);
@@ -275,6 +287,7 @@ function saveTxEdit() {
     let updatedEditHistory = tx.editHistory ? [...tx.editHistory, prevTxState] : [prevTxState];
 
     closeModal('modal-edit-tx');
+    currentEditTxId = null;
     
     if (currentDeskId === 'sandbox') {
         tx.qty = newQty; tx.amount = newAmount; tx.payment = method === 'Split' ? 'Split' : method; tx.cashAmt = finalCash; tx.mfsAmt = finalMfs; tx.isEdited = true; tx.editHistory = updatedEditHistory;
@@ -392,9 +405,10 @@ function emptyTrash() {
     showAppAlert("Empty Trash", "Are you sure you want to permanently delete ALL items in the trash?", true, () => {
         const idsToDelete = trashTransactions.map(t => t.docId).filter(id => id);
         closeModal('modal-trash');
-        for (const id of idsToDelete) { 
-            deleteDoc(doc(db, 'transactions', id)).catch(e => console.error(`Error deleting trash item ${id}:`, e)); 
-        }
+        
+        Promise.all(idsToDelete.map(id => deleteDoc(doc(db, 'transactions', id))))
+            .catch(e => console.error("Error emptying trash:", e));
+            
         trashTransactions = [];
         renderTrash();
         showFlashMessage("Trash Emptied!");

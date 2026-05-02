@@ -4,6 +4,7 @@ import { db } from '../config/firebase.js';
 import { generateReceiptNo, getStrictDate } from '../utils/helpers.js';
 import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/ui-helpers.js';
 import { AppState } from '../core/state.js';
+import { passStockFirewall } from './inventory.js';
 
 // ==========================================
 //    ERS KEYPAD LOGIC
@@ -78,15 +79,14 @@ export function saveQuantity() {
     let qtyInt = parseInt(currentQty) || 0;
     if (qtyInt <= 0) { showAppAlert("Invalid Input", "Please enter a quantity of 1 or more."); return; }
     
-    // Note: We will handle the passStockFirewall import later when we modularize Inventory
-    if (typeof window.passStockFirewall === 'function' && !window.passStockFirewall(currentItemName, qtyInt)) return;
+    if (!passStockFirewall(currentItemName, qtyInt)) return;
 
     addTransactionToCloud('Item', currentItemName, qtyInt * currentItemPrice, qtyInt, (currentItemPrice > 0 && AppState.isMfs) ? "MFS" : "Cash");
     closeModal('modal-quantity');
 }
 
 export function instantSaveItem(itemName, price) {
-  if (typeof window.passStockFirewall === 'function' && !window.passStockFirewall(itemName, 1)) return;
+  if (!passStockFirewall(itemName, 1)) return;
  
   addTransactionToCloud('Item', itemName, price, 1, (price > 0 && AppState.isMfs) ? "MFS" : "Cash");
  
