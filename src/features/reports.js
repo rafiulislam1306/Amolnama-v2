@@ -1,5 +1,6 @@
 // src/features/reports.js
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, onSnapshot } from "firebase/firestore";
+import { renderLiveFloorTab } from './desk.js';
 import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
 import { getStrictDate, formatToGBDate } from '../utils/helpers.js';
@@ -654,4 +655,74 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
         agentsSnap.forEach(doc => { names.push(doc.data().nickname || doc.data().displayName || doc.data().email?.split('@')[0] || 'Agent'); });
         document.getElementById('desk-logged-agents').innerText = names.length > 0 ? names.join(', ') : 'None';
     } catch(e) { document.getElementById('desk-logged-agents').innerText = 'Unknown'; }
+}
+
+// ==========================================
+//    DATE FILTER & REAL-TIME SYNC LOGIC
+// ==========================================
+let txListenerUnsubscribe = null;
+
+export function getTxListenerUnsubscribe() { return txListenerUnsubscribe; }
+export function setTxListenerUnsubscribe(val) { txListenerUnsubscribe = val; }
+
+export async function fetchTransactionsForDate() {
+    if (!AppState.currentUser) return;
+    
+    const datePicker = document.getElementById('report-date-picker');
+    if (!datePicker.value) {
+        const t = new Date(); 
+        datePicker.value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+    }
+    const targetDateStr = formatToGBDate(datePicker.value);
+    const isToday = targetDateStr === getStrictDate();
+    const dateLabel = isToday ? 'Today' : targetDateStr;
+
+    if (txListenerUnsubscribe) { txListenerUnsubscribe(); txListenerUnsubscribe = null; }
+
+    try {
+        let txQuery = query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr));
+        
+        if (AppState.currentUserRole !== 'admin' && currentReportMode !== 'floor') {
+            txQuery = query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr), where('agentId', '==', AppState.currentUser.uid));
+        }
+
+        txListenerUnsubscribe = onSnapshot(
+            txQuery,
+            { includeMetadataChanges: true },
+            (txSnapshot) => {
+            AppState.transactions = []; AppState.trashTransactions = []; 
+            let localSandboxTxs = AppState.currentDeskId === 'sandbox' ? AppState.transactions.filter(t => t.docId && t.docId.startsWith('local_')) : [];
+            let localSandboxTrash = AppState.currentDeskId === 'sandbox' ? AppState.trashTransactions.filter(t => t.docId && t.docId.startsWith('local_')) : [];
+
+            txSnapshot.forEach(doc => {
+                let tx = doc.data(); tx.docId = doc.id; 
+                tx.isPending = doc.metadata.hasPendingWrites;
+                if (!tx.isDeleted) {
+                    AppState.transactions.push(tx);
+                } else if (tx.agentId === AppState.currentUser.uid) {
+                    AppState.trashTransactions.push(tx); 
+                }
+            });
+
+            if (AppState.currentDeskId === 'sandbox') {
+                AppState.transactions.push(...localSandboxTxs);
+                AppState.trashTransactions.push(...localSandboxTrash);
+            }
+            
+            AppState.transactions.sort((a, b) => a.id - b.id);
+            AppState.trashTransactions.sort((a, b) => a.id - b.id);
+            
+            renderPersonalReport();
+            
+            if (document.getElementById('tab-desk').classList.contains('active')) {
+                renderDeskDashboard();
+            } else if (AppState.currentDeskId) {
+                renderDeskDashboard(AppState.currentDeskId); 
+            }
+            
+            const financialLabel = document.getElementById('financial-date-label');
+            if (financialLabel) financialLabel.innerHTML = `${dateLabel}`;
+            if (document.getElementById('tab-floor').classList.contains('active')) renderLiveFloorTab();
+        });
+    } catch (e) { console.error(e); }
 }
