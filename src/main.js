@@ -792,22 +792,29 @@ function openManagerCashModal() {
 function saveManagerCash() {
     let amount = parseFloat(document.getElementById('mgr-cash-amount').value) || 0;
     if (amount <= 0) { showAppAlert("Invalid Input", "Enter a valid amount."); return; }
+    
     let action = document.getElementById('mgr-cash-action').value; 
-    let finalValue = action === 'receive' ? amount : -amount;
-    let paymentLabel = action === 'receive' ? 'Received from Manager' : 'Dropped to Manager';
+    let isCashIn = action === 'receive_float' || action === 'handset_cash';
+    let finalValue = isCashIn ? amount : -amount;
+    
+    let txName = 'Cash Adjustment';
+    let paymentLabel = '';
+    
+    if (action === 'drop_manager') { txName = 'Manager Drop'; paymentLabel = 'Dropped to Manager'; }
+    else if (action === 'expense') { txName = 'Expense / Donation'; paymentLabel = 'Cash Out'; }
+    else if (action === 'handset_cash') { txName = 'Handset Cash'; paymentLabel = 'Cash In (Holding)'; }
+    else if (action === 'receive_float') { txName = 'Manager Float'; paymentLabel = 'Cash In (Float)'; }
 
     const tx = {
-        id: Date.now(), receiptNo: generateReceiptNo(), type: 'adjustment', name: 'Physical Cash', trackAs: 'Physical Cash', amount: amount, qty: 1,
+        id: Date.now(), receiptNo: generateReceiptNo(), type: 'adjustment', name: txName, trackAs: 'Physical Cash', amount: amount, qty: 1,
         payment: paymentLabel, cashAmt: finalValue, mfsAmt: 0, isDeleted: false,
         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
         dateStr: getStrictDate(), deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName
     };
 
     closeModal('modal-manager-cash');
-    let msg = action === 'receive' ? `Received ${amount} Tk Float!` : `Dropped ${amount} Tk!`;
-    
     addDoc(collection(db, 'transactions'), tx).catch(e => console.error(e));
-    showFlashMessage(navigator.onLine ? msg : "Offline: Cash queued");
+    showFlashMessage(navigator.onLine ? `${txName} Logged!` : "Offline: Action queued");
 }
 
 function openMainStockModal() {
@@ -2460,9 +2467,8 @@ function shareDeskReport() {
 }
 
 function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, deskItemsSold) {
-    let { opening, sales, drops, expected } = cashMath;
+    let { opening, sales, adjustments, adjustmentLog, expected } = cashMath;
     
-    // --- 1. BUILD THE SMART ACCORDION FOR PHYSICAL STOCK ---
     let invRows = '';
     let activeItemCount = 0; 
     
@@ -2491,7 +2497,6 @@ function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, deskItemsS
     let summaryBg = activeItemCount > 0 ? '#f0f9ff' : '#f8fafc';
     let summaryBorder = activeItemCount > 0 ? '#bae6fd' : 'var(--border-color)';
 
-    // --- 2. BUILD THE UNIFIED FLAT LIST ---
     let itemsHTML = '';
     for (const [name, qty] of Object.entries(deskItemsSold)) {
         itemsHTML += `
@@ -2503,9 +2508,20 @@ function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, deskItemsS
     }
     if (!itemsHTML) itemsHTML = '<div style="color: var(--text-secondary); font-style: italic; padding: 12px 4px;">No items or services sold yet</div>';
 
-    let formattedDrops = drops !== 0 ? drops : '0';
+    let formattedAdjustments = adjustments !== 0 ? (adjustments > 0 ? `+${adjustments}` : adjustments) : '0';
+    
+    let adjBreakdownHTML = '';
+    if (Object.keys(adjustmentLog).length > 0) {
+        for (const [name, val] of Object.entries(adjustmentLog)) {
+            adjBreakdownHTML += `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding-left: 12px; font-size: 0.85rem;">
+                    <span style="color: var(--text-secondary);">${name}</span>
+                    <strong style="color: ${val < 0 ? '#ef4444' : '#10b981'};">${val > 0 ? '+' : ''}${val} Tk</strong>
+                </div>
+            `;
+        }
+    }
 
-    // --- 3. RETURN THE FINAL ASSEMBLED HTML ---
     return `
         <div class="admin-form-card" style="padding: 16px; margin-bottom: 16px; background: #f8fafc; border: 1px solid #e2e8f0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
             <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px;">Physical Cash Formula</div>
@@ -2517,15 +2533,57 @@ function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, deskItemsS
                 <span style="font-size: 0.95rem; color: var(--text-secondary); font-weight: 500;">+ Cash Sales</span>
                 <strong style="font-size: 1.05rem; color: #10b981;">+${sales} Tk</strong>
             </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 16px;">
-                <span style="font-size: 0.95rem; color: var(--text-secondary); font-weight: 500;">- Manager Drops</span>
-                <strong style="font-size: 1.05rem; color: #ef4444;">${formattedDrops} Tk</strong>
+            <div style="margin-bottom: 16px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.95rem; color: var(--text-secondary); font-weight: 500;">+/- Cash Actions</span>
+                    <strong style="font-size: 1.05rem; color: ${adjustments < 0 ? '#ef4444' : '#10b981'};">${formattedAdjustments} Tk</strong>
+                </div>
+                ${adjBreakdownHTML}
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-size: 1rem; font-weight: 800; color: #0ea5e9; text-transform: uppercase;">Expected Cash</span>
                 <strong style="font-size: 1.5rem; font-weight: 800; color: #0ea5e9;">${expected} Tk</strong>
             </div>
         </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 12px; text-align: center; box-shadow: 0 2px 4px rgba(22,101,52,0.05);">
+                <div style="font-size: 0.75rem; font-weight: 800; color: #166534; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">Total MFS</div>
+                <div style="font-size: 1.35rem; font-weight: 800; color: #15803d;">${mfsTotal} Tk</div>
+            </div>
+            <div style="background: #fffbeb; border: 1px solid #fde68a; padding: 16px; border-radius: 12px; text-align: center; box-shadow: 0 2px 4px rgba(180,83,9,0.05);">
+                <div style="font-size: 0.75rem; font-weight: 800; color: #b45309; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">ERS Sent (${ersData.count}x)</div>
+                <div style="font-size: 1.35rem; font-weight: 800; color: #d97706;">${ersData.total} Tk</div>
+            </div>
+        </div>
+
+        <div class="admin-form-card" style="padding: 0; margin-bottom: 24px; overflow: hidden; border: 1px solid ${summaryBorder}; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+            <div style="background: ${summaryBg}; padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="const c = document.getElementById('inv-grid-content'); const i = document.getElementById('inv-grid-icon'); if(c.style.display==='none'){c.style.display='block'; i.style.transform='rotate(180deg)';}else{c.style.display='none'; i.style.transform='rotate(0deg)';}">
+                <div style="font-size: 0.85rem; font-weight: 800; color: ${summaryColor}; text-transform: uppercase; letter-spacing: 0.5px;">
+                    ${summaryText}
+                </div>
+                <svg id="inv-grid-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${summaryColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div id="inv-grid-content" style="display: none; background: #ffffff; border-top: 1px solid ${summaryBorder};">
+                <div style="padding: 0 16px;">
+                    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; padding: 12px 0; border-bottom: 2px solid var(--border-color); font-size: 0.7rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
+                        <div>Item</div>
+                        <div style="text-align: center;">Start</div>
+                        <div style="text-align: center;">In/Out</div>
+                        <div style="text-align: center;">Sold</div>
+                        <div style="text-align: center; color: #0ea5e9;">Exp.</div>
+                    </div>
+                    ${invRows}
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+            <div style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; padding: 0 4px; border-bottom: 2px solid var(--border-color); padding-bottom: 8px;">Desk Items & Services Sold</div>
+            ${itemsHTML}
+        </div>
+    `;
+}
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
             <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 12px; text-align: center; box-shadow: 0 2px 4px rgba(22,101,52,0.05);">
@@ -2609,9 +2667,10 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
     }
 
     // Engine Variables
-    let deskCashSales = 0, mgrDropRcv = 0, deskMfs = 0, deskErsCount = 0, deskErsTotal = 0;
-    let deskItemsSold = {}; // Tracks BOTH physical and digital in one flat list
-    let invStats = {}; // Strictly for the physical counting accordion
+    let deskCashSales = 0, deskAdjustments = 0, deskMfs = 0, deskErsCount = 0, deskErsTotal = 0;
+    let deskItemsSold = {}; 
+    let deskAdjustmentLog = {}; 
+    let invStats = {}; 
     
     getPhysicalItems().forEach(item => {
         let o = activeOpeningInv[item] || 0;
@@ -2627,17 +2686,16 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
         
         deskMfs += safeMfsAmt;
 
-        // Sales Math & Flat List Generation
-        if (tx.type === 'adjustment' && tx.name === 'Physical Cash') {
-            mgrDropRcv += safeCashAmt; 
-        } else if (tx.type !== 'adjustment' && tx.type !== 'transfer_out' && tx.type !== 'transfer_in') {
+        if (tx.type === 'adjustment') {
+            deskAdjustments += safeCashAmt; 
+            deskAdjustmentLog[tx.name] = (deskAdjustmentLog[tx.name] || 0) + safeCashAmt;
+        } else if (tx.type !== 'transfer_out' && tx.type !== 'transfer_in') {
             deskCashSales += safeCashAmt; 
             
             if (tx.name === 'ERS Flexiload') {
                 deskErsCount += Math.abs(tx.qty);
                 deskErsTotal += tx.amount;
-            } else if (tx.name !== 'Physical Cash') {
-                // ADD TO FLAT LIST (Captures Skitto Kits, MNP, Ownership Transfers alike)
+            } else {
                 deskItemsSold[tx.name] = (deskItemsSold[tx.name] || 0) + Math.abs(tx.qty);
             }
         }
@@ -2711,7 +2769,7 @@ async function renderDeskDashboard(targetDeskId = currentDeskId) {
         `;
     });
 
-    let cashMath = { opening: deskOpeningCash, sales: deskCashSales, drops: mgrDropRcv, expected: (deskOpeningCash + deskCashSales + mgrDropRcv) };
+    let cashMath = { opening: deskOpeningCash, sales: deskCashSales, adjustments: deskAdjustments, adjustmentLog: deskAdjustmentLog, expected: (deskOpeningCash + deskCashSales + deskAdjustments) };
     let ersData = { count: deskErsCount, total: deskErsTotal };
 
     document.getElementById('live-dashboard-wrapper').innerHTML = generateDashboardHTML(cashMath, deskMfs, ersData, invStats, deskItemsSold);
@@ -2959,8 +3017,9 @@ window.openHistoricalSession = async function(sessionId) {
         // 3. Rebuild the Exact Dashboard Math
         let deskOpeningCash = parseFloat(sData.openingBalances?.cash) || 0;
         let activeOpeningInv = sData.openingBalances?.inventory || {};
-        let deskCashSales = 0, mgrDropRcv = 0, deskMfs = 0, deskErsCount = 0, deskErsTotal = 0;
+        let deskCashSales = 0, deskAdjustments = 0, deskMfs = 0, deskErsCount = 0, deskErsTotal = 0;
         let deskItemsSold = {}; 
+        let deskAdjustmentLog = {}; 
         let invStats = {}; 
         
         getPhysicalItems().forEach(item => {
@@ -2976,15 +3035,16 @@ window.openHistoricalSession = async function(sessionId) {
             
             deskMfs += safeMfsAmt;
 
-            if (tx.type === 'adjustment' && tx.name === 'Physical Cash') {
-                mgrDropRcv += safeCashAmt; 
-            } else if (tx.type !== 'adjustment' && tx.type !== 'transfer_out' && tx.type !== 'transfer_in') {
+            if (tx.type === 'adjustment') {
+                deskAdjustments += safeCashAmt; 
+                deskAdjustmentLog[tx.name] = (deskAdjustmentLog[tx.name] || 0) + safeCashAmt;
+            } else if (tx.type !== 'transfer_out' && tx.type !== 'transfer_in') {
                 deskCashSales += safeCashAmt; 
                 
                 if (tx.name === 'ERS Flexiload') {
                     deskErsCount += Math.abs(tx.qty);
                     deskErsTotal += tx.amount;
-                } else if (tx.name !== 'Physical Cash') {
+                } else {
                     deskItemsSold[tx.name] = (deskItemsSold[tx.name] || 0) + Math.abs(tx.qty);
                 }
             }
@@ -3003,7 +3063,7 @@ window.openHistoricalSession = async function(sessionId) {
             }
         });
 
-        let cashMath = { opening: deskOpeningCash, sales: deskCashSales, drops: mgrDropRcv, expected: (deskOpeningCash + deskCashSales + mgrDropRcv) };
+        let cashMath = { opening: deskOpeningCash, sales: deskCashSales, adjustments: deskAdjustments, adjustmentLog: deskAdjustmentLog, expected: (deskOpeningCash + deskCashSales + deskAdjustments) };
         let ersData = { count: deskErsCount, total: deskErsTotal };
 
         let reconstructedDashboardHTML = generateDashboardHTML(cashMath, deskMfs, ersData, invStats, deskItemsSold);
