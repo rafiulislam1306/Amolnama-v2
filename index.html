@@ -482,18 +482,15 @@
                 <button style="background: var(--bg-color); border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; font-weight: bold;" onclick="closeModal('modal-profile-hub')">✕</button>
             </div>
 
-            <div style="padding: 12px 20px;">
-        <div class="list-menu-item" onclick="closeModal('modal-profile-hub'); openNicknameManager();" style="border-bottom: none;">
-          <div class="list-item-content">
-            <span class="list-item-title">Edit Nickname</span>
-            <span style="font-size: 0.8rem; color: var(--text-secondary);">Change how you appear on the floor map</span>
-          </div>
-          <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-        </div>
-      </div>
-
-      <div id="hub-admin-section" style="display: none; border-top: 4px solid var(--bg-color); padding: 12px 20px;">
-        <div style="font-size: 0.75rem; font-weight: 800; color: #b91c1c; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; padding-left: 4px;">Admin Controls</div>
+        <div id="hub-admin-section" style="display: none; padding: 12px 20px;">
+    <div style="font-size: 0.75rem; font-weight: 800; color: #b91c1c; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; padding-left: 4px;">Admin Controls</div>
+    <div class="list-menu-item" onclick="closeModal('modal-profile-hub'); openNicknameManager();">
+     <div class="list-item-content">
+      <span class="list-item-title">Manage Nicknames</span>
+      <span style="font-size: 0.8rem; color: var(--text-secondary);">Change how agents appear on the floor map</span>
+     </div>
+     <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+    </div>
         <div class="list-menu-item" onclick="closeModal('modal-profile-hub'); openDevNotes();">
           <div class="list-item-content">
             <span class="list-item-title" style="color: #8b5cf6;">Improvement Queue</span>

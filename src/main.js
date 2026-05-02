@@ -1953,8 +1953,12 @@ async function saveSettings() {
 //  ADMIN CENTRALIZED NICKNAME MANAGER
 // ==========================================
 async function openNicknameManager() {
-    openModal('modal-nicknames');
-    const container = document.getElementById('nickname-list-container');
+  if (currentUserRole !== 'admin') { 
+    showAppAlert("Access Denied", "Only admins can manage nicknames."); 
+    return; 
+  }
+  openModal('modal-nicknames');
+  const container = document.getElementById('nickname-list-container');
     container.innerHTML = '<div class="spinner" style="margin: 0 auto; border-top-color: #0ea5e9;"></div>';
     
     try {
