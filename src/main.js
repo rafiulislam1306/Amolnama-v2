@@ -67,29 +67,9 @@ window.addEventListener('appinstalled', () => {
 // ==========================================
 //    1. FIREBASE CONFIGURATION
 // ==========================================
-import { initializeApp } from "firebase/app";
-import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
-import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, getDocs, enableIndexedDbPersistence, orderBy, limit, serverTimestamp, onSnapshot } from "firebase/firestore";
-
-const firebaseConfig = {
-    apiKey: "AIzaSyA4YyIOi1xSddHCeLMdBN5mwrjQbJPn_Iw",
-    authDomain: "amolnama-cc2bf.firebaseapp.com",
-    projectId: "amolnama-cc2bf",
-    storageBucket: "amolnama-cc2bf.firebasestorage.app",
-    messagingSenderId: "283254200113",
-    appId: "1:283254200113:web:248a3bff50f167568ec210"
-};
-
-let app, auth, db;
-
-if (Object.keys(firebaseConfig).length > 0) {
-    app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = getFirestore(app);
-    enableIndexedDbPersistence(db).catch((err) => {
-        if (err.code == 'failed-precondition') console.warn("Offline persistence only works when one tab of the app is open.");
-    });
-}
+import { auth, db } from './config/firebase.js';
+import { setPersistence, browserLocalPersistence, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import { collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, getDocs, orderBy, limit, serverTimestamp, onSnapshot } from "firebase/firestore";
 
 // Global User State
 let currentUser = null;
