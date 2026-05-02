@@ -34,7 +34,7 @@ Object.defineProperties(window, {
     globalInventoryGroups: { get: () => AppState.globalInventoryGroups, set: (v) => AppState.globalInventoryGroups = v },
     transactions: { get: () => AppState.transactions, set: (v) => AppState.transactions = v },
     trashTransactions: { get: () => AppState.trashTransactions, set: (v) => AppState.trashTransactions = v },
-    isMfs: { get: () => AppState.isMfs, set: (v) => AppState.isMfs = v }
+    isMfs: { get: () => AppState.isMfs, set: (v) => AppState.isMfs = v },
     devNotesQueue: { get: () => AppState.devNotesQueue, set: (v) => AppState.devNotesQueue = v }
 });
 
