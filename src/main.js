@@ -247,6 +247,19 @@ function toggleEditSplitFields() {
     } else document.getElementById('edit-split-fields').style.display = 'none';
 }
 
+function autoCalcEditTotal() {
+    let tx = transactions.find(t => t.id === currentEditTxId);
+    if (!tx) return;
+    
+    let catItem = Object.values(globalCatalog).find(c => c.name === tx.name);
+    let unitPrice = catItem ? catItem.price : (tx.qty > 0 ? (tx.amount / tx.qty) : 0);
+    let newQty = parseInt(document.getElementById('edit-tx-qty').value) || 0;
+    
+    document.getElementById('edit-tx-amount').value = unitPrice * newQty;
+    updateSplitTotal();
+}
+window.autoCalcEditTotal = autoCalcEditTotal;
+
 function updateSplitTotal() {
     let totalAmount = parseFloat(document.getElementById('edit-tx-amount').value) || 0;
     let cashInput = document.getElementById('edit-tx-cash');
@@ -260,6 +273,12 @@ function updateSplitTotal() {
         cashInput.value = Math.max(0, totalAmount - mfsAmt);
     }
 }
+
+function cancelTxEdit() {
+    currentEditTxId = null;
+    closeModal('modal-edit-tx');
+}
+window.cancelTxEdit = cancelTxEdit;
 
 function saveTxEdit() {
     let txIndex = transactions.findIndex(t => t.id === currentEditTxId);
@@ -469,7 +488,7 @@ function toggleMFS() {
 }
 
 window.addEventListener('click', (event) => {
-    if (event.target.classList.contains('modal-overlay') && !['modal-auth', 'splash-screen', 'modal-desk-select', 'modal-nicknames', 'modal-app-alert', 'modal-open-desk', 'modal-close-desk'].includes(event.target.id)) {
+    if (event.target.classList.contains('modal-overlay') && !['modal-auth', 'splash-screen', 'modal-desk-select', 'modal-nicknames', 'modal-app-alert', 'modal-open-desk', 'modal-close-desk', 'modal-edit-tx'].includes(event.target.id)) {
         closeModal(event.target.id);
     }
 });

@@ -1,5 +1,5 @@
 // src/features/transactions.js
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { generateReceiptNo, getStrictDate } from '../utils/helpers.js';
 import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/ui-helpers.js';
@@ -111,7 +111,8 @@ export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt 
         payment: payment, cashAmt: cashAmt, mfsAmt: mfsAmt, isDeleted: false,
         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
         dateStr: getStrictDate(),
-        deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName
+        deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName,
+        timestamp: serverTimestamp()
     };
 
     if (AppState.currentDeskId === 'sandbox') {
