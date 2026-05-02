@@ -357,123 +357,131 @@ export function shareDeskReport() {
 
 export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, deskItemsSold) {
     let { opening, sales, adjustments, adjustmentLog, expected } = cashMath;
-    
+         
     let invRows = '';
-    let activeItemCount = 0; 
-    
+    let activeItemCount = 0;
+          
     for (const [item, d] of Object.entries(invStats)) {
         if (d.open === 0 && d.inOut === 0 && d.sold === 0 && d.rem === 0) continue;
-        activeItemCount++; 
-        
+        activeItemCount++;
+                  
         let inOutColor = d.inOut > 0 ? '#10b981' : (d.inOut < 0 ? '#ef4444' : 'var(--text-secondary)');
         let inOutStr = d.inOut > 0 ? `+${d.inOut}` : (d.inOut < 0 ? `${d.inOut}` : `0`);
-
         invRows += `
             <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-color); font-size: 0.85rem;">
                 <div style="font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; cursor: pointer;" onclick="showTooltip(this, '${item}')">${item}</div>
-                <div style="text-align: center; color: var(--text-secondary); font-weight: 600;">${d.open}</div>
-                <div style="text-align: center; color: ${inOutColor}; font-weight: 700;">${inOutStr}</div>
-                <div style="text-align: center; color: #f59e0b; font-weight: 700;">${d.sold}</div>
-                <div style="text-align: center; color: #0ea5e9; font-weight: 800; font-size: 1rem;">${d.rem}</div>
+                <div style="text-align: center; color: var(--text-secondary); font-weight: 500;">${d.open}</div>
+                <div style="text-align: center; color: ${inOutColor}; font-weight: 600;">${inOutStr}</div>
+                <div style="text-align: center; color: var(--text-primary); font-weight: 500;">${d.sold}</div>
+                <div style="text-align: center; color: var(--text-primary); font-weight: 700; font-size: 0.95rem;">${d.rem}</div>
             </div>
         `;
     }
-
-    if (!invRows) invRows = `<div style="padding: 20px; text-align: center; color: var(--text-secondary); font-size: 0.85rem; font-style: italic;">No physical stock recorded today</div>`;
     
-    let summaryText = activeItemCount > 0 ? `Physical Stock: ${activeItemCount} Active Items` : 'Physical Stock: No Movement';
-    let summaryColor = activeItemCount > 0 ? '#0ea5e9' : '#64748b';
-    let summaryBg = activeItemCount > 0 ? '#f0f9ff' : '#f8fafc';
-    let summaryBorder = activeItemCount > 0 ? '#bae6fd' : 'var(--border-color)';
-
+    if (!invRows) invRows = `<div style="padding: 20px; text-align: center; color: var(--text-secondary); font-size: 0.85rem; font-style: italic;">No physical stock recorded today</div>`;
+         
     let itemsHTML = '';
-    for (const [name, qty] of Object.entries(deskItemsSold)) {
+    let itemRowsArray = Object.entries(deskItemsSold);
+    
+    itemRowsArray.forEach(([name, qty], index) => {
+        let isLast = index === itemRowsArray.length - 1;
+        let borderStyle = isLast ? '' : 'border-bottom: 1px solid var(--border-color);';
         itemsHTML += `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 4px; border-bottom: 1px solid var(--border-color);">
-                <span style="font-weight: 600; color: var(--text-primary); font-size: 1rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px;">${name}</span>
-                <span style="font-weight: 800; color: var(--text-secondary); font-size: 1.1rem; flex-shrink: 0;">${qty}x</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; ${borderStyle}">
+                <span style="font-weight: 500; color: var(--text-primary); font-size: 0.875rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px;">${name}</span>
+                <span style="background: var(--bg-color); color: var(--text-secondary); font-size: 0.8rem; font-weight: 500; padding: 2px 8px; border-radius: 6px; flex-shrink: 0;">${qty}x</span>
             </div>
         `;
-    }
-    if (!itemsHTML) itemsHTML = '<div style="color: var(--text-secondary); font-style: italic; padding: 12px 4px;">No items or services sold yet</div>';
+    });
+    if (!itemsHTML) itemsHTML = '<div style="color: var(--text-secondary); font-style: italic; padding: 14px; font-size: 0.85rem; text-align: center;">No items or services sold yet</div>';
 
     let formattedAdjustments = adjustments !== 0 ? (adjustments > 0 ? `+${adjustments}` : adjustments) : '0';
-    
+         
     let adjBreakdownHTML = '';
     if (Object.keys(adjustmentLog).length > 0) {
         for (const [name, val] of Object.entries(adjustmentLog)) {
             adjBreakdownHTML += `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding-left: 12px; font-size: 0.85rem;">
                     <span style="color: var(--text-secondary);">${name}</span>
-                    <strong style="color: ${val < 0 ? '#ef4444' : '#10b981'};">${val > 0 ? '+' : ''}${val} Tk</strong>
+                    <strong style="color: ${val < 0 ? '#ef4444' : '#10b981'}; font-weight: 500;">${val > 0 ? '+' : ''}${val} Tk</strong>
                 </div>
             `;
         }
     }
 
     return `
-        <div class="admin-form-card" style="padding: 16px; margin-bottom: 16px; background: var(--bg-color); border: 1px solid var(--border-color); box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
-      <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px;">Physical Cash Formula</div>
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <span style="font-size: 0.95rem; color: var(--text-secondary); font-weight: 500;">Opening Float</span>
-        <strong style="font-size: 1.05rem; color: var(--text-primary);">${opening} Tk</strong>
-      </div>
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <span style="font-size: 0.95rem; color: var(--text-secondary); font-weight: 500;">+ Cash Sales</span>
-        <strong style="font-size: 1.05rem; color: var(--success-text);">+${sales} Tk</strong>
-      </div>
-      <div style="margin-bottom: 16px; border-bottom: 1px dashed var(--border-color); padding-bottom: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 4px 0;" onclick="const breakdown = this.nextElementSibling; const icon = this.querySelector('svg'); if(breakdown.style.display === 'none') { breakdown.style.display = 'block'; icon.style.transform = 'rotate(180deg)'; } else { breakdown.style.display = 'none'; icon.style.transform = 'rotate(0deg)'; }">
-          <span style="font-size: 0.95rem; color: var(--text-secondary); font-weight: 500; display: flex; align-items: center; gap: 6px;">
-            +/- Cash Actions
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
-          </span>
-          <strong style="font-size: 1.05rem; color: ${adjustments < 0 ? 'var(--danger-text)' : 'var(--success-text)'};">${formattedAdjustments} Tk</strong>
-        </div>
-        <div style="display: none; padding-top: 8px; border-top: 1px solid var(--border-color); margin-top: 8px;">
-          ${adjBreakdownHTML || '<div style="font-size: 0.85rem; color: var(--text-secondary); text-align: right; font-style: italic;">No actions recorded</div>'}
-        </div>
-      </div>
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span style="font-size: 1rem; font-weight: 800; color: var(--info-text); text-transform: uppercase;">Expected Cash</span>
-        <strong style="font-size: 1.5rem; font-weight: 800; color: var(--info-text);">${expected} Tk</strong>
-      </div>
-    </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-      <div style="background: var(--success-bg); border: 1px solid var(--success-border); padding: 16px; border-radius: 12px; text-align: center;">
-        <div style="font-size: 0.75rem; font-weight: 800; color: var(--success-text); text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">Total MFS</div>
-        <div style="font-size: 1.35rem; font-weight: 800; color: var(--success-text);">${mfsTotal} Tk</div>
-      </div>
-      <div style="background: var(--warning-bg); border: 1px solid var(--warning-border); padding: 16px; border-radius: 12px; text-align: center;">
-        <div style="font-size: 0.75rem; font-weight: 800; color: var(--warning-text); text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">ERS Sent (${ersData.count}x)</div>
-        <div style="font-size: 1.35rem; font-weight: 800; color: var(--warning-text);">${ersData.total} Tk</div>
-      </div>
-    </div>
-
-        <div class="admin-form-card" style="padding: 0; margin-bottom: 24px; overflow: hidden; border: 1px solid ${summaryBorder}; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
-            <div style="background: ${summaryBg}; padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="const c = document.getElementById('inv-grid-content'); const i = document.getElementById('inv-grid-icon'); if(c.style.display==='none'){c.style.display='block'; i.style.transform='rotate(180deg)';}else{c.style.display='none'; i.style.transform='rotate(0deg)';}">
-                <div style="font-size: 0.85rem; font-weight: 800; color: ${summaryColor}; text-transform: uppercase; letter-spacing: 0.5px;">
-                    ${summaryText}
-                </div>
-                <svg id="inv-grid-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${summaryColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+        <!-- 1. Cash Formula Card -->
+        <div class="admin-form-card" style="padding: 0; margin-bottom: 16px; background: var(--surface-color); border: 1px solid var(--border-color); box-shadow: 0 1px 2px rgba(0,0,0,0.02); overflow: hidden;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 11px 16px;">
+                <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500;">Opening Float</span>
+                <span style="font-size: 0.95rem; color: var(--text-primary); font-weight: 500;">${opening} Tk</span>
             </div>
-            <div id="inv-grid-content" style="display: none; background: #ffffff; border-top: 1px solid ${summaryBorder};">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 11px 16px;">
+                <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500;">+ Cash Sales</span>
+                <span style="font-size: 0.95rem; color: var(--text-primary); font-weight: 500;">+${sales} Tk</span>
+            </div>
+            <div style="padding: 11px 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="const breakdown = this.nextElementSibling; const icon = this.querySelector('svg'); if(breakdown.style.display === 'none') { breakdown.style.display = 'block'; icon.style.transform = 'rotate(180deg)'; } else { breakdown.style.display = 'none'; icon.style.transform = 'rotate(0deg)'; }">
+                    <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500; display: flex; align-items: center; gap: 6px;">
+                        +/- Cash Actions
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+                    </span>
+                    <span style="font-size: 0.95rem; font-weight: 500; color: ${adjustments < 0 ? '#ef4444' : 'var(--text-primary)'};">${formattedAdjustments} Tk</span>
+                </div>
+                <div style="display: none; padding-top: 8px; border-top: 1px solid var(--border-color); margin-top: 8px;">
+                    ${adjBreakdownHTML || '<div style="font-size: 0.85rem; color: var(--text-secondary); text-align: right; font-style: italic;">No actions recorded</div>'}
+                </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 11px 16px; background: var(--bg-color); border-top: 1px solid var(--border-color);">
+                <span style="font-size: 0.7rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Expected Cash</span>
+                <span style="font-size: 1.4rem; font-weight: 500; color: var(--text-primary);">${expected}</span>
+            </div>
+        </div>
+
+        <!-- 2. MFS and ERS Cards -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+            <div style="background: var(--surface-color); border: 1px solid var(--border-color); padding: 14px; border-radius: 12px; text-align: left;">
+                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;">Total MFS</div>
+                <div style="font-size: 1.25rem; font-weight: 500; color: var(--text-primary);">${mfsTotal} <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: normal;">Tk</span></div>
+            </div>
+            <div style="background: var(--surface-color); border: 1px solid var(--border-color); padding: 14px; border-radius: 12px; text-align: left;">
+                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;">ERS Sent (${ersData.count}x)</div>
+                <div style="font-size: 1.25rem; font-weight: 500; color: var(--text-primary);">${ersData.total} <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: normal;">Tk</span></div>
+            </div>
+        </div>
+
+        <!-- 3. Physical Stock Accordion -->
+        <div style="background: var(--surface-color); border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 16px; overflow: hidden;">
+            <div style="padding: 11px 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="const c = document.getElementById('inv-grid-content'); const i = document.getElementById('inv-grid-icon'); if(c.style.display==='none'){c.style.display='block'; i.style.transform='rotate(180deg)';}else{c.style.display='none'; i.style.transform='rotate(0deg)';}">
+                <div style="display: flex; align-items: flex-start; gap: 10px;">
+                    <div style="width: 7px; height: 7px; border-radius: 50%; background: #10b981; margin-top: 6px; flex-shrink: 0;"></div>
+                    <div style="display: flex; flex-direction: column;">
+                        <span style="font-size: 0.875rem; font-weight: 500; color: var(--text-primary); line-height: 1.2;">Physical stock</span>
+                        <span style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.2; margin-top: 3px;">${activeItemCount} active items</span>
+                    </div>
+                </div>
+                <svg id="inv-grid-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div id="inv-grid-content" style="display: none; background: var(--surface-color); border-top: 1px solid var(--border-color);">
                 <div style="padding: 0 16px;">
-                    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; padding: 12px 0; border-bottom: 2px solid var(--border-color); font-size: 0.7rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
+                    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; padding: 12px 0; border-bottom: 2px solid var(--border-color); font-size: 0.7rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
                         <div>Item</div>
                         <div style="text-align: center;">Start</div>
                         <div style="text-align: center;">In/Out</div>
                         <div style="text-align: center;">Sold</div>
-                        <div style="text-align: center; color: #0ea5e9;">Exp.</div>
+                        <div style="text-align: center;">Exp.</div>
                     </div>
                     ${invRows}
                 </div>
             </div>
         </div>
 
-        <div style="margin-bottom: 24px;">
-            <div style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; padding: 0 4px; border-bottom: 2px solid var(--border-color); padding-bottom: 8px;">Desk Items & Services Sold</div>
+        <!-- 4. Items & Services Sold List -->
+        <div style="background: var(--surface-color); border-radius: 12px; border: 1px solid var(--border-color); overflow: hidden; margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--border-color); background: var(--bg-color);">
+                <span style="font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px;">Items & services sold</span>
+                <span style="font-size: 0.7rem; font-weight: 500; color: var(--text-secondary);">Today</span>
+            </div>
             ${itemsHTML}
         </div>
     `;
@@ -528,94 +536,38 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
         invStats[item] = { open: o, inOut: 0, sold: 0, rem: o };
     });
 
-    [...AppState.transactions].reverse().forEach(tx => {
-        if (tx.isDeleted) return;
-        if (tx.sessionId !== activeSessionId) return;
+    // 8. LEDGER ITEMS
+        // Determine correct dot color and text values for this row
+        let isOutflow = tx.type === 'adjustment' || tx.type === 'transfer_out';
+        let dotColor = '#10b981'; // Default Green (ERS)
+        if (tx.type === 'adjustment') dotColor = '#ef4444'; // Red (Cash drop/expense)
+        else if (tx.type === 'transfer_out' || tx.type === 'transfer_in') dotColor = '#8b5cf6'; // Purple (Transfer)
+        else if (tx.name !== 'ERS Flexiload') dotColor = 'var(--accent-color)'; // Blue (Regular Sales)
 
-        let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
-        let safeMfsAmt = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0); 
-        
-        deskMfs += safeMfsAmt;
-
-        if (tx.type === 'adjustment') {
-            deskAdjustments += safeCashAmt; 
-            deskAdjustmentLog[tx.name] = (deskAdjustmentLog[tx.name] || 0) + safeCashAmt;
-        } else if (tx.type !== 'transfer_out' && tx.type !== 'transfer_in') {
-            deskCashSales += safeCashAmt; 
-            
-            if (tx.name === 'ERS Flexiload') {
-                deskErsCount += Math.abs(tx.qty);
-                deskErsTotal += tx.amount;
-            } else {
-                deskItemsSold[tx.name] = (deskItemsSold[tx.name] || 0) + Math.abs(tx.qty);
-            }
-        }
-
-        if (AppState.globalInventoryGroups.includes(tx.trackAs)) {
-            let trackAs = tx.trackAs;
-            let q = Math.abs(tx.qty);
-            
-            if (tx.type === 'transfer_in') { invStats[trackAs].inOut += q; invStats[trackAs].rem += q; }
-            else if (tx.type === 'transfer_out') { invStats[trackAs].inOut -= q; invStats[trackAs].rem -= q; }
-            else if (tx.type === 'adjustment') { invStats[trackAs].inOut += q; invStats[trackAs].rem += q; }
-            else { 
-                invStats[trackAs].sold += q; 
-                invStats[trackAs].rem -= q; 
-            }
-        }
-        
-        let catItem = Object.values(AppState.globalCatalog).find(c => c.name === tx.name);
-        let txCat = catItem ? catItem.cat : null;
-        let showTx = false;
-        
-        if (filterVal === 'all') showTx = true;
-        else if (filterVal === 'ers' && tx.name === 'ERS Flexiload') showTx = true;
-        else if (filterVal === 'cash_ops' && tx.type === 'adjustment' && tx.name === 'Physical Cash') showTx = true;
-        else if (filterVal === 'transfers' && (tx.type === 'transfer_in' || tx.type === 'transfer_out')) showTx = true;
-        else if (filterVal === txCat) showTx = true;
-
-        if (!showTx) return;
-        
-        let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
-        let badges = '';
-        
-        if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
-        if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
-        let agentBadge = `<span style="font-size: 0.7rem; background: #e0f2fe; color: #0284c7; padding: 4px 8px; border-radius: 12px; font-weight: 700; letter-spacing: 0.5px;">${tx.agentName.split(' ')[0]}</span>`;
-
-        let actionBtns = '';
-        
-        if (targetDeskId === AppState.currentDeskId || AppState.currentUserRole === 'admin') {
-            actionBtns = `
-                <div class="tx-actions" style="display: none; width: 100%; padding-top: 12px; margin-top: 12px; border-top: 1px dashed var(--border-color); justify-content: flex-end; gap: 8px;">
-                    <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: var(--accent-color); border-color: var(--accent-color); gap: 6px;" onclick="event.stopPropagation(); openEditTx(${tx.id})">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> Edit
-                    </button>
-                    <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: #ef4444; border-color: #fca5a5; background: #fef2f2; gap: 6px;" onclick="event.stopPropagation(); deleteTransaction('${tx.docId}', ${tx.id})">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg> Trash
-                    </button>
-                </div>
-            `;
-        }
+        let amtColor = isOutflow ? '#ef4444' : 'var(--text-primary)';
+        let amtPrefix = isOutflow ? '−' : '';
 
         historyHTML += `
-            <div class="history-item" style="cursor: pointer; flex-direction: column; align-items: stretch; transition: background-color 0.15s;" onclick="const actions = this.querySelector('.tx-actions'); if(actions) { actions.style.display = actions.style.display === 'none' ? 'flex' : 'none'; }">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
-                    <div class="history-info" style="flex: 1; padding-right: 12px;">
-                        <div style="display: flex; align-items: center; flex-wrap: wrap; margin-bottom: 2px;">
-                            <span class="history-title" style="margin-right: 8px;">${tx.qty}x ${tx.name}</span>
+            <div class="history-item" style="display: flex; flex-direction: column; padding: 12px 14px; border-bottom: 1px solid var(--border-color); cursor: pointer;" onclick="const actions = this.querySelector('.tx-actions'); if(actions) { actions.style.display = actions.style.display === 'none' ? 'flex' : 'none'; }">
+                <div style="display: flex; width: 100%; align-items: flex-start; gap: 10px;">
+                    <div style="width: 7px; height: 7px; border-radius: 50%; background: ${dotColor}; margin-top: 6px; flex-shrink: 0;"></div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 0.875rem; color: var(--text-primary); font-weight: 500; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; line-height: 1.2;">
+                            <span>${tx.qty}x ${tx.name}</span>
+                            <span style="font-size: 0.65rem; background: var(--info-bg); color: var(--accent-color); border-radius: 999px; padding: 2px 6px; margin-left: 2px;">${tx.agentName.split(' ')[0]}</span>
                             ${badges}
                         </div>
-                        <span class="history-meta">${tx.receiptNo || tx.id} • ${tx.time} • ${tx.amount} ${userCurrency} • ${payLabel}</span>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">
+                            ${tx.time} • ${payLabel}
+                        </div>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0; padding-top: 2px;">
-                        ${agentBadge}
+                    <div style="font-size: 0.875rem; font-weight: 500; color: ${amtColor}; flex-shrink: 0; text-align: right;">
+                        ${amtPrefix}${Math.abs(tx.amount || 0)}
                     </div>
                 </div>
                 ${actionBtns}
             </div>
         `;
-    });
 
     let cashMath = { opening: deskOpeningCash, sales: deskCashSales, adjustments: deskAdjustments, adjustmentLog: deskAdjustmentLog, expected: (deskOpeningCash + deskCashSales + deskAdjustments) };
     let ersData = { count: deskErsCount, total: deskErsTotal };
