@@ -2956,12 +2956,64 @@ window.openHistoricalSession = async function(sessionId) {
         txSnap.forEach(d => pastTx.push({docId: d.id, ...d.data()}));
         pastTx.sort((a,b) => b.id - a.id); // Newest first
 
-        // 3. Calculate Variance & Closing Math
+        // 3. Rebuild the Exact Dashboard Math
+        let deskOpeningCash = parseFloat(sData.openingBalances?.cash) || 0;
+        let activeOpeningInv = sData.openingBalances?.inventory || {};
+        let deskCashSales = 0, mgrDropRcv = 0, deskMfs = 0, deskErsCount = 0, deskErsTotal = 0;
+        let deskItemsSold = {}; 
+        let invStats = {}; 
+        
+        getPhysicalItems().forEach(item => {
+            let o = activeOpeningInv[item] || 0;
+            invStats[item] = { open: o, inOut: 0, sold: 0, rem: o };
+        });
+
+        pastTx.forEach(tx => {
+            if (tx.isDeleted) return;
+
+            let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
+            let safeMfsAmt = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0); 
+            
+            deskMfs += safeMfsAmt;
+
+            if (tx.type === 'adjustment' && tx.name === 'Physical Cash') {
+                mgrDropRcv += safeCashAmt; 
+            } else if (tx.type !== 'adjustment' && tx.type !== 'transfer_out' && tx.type !== 'transfer_in') {
+                deskCashSales += safeCashAmt; 
+                
+                if (tx.name === 'ERS Flexiload') {
+                    deskErsCount += Math.abs(tx.qty);
+                    deskErsTotal += tx.amount;
+                } else if (tx.name !== 'Physical Cash') {
+                    deskItemsSold[tx.name] = (deskItemsSold[tx.name] || 0) + Math.abs(tx.qty);
+                }
+            }
+
+            if (globalInventoryGroups.includes(tx.trackAs)) {
+                let trackAs = tx.trackAs;
+                let q = Math.abs(tx.qty);
+                
+                if (tx.type === 'transfer_in') { invStats[trackAs].inOut += q; invStats[trackAs].rem += q; }
+                else if (tx.type === 'transfer_out') { invStats[trackAs].inOut -= q; invStats[trackAs].rem -= q; }
+                else if (tx.type === 'adjustment') { invStats[trackAs].inOut += q; invStats[trackAs].rem += q; }
+                else { 
+                    invStats[trackAs].sold += q; 
+                    invStats[trackAs].rem -= q; 
+                }
+            }
+        });
+
+        let cashMath = { opening: deskOpeningCash, sales: deskCashSales, drops: mgrDropRcv, expected: (deskOpeningCash + deskCashSales + mgrDropRcv) };
+        let ersData = { count: deskErsCount, total: deskErsTotal };
+
+        let reconstructedDashboardHTML = generateDashboardHTML(cashMath, deskMfs, ersData, invStats, deskItemsSold);
+
+        // 4. Calculate Variance & Blind Count Math
         let closingMathHTML = '';
-        if (sData.status === 'closed' && sData.closingBalances) {
-            let expected = parseFloat(sData.closingBalances.expectedCash) || 0;
-            let actual = parseFloat(sData.closingBalances.actualCash) || 0;
-            let variance = actual - expected;
+        if (sData.status === 'closed' || sData.status === 'pending') {
+            let expected = parseFloat(sData.expectedClosing?.cash) || 0;
+            let actual = parseFloat(sData.actualClosing?.cash) || 0;
+            let variance = sData.variance || 0;
             
             let varColor = variance >= 0 ? '#10b981' : '#ef4444';
             let varBg = variance >= 0 ? '#d1fae5' : '#fee2e2';
@@ -2969,7 +3021,7 @@ window.openHistoricalSession = async function(sessionId) {
 
             closingMathHTML = `
                 <div style="background: var(--surface-color); border-radius: 16px; padding: 16px; margin-bottom: 24px; border: 1px solid var(--border-color); box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
-                    <div style="font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 800; margin-bottom: 16px; letter-spacing: 0.5px;">Shift Closing Declaration</div>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 800; margin-bottom: 16px; letter-spacing: 0.5px;">Blind Count Audit</div>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.95rem;">
                         <span style="color: var(--text-secondary); font-weight: 600;">System Expected:</span>
                         <span style="font-weight: 800; color: var(--text-primary);">${expected} Tk</span>
@@ -2982,52 +3034,48 @@ window.openHistoricalSession = async function(sessionId) {
                         <span style="color: var(--text-secondary); font-weight: 800; font-size: 0.85rem; text-transform: uppercase;">Variance:</span>
                         <span style="font-weight: 800; color: ${varColor}; background: ${varBg}; padding: 4px 10px; border-radius: 8px; font-size: 0.9rem;">${varText}</span>
                     </div>
-                    ${sData.closingBalances.note ? `<div style="margin-top: 16px; padding: 12px; background: #f8fafc; border-radius: 8px; border-left: 4px solid #cbd5e1; font-size: 0.85rem; font-style: italic; color: var(--text-secondary); line-height: 1.4;">" ${sData.closingBalances.note} "</div>` : ''}
                 </div>
             `;
         } else {
-            closingMathHTML = `<div style="padding: 12px; background: #fffbeb; color: #b45309; border-radius: 10px; margin-bottom: 24px; font-weight: 600; font-size: 0.9rem; text-align: center; border: 1px solid #fde68a;">This session is still marked as OPEN or was closed improperly.</div>`;
+            closingMathHTML = `<div style="padding: 12px; background: #fffbeb; color: #b45309; border-radius: 10px; margin-bottom: 24px; font-weight: 600; font-size: 0.9rem; text-align: center; border: 1px solid #fde68a;">This session is still marked as OPEN.</div>`;
         }
 
-        // 4. Build Read-Only Transaction List
-        let txHTML = '<div style="font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 800; margin-bottom: 12px; margin-top: 8px; letter-spacing: 0.5px;">Shift Receipts</div>';
-
-        if (pastTx.length === 0) {
-            txHTML += `<div style="text-align: center; padding: 30px 20px; color: var(--text-secondary); font-style: italic; background: var(--surface-color); border-radius: 12px; border: 1px dashed var(--border-color);">No receipts found for this shift.</div>`;
-        } else {
-            pastTx.forEach(tx => {
-                let payLabel = tx.payment === 'Split' ? `Split` : tx.payment;
-                // Notice there are NO edit or trash buttons rendered here at all.
-                txHTML += `
-                    <div class="history-item" style="flex-direction: column; align-items: stretch; margin-bottom: 10px; padding: 14px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 12px;">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
-                            <div class="history-info" style="flex: 1; padding-right: 12px;">
-                                <div style="display: flex; align-items: center; flex-wrap: wrap; margin-bottom: 4px;">
-                                    <span class="history-title" style="margin-right: 8px; font-size: 1rem;">${tx.qty}x ${tx.name}</span>
-                                </div>
-                                <span class="history-meta" style="font-size: 0.8rem;">${tx.receiptNo || tx.id} • ${tx.time} • ${tx.amount} ${userCurrency} • ${payLabel}</span>
-                            </div>
-                            <div style="display: flex; align-items: center; flex-shrink: 0;">
-                                <span style="font-size: 0.65rem; background: #f1f5f9; color: #475569; padding: 4px 8px; border-radius: 12px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;">${tx.type.replace('_', ' ')}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
+        // 5. Admin Approve & Seal Action Button
+        let adminActionHTML = '';
+        if (sData.status === 'pending' && currentUserRole === 'admin') {
+            adminActionHTML = `
+                <div style="margin-top: 24px;">
+                    <button class="btn-primary-full" style="background-color: #10b981; padding: 16px; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);" onclick="approveAndSealSession('${sessionId}')">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                        APPROVE & SEAL RECORD
+                    </button>
+                </div>
+            `;
+        } else if (sData.status === 'closed') {
+            adminActionHTML = `
+                <div style="margin-top: 24px; text-align: center; padding: 16px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; color: #15803d; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    RECORD PERMANENTLY SEALED
+                </div>
+            `;
         }
 
-        // 5. Inject and Open
+        // 6. Inject and Open
         let agentName = sData.openedBy ? sData.openedBy.split(' ')[0] : 'Agent';
         let deskTitle = sData.deskId.startsWith('personal_') ? `${agentName}'s Drawer` : sData.deskId.replace('_', ' ').toUpperCase();
+        let statusBadge = sData.status === 'pending' ? `<span style="background: #fef3c7; color: #b45309; padding: 4px 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 800; text-transform: uppercase;">PENDING</span>` : `<span style="background: #d1fae5; color: #047857; padding: 4px 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 800; text-transform: uppercase;">SEALED</span>`;
 
         let headerHTML = `
-            <div style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid var(--border-color);">
-                <h2 style="margin: 0; color: var(--text-primary); font-size: 1.5rem; font-weight: 800;">${deskTitle}</h2>
-                <div style="color: var(--text-secondary); font-size: 0.95rem; margin-top: 6px; font-weight: 600;">Shift Date: <span style="color: var(--text-primary);">${sData.dateStr}</span></div>
+            <div style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid var(--border-color); display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h2 style="margin: 0; color: var(--text-primary); font-size: 1.5rem; font-weight: 800;">${deskTitle}</h2>
+                    <div style="color: var(--text-secondary); font-size: 0.95rem; margin-top: 6px; font-weight: 600;">Shift Date: <span style="color: var(--text-primary);">${sData.dateStr}</span></div>
+                </div>
+                ${statusBadge}
             </div>
         `;
 
-        document.getElementById('historical-content').innerHTML = headerHTML + closingMathHTML + txHTML;
+        document.getElementById('historical-content').innerHTML = headerHTML + reconstructedDashboardHTML + closingMathHTML + adminActionHTML;
         closeModal('modal-app-alert');
         openModal('modal-historical');
 
@@ -3037,6 +3085,22 @@ window.openHistoricalSession = async function(sessionId) {
         showAppAlert("Vault Error", "Could not retrieve historical data. Ensure the session ID is valid.");
     }
 };
+
+window.approveAndSealSession = async function(sessionId) {
+    if (!navigator.onLine) { showAppAlert("Offline", "Must be online to seal records."); return; }
+    try {
+        await updateDoc(doc(db, 'sessions', sessionId), {
+            status: 'closed',
+            sealedBy: userNickname || userDisplayName,
+            sealedAt: serverTimestamp()
+        });
+        showFlashMessage("Session Approved & Sealed!");
+        closeModal('modal-historical');
+        renderPersonalReport(); 
+    } catch(e) {
+        showAppAlert("Error", "Could not seal session.");
+    }
+}
 
 // ==========================================
 //   ADMIN VAULT: FORCE REALLOCATION
@@ -3209,7 +3273,7 @@ window.saveQuantity = saveQuantity; window.openSettings = openSettings; window.r
 window.addNewItem = addNewItem; window.saveSettings = saveSettings; window.shareReport = shareReport;
 window.fetchTransactionsForDate = fetchTransactionsForDate; window.filterAdminCatalog = filterAdminCatalog; window.toggleAddForm = toggleAddForm;
 window.loadFloorMap = loadFloorMap; window.handleDeskSelect = handleDeskSelect; window.confirmOpenDesk = confirmOpenDesk;
-window.initiateCloseDesk = initiateCloseDesk; window.calculateBlindRetained = calculateBlindRetained; window.submitClosingReport = submitClosingReport;
+window.initiateCloseDesk = initiateCloseDesk; window.calculateBlindRetained = calculateBlindRetained; window.submitClosingReport = submitClosingReport; window.approveAndSealSession = approveAndSealSession;
 window.openManagerCashModal = openManagerCashModal; window.saveManagerCash = saveManagerCash;
 window.openMainStockModal = openMainStockModal; window.saveMainStock = saveMainStock;
 window.openReturnStockModal = openReturnStockModal; window.saveReturnStock = saveReturnStock;
