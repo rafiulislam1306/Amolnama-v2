@@ -675,22 +675,22 @@ async function initiateCloseDesk() {
         </div>
 
         <div style="flex: 1; overflow-y: auto; padding: 24px 20px; padding-bottom: calc(24px + env(safe-area-inset-bottom));">
-            <div style="background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; margin-bottom: 24px;">
-                <p style="color: #b45309; font-size: 0.85rem; margin: 0; font-weight: 600; line-height: 1.4;">Blind Count: Count your physical cash and stock. Enter the totals below to submit your report to the manager.</p>
-            </div>
-            
-            <div class="admin-form-card" style="margin-bottom: 24px; padding: 20px; border: 2px solid #0ea5e9; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.1);">
-                <label style="display: block; font-size: 0.85rem; font-weight: 700; color: #0ea5e9; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">1. Actual Cash in Drawer</label>
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-                    <span style="font-size: 1.75rem; font-weight: bold; color: #0ea5e9;">Tk</span>
-                    <input type="number" id="actual-cash-input" class="settings-input" style="font-size: 1.75rem; font-weight: 800; padding: 12px 16px; border-color: #0ea5e9; color: #0ea5e9; background: #f0f9ff;" placeholder="0" oninput="calculateBlindRetained()">
-                </div>
+      <div style="background: var(--warning-bg); border: 1px solid var(--warning-border); padding: 12px; border-radius: 8px; margin-bottom: 24px;">
+        <p style="color: var(--warning-text); font-size: 0.85rem; margin: 0; font-weight: 600; line-height: 1.4;">Blind Count: Count your physical cash and stock. Enter the totals below to submit your report to the manager.</p>
+      </div>
+     
+      <div class="admin-form-card" style="margin-bottom: 24px; padding: 20px; border: 2px solid var(--info-border); background: var(--info-bg);">
+        <label style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--info-text); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">1. Actual Cash in Drawer</label>
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+          <span style="font-size: 1.75rem; font-weight: bold; color: var(--info-text);">Tk</span>
+          <input type="number" id="actual-cash-input" class="settings-input" style="font-size: 1.75rem; font-weight: 800; padding: 12px 16px; border-color: var(--info-border); color: var(--info-text); background: transparent;" placeholder="0" oninput="calculateBlindRetained()">
+        </div>
 
-                <label style="display: block; font-size: 0.85rem; font-weight: 700; color: #8b5cf6; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; border-top: 1px dashed #cbd5e1; padding-top: 16px;">2. Manager Drop</label>
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <span style="font-size: 1.5rem; font-weight: bold; color: #8b5cf6;">Tk</span>
-                    <input type="number" id="manager-drop-input" class="settings-input" style="font-size: 1.5rem; font-weight: 800; padding: 10px 16px; border-color: #8b5cf6; color: #8b5cf6; background: #f5f3ff;" placeholder="0" oninput="calculateBlindRetained()">
-                </div>
+        <label style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--purple-text); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; border-top: 1px dashed var(--border-color); padding-top: 16px;">2. Manager Drop</label>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="font-size: 1.5rem; font-weight: bold; color: var(--purple-text);">Tk</span>
+          <input type="number" id="manager-drop-input" class="settings-input" style="font-size: 1.5rem; font-weight: 800; padding: 10px 16px; border-color: var(--purple-border); color: var(--purple-text); background: var(--purple-bg);" placeholder="0" oninput="calculateBlindRetained()">
+        </div>
                 <div style="margin-top: 16px; font-size: 0.95rem; color: #475569; display: flex; justify-content: space-between; align-items: center;">
                     <span style="font-weight: 600;">Retained Float (For Tomorrow):</span> 
                     <strong id="retained-float-display" style="color: #0f172a; font-size: 1.1rem;">0 Tk</strong>
@@ -2549,15 +2549,15 @@ function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, deskItemsS
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 12px; text-align: center; box-shadow: 0 2px 4px rgba(22,101,52,0.05);">
-                <div style="font-size: 0.75rem; font-weight: 800; color: #166534; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">Total MFS</div>
-                <div style="font-size: 1.35rem; font-weight: 800; color: #15803d;">${mfsTotal} Tk</div>
-            </div>
-            <div style="background: #fffbeb; border: 1px solid #fde68a; padding: 16px; border-radius: 12px; text-align: center; box-shadow: 0 2px 4px rgba(180,83,9,0.05);">
-                <div style="font-size: 0.75rem; font-weight: 800; color: #b45309; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">ERS Sent (${ersData.count}x)</div>
-                <div style="font-size: 1.35rem; font-weight: 800; color: #d97706;">${ersData.total} Tk</div>
-            </div>
-        </div>
+      <div style="background: var(--success-bg); border: 1px solid var(--success-border); padding: 16px; border-radius: 12px; text-align: center;">
+        <div style="font-size: 0.75rem; font-weight: 800; color: var(--success-text); text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">Total MFS</div>
+        <div style="font-size: 1.35rem; font-weight: 800; color: var(--success-text);">${mfsTotal} Tk</div>
+      </div>
+      <div style="background: var(--warning-bg); border: 1px solid var(--warning-border); padding: 16px; border-radius: 12px; text-align: center;">
+        <div style="font-size: 0.75rem; font-weight: 800; color: var(--warning-text); text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">ERS Sent (${ersData.count}x)</div>
+        <div style="font-size: 1.35rem; font-weight: 800; color: var(--warning-text);">${ersData.total} Tk</div>
+      </div>
+    </div>
 
         <div class="admin-form-card" style="padding: 0; margin-bottom: 24px; overflow: hidden; border: 1px solid ${summaryBorder}; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
             <div style="background: ${summaryBg}; padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="const c = document.getElementById('inv-grid-content'); const i = document.getElementById('inv-grid-icon'); if(c.style.display==='none'){c.style.display='block'; i.style.transform='rotate(180deg)';}else{c.style.display='none'; i.style.transform='rotate(0deg)';}">
