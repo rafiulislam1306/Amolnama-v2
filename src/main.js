@@ -65,9 +65,10 @@ window.addEventListener('appinstalled', () => {
 });
 
 // ==========================================
-//    1. FIREBASE CONFIGURATION
+//    1. FIREBASE CONFIGURATION & IMPORTS
 // ==========================================
 import { auth, db } from './config/firebase.js';
+import { getStrictDate, generateReceiptNo, formatToGBDate } from './utils/helpers.js';
 import { setPersistence, browserLocalPersistence, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 import { collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, getDocs, orderBy, limit, serverTimestamp, onSnapshot } from "firebase/firestore";
 
@@ -79,18 +80,6 @@ let userNickname = '';
 let currentUserRole = 'user';
 let devNotesQueue = [];
 
-function getStrictDate() { 
-    const t = new Date(); 
-    return `${String(t.getDate()).padStart(2,'0')}/${String(t.getMonth()+1).padStart(2,'0')}/${t.getFullYear()}`; 
-}
-
-function generateReceiptNo() {
-    const date = new Date();
-    const d = String(date.getDate()).padStart(2, '0');
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `TXN-${d}${m}-${random}`;
-}
 
 function showAuditTrail(txId) {
     let tx = transactions.find(t => t.id == txId) || trashTransactions.find(t => t.id == txId);
@@ -1477,7 +1466,6 @@ function instantSaveItem(itemName, price) {
 }
 
 // --- DATE FILTER LOGIC ---
-function formatToGBDate(iso) { if(!iso) return getStrictDate(); const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; }
 
 async function fetchTransactionsForDate() {
     if (!currentUser) return;
