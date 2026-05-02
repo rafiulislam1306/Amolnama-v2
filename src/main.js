@@ -268,11 +268,17 @@ function saveTxEdit() {
     let tx = transactions[txIndex];
     let newQty = parseInt(document.getElementById('edit-tx-qty').value) || 0;
     let newAmount = parseFloat(document.getElementById('edit-tx-amount').value) || 0;
+    
+    if (newQty <= 0 || newAmount < 0) {
+        showAppAlert("Invalid Edit", "Quantities must be 1 or greater, and amounts cannot be negative.");
+        return;
+    }
+
     let method = document.getElementById('edit-tx-payment').value;
     let finalCash = 0, finalMfs = 0;
 
     let diff = newQty - tx.qty; 
-    if (diff > 0 && !passStockFirewall(tx.name, diff)) return; 
+    if (diff > 0 && !passStockFirewall(tx.name, diff)) return;
 
     if (method === 'Cash') finalCash = newAmount;
     else if (method === 'MFS') finalMfs = newAmount;
@@ -310,8 +316,9 @@ function deleteTransaction(docId, localId) {
         let agentStr = userNickname || userDisplayName;
 
         if (currentDeskId === 'sandbox') {
-            let tx = transactions.find(t => t.id === localId);
-            if(tx) { 
+            let txIndex = transactions.findIndex(t => t.id === localId);
+            if(txIndex > -1) { 
+                let tx = transactions.splice(txIndex, 1)[0];
                 tx.isDeleted = true; 
                 tx.deletedBy = agentStr; tx.deletedByUid = currentUser.uid; tx.deletedAt = nowStr;
                 trashTransactions.push(tx); 
@@ -364,19 +371,20 @@ function restoreTx(docId, localId) {
     let agentStr = userNickname || userDisplayName;
 
     if (currentDeskId === 'sandbox') {
-        let txIndex = trashTransactions.findIndex(t => t.id === localId);
-        if (txIndex > -1) {
-            let tx = trashTransactions[txIndex];
-            if (!passStockFirewall(tx.name, tx.qty)) return;
-            tx.isDeleted = false; tx.isRestored = true;
-            tx.restoredBy = agentStr; tx.restoredByUid = currentUser.uid; tx.restoredAt = nowStr;
-            trashTransactions.splice(txIndex, 1);
-            renderPersonalReport(); if (document.getElementById('tab-desk').classList.contains('active')) renderDeskDashboard();
-            showFlashMessage("Sandbox Transaction Restored!");
-            setTimeout(() => { renderTrash(); if(trashTransactions.length === 0) closeModal('modal-trash'); }, 500);
+            let txIndex = trashTransactions.findIndex(t => t.id === localId);
+            if (txIndex > -1) {
+                let tx = trashTransactions[txIndex];
+                if (!passStockFirewall(tx.name, tx.qty)) return;
+                tx.isDeleted = false; tx.isRestored = true;
+                tx.restoredBy = agentStr; tx.restoredByUid = currentUser.uid; tx.restoredAt = nowStr;
+                trashTransactions.splice(txIndex, 1);
+                transactions.push(tx);
+                renderPersonalReport(); if (document.getElementById('tab-desk').classList.contains('active')) renderDeskDashboard();
+                showFlashMessage("Sandbox Transaction Restored!");
+                setTimeout(() => { renderTrash(); if(trashTransactions.length === 0) closeModal('modal-trash'); }, 500);
+            }
+            return;
         }
-        return;
-    }
 
     if(docId) {
         try {
@@ -405,8 +413,16 @@ function permanentlyDeleteTx(docId, localId) {
 function emptyTrash() {
     if(trashTransactions.length === 0) return;
     showAppAlert("Empty Trash", "Are you sure you want to permanently delete ALL items in the trash?", true, () => {
-        const idsToDelete = trashTransactions.map(t => t.docId).filter(id => id);
         closeModal('modal-trash');
+        
+        if (currentDeskId === 'sandbox') {
+            trashTransactions = [];
+            renderTrash();
+            showFlashMessage("Sandbox Trash Emptied!");
+            return;
+        }
+
+        const idsToDelete = trashTransactions.map(t => t.docId).filter(id => id);
         
         Promise.all(idsToDelete.map(id => deleteDoc(doc(db, 'transactions', id))))
             .catch(e => console.error("Error emptying trash:", e));
