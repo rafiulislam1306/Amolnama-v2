@@ -425,22 +425,34 @@ export async function renderLiveFloorTab() {
 }
 
 export function openMyDeskDashboard() {
-    document.getElementById('desk-peek-header').style.display = 'none';
-    document.getElementById('desk-action-buttons').style.display = 'block';
-    document.getElementById('desk-dashboard-title').innerText = AppState.currentDeskName + ' (My Drawer)';
-    if(window.switchTab) window.switchTab('desk', AppState.currentDeskName);
-    if(window.renderDeskDashboard) window.renderDeskDashboard(AppState.currentDeskId);
+    const peekHeader = document.getElementById('desk-peek-header');
+    if (peekHeader) peekHeader.style.display = 'none';
+    
+    const actionBtns = document.getElementById('desk-action-buttons');
+    if (actionBtns) actionBtns.style.display = 'block';
+    
+    const deskTitle = document.getElementById('desk-dashboard-title');
+    if (deskTitle) deskTitle.innerText = AppState.currentDeskName + ' (My Drawer)';
+    
+    if (window.switchTab) window.switchTab('desk', AppState.currentDeskName);
+    if (window.renderDeskDashboard) window.renderDeskDashboard(AppState.currentDeskId);
 }
 
 export function peekAtDesk(targetDeskId, targetDeskName) {
     if (targetDeskId === AppState.currentDeskId) {
         openMyDeskDashboard(); 
     } else {
-        document.getElementById('desk-action-buttons').style.display = 'none';
-        document.getElementById('desk-peek-header').style.display = 'flex';
-        document.getElementById('desk-dashboard-title').innerText = targetDeskName;
-        if(window.switchTab) window.switchTab('desk', targetDeskName + ' (Peek)');
-        if(window.renderDeskDashboard) window.renderDeskDashboard(targetDeskId);
+        const actionBtns = document.getElementById('desk-action-buttons');
+        if (actionBtns) actionBtns.style.display = 'none';
+        
+        const peekHeader = document.getElementById('desk-peek-header');
+        if (peekHeader) peekHeader.style.display = 'flex';
+        
+        const deskTitle = document.getElementById('desk-dashboard-title');
+        if (deskTitle) deskTitle.innerText = targetDeskName;
+
+        if (window.switchTab) window.switchTab('desk', targetDeskName + ' (Peek)');
+        if (window.renderDeskDashboard) window.renderDeskDashboard(targetDeskId);
     }
 }
 
