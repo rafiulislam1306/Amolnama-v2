@@ -2873,9 +2873,14 @@ function renderDevNotes() {
      </div>
     </div>
 
-        <button style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px; border-radius: 8px; flex-shrink: 0;" onclick="deleteDevNote(${note.id})">
-     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-    </button>
+    <div style="display: flex; gap: 4px; flex-shrink: 0;">
+     <button style="background: none; border: none; color: var(--accent-color); cursor: pointer; padding: 4px; border-radius: 8px;" onclick="editDevNote(${note.id})">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+     </button>
+     <button style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px; border-radius: 8px;" onclick="deleteDevNote(${note.id})">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+     </button>
+    </div>
    </div>
   `;
   });
@@ -2896,23 +2901,55 @@ async function syncDevNotes() {
   }
 }
 
+let currentEditingNoteId = null;
+
 async function addDevNote() {
-  const text = document.getElementById('dev-note-input').value.trim();
-  const priority = document.getElementById('dev-note-priority').value;
-  if (!text) return;
+ const text = document.getElementById('dev-note-input').value.trim();
+ const priority = document.getElementById('dev-note-priority').value;
+ if (!text) return;
 
+ if (currentEditingNoteId) {
+  // Update existing note
+  const note = devNotesQueue.find(n => n.id === currentEditingNoteId);
+  if (note) {
+   note.text = text;
+   note.priority = priority;
+  }
+  // Reset UI
+  currentEditingNoteId = null;
+  const btn = document.getElementById('dev-note-submit-btn');
+  if (btn) { btn.innerText = '+ ADD TO QUEUE'; btn.style.backgroundColor = '#8b5cf6'; }
+ } else {
+  // Create new note
   const newNote = {
-    id: Date.now(),
-    text: text,
-    priority: priority,
-    status: 'pending',
-    createdAt: new Date().toISOString()
+   id: Date.now(),
+   text: text,
+   priority: priority,
+   status: 'pending',
+   createdAt: new Date().toISOString()
   };
-
   devNotesQueue.push(newNote);
-  document.getElementById('dev-note-input').value = '';
-  renderDevNotes();
-  await syncDevNotes();
+ }
+
+ document.getElementById('dev-note-input').value = '';
+ renderDevNotes();
+ await syncDevNotes();
+}
+
+window.editDevNote = function(id) {
+ const note = devNotesQueue.find(n => n.id === id);
+ if (!note) return;
+ 
+ currentEditingNoteId = id;
+ document.getElementById('dev-note-input').value = note.text;
+ document.getElementById('dev-note-priority').value = note.priority;
+ document.getElementById('dev-note-input').focus();
+ 
+ const btn = document.getElementById('dev-note-submit-btn');
+ if (btn) { 
+  btn.innerText = 'UPDATE NOTE'; 
+  btn.style.backgroundColor = 'var(--accent-color)'; 
+ }
 }
 
 async function toggleDevNote(id) {
