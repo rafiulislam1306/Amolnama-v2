@@ -489,14 +489,12 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
 
 export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId) {
     if (!targetDeskId) return;
-
     let filterVal = document.getElementById('desk-history-filter') ? document.getElementById('desk-history-filter').value : 'all';
     let historyHTML = '';
-    
+         
     let deskOpeningCash = 0;
     let activeSessionId = null;
     let activeOpeningInv = {};
-
     const targetDateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
     const isToday = targetDateStr === getStrictDate();
 
@@ -529,23 +527,88 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
     let deskCashSales = 0, deskAdjustments = 0, deskMfs = 0, deskErsCount = 0, deskErsTotal = 0;
     let deskItemsSold = {}; 
     let deskAdjustmentLog = {}; 
-    let invStats = {}; 
-    
+    let invStats = {};
+          
     getPhysicalItems().forEach(item => {
         let o = activeOpeningInv[item] || 0;
         invStats[item] = { open: o, inOut: 0, sold: 0, rem: o };
     });
 
-    // 8. LEDGER ITEMS
-        // Determine correct dot color and text values for this row
+    // --- RE-ADDED THE MISSING TRANSACTION LOOP ---
+    [...AppState.transactions].reverse().forEach(tx => {
+        if (tx.isDeleted) return;
+        if (tx.sessionId !== activeSessionId) return;
+        
+        let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
+        let safeMfsAmt = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0);
+                  
+        deskMfs += safeMfsAmt;
+        
+        if (tx.type === 'adjustment') {
+            deskAdjustments += safeCashAmt; 
+            deskAdjustmentLog[tx.name] = (deskAdjustmentLog[tx.name] || 0) + safeCashAmt;
+        } else if (tx.type !== 'transfer_out' && tx.type !== 'transfer_in') {
+            deskCashSales += safeCashAmt;
+            if (tx.name === 'ERS Flexiload') {
+                deskErsCount += Math.abs(tx.qty);
+                deskErsTotal += tx.amount;
+            } else {
+                deskItemsSold[tx.name] = (deskItemsSold[tx.name] || 0) + Math.abs(tx.qty);
+            }
+        }
+
+        if (AppState.globalInventoryGroups.includes(tx.trackAs)) {
+            let trackAs = tx.trackAs;
+            let q = Math.abs(tx.qty);
+            if (tx.type === 'transfer_in') { invStats[trackAs].inOut += q; invStats[trackAs].rem += q; }
+            else if (tx.type === 'transfer_out') { invStats[trackAs].inOut -= q; invStats[trackAs].rem -= q; }
+            else if (tx.type === 'adjustment') { invStats[trackAs].inOut += q; invStats[trackAs].rem += q; }
+            else { 
+                invStats[trackAs].sold += q; 
+                invStats[trackAs].rem -= q; 
+            }
+        }
+        
+        let catItem = Object.values(AppState.globalCatalog).find(c => c.name === tx.name);
+        let txCat = catItem ? catItem.cat : null;
+        let showTx = false;
+        
+        if (filterVal === 'all') showTx = true;
+        else if (filterVal === 'ers' && tx.name === 'ERS Flexiload') showTx = true;
+        else if (filterVal === 'cash_ops' && tx.type === 'adjustment' && tx.name === 'Physical Cash') showTx = true;
+        else if (filterVal === 'transfers' && (tx.type === 'transfer_in' || tx.type === 'transfer_out')) showTx = true;
+        else if (filterVal === txCat) showTx = true;
+        
+        if (!showTx) return;
+        
+        let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
+        let badges = '';
+        if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
+        if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
+        
+        let actionBtns = '';
+        if (targetDeskId === AppState.currentDeskId || AppState.currentUserRole === 'admin') {
+            actionBtns = `
+                <div class="tx-actions" style="display: none; width: 100%; padding-top: 12px; margin-top: 12px; border-top: 1px dashed var(--border-color); justify-content: flex-end; gap: 8px;">
+                    <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: var(--accent-color); border-color: var(--accent-color); gap: 6px;" onclick="event.stopPropagation(); openEditTx(${tx.id})">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> Edit
+                    </button>
+                    <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: #ef4444; border-color: #fca5a5; background: #fef2f2; gap: 6px;" onclick="event.stopPropagation(); deleteTransaction('${tx.docId}', ${tx.id})">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg> Trash
+                    </button>
+                </div>
+            `;
+        }
+
+        // --- NEW LEDGER ITEM UI (Safely inside the loop!) ---
         let isOutflow = tx.type === 'adjustment' || tx.type === 'transfer_out';
         let dotColor = '#10b981'; // Default Green (ERS)
-        if (tx.type === 'adjustment') dotColor = '#ef4444'; // Red (Cash drop/expense)
-        else if (tx.type === 'transfer_out' || tx.type === 'transfer_in') dotColor = '#8b5cf6'; // Purple (Transfer)
-        else if (tx.name !== 'ERS Flexiload') dotColor = 'var(--accent-color)'; // Blue (Regular Sales)
+        if (tx.type === 'adjustment') dotColor = '#ef4444'; // Red
+        else if (tx.type === 'transfer_out' || tx.type === 'transfer_in') dotColor = '#8b5cf6'; // Purple
+        else if (tx.name !== 'ERS Flexiload') dotColor = 'var(--accent-color)'; // Blue
 
         let amtColor = isOutflow ? '#ef4444' : 'var(--text-primary)';
-        let amtPrefix = isOutflow ? '−' : '';
+        let amtPrefix = isOutflow ? '− ' : '';
 
         historyHTML += `
             <div class="history-item" style="display: flex; flex-direction: column; padding: 12px 14px; border-bottom: 1px solid var(--border-color); cursor: pointer;" onclick="const actions = this.querySelector('.tx-actions'); if(actions) { actions.style.display = actions.style.display === 'none' ? 'flex' : 'none'; }">
@@ -568,12 +631,22 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
                 ${actionBtns}
             </div>
         `;
+    }); // <-- END OF TRANSACTION LOOP
 
     let cashMath = { opening: deskOpeningCash, sales: deskCashSales, adjustments: deskAdjustments, adjustmentLog: deskAdjustmentLog, expected: (deskOpeningCash + deskCashSales + deskAdjustments) };
     let ersData = { count: deskErsCount, total: deskErsTotal };
-
+    
     document.getElementById('live-dashboard-wrapper').innerHTML = generateDashboardHTML(cashMath, deskMfs, ersData, invStats, deskItemsSold);
-    document.getElementById('desk-history-log').innerHTML = historyHTML || '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg><p>Drawer is empty</p></div>';
+    
+    let emptyState = `
+        <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary);">
+            <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--bg-color); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px auto;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            </div>
+            <div style="font-size: 0.9rem; font-weight: 500;">No transactions yet</div>
+        </div>`;
+
+    document.getElementById('desk-history-log').innerHTML = historyHTML || emptyState;
 
     try {
         const agentsSnap = await getDocs(query(collection(db, 'users'), where('assignedDeskId', '==', targetDeskId)));
