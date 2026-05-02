@@ -19,5 +19,7 @@ export const AppState = {
     transactions: [],
     trashTransactions: [],
     
+    devNotesQueue: [],
+    
     isMfs: false
 };

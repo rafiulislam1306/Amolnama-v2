@@ -14,6 +14,7 @@ import { performLazyAutoClose, loadFloorMap, adminBypass, enterSandboxMode, hand
 import { toggleReportMode, renderPersonalReport, shareReport, shareDeskReport, renderDeskDashboard } from './features/reports.js';
 import { openManagerCashModal, saveManagerCash, openMainStockModal, saveMainStock, openReturnStockModal, saveReturnStock, openDeskTransfer, executeDeskTransfer, openTransferModal, executeTransfer } from './features/transfers.js';
 import { filterAdminCatalog, toggleAddForm, addInventoryGroup, removeInventoryGroup, openSettings, removeRow, addNewItem, saveSettings, openNicknameManager, saveAdminNickname, kickAgent, nukeAgent, resetMyDeskLock, forceCloseAllDesks, nukeTodaysLedger, fixPastManagerDrops, exportLedgerCSV, openAuditModal, fetchAuditLogs, openForceReallocate, executeForceTransfer } from './features/admin.js';
+import { openDevNotes, addDevNote, editDevNote, toggleDevNote, deleteDevNote } from './features/devNotes.js';
 
 // ==========================================
 //    TEMPORARY REFACTORING BRIDGE
@@ -34,6 +35,7 @@ Object.defineProperties(window, {
     transactions: { get: () => AppState.transactions, set: (v) => AppState.transactions = v },
     trashTransactions: { get: () => AppState.trashTransactions, set: (v) => AppState.trashTransactions = v },
     isMfs: { get: () => AppState.isMfs, set: (v) => AppState.isMfs = v }
+    devNotesQueue: { get: () => AppState.devNotesQueue, set: (v) => AppState.devNotesQueue = v }
 });
 
 // Initialize Service Worker & PWA Install Prompts
@@ -99,11 +101,14 @@ window.openAuditModal = openAuditModal;
 window.fetchAuditLogs = fetchAuditLogs;
 window.openForceReallocate = openForceReallocate;
 window.executeForceTransfer = executeForceTransfer;
+window.openDevNotes = openDevNotes;
+window.addDevNote = addDevNote;
+window.editDevNote = editDevNote;
+window.toggleDevNote = toggleDevNote;
+window.deleteDevNote = deleteDevNote;
 
 // Global User State
 const userCurrency = 'Tk';
-let devNotesQueue = [];
-
 
 function showAuditTrail(txId) {
     let tx = transactions.find(t => t.id == txId) || trashTransactions.find(t => t.id == txId);
