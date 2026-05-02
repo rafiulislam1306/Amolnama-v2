@@ -115,6 +115,17 @@ window.openMyDeskDashboard = openMyDeskDashboard;
 window.initiateCloseDesk = initiateCloseDesk;
 window.calculateBlindRetained = calculateBlindRetained;
 window.submitClosingReport = submitClosingReport;
+// --- EDIT, TRASH & AUDIT BINDINGS ---
+window.openEditTx = openEditTx;
+window.saveTxEdit = saveTxEdit;
+window.toggleEditSplitFields = toggleEditSplitFields;
+window.updateSplitTotal = updateSplitTotal;
+window.deleteTransaction = deleteTransaction;
+window.openTrash = openTrash;
+window.restoreTx = restoreTx;
+window.permanentlyDeleteTx = permanentlyDeleteTx;
+window.emptyTrash = emptyTrash;
+window.showAuditTrail = showAuditTrail;
 
 // Global User State
 const userCurrency = 'Tk';
