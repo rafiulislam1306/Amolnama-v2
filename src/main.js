@@ -42,6 +42,10 @@ initPWA();
 // Bind UI Helpers to the window so HTML buttons can click them
 window.executeAlertConfirm = executeAlertConfirm;
 window.showTooltip = showTooltip;
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.showAppAlert = showAppAlert;
+window.showFlashMessage = showFlashMessage;
 window.ersKeyPress = ersKeyPress;
 window.ersBackspace = ersBackspace;
 window.saveErs = saveErs;
