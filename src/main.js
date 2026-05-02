@@ -42,8 +42,6 @@ Object.defineProperties(window, {
 initPWA();
 
 // Bind UI Helpers to the window so HTML buttons can click them
-window.signInWithGoogle = signInWithGoogle;
-window.logout = logout;
 window.executeAlertConfirm = executeAlertConfirm;
 window.showTooltip = showTooltip;
 window.openModal = openModal;
