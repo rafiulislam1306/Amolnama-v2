@@ -305,14 +305,12 @@ function showAuthError(msg) { document.getElementById('auth-error').innerText = 
 function signInWithGoogle() { const provider = new GoogleAuthProvider(); signInWithPopup(auth, provider).catch(error => showAuthError(error.message)); }
 
 function logout() {
-  signOut(auth).then(() => {
-        closeModal('modal-settings');
-        closeModal('modal-profile-hub');
-        document.getElementById('dev-note-fab').style.display = 'none';
-        transactions = []; trashTransactions = [];
-        renderPersonalReport();
-        switchTab('ers', 'ERS'); 
-    });
+ signOut(auth).then(() => {
+    window.location.reload();
+  }).catch((error) => {
+    showAppAlert("Logout Error", "Something went wrong while signing out.");
+    console.error("Error signing out:", error);
+  });
 }
 
 // ==========================================
