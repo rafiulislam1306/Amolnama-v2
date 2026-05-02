@@ -658,7 +658,7 @@ async function initiateCloseDesk() {
     let invHTML = '';
     let itemsToCount = Object.keys(expectedInv);
     
-    if(itemsToCount.length === 0) invHTML = '<p style="text-align:center;">No physical inventory tracked today.</p>';
+    if(itemsToCount.length === 0) invHTML = '<p style="text-align:center; color: var(--text-secondary);">No physical inventory tracked today.</p>';
     else {
         itemsToCount.forEach(itemName => {
             invHTML += `
@@ -672,44 +672,67 @@ async function initiateCloseDesk() {
 
     const modalContent = `
         <div style="background-color: var(--surface-color); padding: calc(16px + env(safe-area-inset-top)) 20px 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 10;">
-            <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">Close ${currentDeskName}</h3>
+            <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">Close Shift</h3>
             <button style="background: none; border: none; color: #ef4444; font-weight: 600; font-size: 1rem; padding: 4px 0; cursor: pointer;" onclick="closeModal('modal-close-desk')">Cancel</button>
         </div>
 
         <div style="flex: 1; overflow-y: auto; padding: 24px 20px; padding-bottom: calc(24px + env(safe-area-inset-bottom));">
-            <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 24px;">Step 1 of 2: Reconcile your drawer.</p>
-            
-            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 12px; margin-bottom: 24px; text-align: center; box-shadow: 0 2px 8px rgba(22, 101, 52, 0.05);">
-                <span style="font-size: 0.85rem; color: #166534; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total MFS Collected Today</span>
-                <div style="font-size: 1.75rem; font-weight: 800; color: #15803d; margin-top: 4px;">${expectedClosingStats.mfs} Tk</div>
+            <div style="background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; margin-bottom: 24px;">
+                <p style="color: #b45309; font-size: 0.85rem; margin: 0; font-weight: 600; line-height: 1.4;">Blind Count: Count your physical cash and stock. Enter the totals below to submit your report to the manager.</p>
             </div>
-
+            
             <div class="admin-form-card" style="margin-bottom: 24px; padding: 20px; border: 2px solid #0ea5e9; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.1);">
-                <label style="display: block; font-size: 0.85rem; font-weight: 700; color: #0ea5e9; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Actual Cash in Drawer</label>
-                <div style="display: flex; align-items: center; gap: 12px;">
+                <label style="display: block; font-size: 0.85rem; font-weight: 700; color: #0ea5e9; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">1. Actual Cash in Drawer</label>
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
                     <span style="font-size: 1.75rem; font-weight: bold; color: #0ea5e9;">Tk</span>
-                    <input type="number" id="actual-cash-input" class="settings-input" style="font-size: 1.75rem; font-weight: 800; padding: 12px 16px; border-color: #0ea5e9; color: #0ea5e9; background: #f0f9ff;" placeholder="0">
+                    <input type="number" id="actual-cash-input" class="settings-input" style="font-size: 1.75rem; font-weight: 800; padding: 12px 16px; border-color: #0ea5e9; color: #0ea5e9; background: #f0f9ff;" placeholder="0" oninput="calculateBlindRetained()">
+                </div>
+
+                <label style="display: block; font-size: 0.85rem; font-weight: 700; color: #8b5cf6; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; border-top: 1px dashed #cbd5e1; padding-top: 16px;">2. Manager Drop</label>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 1.5rem; font-weight: bold; color: #8b5cf6;">Tk</span>
+                    <input type="number" id="manager-drop-input" class="settings-input" style="font-size: 1.5rem; font-weight: 800; padding: 10px 16px; border-color: #8b5cf6; color: #8b5cf6; background: #f5f3ff;" placeholder="0" oninput="calculateBlindRetained()">
+                </div>
+                <div style="margin-top: 16px; font-size: 0.95rem; color: #475569; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 600;">Retained Float (For Tomorrow):</span> 
+                    <strong id="retained-float-display" style="color: #0f172a; font-size: 1.1rem;">0 Tk</strong>
                 </div>
             </div>
 
-            <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Count Physical Inventory</div>
+            <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">3. Physical Inventory Count</div>
             <div class="admin-form-card" style="padding: 16px; margin-bottom: 32px;">
                 ${invHTML}
             </div>
 
-        <button class="btn-primary-full" style="padding: 16px; font-size: 1.1rem; background-color: #0ea5e9; display: flex; justify-content: center; align-items: center; gap: 8px;" onclick="processCloseDeskStep2()">
-            NEXT: MANAGER DROP
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-      </button>
-    </div>
-  `;
+            <button class="btn-primary-full" style="padding: 16px; font-size: 1.1rem; background-color: #10b981; display: flex; justify-content: center; align-items: center; gap: 8px;" onclick="submitClosingReport()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                SUBMIT TO MANAGER
+            </button>
+        </div>
+    `;
     document.getElementById('close-desk-content').innerHTML = modalContent;
     openModal('modal-close-desk');
 }
 
-function processCloseDeskStep2() {
+function calculateBlindRetained() {
+    let actual = parseFloat(document.getElementById('actual-cash-input').value) || 0;
+    let drop = parseFloat(document.getElementById('manager-drop-input').value) || 0;
+    let retained = actual - drop;
+    
+    let displayEl = document.getElementById('retained-float-display');
+    if (drop > actual) displayEl.innerHTML = `<span style="color: #ef4444;">Error: Exceeds Drawer Total</span>`;
+    else displayEl.innerText = retained + " Tk";
+}
+
+async function submitClosingReport() {
     let actualCash = parseFloat(document.getElementById('actual-cash-input').value);
-    if (isNaN(actualCash) || actualCash < 0) { showAppAlert("Invalid Input", "Please enter the total physical cash."); return; }
+    let dropAmount = parseFloat(document.getElementById('manager-drop-input').value) || 0;
+
+    if (isNaN(actualCash) || actualCash < 0) { showAppAlert("Invalid Input", "Please enter your total physical cash."); return; }
+    if (dropAmount < 0 || dropAmount > actualCash) { 
+        showAppAlert("Error", "Manager drop cannot exceed your total physical cash."); 
+        return; 
+    }
 
     actualClosingStats.cash = actualCash;
     actualClosingStats.inventory = {};
@@ -720,71 +743,15 @@ function processCloseDeskStep2() {
     });
 
     let variance = actualCash - expectedClosingStats.cash;
-    let warningHTML = '';
-    if (variance < 0) warningHTML = `<div style="background: #fef2f2; border: 2px solid #ef4444; border-radius: 12px; padding: 16px; margin-bottom: 24px;"><h4 style="color: #b91c1c; margin-bottom: 8px;">SHORTAGE DETECTED</h4><p style="color: #991b1b; font-size: 0.95rem; margin-bottom: 0;">You are short <strong>${Math.abs(variance)} Tk</strong>. Expected: ${expectedClosingStats.cash} Tk.</p></div>`;
-    else if (variance > 0) warningHTML = `<div style="background: #f0fdf4; border: 2px solid #22c55e; border-radius: 12px; padding: 16px; margin-bottom: 24px;"><h4 style="color: #15803d; margin-bottom: 8px;">OVERAGE DETECTED</h4><p style="color: #166534; font-size: 0.95rem; margin-bottom: 0;">You have an overage of <strong>+${variance} Tk</strong>. Expected: ${expectedClosingStats.cash} Tk.</p></div>`;
-    else warningHTML = `<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 24px; text-align: center;"><h4 style="color: #0ea5e9; margin-bottom: 0;">DRAWER IS PERFECTLY BALANCED</h4></div>`;
-
-    const modalContent = `
-        <div style="background-color: var(--surface-color); padding: calc(16px + env(safe-area-inset-top)) 20px 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 10;">
-            <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">Finalize Handover</h3>
-            <button style="background: none; border: none; color: #64748b; font-weight: 600; font-size: 1rem; padding: 4px 0; cursor: pointer;" onclick="initiateCloseDesk()">Back</button>
-        </div>
-
-        <div style="flex: 1; overflow-y: auto; padding: 24px 20px; padding-bottom: calc(24px + env(safe-area-inset-bottom));">
-            <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 24px;">Step 2 of 2: Log your manager cash drop.</p>
-            
-            ${warningHTML}
-
-            <div class="admin-form-card" style="margin-bottom: 32px; padding: 20px; border: 2px solid #8b5cf6; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.1);">
-                <label style="display: block; font-size: 0.85rem; font-weight: 700; color: #8b5cf6; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Manager Drop</label>
-                <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px;">How much of the <strong>${actualCash} Tk</strong> are you handing to the manager?</p>
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <span style="font-size: 1.75rem; font-weight: bold; color: #8b5cf6;">Tk</span>
-                    <input type="number" id="manager-drop-input" class="settings-input" style="font-size: 1.75rem; font-weight: 800; padding: 12px 16px; border-color: #8b5cf6; color: #8b5cf6; background: #f5f3ff;" placeholder="0" oninput="calculateRetained()">
-                </div>
-                <div style="margin-top: 20px; font-size: 1rem; color: #475569; padding-top: 16px; border-top: 1px dashed #cbd5e1; display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-weight: 600;">Retained Float:</span> 
-                    <strong id="retained-float-display" style="color: #0f172a; font-size: 1.2rem;">${actualCash} Tk</strong>
-                </div>
-            </div>
-
-            <button class="btn-primary-full" style="padding: 16px; font-size: 1.1rem; background: ${variance < 0 ? '#ef4444' : '#8b5cf6'};" onclick="finalizeCloseDesk(${variance})">
-                ${variance < 0 ? 'FORCE CLOSE & LOG SHORTAGE' : 'CONFIRM & CLOSE DESK'}
-            </button>
-        </div>
-    `;
-    document.getElementById('close-desk-content').innerHTML = modalContent;
-}
-
-function calculateRetained() {
-    let drop = parseFloat(document.getElementById('manager-drop-input').value) || 0;
-    let retained = actualClosingStats.cash - drop;
-    let maxAllowedDrop = actualClosingStats.cash;
-    
-    let displayEl = document.getElementById('retained-float-display');
-    if (drop > maxAllowedDrop) displayEl.innerHTML = `<span style="color: #ef4444;">Error: Exceeds System Total</span>`;
-    else displayEl.innerText = retained + " Tk";
-}
-
-async function finalizeCloseDesk(variance) {
-    let dropAmount = parseFloat(document.getElementById('manager-drop-input').value) || 0;
-    let maxAllowedDrop = actualClosingStats.cash;
-
-    if (dropAmount < 0 || dropAmount > maxAllowedDrop) { 
-        showAppAlert("Error", `You cannot drop more than ${maxAllowedDrop} Tk.`); 
-        return; 
-    }
-
-    let retainedFloat = actualClosingStats.cash - dropAmount;
-    actualClosingStats.inventory = { ...actualClosingStats.inventory }; 
+    let retainedFloat = actualCash - dropAmount;
 
     try {
+        // Sets status to pending to await Manager Approval
         await updateDoc(doc(db, 'sessions', currentSessionId), {
             closedBy: userNickname || userDisplayName, 
             closedByUid: currentUser.uid, 
             closedAt: serverTimestamp(), 
-            status: 'closed',
+            status: 'pending', 
             expectedClosing: expectedClosingStats, 
             actualClosing: actualClosingStats, 
             variance: variance,
@@ -792,16 +759,18 @@ async function finalizeCloseDesk(variance) {
             managerDrop: dropAmount, 
             retainedFloat: retainedFloat
         });
+        
+        // Lock the agent out of the desk
         await setDoc(doc(db, 'desks', currentDeskId), { status: 'closed', currentSessionId: null }, { merge: true });
         await setDoc(doc(db, 'users', currentUser.uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
     } catch (e) { 
-        showFlashMessage("Offline: Desk close queued for sync."); 
+        showFlashMessage("Offline: Report queued for sync."); 
     } finally {
         currentDeskId = null; 
         currentSessionId = null; 
         currentDeskName = '';
         closeModal('modal-close-desk');
-        showFlashMessage("Desk Successfully Closed!");
+        showFlashMessage("Report Submitted! See Manager.");
         loadFloorMap();
     }
 }
@@ -2186,14 +2155,16 @@ async function renderPersonalReport() {
                     }
                 }
                 
-                // NEW: Build a Vault Button if the session is closed
-                if (s.status === 'closed') {
+                // Build a Vault Button if the session is submitted or fully closed
+                if (s.status === 'closed' || s.status === 'pending') {
                     let agentName = s.openedBy ? s.openedBy.split(' ')[0] : 'Agent';
-                    let timeClosed = s.timeClosed || 'Unknown Time';
+                    let statusLabel = s.status === 'pending' ? 'Pending' : 'Sealed';
+                    let badgeColor = s.status === 'pending' ? '#f59e0b' : '#10b981';
+                    
                     vaultButtonsHTML += `
-                        <button class="btn-outline" style="flex-shrink: 0; border-color: #fca5a5; color: #b91c1c; background: #fef2f2; font-size: 0.85rem; padding: 8px 14px; border-radius: 10px; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" onclick="openHistoricalSession('${docSnap.id}')">
+                        <button class="btn-outline" style="flex-shrink: 0; border-color: ${badgeColor}; color: ${badgeColor}; background: ${s.status === 'pending' ? '#fffbeb' : '#ecfdf5'}; font-size: 0.85rem; padding: 8px 14px; border-radius: 10px; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" onclick="openHistoricalSession('${docSnap.id}')">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                            ${agentName} (${timeClosed})
+                            ${agentName} (${statusLabel})
                         </button>
                     `;
                 }
@@ -2798,12 +2769,14 @@ async function fetchAuditLogs() {
     container.innerHTML = '<div class="spinner" style="margin: 20px auto; border-top-color: #f59e0b;"></div>';
 
     try {
-        const snap = await getDocs(query(collection(db, 'sessions'), where('dateStr', '==', targetDateStr), where('status', '==', 'closed')));
+        const snap = await getDocs(query(collection(db, 'sessions'), where('dateStr', '==', targetDateStr)));
         if(snap.empty) { container.innerHTML = '<p class="placeholder-text">No closed sessions found for this date.</p>'; return; }
 
         let html = '';
         snap.forEach(docSnap => {
             let s = docSnap.data();
+            if (s.status !== 'closed' && s.status !== 'pending') return;
+
             let vColor = s.variance < 0 ? '#ef4444' : (s.variance > 0 ? '#22c55e' : '#64748b');
             let vText = s.variance < 0 ? `Shortage: ${s.variance} Tk` : (s.variance > 0 ? `Overage: +${s.variance} Tk` : 'Perfectly Balanced');
 
@@ -3236,8 +3209,7 @@ window.saveQuantity = saveQuantity; window.openSettings = openSettings; window.r
 window.addNewItem = addNewItem; window.saveSettings = saveSettings; window.shareReport = shareReport;
 window.fetchTransactionsForDate = fetchTransactionsForDate; window.filterAdminCatalog = filterAdminCatalog; window.toggleAddForm = toggleAddForm;
 window.loadFloorMap = loadFloorMap; window.handleDeskSelect = handleDeskSelect; window.confirmOpenDesk = confirmOpenDesk;
-window.initiateCloseDesk = initiateCloseDesk; window.processCloseDeskStep2 = processCloseDeskStep2; window.calculateRetained = calculateRetained;
-window.finalizeCloseDesk = finalizeCloseDesk; 
+window.initiateCloseDesk = initiateCloseDesk; window.calculateBlindRetained = calculateBlindRetained; window.submitClosingReport = submitClosingReport;
 window.openManagerCashModal = openManagerCashModal; window.saveManagerCash = saveManagerCash;
 window.openMainStockModal = openMainStockModal; window.saveMainStock = saveMainStock;
 window.openReturnStockModal = openReturnStockModal; window.saveReturnStock = saveReturnStock;
