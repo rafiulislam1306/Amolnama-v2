@@ -2,9 +2,11 @@
 //    1. FIREBASE CONFIGURATION & IMPORTS
 // ==========================================
 import { auth, db } from './config/firebase.js';
+import { collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, getDocs, orderBy, limit, serverTimestamp, onSnapshot } from "firebase/firestore";
 import { getStrictDate, generateReceiptNo, formatToGBDate } from './utils/helpers.js';
 import { showAppAlert, executeAlertConfirm, showFlashMessage, openModal, closeModal, showTooltip } from './utils/ui-helpers.js';
 import { initPWA } from './features/pwa.js';
+import { initAuth, signInWithGoogle, logout } from './features/auth.js';
 
 // Initialize Service Worker & PWA Install Prompts
 initPWA();
@@ -12,8 +14,6 @@ initPWA();
 // Bind UI Helpers to the window so HTML buttons can click them
 window.executeAlertConfirm = executeAlertConfirm;
 window.showTooltip = showTooltip;
-import { setPersistence, browserLocalPersistence, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
-import { collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, getDocs, orderBy, limit, serverTimestamp, onSnapshot } from "firebase/firestore";
 
 // Global User State
 let currentUser = null;
@@ -145,34 +145,20 @@ let txListenerUnsubscribe = null;
 // --- AUTHENTICATION LOGIC ---
 let isInitialLoad = true;
 
-setPersistence(auth, browserLocalPersistence)
-  .then(() => {
-    onAuthStateChanged(auth, user => {
-            if (user) {
-                currentUser = user;
-                userDisplayName = user.displayName || 'User';
-                document.getElementById('modal-auth').classList.remove('active');
-                initUserData(); 
-            } else {
-                currentUser = null;
-                document.getElementById('modal-auth').classList.add('active');
-                if (isInitialLoad) { document.getElementById('splash-screen').classList.remove('active'); isInitialLoad = false; }
-            }
-        });
-    })
-    .catch((error) => console.error("Error setting persistence:", error));
-
-function showAuthError(msg) { document.getElementById('auth-error').innerText = msg; }
-function signInWithGoogle() { const provider = new GoogleAuthProvider(); signInWithPopup(auth, provider).catch(error => showAuthError(error.message)); }
-
-function logout() {
- signOut(auth).then(() => {
-    window.location.reload();
-  }).catch((error) => {
-    showAppAlert("Logout Error", "Something went wrong while signing out.");
-    console.error("Error signing out:", error);
-  });
-}
+initAuth(
+    (user) => {
+        currentUser = user;
+        userDisplayName = user.displayName || 'User';
+        initUserData();
+    },
+    () => {
+        currentUser = null;
+        if (isInitialLoad) { 
+            document.getElementById('splash-screen').classList.remove('active'); 
+            isInitialLoad = false; 
+        }
+    }
+);
 
 // ==========================================
 //    THE LAZY AUTO-CLOSE
