@@ -7,6 +7,8 @@ import { getStrictDate, generateReceiptNo, formatToGBDate } from './utils/helper
 import { showAppAlert, executeAlertConfirm, showFlashMessage, openModal, closeModal, showTooltip } from './utils/ui-helpers.js';
 import { initPWA } from './features/pwa.js';
 import { initAuth, signInWithGoogle, logout } from './features/auth.js';
+import { AppState } from './core/state.js';
+import { ersKeyPress, ersBackspace, saveErs, selectItem, qtyKeyPress, qtyBackspace, saveQuantity, instantSaveItem, addTransactionToCloud } from './features/transactions.js';
 
 // Initialize Service Worker & PWA Install Prompts
 initPWA();
@@ -14,13 +16,17 @@ initPWA();
 // Bind UI Helpers to the window so HTML buttons can click them
 window.executeAlertConfirm = executeAlertConfirm;
 window.showTooltip = showTooltip;
+window.ersKeyPress = ersKeyPress;
+window.ersBackspace = ersBackspace;
+window.saveErs = saveErs;
+window.selectItem = selectItem;
+window.qtyKeyPress = qtyKeyPress;
+window.qtyBackspace = qtyBackspace;
+window.saveQuantity = saveQuantity;
+window.toggleMFS = toggleMFS;
 
 // Global User State
-let currentUser = null;
 const userCurrency = 'Tk';
-let userDisplayName = 'ERS';
-let userNickname = '';
-let currentUserRole = 'user';
 let devNotesQueue = [];
 
 
@@ -147,12 +153,12 @@ let isInitialLoad = true;
 
 initAuth(
     (user) => {
-        currentUser = user;
-        userDisplayName = user.displayName || 'User';
+        AppState.currentUser = user;
+        AppState.userDisplayName = user.displayName || 'User';
         initUserData();
     },
     () => {
-        currentUser = null;
+        AppState.currentUser = null;
         if (isInitialLoad) { 
             document.getElementById('splash-screen').classList.remove('active'); 
             isInitialLoad = false; 
@@ -1193,38 +1199,13 @@ function switchTab(tabId, title) {
 
 function updateCurrencyUI() { document.querySelectorAll('.ers-currency').forEach(el => { if(!el.innerText.includes('Qty')) el.innerText = userCurrency; }); }
 
-// --- ERS LOGIC ---
-let currentErsAmount = '0';
-const ersDisplay = document.getElementById('ers-display');
-function updateErsDisplay() { 
-    ersDisplay.innerText = Number(currentErsAmount).toLocaleString('en-IN'); 
-}
-
-function ersKeyPress(num) {
-    if (navigator.vibrate) navigator.vibrate(10);
-    if (currentErsAmount === '0') { if (num !== '00' && num !== '0') currentErsAmount = num; } 
-    else { if ((currentErsAmount + num).length <= 5) currentErsAmount += num; }
-    updateErsDisplay();
-}
-function ersBackspace() { 
-    if (navigator.vibrate) navigator.vibrate(15);
-    currentErsAmount = currentErsAmount.length > 1 ? currentErsAmount.slice(0, -1) : '0'; 
-    updateErsDisplay(); 
-}
-function saveErs(paymentMethod) {
-    const amount = parseInt(currentErsAmount);
-    if (amount <= 0) { showAppAlert("Invalid Input", "Please enter a valid amount."); return; }
-    addTransactionToCloud('ERS', 'ERS Flexiload', amount, 1, paymentMethod);
-    currentErsAmount = '0'; updateErsDisplay();
-}
-
 // --- SIMS & MODALS LOGIC ---
 let isMfs = false; let currentItemName = ''; let currentItemPrice = 0; let currentQty = '1';
 
 function toggleMFS() {
-    isMfs = !isMfs;
-    document.querySelectorAll('.sync-cash').forEach(el => el.classList.toggle('active', !isMfs));
-    document.querySelectorAll('.sync-mfs').forEach(el => el.classList.toggle('active', isMfs));
+    AppState.isMfs = !AppState.isMfs;
+    document.querySelectorAll('.sync-cash').forEach(el => el.classList.toggle('active', !AppState.isMfs));
+    document.querySelectorAll('.sync-mfs').forEach(el => el.classList.toggle('active', AppState.isMfs));
 }
 
 window.addEventListener('click', (event) => {
@@ -1295,50 +1276,6 @@ function setupBottomSheetDrag() {
 
 // Initialize the drag listeners once the DOM is fully loaded
 document.addEventListener('DOMContentLoaded', setupBottomSheetDrag);
-
-function selectItem(itemName, price) {
-    document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
-    currentItemName = itemName; currentItemPrice = price; currentQty = '1';
-    updateQtyDisplay(); openModal('modal-quantity');
-}
-
-function updateQtyDisplay() {
-    document.getElementById('qty-item-name').innerText = currentItemName;
-    document.getElementById('qty-display').innerText = currentQty;
-    let qtyInt = parseInt(currentQty) || 0;
-    document.getElementById('qty-calc-display').innerText = currentItemPrice === 0 ? `Inventory Update (0 ${userCurrency})` : `${qtyInt} x ${currentItemPrice} = ${qtyInt * currentItemPrice} ${userCurrency}`;
-}
-
-function qtyKeyPress(num) { 
-    if (navigator.vibrate) navigator.vibrate(10);
-    if (currentQty === '0') currentQty = num; else if (currentQty.length < 3) currentQty += num; 
-    updateQtyDisplay(); 
-}
-function qtyBackspace() { 
-    if (navigator.vibrate) navigator.vibrate(15);
-    currentQty = currentQty.length > 1 ? currentQty.slice(0, -1) : '0'; 
-    updateQtyDisplay(); 
-}
-function saveQuantity() {
-    let qtyInt = parseInt(currentQty) || 0;
-    if (qtyInt <= 0) { showAppAlert("Invalid Input", "Please enter a quantity of 1 or more."); return; }
-    
-    if (!passStockFirewall(currentItemName, qtyInt)) return;
-
-    addTransactionToCloud('Item', currentItemName, qtyInt * currentItemPrice, qtyInt, (currentItemPrice > 0 && isMfs) ? "MFS" : "Cash");
-    closeModal('modal-quantity');
-}
-
-function instantSaveItem(itemName, price) {
-  if (!passStockFirewall(itemName, 1)) return;
- 
-  addTransactionToCloud('Item', itemName, price, 1, (price > 0 && isMfs) ? "MFS" : "Cash");
- 
-  // Tiny delay to absorb the browser's synthetic ghost click
-  setTimeout(() => {
-    document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
-  }, 100);
-}
 
 // --- DATE FILTER LOGIC ---
 
@@ -1564,51 +1501,6 @@ async function initUserData() {
         if (isInitialLoad) { document.getElementById('splash-screen').classList.remove('active'); isInitialLoad = false; }
     }
     setTimeout(setupBottomSheetDrag, 300); // Failsafe to attach drag physics
-}
-
-function addTransactionToCloud(type, name, amount, qty, payment, cashAmt = 0, mfsAmt = 0) {
-    if(!currentUser) return;
-    if (payment === 'Cash') { cashAmt = amount; mfsAmt = 0; }
-    if (payment === 'MFS') { cashAmt = 0; mfsAmt = amount; }
-
-    let catItem = Object.values(globalCatalog).find(c => c.name === name);
-    let trackAs = catItem ? (catItem.trackAs || name) : name; 
-
-    const tx = {
-        id: Date.now(), receiptNo: generateReceiptNo(), type: type, name: name, trackAs: trackAs, amount: amount, qty: qty,
-        payment: payment, cashAmt: cashAmt, mfsAmt: mfsAmt, isDeleted: false,
-        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-        dateStr: getStrictDate(),
-        deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName
-    };
-
-    if (currentDeskId === 'sandbox') {
-        tx.docId = 'local_' + tx.id;
-        transactions.push(tx);
-        transactions.sort((a, b) => a.id - b.id);
-        renderPersonalReport();
-        if (document.getElementById('tab-desk').classList.contains('active')) renderDeskDashboard();
-        showFlashMessage("Saved to Sandbox!");
-        if (isMfs) toggleMFS();
-        return;
-    }
-
-    let confirmMsg = type === 'ERS' ? `ERS ${amount} Tk Logged!` : `${qty}x ${name} Logged!`;
-
-    addDoc(collection(db, 'transactions'), tx).catch(e => {
-        showAppAlert("Storage Error", "Could not save locally. Check storage.");
-        console.error(e);
-    });
-
-    if (navigator.onLine) {
-        showFlashMessage(confirmMsg);
-    } else {
-        showFlashMessage("Offline: Queued for sync");
-    }
-
-    if (isMfs) {
-        toggleMFS();
-    }
 }
 
 // ==========================================
