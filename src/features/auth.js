@@ -4,8 +4,7 @@ import { setPersistence, browserLocalPersistence, onAuthStateChanged, GoogleAuth
 import { showAppAlert } from '../utils/ui-helpers.js';
 
 export function initAuth(onLoginSuccess, onLogout) {
-    setPersistence(auth, browserLocalPersistence)
-      .then(() => {
+    const setupAuthState = () => {
         onAuthStateChanged(auth, user => {
             if (user) {
                 document.getElementById('modal-auth').classList.remove('active');
@@ -15,8 +14,14 @@ export function initAuth(onLoginSuccess, onLogout) {
                 onLogout();
             }
         });
-      })
-      .catch((error) => console.error("Error setting persistence:", error));
+    };
+
+    setPersistence(auth, browserLocalPersistence)
+      .then(setupAuthState)
+      .catch((error) => {
+          console.error("Error setting persistence:", error);
+          setupAuthState(); // Ensure the app still boots if persistence is blocked
+      });
 }
 
 export function signInWithGoogle() { 
