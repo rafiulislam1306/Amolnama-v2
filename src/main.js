@@ -12,6 +12,7 @@ import { ersKeyPress, ersBackspace, saveErs, selectItem, qtyKeyPress, qtyBackspa
 import { getPhysicalItems, getInventoryChange, getAvailableStock, passStockFirewall, switchStoreCategory } from './features/inventory.js';
 import { performLazyAutoClose, loadFloorMap, adminBypass, enterSandboxMode, handleDeskSelect, confirmOpenDesk } from './features/desk.js';
 import { toggleReportMode, renderPersonalReport, shareReport, shareDeskReport, renderDeskDashboard } from './features/reports.js';
+import { openManagerCashModal, saveManagerCash, openMainStockModal, saveMainStock, openReturnStockModal, saveReturnStock, openDeskTransfer, executeDeskTransfer, openTransferModal, executeTransfer } from './features/transfers.js';
 
 // ==========================================
 //    TEMPORARY REFACTORING BRIDGE
@@ -62,6 +63,16 @@ window.renderPersonalReport = renderPersonalReport;
 window.shareReport = shareReport;
 window.shareDeskReport = shareDeskReport;
 window.renderDeskDashboard = renderDeskDashboard;
+window.openManagerCashModal = openManagerCashModal;
+window.saveManagerCash = saveManagerCash;
+window.openMainStockModal = openMainStockModal;
+window.saveMainStock = saveMainStock;
+window.openReturnStockModal = openReturnStockModal;
+window.saveReturnStock = saveReturnStock;
+window.openDeskTransfer = openDeskTransfer;
+window.executeDeskTransfer = executeDeskTransfer;
+window.openTransferModal = openTransferModal;
+window.executeTransfer = executeTransfer;
 
 // Global User State
 const userCurrency = 'Tk';
@@ -298,227 +309,6 @@ async function submitClosingReport() {
         showFlashMessage("Report Submitted! See Manager.");
         loadFloorMap();
     }
-}
-
-// ==========================================
-//    PHASE 3: DESK ACTIONS & TRANSFERS
-// ==========================================
-
-function openManagerCashModal() {
-    if(!currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
-    document.getElementById('mgr-cash-amount').value = '';
-    openModal('modal-manager-cash');
-    setTimeout(() => {
-        const amtInput = document.getElementById('mgr-cash-amount');
-        if (amtInput) { amtInput.focus(); }
-    }, 100);
-}
-
-function saveManagerCash() {
-    let amount = parseFloat(document.getElementById('mgr-cash-amount').value) || 0;
-    if (amount <= 0) { showAppAlert("Invalid Input", "Enter a valid amount."); return; }
-    
-    let action = document.getElementById('mgr-cash-action').value; 
-    let isCashIn = action === 'receive_float' || action === 'handset_cash';
-    let finalValue = isCashIn ? amount : -amount;
-    
-    let txName = 'Cash Adjustment';
-    let paymentLabel = '';
-    
-    if (action === 'drop_manager') { txName = 'Manager Drop'; paymentLabel = 'Dropped to Manager'; }
-    else if (action === 'expense') { txName = 'Expense / Donation'; paymentLabel = 'Cash Out'; }
-    else if (action === 'handset_cash') { txName = 'Handset Cash'; paymentLabel = 'Cash In (Holding)'; }
-    else if (action === 'receive_float') { txName = 'Manager Float'; paymentLabel = 'Cash In (Float)'; }
-
-    const tx = {
-        id: Date.now(), receiptNo: generateReceiptNo(), type: 'adjustment', name: txName, trackAs: 'Physical Cash', amount: amount, qty: 1,
-        payment: paymentLabel, cashAmt: finalValue, mfsAmt: 0, isDeleted: false,
-        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-        dateStr: getStrictDate(), deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName
-    };
-
-    closeModal('modal-manager-cash');
-    addDoc(collection(db, 'transactions'), tx).catch(e => console.error(e));
-    showFlashMessage(navigator.onLine ? `${txName} Logged!` : "Offline: Action queued");
-}
-
-function openMainStockModal() {
-    if(!currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
-    document.getElementById('main-stock-qty').value = '';
-    let selectEl = document.getElementById('main-stock-item');
-    selectEl.innerHTML = '';
-    getPhysicalItems().forEach(itemName => {
-        let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
-        selectEl.appendChild(opt);
-    });
-    openModal('modal-main-stock');
-}
-
-function saveMainStock() {
-    let qty = parseInt(document.getElementById('main-stock-qty').value) || 0;
-    if (qty <= 0) { showAppAlert("Invalid Input", "Enter a valid quantity."); return; }
-    let itemName = document.getElementById('main-stock-item').value;
-
-    const tx = {
-        id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty,
-        payment: 'Received from Main Stock', cashAmt: 0, mfsAmt: 0, isDeleted: false,
-        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-        dateStr: getStrictDate(), deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName
-    };
-
-    closeModal('modal-main-stock');
-    let msg = `+${qty}x ${itemName} Added!`;
-    
-    addDoc(collection(db, 'transactions'), tx).catch(e => console.error(e));
-    showFlashMessage(navigator.onLine ? msg : "Offline: Stock queued");
-}
-
-function openReturnStockModal() {
-    if(!currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
-    document.getElementById('return-stock-qty').value = '';
-    let selectEl = document.getElementById('return-stock-item');
-    selectEl.innerHTML = '';
-    getPhysicalItems().forEach(itemName => {
-        let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
-        selectEl.appendChild(opt);
-    });
-    openModal('modal-return-stock');
-}
-
-function saveReturnStock() {
-    let qty = parseInt(document.getElementById('return-stock-qty').value) || 0;
-    if (qty <= 0) { showAppAlert("Invalid Input", "Enter a valid quantity."); return; }
-    let itemName = document.getElementById('return-stock-item').value;
-
-    // The Stock Firewall ensures the agent actually has the stock to return
-    if (!passStockFirewall(itemName, qty)) return;
-
-    const tx = {
-        id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty,
-        payment: 'Returned to Main Stock', cashAmt: 0, mfsAmt: 0, isDeleted: false,
-        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-        dateStr: getStrictDate(), deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName
-    };
-
-    closeModal('modal-return-stock');
-    let msg = `-${qty}x ${itemName} Returned!`;
-    
-    addDoc(collection(db, 'transactions'), tx).catch(e => console.error(e));
-    showFlashMessage(navigator.onLine ? msg : "Offline: Return queued");
-}
-
-async function openDeskTransfer() {
-    if(!currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
-    document.getElementById('desk-transfer-qty').value = '';
-    
-    let itemSelect = document.getElementById('desk-transfer-item');
-    itemSelect.innerHTML = '';
-    getPhysicalItems().forEach(itemName => {
-        let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
-        itemSelect.appendChild(opt);
-    });
-
-    let targetSelect = document.getElementById('desk-transfer-target');
-    targetSelect.innerHTML = '<option value="">Loading active desks...</option>';
-    openModal('modal-desk-transfer');
-
-    try {
-        const activeSessionsSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'open')));
-        let optionsHTML = '';
-        activeSessionsSnap.forEach(docSnap => {
-            let deskData = docSnap.data();
-            if(deskData.deskId !== currentDeskId) {
-                let displayName = deskData.deskId.replace('_', ' ').toUpperCase();
-                
-                // If it's a personal drawer, grab the agent's first name
-                if (deskData.deskId.startsWith('personal_')) {
-                    let agentFirstName = deskData.openedBy ? deskData.openedBy.split(' ')[0] : 'Agent';
-                    displayName = `${agentFirstName}'s Drawer`;
-                }
-                
-                optionsHTML += `<option value="${deskData.deskId}|${docSnap.id}">${displayName}</option>`;
-            }
-        });
-        targetSelect.innerHTML = optionsHTML || '<option value="">No other desks open</option>';
-    } catch(e) { targetSelect.innerHTML = '<option value="">Offline: Cannot fetch desks</option>'; }
-}
-
-function executeDeskTransfer() {
-    if (!navigator.onLine) {
-        showAppAlert("Connection Required", "Desk-to-desk transfers require an active internet connection so the receiving desk gets the stock immediately. Please connect and try again.");
-        return;
-    }
-
-    let qty = parseInt(document.getElementById('desk-transfer-qty').value) || 0;
-    if (qty <= 0) { showAppAlert("Invalid Input", "Enter valid quantity."); return; }
-
-    let itemName = document.getElementById('desk-transfer-item').value;
-    
-    if (!passStockFirewall(itemName, qty)) return;
-
-    let targetSelect = document.getElementById('desk-transfer-target');
-    let targetVal = targetSelect.value;
-    if (!targetVal) { showAppAlert("Error", "Please select an active destination desk."); return; }
-    
-    // Grab the clean name directly from the dropdown text
-    let targetDeskName = targetSelect.options[targetSelect.selectedIndex].text;
-    
-    let [targetDeskId, targetSessionId] = targetVal.split('|');
-    let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    let dateStr = getStrictDate();
-
-    // Use the clean targetDeskName instead of the raw ID
-    const senderTx = { id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: currentDeskId, sessionId: currentSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName };
-    const receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${currentDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName, isRemoteTransfer: true };
-
-    closeModal('modal-desk-transfer');
-    let msg = `Sent ${qty}x ${itemName} to ${targetDeskName}!`;
-    
-    addDoc(collection(db, 'transactions'), senderTx).catch(e => console.error(e));
-    addDoc(collection(db, 'transactions'), receiverTx).catch(e => console.error(e));
-    showFlashMessage(navigator.onLine ? msg : "Offline: Transfer queued");
-}
-
-let targetTransferDeskId = null; 
-let targetTransferSessionId = null;
-let targetTransferDeskName = ''; // Add this tracking variable
-
-function openTransferModal(targetDesk, targetSession, targetName) {
-    targetTransferDeskId = targetDesk; 
-    targetTransferSessionId = targetSession;
-    
-    // Determine the clean name
-    targetTransferDeskName = targetDesk.startsWith('personal_') ? (targetName || "Personal Drawer") : targetDesk.replace('_', ' ').toUpperCase();
-    
-    document.getElementById('transfer-target-name').innerText = targetTransferDeskName;
-    document.getElementById('transfer-qty').value = '';
-    let selectEl = document.getElementById('transfer-item-select');
-    selectEl.innerHTML = '';
-    getPhysicalItems().forEach(itemName => {
-        let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
-        selectEl.appendChild(opt);
-    });
-    openModal('modal-transfer');
-}
-
-function executeTransfer() {
-    let qty = parseInt(document.getElementById('transfer-qty').value) || 0;
-    if (qty <= 0) { showAppAlert("Invalid Input", "Enter valid quantity."); return; }
-    let itemName = document.getElementById('transfer-item-select').value;
-    let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    let dateStr = getStrictDate();
-
-    // Admin transfers use "Admin" or the current desk name as the sender
-    let senderName = currentDeskName || "Admin";
-
-    const senderTx = { id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetTransferDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: currentDeskId || "Admin", sessionId: currentSessionId || "Admin", agentId: currentUser.uid, agentName: userNickname || userDisplayName };
-    const receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${senderName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetTransferDeskId, sessionId: targetTransferSessionId, agentId: currentUser.uid, agentName: userNickname || userDisplayName, isRemoteTransfer: true };
-
-    closeModal('modal-transfer');
-    
-    addDoc(collection(db, 'transactions'), senderTx).catch(e => console.error(e));
-    addDoc(collection(db, 'transactions'), receiverTx).catch(e => console.error(e));
-    showFlashMessage(navigator.onLine ? `Sent to ${targetTransferDeskName}!` : "Offline: Queued for sync.");
 }
 
 // --- RENDER FLOOR MAP & PEEK AT DESK ---
