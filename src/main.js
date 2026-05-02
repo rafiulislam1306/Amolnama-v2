@@ -9,6 +9,7 @@ import { initPWA } from './features/pwa.js';
 import { initAuth, signInWithGoogle, logout } from './features/auth.js';
 import { AppState } from './core/state.js';
 import { ersKeyPress, ersBackspace, saveErs, selectItem, qtyKeyPress, qtyBackspace, saveQuantity, instantSaveItem, addTransactionToCloud } from './features/transactions.js';
+import { getPhysicalItems, getInventoryChange, getAvailableStock, passStockFirewall, switchStoreCategory } from './features/inventory.js';
 
 // ==========================================
 //    TEMPORARY REFACTORING BRIDGE
@@ -45,6 +46,10 @@ window.qtyKeyPress = qtyKeyPress;
 window.qtyBackspace = qtyBackspace;
 window.saveQuantity = saveQuantity;
 window.toggleMFS = toggleMFS;
+window.getPhysicalItems = getPhysicalItems;
+window.getInventoryChange = getInventoryChange;
+window.passStockFirewall = passStockFirewall;
+window.switchStoreCategory = switchStoreCategory;
 
 // Global User State
 const userCurrency = 'Tk';
@@ -76,52 +81,6 @@ function showAuditTrail(txId) {
     }
     
     showAppAlert("Transaction Audit Trail", msg);
-}
-
-// ==========================================
-//   TRAFFIC COP: MASTER INVENTORY LOGIC
-// ==========================================
-function getInventoryChange(tx) {
-    if (!tx.trackAs || !globalInventoryGroups.includes(tx.trackAs)) return 0;
-    if (tx.name === 'Physical Cash' || tx.name === 'ERS Flexiload') return 0;
-    
-    let q = Math.abs(parseInt(tx.qty) || 0); 
-    
-    if (tx.type === 'transfer_in') return q;           
-    if (tx.type === 'transfer_out') return -q;         
-    if (tx.type === 'adjustment') return parseInt(tx.qty) || 0; 
-    
-    return -q; 
-}
-
-function getAvailableStock(itemName) {
-    let catItem = Object.values(globalCatalog).find(c => c.name === itemName);
-    let trackAs = catItem ? (catItem.trackAs || itemName) : itemName; 
-    
-    if (!globalInventoryGroups.includes(trackAs)) return Infinity; 
-
-    let stock = currentOpeningInv[trackAs] || 0; 
-
-    transactions.forEach(tx => {
-        if (tx.deskId === currentDeskId && !tx.isDeleted && tx.trackAs === trackAs) {
-            stock += getInventoryChange(tx); 
-        }
-    });
-    return stock;
-}
-
-function passStockFirewall(itemName, requestedQty) {
-    let catItem = Object.values(globalCatalog).find(c => c.name === itemName);
-    let trackAs = catItem ? (catItem.trackAs || itemName) : itemName; 
-    
-    if (!globalInventoryGroups.includes(trackAs)) return true; 
-
-    let available = getAvailableStock(itemName);
-    if (available < requestedQty) {
-        showAppAlert("Insufficient Stock", `You only have ${available}x ${trackAs} available in your drawer. You cannot complete this transaction.`);
-        return false; 
-    }
-    return true; 
 }
 
 // --- DESK & SESSION STATE ---
@@ -162,8 +121,6 @@ const defaultCatalog = {
     "srv_mnp": { name: 'MNP', display: 'MNP', price: 457.50, cat: 'service', trackAs: '', isActive: true, order: 21 },
     "foc_corp": { name: 'Corporate Replacement', display: 'Corporate Replacement', price: 0, cat: 'free-action', trackAs: '', isActive: true, order: 22 }
 };
-
-function getPhysicalItems() { return globalInventoryGroups; }
 
 let transactions = []; 
 let trashTransactions = []; 
@@ -2980,19 +2937,6 @@ window.executeForceTransfer = function() {
     addDoc(collection(db, 'transactions'), receiverTx).catch(e => console.error(e));
     
     showFlashMessage(`Successfully pulled ${qty}x ${itemName} from ${fromName}`);
-}
-
-// ==========================================
-//    NEW STORE & DRAWER ROUTING LOGIC
-// ==========================================
-window.switchStoreCategory = function(catId, btn) {
-    // Visually highlight the correct pill
-    document.querySelectorAll('.store-pill').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    
-    // Show the correct grid
-    document.querySelectorAll('.store-cat-group').forEach(c => c.style.display = 'none');
-    document.getElementById(catId).style.display = 'block';
 }
 
 window.handleMyDrawerNav = function() {
