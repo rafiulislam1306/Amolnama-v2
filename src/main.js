@@ -10,6 +10,27 @@ import { initAuth, signInWithGoogle, logout } from './features/auth.js';
 import { AppState } from './core/state.js';
 import { ersKeyPress, ersBackspace, saveErs, selectItem, qtyKeyPress, qtyBackspace, saveQuantity, instantSaveItem, addTransactionToCloud } from './features/transactions.js';
 
+// ==========================================
+//    TEMPORARY REFACTORING BRIDGE
+// ==========================================
+// This links the old variable names to our new AppState so the rest of main.js doesn't break!
+Object.defineProperties(window, {
+    currentUser: { get: () => AppState.currentUser, set: (v) => AppState.currentUser = v },
+    userDisplayName: { get: () => AppState.userDisplayName, set: (v) => AppState.userDisplayName = v },
+    userNickname: { get: () => AppState.userNickname, set: (v) => AppState.userNickname = v },
+    currentUserRole: { get: () => AppState.currentUserRole, set: (v) => AppState.currentUserRole = v },
+    currentDeskId: { get: () => AppState.currentDeskId, set: (v) => AppState.currentDeskId = v },
+    currentSessionId: { get: () => AppState.currentSessionId, set: (v) => AppState.currentSessionId = v },
+    currentDeskName: { get: () => AppState.currentDeskName, set: (v) => AppState.currentDeskName = v },
+    currentOpeningCash: { get: () => AppState.currentOpeningCash, set: (v) => AppState.currentOpeningCash = v },
+    currentOpeningInv: { get: () => AppState.currentOpeningInv, set: (v) => AppState.currentOpeningInv = v },
+    globalCatalog: { get: () => AppState.globalCatalog, set: (v) => AppState.globalCatalog = v },
+    globalInventoryGroups: { get: () => AppState.globalInventoryGroups, set: (v) => AppState.globalInventoryGroups = v },
+    transactions: { get: () => AppState.transactions, set: (v) => AppState.transactions = v },
+    trashTransactions: { get: () => AppState.trashTransactions, set: (v) => AppState.trashTransactions = v },
+    isMfs: { get: () => AppState.isMfs, set: (v) => AppState.isMfs = v }
+});
+
 // Initialize Service Worker & PWA Install Prompts
 initPWA();
 
