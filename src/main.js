@@ -89,17 +89,7 @@ function showAuditTrail(txId) {
     showAppAlert("Transaction Audit Trail", msg);
 }
 
-// --- DESK & SESSION STATE ---
-let currentDeskId = null; 
-let currentSessionId = null;
-let currentDeskName = '';
-let currentOpeningCash = 0; 
-let currentOpeningInv = {}; 
-let rolloverStock = {}; 
-
 // --- GLOBAL DATABASE STRUCTURE ---
-let globalCatalog = {}; 
-let globalInventoryGroups = []; 
 
 const defaultInventoryGroups = ['Regular Kit', 'Skitto Kit', 'eSIM', 'Skitto eSIM', 'Power Prime', 'Recycle SIM', 'No. 1 Plan', 'Prime', 'Djuice'];
 
@@ -128,9 +118,7 @@ const defaultCatalog = {
     "foc_corp": { name: 'Corporate Replacement', display: 'Corporate Replacement', price: 0, cat: 'free-action', trackAs: '', isActive: true, order: 22 }
 };
 
-let transactions = []; 
-let trashTransactions = []; 
-let txListenerUnsubscribe = null; 
+let txListenerUnsubscribe = null;
 
 // --- AUTHENTICATION LOGIC ---
 let isInitialLoad = true;
@@ -876,7 +864,6 @@ function switchTab(tabId, title) {
 function updateCurrencyUI() { document.querySelectorAll('.ers-currency').forEach(el => { if(!el.innerText.includes('Qty')) el.innerText = userCurrency; }); }
 
 // --- SIMS & MODALS LOGIC ---
-let isMfs = false; let currentItemName = ''; let currentItemPrice = 0; let currentQty = '1';
 
 function toggleMFS() {
     AppState.isMfs = !AppState.isMfs;
