@@ -2860,23 +2860,24 @@ function renderDevNotes() {
     const pBg = note.priority === 'High' ? '#fef2f2' : (note.priority === 'Normal' ? '#fffbeb' : '#ecfdf5');
 
     html += `
-      <div style="background: var(--surface-color); border: 1px solid ${isRes ? 'var(--border-color)' : pColor}; border-left: 4px solid ${isRes ? 'var(--border-color)' : pColor}; padding: 12px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; opacity: ${isRes ? '0.6' : '1'}; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
-        <div style="display: flex; align-items: center; gap: 12px; flex: 1; overflow: hidden; cursor: pointer;" onclick="toggleDevNote(${note.id})">
-          <div style="width: 24px; height: 24px; border-radius: 50%; border: 2px solid ${isRes ? 'var(--text-secondary)' : pColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: ${isRes ? 'var(--text-secondary)' : 'transparent'}; color: white; transition: all 0.2s;">
-            ${isRes ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
-          </div>
-          <div style="flex: 1; min-width: 0;">
-            <div style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); text-decoration: ${isRes ? 'line-through' : 'none'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${note.text}</div>
-            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; display: flex; gap: 8px; align-items: center;">
-              <span style="background: ${isRes ? 'var(--bg-color)' : pBg}; color: ${isRes ? 'var(--text-secondary)' : pColor}; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">${note.priority}</span>
-            </div>
-          </div>
-        </div>
-        <button style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 8px; border-radius: 8px;" onclick="deleteDevNote(${note.id})">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-        </button>
-      </div>
-    `;
+   <div style="background: var(--surface-color); border: 1px solid ${isRes ? 'var(--border-color)' : pColor}; border-left: 4px solid ${isRes ? 'var(--border-color)' : pColor}; padding: 12px; border-radius: 12px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; opacity: ${isRes ? '0.6' : '1'}; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+   
+        <div style="width: 24px; height: 24px; border-radius: 50%; border: 2px solid ${isRes ? 'var(--text-secondary)' : pColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: ${isRes ? 'var(--text-secondary)' : 'transparent'}; color: white; cursor: pointer; transition: all 0.2s; margin-top: 2px;" onclick="toggleDevNote(${note.id})">
+     ${isRes ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+    </div>
+
+        <div style="flex: 1; min-width: 0; cursor: pointer;" onclick="const t = this.querySelector('.note-text'); if(t.style.whiteSpace === 'nowrap') { t.style.whiteSpace = 'normal'; } else { t.style.whiteSpace = 'nowrap'; }">
+     <div class="note-text" style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary); text-decoration: ${isRes ? 'line-through' : 'none'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4;">${note.text}</div>
+     <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 6px; display: flex; gap: 8px; align-items: center;">
+      <span style="background: ${isRes ? 'var(--bg-color)' : pBg}; color: ${isRes ? 'var(--text-secondary)' : pColor}; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">${note.priority}</span>
+     </div>
+    </div>
+
+        <button style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px; border-radius: 8px; flex-shrink: 0;" onclick="deleteDevNote(${note.id})">
+     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+    </button>
+   </div>
+  `;
   });
   container.innerHTML = html;
 }
