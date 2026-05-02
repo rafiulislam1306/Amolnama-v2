@@ -76,3 +76,94 @@ export function showTooltip(element, text) {
         setTimeout(() => tooltip.remove(), 200); 
     }, 2500);
 }
+
+// ==========================================
+//    NETWORK STATUS ENGINE
+// ==========================================
+export function initNetworkStatus() {
+    function updateNetworkStatus() {
+        const banner = document.getElementById('offline-banner');
+        if (!banner) return;
+        
+        if (!navigator.onLine) {
+            banner.style.display = 'block';
+        } else {
+            // Only show the back online message if the banner was actually visible
+            if (banner.style.display === 'block') {
+                showFlashMessage("Back Online! Syncing...");
+            }
+            banner.style.display = 'none';
+        }
+    }
+
+    // Listen for network changes in real-time
+    window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('offline', updateNetworkStatus);
+
+    // Run a check immediately when the app loads
+    updateNetworkStatus();
+}
+
+// ==========================================
+//    NATIVE BOTTOM SHEET DRAG PHYSICS
+// ==========================================
+export function setupBottomSheetDrag() {
+    document.querySelectorAll('.bottom-sheet').forEach(sheet => {
+        let startY = 0;
+        let currentY = 0;
+        let isDragging = false;
+
+        sheet.addEventListener('touchstart', (e) => {
+            // Only allow the sheet to be dragged if the user is scrolled to the very top
+            if (sheet.scrollTop > 0) return;
+            
+            startY = e.touches[0].clientY;
+            isDragging = true;
+            
+            // Remove CSS animation transitions so the sheet sticks to the thumb perfectly 1:1
+            sheet.style.transition = 'none';
+        }, { passive: true });
+
+        sheet.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            
+            // Prevent mobile browser pull-to-refresh while actively dragging the sheet
+            e.preventDefault();
+            
+            currentY = e.touches[0].clientY;
+            let delta = currentY - startY;
+            // Only allow dragging downwards (positive delta)
+            if (delta > 0) {
+                sheet.style.transform = `translateY(${delta}px)`;
+            }
+        }, { passive: false });
+
+        sheet.addEventListener('touchend', (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            let delta = currentY - startY;
+            let threshold = sheet.offsetHeight * 0.25; // 25% threshold to trigger a close
+            // Re-apply the smooth bezier transition for the snap-back or close animation
+            sheet.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
+
+            if (delta > threshold) {
+                // User dragged far enough -> Slide it completely off screen
+                sheet.style.transform = `translateY(100%)`;
+                
+                // Wait for the animation to finish, then safely remove it from the DOM
+                setTimeout(() => {
+                    let modal = sheet.closest('.modal-overlay');
+                    if (modal) closeModal(modal.id);
+                    
+                    // Reset the inline styles so it works normally the next time it's opened
+                    setTimeout(() => { sheet.style.transform = ''; sheet.style.transition = ''; }, 50);
+                }, 250);
+            } else {
+                // User didn't drag far enough -> Snap it smoothly back into place
+                sheet.style.transform = 'translateY(0)';
+                setTimeout(() => { sheet.style.transform = ''; sheet.style.transition = ''; }, 250);
+            }
+        });
+    });
+}
