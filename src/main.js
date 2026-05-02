@@ -2525,28 +2525,33 @@ function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, deskItemsS
     }
 
     return `
-        <div class="admin-form-card" style="padding: 16px; margin-bottom: 16px; background: #f8fafc; border: 1px solid #e2e8f0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
-            <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px;">Physical Cash Formula</div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <span style="font-size: 0.95rem; color: var(--text-secondary); font-weight: 500;">Opening Float</span>
-                <strong style="font-size: 1.05rem; color: var(--text-primary);">${opening} Tk</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <span style="font-size: 0.95rem; color: var(--text-secondary); font-weight: 500;">+ Cash Sales</span>
-                <strong style="font-size: 1.05rem; color: #10b981;">+${sales} Tk</strong>
-            </div>
-            <div style="margin-bottom: 16px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 16px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 0.95rem; color: var(--text-secondary); font-weight: 500;">+/- Cash Actions</span>
-                    <strong style="font-size: 1.05rem; color: ${adjustments < 0 ? '#ef4444' : '#10b981'};">${formattedAdjustments} Tk</strong>
-                </div>
-                ${adjBreakdownHTML}
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 1rem; font-weight: 800; color: #0ea5e9; text-transform: uppercase;">Expected Cash</span>
-                <strong style="font-size: 1.5rem; font-weight: 800; color: #0ea5e9;">${expected} Tk</strong>
-            </div>
+        <div class="admin-form-card" style="padding: 16px; margin-bottom: 16px; background: var(--bg-color); border: 1px solid var(--border-color); box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+      <div style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px;">Physical Cash Formula</div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <span style="font-size: 0.95rem; color: var(--text-secondary); font-weight: 500;">Opening Float</span>
+        <strong style="font-size: 1.05rem; color: var(--text-primary);">${opening} Tk</strong>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <span style="font-size: 0.95rem; color: var(--text-secondary); font-weight: 500;">+ Cash Sales</span>
+        <strong style="font-size: 1.05rem; color: var(--success-text);">+${sales} Tk</strong>
+      </div>
+      <div style="margin-bottom: 16px; border-bottom: 1px dashed var(--border-color); padding-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 4px 0;" onclick="const breakdown = this.nextElementSibling; const icon = this.querySelector('svg'); if(breakdown.style.display === 'none') { breakdown.style.display = 'block'; icon.style.transform = 'rotate(180deg)'; } else { breakdown.style.display = 'none'; icon.style.transform = 'rotate(0deg)'; }">
+          <span style="font-size: 0.95rem; color: var(--text-secondary); font-weight: 500; display: flex; align-items: center; gap: 6px;">
+            +/- Cash Actions
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+          </span>
+          <strong style="font-size: 1.05rem; color: ${adjustments < 0 ? 'var(--danger-text)' : 'var(--success-text)'};">${formattedAdjustments} Tk</strong>
         </div>
+        <div style="display: none; padding-top: 8px; border-top: 1px solid var(--border-color); margin-top: 8px;">
+          ${adjBreakdownHTML || '<div style="font-size: 0.85rem; color: var(--text-secondary); text-align: right; font-style: italic;">No actions recorded</div>'}
+        </div>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 1rem; font-weight: 800; color: var(--info-text); text-transform: uppercase;">Expected Cash</span>
+        <strong style="font-size: 1.5rem; font-weight: 800; color: var(--info-text);">${expected} Tk</strong>
+      </div>
+    </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
       <div style="background: var(--success-bg); border: 1px solid var(--success-border); padding: 16px; border-radius: 12px; text-align: center;">
