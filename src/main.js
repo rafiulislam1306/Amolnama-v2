@@ -285,7 +285,8 @@ function saveTxEdit() {
     else if (method === 'Split') {
         finalCash = parseFloat(document.getElementById('edit-tx-cash').value) || 0;
         finalMfs = parseFloat(document.getElementById('edit-tx-mfs').value) || 0;
-        if (finalCash + finalMfs !== newAmount) { showAppAlert("Error", "Cash + MFS must equal Total Tk."); return; }
+        // Use an epsilon threshold to safely compare floating-point decimals
+        if (Math.abs((finalCash + finalMfs) - newAmount) > 0.01) { showAppAlert("Error", "Cash + MFS must equal Total Tk."); return; }
     }
 
     let prevTxState = {
@@ -468,7 +469,7 @@ function toggleMFS() {
 }
 
 window.addEventListener('click', (event) => {
-    if (event.target.classList.contains('modal-overlay') && !['modal-auth', 'splash-screen', 'modal-desk-select', 'modal-nicknames', 'modal-app-alert'].includes(event.target.id)) {
+    if (event.target.classList.contains('modal-overlay') && !['modal-auth', 'splash-screen', 'modal-desk-select', 'modal-nicknames', 'modal-app-alert', 'modal-open-desk', 'modal-close-desk'].includes(event.target.id)) {
         closeModal(event.target.id);
     }
 });
@@ -493,6 +494,10 @@ function setupBottomSheetDrag() {
 
         sheet.addEventListener('touchmove', (e) => {
             if (!isDragging) return;
+            
+            // Prevent mobile browser pull-to-refresh while actively dragging the sheet
+            e.preventDefault();
+            
             currentY = e.touches[0].clientY;
             let delta = currentY - startY;
 
@@ -500,7 +505,7 @@ function setupBottomSheetDrag() {
             if (delta > 0) {
                 sheet.style.transform = `translateY(${delta}px)`;
             }
-        }, { passive: true });
+        }, { passive: false });
 
         sheet.addEventListener('touchend', (e) => {
             if (!isDragging) return;
