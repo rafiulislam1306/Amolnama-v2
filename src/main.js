@@ -364,6 +364,7 @@ function renderTrash() {
     if(trashTransactions.length === 0) html = '<p class="placeholder-text">Trash is empty</p>';
     else {
         trashTransactions.sort((a,b) => b.id - a.id).forEach(tx => {
+            let safeDocId = tx.docId ? `'${tx.docId}'` : `null`;
             html += `
                 <div style="border:1px solid var(--border-color); padding:12px; margin-bottom:8px; border-radius:8px; background: var(--surface-color);">
                     <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
@@ -373,10 +374,10 @@ function renderTrash() {
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span style="font-size:0.8rem; color:var(--text-secondary);">${tx.time} | ${tx.payment}</span>
                         <div style="display:flex; gap: 8px;">
-                            <button class="btn-outline" style="padding:6px 12px; font-size:0.85rem; height:auto; color: #10b981; gap: 6px;" onclick="restoreTx('${tx.docId}', ${tx.id})">
+                            <button class="btn-outline" style="padding:6px 12px; font-size:0.85rem; height:auto; color: #10b981; gap: 6px;" onclick="restoreTx(${safeDocId}, ${tx.id})">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg> Restore
                             </button>
-                            <button class="btn-outline" style="padding:6px 12px; font-size:0.85rem; height:auto; color: #ef4444; gap: 6px; background: #fef2f2;" onclick="permanentlyDeleteTx('${tx.docId}', ${tx.id})">
+                            <button class="btn-outline" style="padding:6px 12px; font-size:0.85rem; height:auto; color: #ef4444; gap: 6px; background: #fef2f2;" onclick="permanentlyDeleteTx(${safeDocId}, ${tx.id})">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg> Delete
                             </button>
                         </div>
@@ -580,11 +581,23 @@ async function fetchTransactionsForDate() {
     if (txListenerUnsubscribe) { txListenerUnsubscribe(); txListenerUnsubscribe = null; }
 
     try {
+        // Build base query
+        let txQuery = query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr));
+        
+        // If the user is just a floor agent, DO NOT download the entire floor's ledger
+        if (currentUserRole !== 'admin' && toggleReportMode !== 'floor') {
+            txQuery = query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr), where('agentId', '==', currentUser.uid));
+        }
+
         txListenerUnsubscribe = onSnapshot(
-            query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr)),
+            txQuery,
             { includeMetadataChanges: true },
             (txSnapshot) => {
             transactions = []; trashTransactions = []; 
+            // Preserve local sandbox items from being overwritten by cloud syncs
+            let localSandboxTxs = currentDeskId === 'sandbox' ? transactions.filter(t => t.docId && t.docId.startsWith('local_')) : [];
+            let localSandboxTrash = currentDeskId === 'sandbox' ? trashTransactions.filter(t => t.docId && t.docId.startsWith('local_')) : [];
+
             txSnapshot.forEach(doc => {
                 let tx = doc.data(); tx.docId = doc.id; 
                 tx.isPending = doc.metadata.hasPendingWrites;
@@ -594,6 +607,11 @@ async function fetchTransactionsForDate() {
                     trashTransactions.push(tx); 
                 }
             });
+
+            if (currentDeskId === 'sandbox') {
+                transactions.push(...localSandboxTxs);
+                trashTransactions.push(...localSandboxTrash);
+            }
             
             transactions.sort((a, b) => a.id - b.id);
             trashTransactions.sort((a, b) => a.id - b.id);
