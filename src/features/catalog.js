@@ -79,12 +79,17 @@ export function renderAppUI() {
         
         row.innerHTML = `
             <div style="display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1;">
-                <div style="flex-shrink: 0;">${iconSVG}</div>
-                <span style="font-weight: 600; color: var(--text-primary); font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.display || item.name}</span>
+                <div style="flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: var(--bg-color); border-radius: 10px;">${iconSVG}</div>
+                <div style="display: flex; flex-direction: column; min-width: 0;">
+                    <span style="font-weight: 600; color: var(--text-primary); font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.display || item.name}</span>
+                    <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 500;">Tap to add • Hold for Qty</span>
+                </div>
             </div>
             <div style="display: flex; align-items: center; gap: 12px; flex-shrink: 0; padding-left: 12px;">
                 ${priceDisplay}
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                <div style="background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: var(--text-primary);">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </div>
             </div>
         `;
         container.appendChild(row);
