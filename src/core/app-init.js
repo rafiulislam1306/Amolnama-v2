@@ -37,7 +37,7 @@ export async function initUserData(onComplete) {
             AppState.currentUserRole = 'user'; 
         }
 
-        await setDoc(userDocRef, { email: AppState.currentUser.email, displayName: AppState.userDisplayName, role: AppState.currentUserRole }, { merge: true });
+        await setDoc(userDocRef, { email: AppState.currentUser.email || null, displayName: AppState.userDisplayName || 'User', role: AppState.currentUserRole }, { merge: true });
 
         const globalDoc = await getDoc(doc(db, 'global', 'settings'));
         if (globalDoc.exists() && globalDoc.data().catalog) {
@@ -59,10 +59,9 @@ export async function initUserData(onComplete) {
         }
         if(document.getElementById('tab-ers').classList.contains('active')) document.getElementById('header-title').innerText = AppState.userNickname || AppState.userDisplayName;
 
-        if (AppState.currentUserRole === 'admin') {
-            document.getElementById('dev-note-fab').style.display = 'flex';
-        } else {
-            document.getElementById('dev-note-fab').style.display = 'none';
+        const devNoteFab = document.getElementById('dev-note-fab');
+        if (devNoteFab) {
+            devNoteFab.style.display = AppState.currentUserRole === 'admin' ? 'flex' : 'none';
         }
 
         updateCurrencyUI(); 
