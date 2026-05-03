@@ -3,10 +3,14 @@ import { AppState } from '../core/state.js';
 import { selectItem, instantSaveItem } from './transactions.js';
 
 export function renderAppUI() {
-    const userCurrency = 'Tk'; // Localize the currency symbol
+    const userCurrency = 'Tk'; 
     
+    // Clear existing items before re-rendering
     document.querySelectorAll('.dynamic-item').forEach(el => el.remove());
     
+    // Safety check: ensure catalog exists
+    if (!AppState.globalCatalog) return;
+
     Object.values(AppState.globalCatalog).sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(item => {
         if (!item.isActive) return;
         
