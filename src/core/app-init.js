@@ -7,7 +7,7 @@ import { defaultInventoryGroups, defaultCatalog } from './constants.js';
 import { performLazyAutoClose, loadFloorMap } from '../features/desk.js';
 import { renderAppUI } from '../features/catalog.js';
 import { fetchTransactionsForDate } from '../features/reports.js';
-import { setupBottomSheetDrag } from '../utils/ui-helpers.js';
+import { setupBottomSheetDrag, showAppAlert } from '../utils/ui-helpers.js';
 
 export function updateCurrencyUI() { 
     const userCurrency = 'Tk';
@@ -102,7 +102,9 @@ export async function initUserData(onComplete) {
             await loadFloorMap();
         }
     } catch(e) { 
-        console.error(e); 
+        console.error("App Initialization Error:", e);
+        showAppAlert("Connection Error", "Failed to sync user data. If this persists, check your Firestore security rules.");
+        await loadFloorMap(); // Fallback: Force the map to open so you aren't stuck
     } finally {
         if (onComplete) onComplete();
     }
