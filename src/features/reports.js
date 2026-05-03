@@ -497,9 +497,13 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
     let activeSessionId = null;
     let activeOpeningInv = {};
     const targetDateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
-    const isToday = targetDateStr === getStrictDate();
+    const isToday = targetDateStr === formatToGBDate(getStrictDate());
 
-    if (targetDeskId === AppState.currentDeskId && isToday && AppState.currentSessionId) {
+    if (targetDeskId === 'sandbox') {
+        activeSessionId = null;
+        deskOpeningCash = AppState.currentOpeningCash || 0;
+        activeOpeningInv = AppState.currentOpeningInv || {};
+    } else if (targetDeskId === AppState.currentDeskId && isToday && AppState.currentSessionId) {
         activeSessionId = AppState.currentSessionId;
         deskOpeningCash = AppState.currentOpeningCash;
         activeOpeningInv = AppState.currentOpeningInv;
@@ -679,7 +683,7 @@ export async function fetchTransactionsForDate() {
         datePicker.value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
     }
     const targetDateStr = formatToGBDate(datePicker.value);
-    const isToday = targetDateStr === getStrictDate();
+    const isToday = targetDateStr === formatToGBDate(getStrictDate());
     const dateLabel = isToday ? 'Today' : targetDateStr;
 
     if (txListenerUnsubscribe) { txListenerUnsubscribe(); txListenerUnsubscribe = null; }

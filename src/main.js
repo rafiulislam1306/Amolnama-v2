@@ -181,7 +181,11 @@ function switchTab(tabId, title) {
     }
     
     document.getElementById('header-title').innerText = tabId === 'ers' ? (AppState.currentDeskName || AppState.userNickname || AppState.userDisplayName) : title;
-    if(tabId === 'floor') renderLiveFloorTab();
+    if (tabId === 'floor') {
+        renderLiveFloorTab();
+    } else if (tabId === 'desk') {
+        if (typeof renderDeskDashboard === 'function') renderDeskDashboard();
+    }
 }
 
 function toggleMFS() {
