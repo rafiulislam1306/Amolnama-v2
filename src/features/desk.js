@@ -361,13 +361,19 @@ export async function renderLiveFloorTab() {
                     let bg = isLow ? '#fef2f2' : '#f8fafc';
                     let border = isLow ? '#fca5a5' : '#e2e8f0';
                     let color = isLow ? '#ef4444' : '#475569';
-                    invDisplay += `<span style="display:inline-flex; align-items:center; background:${bg}; border: 1px solid ${border}; padding:4px 10px; border-radius:12px; font-size:0.75rem; margin:0 6px 8px 0; color:${color}; font-weight:700;">${name} <span style="margin-left: 6px; padding-left: 6px; border-left: 1px solid ${border};">${qty}</span></span>`;
+                    invDisplay += `<div style="flex-grow: 1; display: flex; justify-content: space-between; align-items: center; background:${bg}; border: 1px solid ${border}; padding:6px 10px; border-radius:12px; font-size:0.75rem; color:${color}; font-weight:700;"><span style="white-space:nowrap;">${name}</span> <span style="margin-left: 8px; padding-left: 8px; border-left: 1px solid ${border};">${qty}</span></div>`;
                 }
             }
             if (liveServicesCount > 0) {
-                invDisplay += `<span style="display:inline-flex; align-items:center; background:#fffbeb; border: 1px solid #fde68a; padding:4px 10px; border-radius:12px; font-size:0.75rem; margin:0 6px 8px 0; color:#d97706; font-weight:700;">Services <span style="margin-left: 6px; padding-left: 6px; border-left: 1px solid #fde68a;">${liveServicesCount}</span></span>`;
+                invDisplay += `<div style="flex-grow: 1; display: flex; justify-content: space-between; align-items: center; background:#fffbeb; border: 1px solid #fde68a; padding:6px 10px; border-radius:12px; font-size:0.75rem; color:#d97706; font-weight:700;"><span style="white-space:nowrap;">Services</span> <span style="margin-left: 8px; padding-left: 8px; border-left: 1px solid #fde68a;">${liveServicesCount}</span></div>`;
             }
-            if(!invDisplay) invDisplay = '<span style="font-size:0.8rem; color:var(--text-secondary); font-style: italic;">No physical stock tracked.</span>';
+            
+            if (invDisplay) {
+                // Invisible flex-grow spacer to stop the last row from stretching!
+                invDisplay += `<div style="flex-grow: 999;"></div>`;
+            } else {
+                invDisplay = '<span style="font-size:0.8rem; color:var(--text-secondary); font-style: italic;">No physical stock tracked.</span>';
+            }
 
             const isMyDesk = sid === AppState.currentSessionId;
 
@@ -424,7 +430,7 @@ export async function renderLiveFloorTab() {
 
                     <div style="margin-bottom: ${isMyDesk ? '8px' : '16px'};">
                         <span style="display: block; font-size: 0.75rem; font-weight: 800; color: ${isMyDesk ? '#0284c7' : 'var(--text-secondary)'}; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Physical Stock</span>
-                        <div style="display: flex; flex-wrap: wrap;">${invDisplay}</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">${invDisplay}</div>
                     </div>
                     
                     ${actionBtn}
