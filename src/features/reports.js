@@ -606,26 +606,31 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
         let dotColor = '#10b981'; // Default Green (ERS)
         if (tx.type === 'adjustment') dotColor = '#ef4444'; // Red
         else if (tx.type === 'transfer_out' || tx.type === 'transfer_in') dotColor = '#8b5cf6'; // Purple
-        else if (tx.name !== 'ERS Flexiload') dotColor = 'var(--accent-color)'; // Blue
+        else if (tx.name !== 'ERS Flexiload') dotColor = '#3390ec'; // Blue
 
-        let amtColor = isOutflow ? '#ef4444' : 'var(--text-primary)';
+        let amtColor = isOutflow ? 'var(--danger-text)' : 'var(--text-primary)';
         let amtPrefix = isOutflow ? '− ' : '';
 
         historyHTML += `
-            <div class="history-item" style="display: flex; flex-direction: column; padding: 12px 14px; border-bottom: 1px solid var(--border-color); cursor: pointer;" onclick="const actions = this.querySelector('.tx-actions'); if(actions) { actions.style.display = actions.style.display === 'none' ? 'flex' : 'none'; }">
-                <div style="display: flex; width: 100%; align-items: flex-start; gap: 10px;">
-                    <div style="width: 7px; height: 7px; border-radius: 50%; background: ${dotColor}; margin-top: 6px; flex-shrink: 0;"></div>
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 0.875rem; color: var(--text-primary); font-weight: 500; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; line-height: 1.2;">
-                            <span>${tx.qty}x ${tx.name}</span>
-                            <span style="font-size: 0.65rem; background: var(--info-bg); color: var(--accent-color); border-radius: 999px; padding: 2px 6px; margin-left: 2px;">${tx.agentName.split(' ')[0]}</span>
+            <div class="history-item" style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); margin-bottom: 12px; cursor: pointer; transition: transform 0.1s;" onclick="const actions = this.querySelector('.tx-actions'); if(actions) { actions.style.display = actions.style.display === 'none' ? 'flex' : 'none'; }">
+                <div style="display: flex; width: 100%; align-items: flex-start; gap: 14px;">
+                    <div style="width: 44px; height: 44px; border-radius: 12px; background: ${dotColor}15; color: ${dotColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${dotColor}30;">
+                        <span style="font-size: 0.95rem; font-weight: 800;">${tx.qty}x</span>
+                    </div>
+                    <div style="flex: 1; min-width: 0; padding-top: 2px;">
+                        <div style="font-size: 1rem; color: var(--text-primary); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 6px;">
+                            ${tx.name}
+                        </div>
+                        <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 0.75rem; color: var(--text-secondary);">
+                            <span>${tx.time}</span>
+                            <span>•</span>
+                            <span>${payLabel}</span>
+                            <span>•</span>
+                            <span style="color: var(--text-primary); font-weight: 600;">By ${tx.agentName.split(' ')[0]}</span>
                             ${badges}
                         </div>
-                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">
-                            ${tx.time} • ${payLabel}
-                        </div>
                     </div>
-                    <div style="font-size: 0.875rem; font-weight: 500; color: ${amtColor}; flex-shrink: 0; text-align: right;">
+                    <div style="font-size: 1.1rem; font-weight: 800; color: ${amtColor}; flex-shrink: 0; text-align: right; padding-top: 2px;">
                         ${amtPrefix}${Math.abs(tx.amount || 0)}
                     </div>
                 </div>

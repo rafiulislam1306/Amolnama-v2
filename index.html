@@ -128,43 +128,41 @@
         <div id="desk-action-buttons">
             <div class="section-header">DESK ACTIONS</div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
-                <button class="btn-outline" style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 12px; padding: 13px 12px; display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 9px; height: auto;" onclick="openManagerCashModal()">
-                    <div style="width: 30px; height: 30px; border-radius: 8px; background: rgba(16, 185, 129, 0.12); color: #10b981; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                <div style="background: var(--success-bg); border: 1px solid var(--success-border); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 12px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.02); transition: transform 0.1s;" onclick="openManagerCashModal()">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: var(--surface-color); color: var(--success-text); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 6px rgba(0,0,0,0.05);">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                     </div>
-                    <span style="font-size: 0.8rem; font-weight: 500; color: var(--text-primary); text-align: left;">Cash Actions</span>
-                </button>
-                <button class="btn-outline" style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 12px; padding: 13px 12px; display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 9px; height: auto;" onclick="openDeskTransfer()">
-                    <div style="width: 30px; height: 30px; border-radius: 8px; background: rgba(139, 92, 246, 0.12); color: #8b5cf6; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><polyline points="8 14 12 18 16 14"/><line x1="12" x2="12" y1="6" y2="18"/></svg>
+                    <span style="font-size: 0.9rem; font-weight: 700; color: var(--success-text); text-align: left;">Cash Actions</span>
+                </div>
+                <div style="background: var(--purple-bg); border: 1px solid var(--purple-border); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 12px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.02); transition: transform 0.1s;" onclick="openDeskTransfer()">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: var(--surface-color); color: var(--purple-text); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 6px rgba(0,0,0,0.05);">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><polyline points="8 14 12 18 16 14"/><line x1="12" x2="12" y1="6" y2="18"/></svg>
                     </div>
-                    <span style="font-size: 0.8rem; font-weight: 500; color: var(--text-primary); text-align: left;">Desk Transfer</span>
-                </button>
-                <button class="btn-outline" style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 12px; padding: 13px 12px; display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 9px; height: auto;" onclick="openMainStockModal()">
-                    <div style="width: 30px; height: 30px; border-radius: 8px; background: rgba(51, 144, 236, 0.12); color: var(--accent-color); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+                    <span style="font-size: 0.9rem; font-weight: 700; color: var(--purple-text); text-align: left;">Desk Transfer</span>
+                </div>
+                <div style="background: var(--info-bg); border: 1px solid var(--info-border); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 12px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.02); transition: transform 0.1s;" onclick="openMainStockModal()">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: var(--surface-color); color: var(--info-text); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 6px rgba(0,0,0,0.05);">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
                     </div>
-                    <span style="font-size: 0.8rem; font-weight: 500; color: var(--text-primary); text-align: left;">+ Main Stock</span>
-                </button>
-                <button class="btn-outline" style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 12px; padding: 13px 12px; display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 9px; height: auto;" onclick="openReturnStockModal()">
-                    <div style="width: 30px; height: 30px; border-radius: 8px; background: rgba(239, 68, 68, 0.12); color: #ef4444; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 1 1-1.73l7-4a2 2 0 0 1 2 0l7 4A2 2 0 0 1 21 8v8a2 2 0 0 1-1 1.73l-7 4a2 2 0 0 1-2 0l-7-4A2 2 0 0 1 3 16Z"/><path d="m7.5 4.21 4.5 2.6 4.5-2.6"/><path d="m7.5 19.79 4.5-2.6 4.5 2.6"/><path d="M3.27 6.96 12 12l8.73-5.04"/><path d="M12 22V12"/></svg>
+                    <span style="font-size: 0.9rem; font-weight: 700; color: var(--info-text); text-align: left;">+ Main Stock</span>
+                </div>
+                <div style="background: var(--danger-bg); border: 1px solid var(--danger-border); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 12px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.02); transition: transform 0.1s;" onclick="openReturnStockModal()">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: var(--surface-color); color: var(--danger-text); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 6px rgba(0,0,0,0.05);">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 1 1-1.73l7-4a2 2 0 0 1 2 0l7 4A2 2 0 0 1 21 8v8a2 2 0 0 1-1 1.73l-7 4a2 2 0 0 1-2 0l-7-4A2 2 0 0 1 3 16Z"/><path d="m7.5 4.21 4.5 2.6 4.5-2.6"/><path d="m7.5 19.79 4.5-2.6 4.5 2.6"/><path d="M3.27 6.96 12 12l8.73-5.04"/><path d="M12 22V12"/></svg>
                     </div>
-                    <span style="font-size: 0.8rem; font-weight: 500; color: var(--text-primary); text-align: left;">− Return Stock</span>
-                </button>
+                    <span style="font-size: 0.9rem; font-weight: 700; color: var(--danger-text); text-align: left;">− Return Stock</span>
+                </div>
             </div>
 
-            <!-- 6. CLOSE DESK BUTTON -->
-            <button class="btn-primary-full" style="background-color: #0f172a; margin-bottom: 24px; padding: 14px 16px; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.9rem; font-weight: 500;" onclick="initiateCloseDesk()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> 
-                Close desk
+                        <button class="btn-primary-full" style="background-color: var(--text-primary); color: var(--bg-color); margin-bottom: 24px; padding: 14px 16px; border-radius: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 1rem; font-weight: 700;" onclick="initiateCloseDesk()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> 
+                Close Desk
             </button>
         </div>
 
-        <!-- 7. LEDGER SECTION HEADER -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <span style="font-size: 0.7rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Desk ledger</span>
-            <select id="desk-history-filter" class="settings-input" style="width: auto; padding: 5px 11px; font-size: 0.75rem; text-transform: none; font-weight: 500; margin: 0; background: var(--info-bg); color: var(--accent-color); border: none; border-radius: 999px; outline: none; appearance: auto;" onchange="renderDeskDashboard()">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; margin: 0 -16px 12px -16px; position: sticky; top: 0; z-index: 10; background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border-color);">
+            <span style="font-size: 0.8rem; font-weight: 800; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.5px;">Desk Ledger</span>
+            <select id="desk-history-filter" class="settings-input" style="width: auto; padding: 6px 12px; font-size: 0.8rem; text-transform: none; font-weight: 600; margin: 0; background: var(--surface-color); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 999px; outline: none; appearance: auto; box-shadow: 0 2px 4px rgba(0,0,0,0.02);" onchange="renderDeskDashboard()">
                 <option value="all">All Activity</option>
                 <option value="ers">ERS Flexiload</option>
                 <option value="cash_ops">Cash Drops & Floats</option>
@@ -177,8 +175,8 @@
             </select>
         </div>
 
-        <div id="desk-history-log" style="background-color: var(--surface-color); border-radius: 12px; border: 1px solid var(--border-color); overflow: hidden; margin-bottom: 24px;">
-            </div>
+        <div id="desk-history-log" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; padding-bottom: 24px;">
+        </div>
     </main>
 
     <main id="tab-report" class="tab-content">
