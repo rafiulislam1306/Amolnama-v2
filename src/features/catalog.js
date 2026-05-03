@@ -12,7 +12,8 @@ export function renderAppUI() {
         if (!AppState.globalCatalog) return;
 
         Object.values(AppState.globalCatalog).sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(item => {
-            if (!item.isActive) return;
+            // Only hide the item if it is explicitly set to false. Otherwise, assume it is active.
+            if (item.isActive === false) return;
             
             let safePrice = parseFloat(item.price) || 0;
             let containerId = "";
