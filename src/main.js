@@ -18,7 +18,6 @@ import { initUserData } from './core/app-init.js';
 // ==========================================
 //    TEMPORARY REFACTORING BRIDGE
 // ==========================================
-// This links the old variable names to our new AppState so the rest of main.js doesn't break!
 Object.defineProperties(window, {
     currentUser: { get: () => AppState.currentUser, set: (v) => AppState.currentUser = v },
     userDisplayName: { get: () => AppState.userDisplayName, set: (v) => AppState.userDisplayName = v },
@@ -37,10 +36,9 @@ Object.defineProperties(window, {
     devNotesQueue: { get: () => AppState.devNotesQueue, set: (v) => AppState.devNotesQueue = v }
 });
 
-// Initialize Service Worker & PWA Install Prompts
 initPWA();
 
-// Bind UI Helpers to the window so HTML buttons can click them
+// Bind UI Helpers to the window
 window.signInWithGoogle = signInWithGoogle;
 window.logout = logout;
 window.openProfileHub = openProfileHub;
@@ -114,13 +112,13 @@ window.toggleDevNote = toggleDevNote;
 window.deleteDevNote = deleteDevNote;
 window.renderLiveFloorTab = renderLiveFloorTab;
 window.openMyDeskDashboard = openMyDeskDashboard;
+window.peekAtDesk = peekAtDesk; // <-- FIXED: Was missing!
 window.initiateCloseDesk = initiateCloseDesk;
 window.calculateBlindRetained = calculateBlindRetained;
 window.submitClosingReport = submitClosingReport;
 window.renderAppUI = renderAppUI;
 window.fetchTransactionsForDate = fetchTransactionsForDate;
 
-// --- EDIT, TRASH & AUDIT BINDINGS ---
 window.openEditTx = openEditTx;
 window.saveTxEdit = saveTxEdit;
 window.toggleEditSplitFields = toggleEditSplitFields;
@@ -168,9 +166,10 @@ initAuth(
 function switchTab(tabId, title) {
     document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-    document.getElementById('tab-' + tabId).classList.add('active');
     
-    // Fix: Robust Navigation Highlighting
+    const targetTab = document.getElementById('tab-' + tabId);
+    if (targetTab) targetTab.classList.add('active');
+    
     document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
     const navBtns = document.querySelectorAll('.nav-item');
     if (navBtns.length >= 5) {
@@ -197,10 +196,5 @@ window.addEventListener('click', (event) => {
     }
 });
 
-// Initialize the drag listeners once the DOM is fully loaded
 document.addEventListener('DOMContentLoaded', setupBottomSheetDrag);
-
-// ==========================================
-//    NETWORK STATUS ENGINE
-// ==========================================
 initNetworkStatus();
