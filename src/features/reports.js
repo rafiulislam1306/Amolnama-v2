@@ -119,7 +119,7 @@ export async function renderPersonalReport() {
         
         if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
         if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
-        let agentBadge = currentReportMode === 'floor' ? `<span style="font-size: 0.7rem; background: #e0f2fe; color: #0284c7; padding: 4px 8px; border-radius: 12px; font-weight: 700; letter-spacing: 0.5px;">${tx.agentName.split(' ')[0]}</span>` : '';
+        let agentBadge = currentReportMode === 'floor' ? `<span>•</span> <span style="color: var(--text-primary); font-weight: 600;">By ${tx.agentName.split(' ')[0]}</span>` : '';
 
         let actionBtns = '';
         if (currentReportMode === 'personal' || AppState.currentUserRole === 'admin') {
@@ -135,18 +135,37 @@ export async function renderPersonalReport() {
             `;
         }
 
+        let isOutflow = tx.type === 'adjustment' || tx.type === 'transfer_out';
+        let dotColor = '#10b981'; // Default Green (ERS)
+        if (tx.type === 'adjustment') dotColor = '#ef4444'; // Red
+        else if (tx.type === 'transfer_out' || tx.type === 'transfer_in') dotColor = '#8b5cf6'; // Purple
+        else if (tx.name !== 'ERS Flexiload') dotColor = '#3390ec'; // Blue
+
+        let amtColor = isOutflow ? 'var(--danger-text)' : 'var(--text-primary)';
+        let amtPrefix = isOutflow ? '− ' : '';
+
         historyHTML += `
-            <div class="history-item" style="cursor: pointer; flex-direction: column; align-items: stretch; transition: background-color 0.15s;" onclick="const actions = this.querySelector('.tx-actions'); if(actions) { actions.style.display = actions.style.display === 'none' ? 'flex' : 'none'; }">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
-                    <div class="history-info" style="flex: 1; padding-right: 12px;">
-                        <div style="display: flex; align-items: center; flex-wrap: wrap; margin-bottom: 2px;">
-                            <span class="history-title" style="margin-right: 8px;">${tx.qty}x ${tx.name}</span>
+            <div class="history-item" style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); margin-bottom: 12px; cursor: pointer; transition: transform 0.1s;" onclick="const actions = this.querySelector('.tx-actions'); if(actions) { actions.style.display = actions.style.display === 'none' ? 'flex' : 'none'; }">
+                <div style="display: flex; width: 100%; align-items: flex-start; gap: 14px;">
+                    <div style="width: 44px; height: 44px; border-radius: 12px; background: ${dotColor}15; color: ${dotColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${dotColor}30;">
+                        <span style="font-size: 0.95rem; font-weight: 800;">${tx.qty}x</span>
+                    </div>
+                    <div style="flex: 1; min-width: 0; padding-top: 2px;">
+                        <div style="font-size: 1rem; color: var(--text-primary); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 6px;">
+                            ${tx.name}
+                        </div>
+                        <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 0.75rem; color: var(--text-secondary);">
+                            <span style="font-family: monospace; color: var(--text-primary); opacity: 0.7;">${tx.receiptNo || tx.id}</span>
+                            <span>•</span>
+                            <span>${tx.time}</span>
+                            <span>•</span>
+                            <span>${payLabel}</span>
+                            ${agentBadge}
                             ${badges}
                         </div>
-                        <span class="history-meta">${tx.receiptNo || tx.id} • ${tx.time} • ${tx.amount} ${userCurrency} • ${payLabel}</span>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0; padding-top: 2px;">
-                        ${agentBadge}
+                    <div style="font-size: 1.1rem; font-weight: 800; color: ${amtColor}; flex-shrink: 0; text-align: right; padding-top: 2px;">
+                        ${amtPrefix}${Math.abs(tx.amount || 0)}
                     </div>
                 </div>
                 ${actionBtns}
