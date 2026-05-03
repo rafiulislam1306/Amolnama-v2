@@ -90,13 +90,14 @@ export async function initUserData(onComplete) {
                 } catch(e) {
                     console.error("Failed to recover session balances on app load:", e);
                 }
+                document.getElementById('modal-desk-select').classList.remove('active');
+                await fetchTransactionsForDate();
             } else {
-                AppState.currentDeskName = deskSnap.exists() ? deskSnap.data().name : AppState.currentDeskId;
-                document.getElementById('header-title').innerText = `${AppState.currentDeskName} (Closed)`;
-                AppState.currentSessionId = null; 
+                // The desk was closed (by a manager or auto-close), so we unassign the user.
+                AppState.currentDeskId = null;
+                await setDoc(doc(db, 'users', AppState.currentUser.uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
+                await loadFloorMap();
             }
-            document.getElementById('modal-desk-select').classList.remove('active');
-            await fetchTransactionsForDate();
         } else {
             await loadFloorMap();
         }
