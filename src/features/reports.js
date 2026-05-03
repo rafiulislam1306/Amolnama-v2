@@ -697,11 +697,16 @@ export async function fetchTransactionsForDate() {
     if (txListenerUnsubscribe) { txListenerUnsubscribe(); txListenerUnsubscribe = null; }
 
     try {
-        let txQuery = query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr));
-        
-        if (AppState.currentUserRole !== 'admin' && currentReportMode !== 'floor') {
-            txQuery = query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr), where('agentId', '==', AppState.currentUser.uid));
-        }
+                let txQuery = query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr));
+                
+                if (AppState.currentUserRole !== 'admin' && currentReportMode !== 'floor') {
+                    // FIX: If the agent is at a desk, load ALL transactions for that desk so they see inbound manager transfers.
+                    if (AppState.currentDeskId && AppState.currentDeskId !== 'sandbox') {
+                        txQuery = query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr), where('deskId', '==', AppState.currentDeskId));
+                    } else {
+                        txQuery = query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr), where('agentId', '==', AppState.currentUser.uid));
+                    }
+                }
 
         txListenerUnsubscribe = onSnapshot(
             txQuery,

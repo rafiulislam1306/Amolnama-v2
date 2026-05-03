@@ -28,7 +28,8 @@ export function getAvailableStock(itemName) {
     let stock = AppState.currentOpeningInv[trackAs] || 0; 
 
     AppState.transactions.forEach(tx => {
-        if (tx.deskId === AppState.currentDeskId && !tx.isDeleted && tx.trackAs === trackAs) {
+        // FIX: Use sessionId to perfectly match the current active shift's dashboard!
+        if (tx.sessionId === AppState.currentSessionId && !tx.isDeleted && tx.trackAs === trackAs) {
             stock += getInventoryChange(tx); 
         }
     });
