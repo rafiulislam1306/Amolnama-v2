@@ -16,7 +16,7 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('SW: Pre-caching core assets');
-        return cache.addAll(CORE_ASSETS);
+        return Promise.allSettled(CORE_ASSETS.map(url => cache.add(url)));
       })
   );
 });
