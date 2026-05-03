@@ -66,9 +66,11 @@ export async function initUserData(onComplete) {
         }
 
         updateCurrencyUI(); 
-        renderAppUI();
+        setTimeout(() => {
+            renderAppUI();
+        }, 100);
         
-        const t = new Date(); 
+        const t = new Date();
         document.getElementById('report-date-picker').value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
         
         if (userData.assignedDate === todayStr && userData.assignedDeskId) {
