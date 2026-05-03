@@ -184,9 +184,9 @@ function switchTab(tabId, title) {
     if (tabId === 'floor') {
         renderLiveFloorTab();
     } else if (tabId === 'desk') {
-        if (typeof renderDeskDashboard === 'function') renderDeskDashboard();
+        if (typeof window.renderDeskDashboard === 'function') window.renderDeskDashboard();
     } else if (tabId === 'store') {
-        renderAppUI();
+        if (typeof window.renderAppUI === 'function') window.renderAppUI();
     }
 }
 
