@@ -119,7 +119,7 @@ export async function renderPersonalReport() {
         
         if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
         if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
-        let agentBadge = currentReportMode === 'floor' ? `<span>•</span> <span style="color: var(--text-primary); font-weight: 600;">By ${tx.agentName.split(' ')[0]}</span>` : '';
+        let agentBadge = currentReportMode === 'floor' ? ` &bull; <span style="color: var(--text-primary); font-weight: 600;">By ${tx.agentName.split(' ')[0]}</span>` : '';
 
         let actionBtns = '';
         if (currentReportMode === 'personal' || AppState.currentUserRole === 'admin') {
@@ -154,14 +154,8 @@ export async function renderPersonalReport() {
                         <div style="font-size: 1rem; color: var(--text-primary); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 6px;">
                             ${tx.name}
                         </div>
-                        <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 0.75rem; color: var(--text-secondary);">
-                            <span style="font-family: monospace; color: var(--text-primary); opacity: 0.7;">${tx.receiptNo || tx.id}</span>
-                            <span>•</span>
-                            <span>${tx.time}</span>
-                            <span>•</span>
-                            <span>${payLabel}</span>
-                            ${agentBadge}
-                            ${badges}
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5; margin-top: 4px;">
+                            <span style="font-family: monospace; color: var(--text-primary); opacity: 0.8; font-weight: 600;">${tx.receiptNo || tx.id}</span> &bull; ${tx.time} &bull; ${payLabel}${agentBadge} ${badges}
                         </div>
                     </div>
                     <div style="font-size: 1.1rem; font-weight: 800; color: ${amtColor}; flex-shrink: 0; text-align: right; padding-top: 2px;">
@@ -644,13 +638,8 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
                         <div style="font-size: 1rem; color: var(--text-primary); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 6px;">
                             ${tx.name}
                         </div>
-                        <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 0.75rem; color: var(--text-secondary);">
-                            <span>${tx.time}</span>
-                            <span>•</span>
-                            <span>${payLabel}</span>
-                            <span>•</span>
-                            <span style="color: var(--text-primary); font-weight: 600;">By ${tx.agentName.split(' ')[0]}</span>
-                            ${badges}
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5; margin-top: 4px;">
+                            ${tx.time} &bull; ${payLabel} &bull; <span style="color: var(--text-primary); font-weight: 600;">By ${tx.agentName.split(' ')[0]}</span> ${badges}
                         </div>
                     </div>
                     <div style="font-size: 1.1rem; font-weight: 800; color: ${amtColor}; flex-shrink: 0; text-align: right; padding-top: 2px;">
