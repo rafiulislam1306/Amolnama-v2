@@ -185,6 +185,8 @@ function switchTab(tabId, title) {
         renderLiveFloorTab();
     } else if (tabId === 'desk') {
         if (typeof renderDeskDashboard === 'function') renderDeskDashboard();
+    } else if (tabId === 'store') {
+        renderAppUI();
     }
 }
 
