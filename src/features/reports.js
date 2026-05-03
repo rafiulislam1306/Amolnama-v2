@@ -169,7 +169,7 @@ export async function renderPersonalReport() {
 
     if (currentReportMode === 'floor') {
         document.getElementById('report-user-name').innerText = "Center Report";
-        document.getElementById('report-user-email').innerText = `Floor Opening Cash: ${floorOpeningCash} Tk | Manager Drops: ${floorManagerDrops} Tk`;
+        document.getElementById('report-user-email').innerText = `Opening Cash: ${floorOpeningCash} Tk | Manager Drops: ${floorManagerDrops} Tk`;
         document.getElementById('report-user-photo').src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666666'%3E%3Cpath d='M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z'/%3E%3C/svg%3E";
     } else {
         document.getElementById('report-user-name').innerText = AppState.userDisplayName;
@@ -332,9 +332,9 @@ export function shareReport() {
     let reportText = "";
     
     if (currentReportMode === 'floor') {
-        reportText = `Center Report: ${dateStr}\n\nSALES SUMMARY\nTotal Revenue: ${totalRevenue}\nCash Collected: ${totalCash}\nMFS Collected: ${totalMfs}\nERS Disbursed: ${totalErs}\n\n`;
+        reportText = `Center Report: ${dateStr}\n\nSALES SUMMARY\nRevenue: ${totalRevenue}\nCash Collected: ${totalCash}\nMFS Collected: ${totalMfs}\nERS Disbursed: ${totalErs}\n\n`;
     } else {
-        reportText = `My Daily Report: ${dateStr}\nAgent: ${AppState.userNickname || AppState.userDisplayName}\n\nPERSONAL SALES SUMMARY\nTotal Revenue: ${totalRevenue}\nCash Collected: ${totalCash}\nMFS Collected: ${totalMfs}\nERS Disbursed: ${totalErs}\n\nPHYSICAL INVENTORY LIFECYCLE\n`;
+        reportText = `My Daily Report: ${dateStr}\nAgent: ${AppState.userNickname || AppState.userDisplayName}\n\nPERSONAL SALES SUMMARY\nRevenue: ${totalRevenue}\nCash Collected: ${totalCash}\nMFS Collected: ${totalMfs}\nERS Disbursed: ${totalErs}\n\nPHYSICAL INVENTORY LIFECYCLE\n`;
         let myTx = AppState.transactions.filter(t => t.agentId === AppState.currentUser.uid);
         reportText += buildLifecycleText(myTx, AppState.currentOpeningInv);
     }
