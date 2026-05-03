@@ -427,7 +427,7 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
         <!-- 1. Cash Formula Card -->
         <div class="admin-form-card" style="padding: 0; margin-bottom: 16px; background: var(--surface-color); border: 1px solid var(--border-color); box-shadow: 0 1px 2px rgba(0,0,0,0.02); overflow: hidden;">
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 11px 16px;">
-                <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500;">Opening Float</span>
+                <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500;">Opening Cash</span>
                 <span style="font-size: 0.95rem; color: var(--text-primary); font-weight: 500;">${opening} Tk</span>
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 11px 16px;">
