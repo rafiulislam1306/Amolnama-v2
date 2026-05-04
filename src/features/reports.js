@@ -345,14 +345,15 @@ export function shareReport() {
 }
 
 export function shareDeskReport() {
-    let dateStr = formatToGBDate(document.getElementById('report-date-picker').value);
-    let deskTitle = document.getElementById('desk-dashboard-title').innerText;
-    let activeAgents = document.getElementById('desk-logged-agents').innerText;
+    let dateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
+    let deskTitleNode = document.getElementById('desk-dashboard-title');
+    let deskTitle = (deskTitleNode && deskTitleNode.innerText !== 'Desk Name') ? deskTitleNode.innerText : 'My Active Desk';
+    let activeAgents = document.getElementById('desk-logged-agents') ? document.getElementById('desk-logged-agents').innerText : 'None';
 
-    let opening = document.getElementById('desk-tot-opening').innerText;
-    let cashSales = document.getElementById('desk-tot-cash-sales').innerText;
-    let mgrDrop = document.getElementById('desk-tot-manager').innerText;
-    let expected = document.getElementById('desk-tot-expected-cash').innerText;
+    let opening = document.getElementById('desk-tot-opening') ? document.getElementById('desk-tot-opening').innerText : '0 Tk';
+    let cashSales = document.getElementById('desk-tot-cash-sales') ? document.getElementById('desk-tot-cash-sales').innerText : '0 Tk';
+    let mgrDrop = document.getElementById('desk-tot-manager') ? document.getElementById('desk-tot-manager').innerText : '0 Tk';
+    let expected = document.getElementById('desk-tot-expected-cash') ? document.getElementById('desk-tot-expected-cash').innerText : '0 Tk';
     
     let deskTx = AppState.transactions.filter(t => t.deskId === AppState.currentDeskId && t.dateStr === dateStr);
     let deskMfs = 0;
@@ -429,11 +430,11 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
         <div class="admin-form-card" style="padding: 0; margin-bottom: 16px; background: var(--surface-color); border: 1px solid var(--border-color); box-shadow: 0 1px 2px rgba(0,0,0,0.02); overflow: hidden;">
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 11px 16px;">
                 <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500;">Opening Cash</span>
-                <span style="font-size: 0.95rem; color: var(--text-primary); font-weight: 500;">${opening} Tk</span>
+                <span id="desk-tot-opening" style="font-size: 0.95rem; color: var(--text-primary); font-weight: 500;">${opening} Tk</span>
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 11px 16px;">
                 <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500;">+ Cash Sales</span>
-                <span style="font-size: 0.95rem; color: var(--text-primary); font-weight: 500;">+${sales} Tk</span>
+                <span id="desk-tot-cash-sales" style="font-size: 0.95rem; color: var(--text-primary); font-weight: 500;">+${sales} Tk</span>
             </div>
             <div style="padding: 11px 16px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="const breakdown = this.nextElementSibling; const icon = this.querySelector('svg'); if(breakdown.style.display === 'none') { breakdown.style.display = 'block'; icon.style.transform = 'rotate(180deg)'; } else { breakdown.style.display = 'none'; icon.style.transform = 'rotate(0deg)'; }">
@@ -441,7 +442,7 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
                         +/- Cash Actions
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
                     </span>
-                    <span style="font-size: 0.95rem; font-weight: 500; color: ${adjustments < 0 ? '#ef4444' : 'var(--text-primary)'};">${formattedAdjustments} Tk</span>
+                    <span id="desk-tot-manager" style="font-size: 0.95rem; font-weight: 500; color: ${adjustments < 0 ? '#ef4444' : 'var(--text-primary)'};">${formattedAdjustments} Tk</span>
                 </div>
                 <div style="display: none; padding-top: 8px; border-top: 1px solid var(--border-color); margin-top: 8px;">
                     ${adjBreakdownHTML || '<div style="font-size: 0.85rem; color: var(--text-secondary); text-align: right; font-style: italic;">No actions recorded</div>'}
@@ -449,7 +450,7 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 11px 16px; background: var(--bg-color); border-top: 1px solid var(--border-color);">
                 <span style="font-size: 0.7rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Expected Cash</span>
-                <span style="font-size: 1.4rem; font-weight: 500; color: var(--text-primary);">${expected}</span>
+                <span id="desk-tot-expected-cash" style="font-size: 1.4rem; font-weight: 500; color: var(--text-primary);">${expected} Tk</span>
             </div>
         </div>
 

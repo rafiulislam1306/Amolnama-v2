@@ -14,6 +14,7 @@ import { filterAdminCatalog, toggleAddForm, addInventoryGroup, removeInventoryGr
 import { openDevNotes, addDevNote, editDevNote, cancelInlineEdit, saveInlineEdit, toggleDevNote, deleteDevNote } from './features/devNotes.js';
 import { renderAppUI } from './features/catalog.js';
 import { initUserData } from './core/app-init.js';
+import { toggleReportMode, renderPersonalReport, shareReport, shareDeskReport } from './features/reports.js';
 
 // ==========================================
 //    TEMPORARY REFACTORING BRIDGE
@@ -118,7 +119,7 @@ window.calculateBlindRetained = calculateBlindRetained;
 window.submitClosingReport = submitClosingReport;
 window.renderAppUI = renderAppUI;
 window.fetchTransactionsForDate = fetchTransactionsForDate;
-
+window.shareDeskReport = shareDeskReport;
 window.openEditTx = openEditTx;
 window.saveTxEdit = saveTxEdit;
 window.toggleEditSplitFields = toggleEditSplitFields;
