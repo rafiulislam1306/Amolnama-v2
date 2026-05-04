@@ -147,26 +147,38 @@ export function executeDeskTransfer() {
 
     let qty = parseInt(document.getElementById('desk-transfer-qty').value) || 0;
     if (qty <= 0) { showAppAlert("Invalid Input", "Enter valid quantity."); return; }
-
     let itemName = document.getElementById('desk-transfer-item').value;
-    if (!passStockFirewall(itemName, qty)) return;
 
     let targetSelect = document.getElementById('desk-transfer-target');
     let targetVal = targetSelect.value;
-    if (!targetVal) { showAppAlert("Error", "Please select an active destination desk."); return; }
+    if (!targetVal) { showAppAlert("Error", "Please select a desk."); return; }
     
     let targetDeskName = targetSelect.options[targetSelect.selectedIndex].text;
     let [targetDeskId, targetSessionId] = targetVal.split('|');
     let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     let dateStr = getStrictDate();
 
-    const senderTx = { id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName };
-    const receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${AppState.currentDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, isRemoteTransfer: true };
+    // Check if the user selected "Pull" from the UI (we will add this to HTML next)
+    let directionEl = document.querySelector('input[name="transfer-direction"]:checked');
+    let direction = directionEl ? directionEl.value : 'send';
+
+    let senderTx, receiverTx;
+
+    if (direction === 'send') {
+        if (!passStockFirewall(itemName, qty)) return;
+        senderTx = { id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName };
+        receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${AppState.currentDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, isRemoteTransfer: true };
+        showFlashMessage(navigator.onLine ? `Sent ${qty}x ${itemName} to ${targetDeskName}!` : "Offline: Transfer queued");
+    } else {
+        // PULL LOGIC: We take from them, and give to ourselves
+        senderTx = { id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Pulled by ${AppState.currentDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, isRemoteTransfer: true };
+        receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Pulled from ${targetDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName };
+        showFlashMessage(navigator.onLine ? `Pulled ${qty}x ${itemName} from ${targetDeskName}!` : "Offline: Transfer queued");
+    }
 
     closeModal('modal-desk-transfer');
     addDoc(collection(db, 'transactions'), senderTx).catch(e => console.error(e));
     addDoc(collection(db, 'transactions'), receiverTx).catch(e => console.error(e));
-    showFlashMessage(navigator.onLine ? `Sent ${qty}x ${itemName} to ${targetDeskName}!` : "Offline: Transfer queued");
 }
 
 let targetTransferDeskId = null; 

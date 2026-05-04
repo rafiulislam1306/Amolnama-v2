@@ -51,13 +51,14 @@ export async function renderPersonalReport() {
                     }
                 }
                 
-                if (s.status === 'closed' || s.status === 'pending') {
+                if (s.status === 'closed' || s.status === 'pending' || s.status === 'rolled_over') {
                     let agentName = s.openedBy ? s.openedBy.split(' ')[0] : 'Agent';
-                    let statusLabel = s.status === 'pending' ? 'Pending' : 'Sealed';
-                    let badgeColor = s.status === 'pending' ? '#f59e0b' : '#10b981';
+                    let statusLabel = s.status === 'pending' ? 'Pending' : (s.status === 'rolled_over' ? 'Rolled Over' : 'Sealed');
+                    let badgeColor = s.status === 'pending' ? '#f59e0b' : (s.status === 'rolled_over' ? '#3b82f6' : '#10b981');
+                    let bgCol = s.status === 'pending' ? '#fffbeb' : (s.status === 'rolled_over' ? '#eff6ff' : '#ecfdf5');
                     
                     vaultButtonsHTML += `
-                        <button class="btn-outline" style="flex-shrink: 0; border-color: ${badgeColor}; color: ${badgeColor}; background: ${s.status === 'pending' ? '#fffbeb' : '#ecfdf5'}; font-size: 0.85rem; padding: 8px 14px; border-radius: 10px; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" onclick="openHistoricalSession('${docSnap.id}')">
+                        <button class="btn-outline" style="flex-shrink: 0; border-color: ${badgeColor}; color: ${badgeColor}; background: ${bgCol}; font-size: 0.85rem; padding: 8px 14px; border-radius: 10px; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" onclick="openHistoricalSession('${docSnap.id}')">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                             ${agentName} (${statusLabel})
                         </button>

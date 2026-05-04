@@ -7,7 +7,7 @@ import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/
 import { getInventoryChange, getPhysicalItems } from './inventory.js';
 
 // ==========================================
-//    THE LAZY AUTO-CLOSE
+//    THE SEAMLESS DAILY ROLLOVER
 // ==========================================
 export async function performLazyAutoClose() {
     const todayStr = getStrictDate();
@@ -17,33 +17,41 @@ export async function performLazyAutoClose() {
             const sessionData = docSnap.data();
             if (sessionData.dateStr !== todayStr) {
                 
-                let expectedInv = { ...(sessionData.openingBalances.inventory || {}) };
+                // Calculate yesterday's final stock and cash
+                let rolloverInv = { ...(sessionData.openingBalances.inventory || {}) };
+                let rolloverCash = parseFloat(sessionData.openingBalances.cash) || 0;
+                
                 const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', docSnap.id), where('isDeleted', '==', false)));
                 
                 txSnap.forEach(txDoc => {
-                    let change = getInventoryChange(txDoc.data());
+                    let tx = txDoc.data();
+                    rolloverCash += (tx.cashAmt || 0);
+                    let change = getInventoryChange(tx);
                     if (change !== 0) {
-                        expectedInv[txDoc.data().trackAs] = (expectedInv[txDoc.data().trackAs] || 0) + change;
+                        rolloverInv[tx.trackAs] = (rolloverInv[tx.trackAs] || 0) + change;
                     }
                 });
 
+                // Archive yesterday's session seamlessly
                 await updateDoc(doc(db, 'sessions', docSnap.id), {
-                    status: 'closed', closedBy: 'System Auto-Close', closedByUid: 'system', closedAt: serverTimestamp(),
-                    hasDiscrepancy: true, variance: 'Unknown - Auto Closed',
-                    expectedClosing: { cash: sessionData.openingBalances.cash, inventory: expectedInv },
-                    actualClosing: { cash: 0, inventory: expectedInv }
+                    status: 'rolled_over', rolledOverAt: serverTimestamp(),
+                    expectedClosing: { cash: rolloverCash, inventory: rolloverInv }
                 });
                 
-                await setDoc(doc(db, 'desks', sessionData.deskId), { status: 'closed', currentSessionId: null }, { merge: true });
-                
-                const stuckUsers = await getDocs(query(collection(db, 'users'), where('assignedDeskId', '==', sessionData.deskId)));
-                stuckUsers.forEach(async (u) => {
-                    await updateDoc(doc(db, 'users', u.id), { assignedDeskId: null, assignedDate: null });
+                // Create today's new session using yesterday's leftovers as the opening balance
+                const newSessionRef = doc(collection(db, 'sessions'));
+                await setDoc(newSessionRef, {
+                    deskId: sessionData.deskId, dateStr: todayStr, 
+                    openedBy: 'System Auto-Rollover', openedByUid: 'system', openedAt: serverTimestamp(),
+                    status: 'open', openingBalances: { cash: rolloverCash, inventory: rolloverInv }
                 });
+                
+                // Point the desk to the new session (Users remain logged in!)
+                await setDoc(doc(db, 'desks', sessionData.deskId), { status: 'open', currentSessionId: newSessionRef.id }, { merge: true });
             }
         }
     } catch(e) {
-        console.error("System Error: Lazy auto-close failed. Some desks may still appear open.", e);
+        console.error("System Error: Seamless rollover failed.", e);
     }
 }
 
@@ -72,9 +80,9 @@ export async function loadFloorMap() {
 
         desksSnapshot.forEach(docSnap => {
             const desk = docSnap.data();
-            const isOpen = desk.status === 'open';
-            const statusDot = isOpen ? '<div style="width: 10px; height: 10px; border-radius: 50%; background-color: #10b981; box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);"></div>' : '<div style="width: 10px; height: 10px; border-radius: 50%; background-color: #94a3b8;"></div>';
-            const statusText = isOpen ? '<span style="color: #10b981; font-size: 0.8rem; font-weight: 600;">Open</span>' : '<span style="color: #94a3b8; font-size: 0.8rem; font-weight: 600;">Closed</span>';
+            // Desks are now universally active
+            const statusDot = '<div style="width: 10px; height: 10px; border-radius: 50%; background-color: #10b981; box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);"></div>';
+            const statusText = '<span style="color: #10b981; font-size: 0.8rem; font-weight: 600;">Active</span>';
             
             if (docSnap.id === personalDeskId) {
                 foundPersonal = true;
@@ -196,122 +204,44 @@ export function enterSandboxMode() {
 }
 
 export async function handleDeskSelect(deskId, deskName, status, sessionId) {
-        AppState.currentDeskId = deskId;
-        AppState.currentDeskName = deskName;
+    AppState.currentDeskId = deskId;
+    AppState.currentDeskName = deskName;
 
-        if (status === 'open' && sessionId) {
-            AppState.currentSessionId = sessionId;
-            const todayStr = getStrictDate();
-            try { 
-                await setDoc(doc(db, 'users', AppState.currentUser.uid), { assignedDeskId: AppState.currentDeskId, assignedDate: todayStr }, { merge: true }); 
-            } catch(e) {
-                console.error("Failed to assign desk to user profile:", e);
-            }
-
-            document.getElementById('modal-desk-select').classList.remove('active');
-            document.getElementById('header-title').innerText = `${deskName}`;
-            
-            try {
-                const sessionSnap = await getDoc(doc(db, 'sessions', sessionId));
-                if (sessionSnap.exists() && sessionSnap.data().openingBalances) {
-                    AppState.currentOpeningCash = parseFloat(sessionSnap.data().openingBalances.cash) || 0;
-                    AppState.currentOpeningInv = sessionSnap.data().openingBalances.inventory || {}; 
-                }
-            } catch(e) {
-                showAppAlert("Sync Warning", "Could not fetch opening balances. Desk data might be incomplete.");
-                console.error("Session fetch error:", e);
-            }
-
-            if(window.fetchTransactionsForDate) await window.fetchTransactionsForDate(); 
-            showFlashMessage(`Joined ${deskName}!`);
-    } else {
-        document.getElementById('open-desk-title').innerText = `Open ${deskName}`;
-        document.getElementById('open-cash-float').value = '';
-        document.getElementById('open-desk-inventory-container').innerHTML = '<div class="spinner" style="margin: 0 auto;"></div>';
-        openModal('modal-open-desk');
-
-        const sessionsRef = collection(db, 'sessions');
-        const q = query(sessionsRef, where('deskId', '==', deskId), orderBy('closedAt', 'desc'), limit(1));
-        
-        let rolloverStock = {}; 
-        try {
-            const lastSessionSnap = await getDocs(q);
-            if (!lastSessionSnap.empty) {
-                const lastSession = lastSessionSnap.docs[0].data();
-                if (lastSession.actualClosing && lastSession.actualClosing.inventory) rolloverStock = lastSession.actualClosing.inventory;
-            }
-        } catch (e) {
-            console.error("Could not fetch rollover stock from previous session:", e);
-        }
-
-        let rolloverHTML = '';
-        const physicalItems = getPhysicalItems(); 
-        
-        physicalItems.forEach(itemName => {
-            let expectedQty = rolloverStock[itemName] || 0;
-            rolloverHTML += `
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
-                    <label class="admin-label" style="margin:0; font-size:0.85rem; color:#334155;">${itemName}</label>
-                    <input type="number" class="settings-input open-inv-input" data-name="${itemName}" value="${expectedQty === 0 ? '' : expectedQty}" placeholder="0" style="width:80px; text-align:center; padding:8px; border-color:#cbd5e1;">
-                </div>
-            `;
-        });
-
-        if (!rolloverHTML) rolloverHTML = '<em style="color:#64748b; font-size:0.9rem;">No physical items in catalog.</em>';
-        document.getElementById('open-desk-inventory-container').innerHTML = rolloverHTML;
-    }
-}
-
-let isProcessingDesk = false;
-export async function confirmOpenDesk() {
-    if (isProcessingDesk) return; 
-
-    let floatAmount = parseFloat(document.getElementById('open-cash-float').value);
-    if (isNaN(floatAmount) || floatAmount < 0) { showAppAlert("Invalid Input", "You must enter the exact physical cash float provided by the manager."); return; }
-
-    let verifiedStartingInventory = {};
-    document.querySelectorAll('.open-inv-input').forEach(input => {
-        let qty = parseInt(input.value) || 0;
-        if (qty > 0) verifiedStartingInventory[input.getAttribute('data-name')] = qty;
-    });
-
-    isProcessingDesk = true; 
-
-    try {
-        const deskRef = doc(db, 'desks', AppState.currentDeskId);
-        const deskCheck = await getDoc(deskRef);
-        
-        if (deskCheck.exists() && deskCheck.data().status === 'open') {
-            showAppAlert("Desk Unavailable", "This desk was just opened by another agent. Please refresh the floor map.");
-            closeModal('modal-open-desk'); loadFloorMap(); isProcessingDesk = false; return;
-        }
-
+    // If desk was historically closed or has no session, silently create one to wake it up
+    if (!sessionId || sessionId === 'null' || status !== 'open') {
         const newSessionRef = doc(collection(db, 'sessions'));
-        AppState.currentSessionId = newSessionRef.id;
-        AppState.currentOpeningCash = floatAmount;
-        AppState.currentOpeningInv = verifiedStartingInventory; 
-        const todayStr = getStrictDate();
+        sessionId = newSessionRef.id;
+        await setDoc(newSessionRef, {
+            deskId: deskId, dateStr: getStrictDate(), 
+            openedBy: AppState.userNickname || AppState.userDisplayName, openedByUid: AppState.currentUser.uid, openedAt: serverTimestamp(),
+            status: 'open', openingBalances: { cash: 0, inventory: {} }
+        });
+        await setDoc(doc(db, 'desks', deskId), { status: 'open', currentSessionId: sessionId }, { merge: true });
+    }
 
-        const sessionData = {
-            deskId: AppState.currentDeskId, dateStr: todayStr, openedBy: AppState.userNickname || AppState.userDisplayName, openedByUid: AppState.currentUser.uid, openedAt: serverTimestamp(),
-            status: 'open', openingBalances: { cash: floatAmount, inventory: verifiedStartingInventory }
-        };
-
-        await setDoc(newSessionRef, sessionData);
-        await setDoc(deskRef, { status: 'open', currentSessionId: AppState.currentSessionId, name: AppState.currentDeskName }, { merge: true });
+    AppState.currentSessionId = sessionId;
+    const todayStr = getStrictDate();
+    try {
         await setDoc(doc(db, 'users', AppState.currentUser.uid), { assignedDeskId: AppState.currentDeskId, assignedDate: todayStr }, { merge: true });
+    } catch(e) { console.error("Failed to assign desk to user profile:", e); }
 
-        closeModal('modal-open-desk');
-        document.getElementById('modal-desk-select').classList.remove('active');
-        document.getElementById('header-title').innerText = `${AppState.currentDeskName}`;
-        
-        AppState.transactions = []; AppState.trashTransactions = [];
-        if(window.fetchTransactionsForDate) await window.fetchTransactionsForDate();
-        showFlashMessage(`${AppState.currentDeskName} is now OPEN!`);
+    document.getElementById('modal-desk-select').classList.remove('active');
+    document.getElementById('header-title').innerText = `${deskName}`;
+    
+    try {
+        const sessionSnap = await getDoc(doc(db, 'sessions', sessionId));
+        if (sessionSnap.exists() && sessionSnap.data().openingBalances) {
+            AppState.currentOpeningCash = parseFloat(sessionSnap.data().openingBalances.cash) || 0;
+            AppState.currentOpeningInv = sessionSnap.data().openingBalances.inventory || {}; 
+        }
+    } catch(e) { console.error("Session fetch error:", e); }
 
-    } catch (e) { showAppAlert("System Error", e.message); } 
-    finally { isProcessingDesk = false; }
+    if(window.fetchTransactionsForDate) await window.fetchTransactionsForDate();
+    showFlashMessage(`Joined ${deskName}!`);
 }
+
+// Function deprecated but left empty to prevent external errors if called
+export async function confirmOpenDesk() { return; }
 
 // ==========================================
 //    FLOOR MAP UI & DRAWER ROUTING
@@ -531,7 +461,7 @@ export async function initiateCloseDesk() {
 
     const modalContent = `
         <div style="background-color: var(--surface-color); padding: calc(16px + env(safe-area-inset-top)) 20px 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 10;">
-            <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">Close Shift</h3>
+            <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">End of Day Report</h3>
             <button style="background: none; border: none; color: #ef4444; font-weight: 600; font-size: 1rem; padding: 4px 0; cursor: pointer;" onclick="closeModal('modal-close-desk')">Cancel</button>
         </div>
 
@@ -565,7 +495,7 @@ export async function initiateCloseDesk() {
 
             <button class="btn-primary-full" style="padding: 16px; font-size: 1.1rem; background-color: #10b981; display: flex; justify-content: center; align-items: center; gap: 8px;" onclick="submitClosingReport()">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                SUBMIT TO MANAGER
+                SUBMIT EOD REPORT
             </button>
         </div>
     `;
@@ -605,29 +535,43 @@ export async function submitClosingReport() {
     let retainedFloat = actualCash - dropAmount;
 
     try {
-        await updateDoc(doc(db, 'sessions', AppState.currentSessionId), {
-            closedBy: AppState.userNickname || AppState.userDisplayName, 
-            closedByUid: AppState.currentUser.uid, 
-            closedAt: serverTimestamp(), 
-            status: 'pending', 
-            expectedClosing: expectedClosingStats, 
-            actualClosing: actualClosingStats, 
+        // 1. Save the daily report to a new collection instead of closing the session
+        await setDoc(doc(collection(db, 'eod_reports')), {
+            deskId: AppState.currentDeskId,
+            sessionId: AppState.currentSessionId,
+            dateStr: getStrictDate(),
+            submittedBy: AppState.userNickname || AppState.userDisplayName,
+            submittedAt: serverTimestamp(),
+            expectedClosing: expectedClosingStats,
+            actualClosing: actualClosingStats,
             variance: variance,
-            hasDiscrepancy: variance !== 0, 
-            managerDrop: dropAmount, 
+            managerDrop: dropAmount,
             retainedFloat: retainedFloat
         });
-        
-        await setDoc(doc(db, 'desks', AppState.currentDeskId), { status: 'closed', currentSessionId: null }, { merge: true });
-        await setDoc(doc(db, 'users', AppState.currentUser.uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
+
+        // 2. If money was given to the manager, auto-create a transaction so the drawer cash stays accurate
+        if (dropAmount > 0) {
+            await setDoc(doc(collection(db, 'transactions')), {
+                sessionId: AppState.currentSessionId,
+                dateStr: getStrictDate(),
+                timestamp: serverTimestamp(),
+                type: 'drop',
+                cat: 'transfer',
+                title: 'Manager Drop',
+                cashAmt: -Math.abs(dropAmount),
+                mfsAmt: 0,
+                payment: 'Cash',
+                isDeleted: false,
+                agentName: AppState.userNickname || AppState.userDisplayName
+            });
+        }
     } catch (e) { 
         showFlashMessage("Offline: Report queued for sync."); 
     } finally {
-        AppState.currentDeskId = null; 
-        AppState.currentSessionId = null; 
-        AppState.currentDeskName = '';
         closeModal('modal-close-desk');
-        showFlashMessage("Report Submitted! See Manager.");
-        loadFloorMap(); // Automatically reload the floor map
+        showFlashMessage("EOD Report Submitted!");
+        if(window.fetchTransactionsForDate) window.fetchTransactionsForDate();
+        loadFloorMap(); 
+        // Note: AppState variables are NOT cleared, so the user stays at their desk!
     }
 }

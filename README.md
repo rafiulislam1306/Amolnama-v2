@@ -18,6 +18,7 @@
 4. [Critical Patterns & Rules](#4-critical-patterns--rules)
 5. [Debug & Audit Mode](#5-debug--audit-mode)
 6. [README Maintenance](#6-readme-maintenance)
+7. [Git Commit Protocol](#7-git-commit-protocol)
 
 ---
 
@@ -479,6 +480,39 @@ After completing any change, the AI must check:
 
 ### How the User Updates the README:
 The user will paste the provided block into the correct section of this file and save it. The updated README is then used at the start of the next session.
+
+---
+
+## 7. Git Commit Protocol
+
+At the end of every session **where actual code was changed**, the AI must provide a one-line commit summary for the user to paste into GitHub Desktop.
+
+---
+
+### Rules:
+- Only provide a commit summary if at least one code file was changed this session
+- If the session was discussion only (no files edited), do not provide a commit summary
+- README updates alone do not count as a code change
+- Keep the summary focused on the code change only — do not mention README updates
+- Format: `Action: short description` in plain, clear English
+
+### Format examples:
+- `Fix: store tab not rendering on open`
+- `Fix: drawer tab dashboard not loading`
+- `Add: openHistoricalSession function to admin panel`
+- `Update: stock calculation now uses sessionId instead of deskId`
+- `Remove: dead FAB reference from app-init`
+
+### If multiple code changes were made in one session:
+Combine into one line covering the most significant change:
+- `Fix: store and drawer tabs not rendering + switchTab window binding`
+
+---
+
+### At the end of every session with code changes, say:
+
+> **Commit summary for GitHub Desktop:**
+> `Action: description here`
 
 ---
 
