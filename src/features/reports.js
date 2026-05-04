@@ -354,19 +354,67 @@ export function shareDeskReport() {
     let cashSales = document.getElementById('desk-tot-cash-sales') ? document.getElementById('desk-tot-cash-sales').innerText : '0 Tk';
     let mgrDrop = document.getElementById('desk-tot-manager') ? document.getElementById('desk-tot-manager').innerText : '0 Tk';
     let expected = document.getElementById('desk-tot-expected-cash') ? document.getElementById('desk-tot-expected-cash').innerText : '0 Tk';
-    
+
     let deskTx = AppState.transactions.filter(t => t.deskId === AppState.currentDeskId && t.dateStr === dateStr);
     let deskMfs = 0;
+    let itemsSold = {};
+    let invStats = {};
+
+    // 1. Initialize inventory stats from drawer opening
+    getPhysicalItems().forEach(item => {
+        let o = AppState.currentOpeningInv[item] || 0;
+        invStats[item] = { open: o, in: 0, out: 0, sold: 0, rem: o };
+    });
+
+    // 2. Tally up all metrics
     deskTx.forEach(tx => {
-        if(!tx.isDeleted) {
-            deskMfs += (tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0));
+        if(tx.isDeleted) return;
+
+        // Tally MFS
+        deskMfs += (tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0));
+
+        // Tally Items Sold (Exclude pure cash actions and ERS)
+        if (tx.type !== 'adjustment' && tx.type !== 'transfer_out' && tx.type !== 'transfer_in' && tx.name !== 'ERS Flexiload' && tx.name !== 'Physical Cash') {
+            itemsSold[tx.name] = (itemsSold[tx.name] || 0) + Math.abs(tx.qty);
+        }
+
+        // Tally Physical Inventory Lifecycle
+        if (AppState.globalInventoryGroups.includes(tx.trackAs)) {
+            let trackAs = tx.trackAs;
+            let q = Math.abs(tx.qty);
+            if (tx.type === 'transfer_in') { invStats[trackAs].in += q; invStats[trackAs].rem += q; }
+            else if (tx.type === 'transfer_out') { invStats[trackAs].out += q; invStats[trackAs].rem -= q; }
+            else if (tx.type === 'adjustment') { invStats[trackAs].in += q; invStats[trackAs].rem += q; }
+            else { 
+                invStats[trackAs].sold += q; 
+                invStats[trackAs].rem -= q; 
+            }
         }
     });
 
-    let reportText = `Desk Report: ${dateStr}\n${deskTitle}\nAgents: ${activeAgents}\n\nDRAWER SUMMARY\nOpening Cash: ${opening}\nCash Sales: ${cashSales}\nManager Drops: ${mgrDrop}\n------------------------\nExpected Cash: ${expected}\nExpected MFS: ${deskMfs} Tk\n\nPHYSICAL INVENTORY LIFECYCLE\n`;
+    // 3. Build text block
+    let reportText = `Desk Report: ${dateStr}\n${deskTitle}\nAgents: ${activeAgents}\n\n`;
+    reportText += `Opening Cash: ${opening}\nCash Sales: ${cashSales}\nManager Drops: ${mgrDrop}\n------------------------\n`;
+    reportText += `Expected Cash: ${expected}\nExpected MFS: ${deskMfs} Tk\n\n`;
 
-    reportText += buildLifecycleText(deskTx, AppState.currentOpeningInv);
+    reportText += `PHYSICAL INVENTORY LIFECYCLE\n`;
+    let hasInv = false;
+    for (const [item, data] of Object.entries(invStats)) {
+        if (data.open === 0 && data.in === 0 && data.sold === 0 && data.out === 0) continue;
+        hasInv = true;
+        reportText += `> ${item}\nStart: ${data.open} | In/Out: +${data.in}/-${data.out} | Sold: ${data.sold} | Exp.: ${data.rem}\n`;
+    }
+    if (!hasInv) reportText += "None\n";
 
+    reportText += `\nTRANSACTION DETAILS\n`;
+    let hasItems = false;
+    for (const [name, qty] of Object.entries(itemsSold)) {
+        hasItems = true;
+        reportText += `${name} (${qty}x)\n`;
+    }
+    if (!hasItems) reportText += "No items sold\n";
+
+    // 4. Share or Copy
     if (navigator.share) navigator.share({ title: 'Desk Report', text: reportText }).catch(e => console.log(e));
     else { try { navigator.clipboard.writeText(reportText).then(() => showFlashMessage("Desk Report Copied!")).catch(() => fallbackCopy(reportText)); } catch (e) { fallbackCopy(reportText); } }
 }
