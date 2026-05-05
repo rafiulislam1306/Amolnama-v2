@@ -504,23 +504,18 @@
 
     <!-- ADMIN ONLY: Historical Audit Modal -->
     <div id="modal-historical" class="modal-overlay">
-        <div class="bottom-sheet" style="height: 92vh; max-height: 92vh; display: flex; flex-direction: column;">
+        <div class="bottom-sheet" style="padding: 0;">
             
-            <!-- Red Warning Header -->
-            <div class="modal-header" style="background: #fef2f2; border-bottom: 1px solid #fecaca; flex-shrink: 0; padding-top: 20px;">
-                <h3 style="color: #b91c1c; display: flex; align-items: center; gap: 8px; font-size: 1.1rem; font-weight: 800; letter-spacing: 0.5px;">
+            <div style="background: #fef2f2; border-bottom: 1px solid #fecaca; padding: 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; border-radius: 20px 20px 0 0;">
+                <h3 style="margin: 0; color: #b91c1c; display: flex; align-items: center; gap: 8px; font-size: 1.1rem; font-weight: 800; letter-spacing: 0.5px;">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     READ ONLY: VAULT RECORD
                 </h3>
-                <button class="close-btn" onclick="closeModal('modal-historical')" style="color: #b91c1c; background: #fee2e2;">✕</button>
+                <button onclick="closeModal('modal-historical')" style="background: #fee2e2; color: #b91c1c; border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: bold; cursor: pointer; padding: 0;">✕</button>
             </div>
             
-            <!-- Dynamic Content Area -->
-            <div class="modal-body" style="overflow-y: auto; flex: 1; padding: 0; background: var(--bg-color);">
-                <div id="historical-content" style="padding: 16px; padding-bottom: 100px;">
-                    <!-- JS WILL INJECT DATA HERE -->
+            <div id="historical-content" style="padding: 16px; padding-bottom: 40px; background: var(--bg-color);">
                 </div>
-            </div>
             
         </div>
     </div>
