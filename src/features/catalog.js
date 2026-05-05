@@ -1,3 +1,4 @@
+// src/features/catalog.js
 import { AppState } from '../core/state.js';
 import { selectItem, instantSaveItem } from './transactions.js';
 

@@ -81,7 +81,9 @@ export function saveQuantity() {
     
     // Prevent sales while viewing historical dates
     const datePicker = document.getElementById('report-date-picker');
-    if (datePicker && datePicker.value && datePicker.value !== new Date().toISOString().split('T')[0]) {
+    const t = new Date();
+    const todayLocal = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+    if (datePicker && datePicker.value && datePicker.value !== todayLocal) {
         showAppAlert("Action Blocked", "You cannot process new transactions while viewing a past date. Please return to 'Today'.");
         return;
     }
@@ -95,15 +97,18 @@ export function saveQuantity() {
 export function instantSaveItem(itemName, price) {
   // Prevent sales while viewing historical dates
   const datePicker = document.getElementById('report-date-picker');
-  if (datePicker && datePicker.value && datePicker.value !== new Date().toISOString().split('T')[0]) {
+  const t = new Date();
+  const todayLocal = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+  
+  if (datePicker && datePicker.value && datePicker.value !== todayLocal) {
       showAppAlert("Action Blocked", "You cannot process new transactions while viewing a past date. Please return to 'Today'.");
       return;
   }
 
   if (!passStockFirewall(itemName, 1)) return;
- 
+
   addTransactionToCloud('Item', itemName, price, 1, (price > 0 && AppState.isMfs) ? "MFS" : "Cash");
- 
+
   setTimeout(() => {
     document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
   }, 100);
