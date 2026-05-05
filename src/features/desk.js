@@ -7,51 +7,90 @@ import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/
 import { getInventoryChange, getPhysicalItems } from './inventory.js';
 
 // ==========================================
-//    THE SEAMLESS DAILY ROLLOVER
+//   THE SEAMLESS DAILY ROLLOVER
 // ==========================================
 export async function performLazyAutoClose() {
     const todayStr = getStrictDate();
     try {
-        const activeSessionsSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'open')));
-        for (const docSnap of activeSessionsSnap.docs) {
-            const sessionData = docSnap.data();
-            if (sessionData.dateStr !== todayStr) {
-                
-                // Calculate yesterday's final stock and cash
-                let rolloverInv = { ...(sessionData.openingBalances.inventory || {}) };
-                let rolloverCash = parseFloat(sessionData.openingBalances.cash) || 0;
-                
-                const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', docSnap.id), where('isDeleted', '==', false)));
-                
-                txSnap.forEach(txDoc => {
-                    let tx = txDoc.data();
-                    rolloverCash += (tx.cashAmt || 0);
-                    let change = getInventoryChange(tx);
-                    if (change !== 0) {
-                        rolloverInv[tx.trackAs] = (rolloverInv[tx.trackAs] || 0) + change;
-                    }
-                });
+        // Get ALL desks to ensure everyone's stock rolls over to today's ledger automatically
+        const desksSnap = await getDocs(collection(db, 'desks'));
 
-                // Archive yesterday's session seamlessly
-                await updateDoc(doc(db, 'sessions', docSnap.id), {
-                    status: 'rolled_over', rolledOverAt: serverTimestamp(),
-                    expectedClosing: { cash: rolloverCash, inventory: rolloverInv }
-                });
+        for (const deskDoc of desksSnap.docs) {
+            const deskId = deskDoc.id;
+            const deskData = deskDoc.data();
+            const currentSessId = deskData.currentSessionId;
+
+            let lastSession = null;
+            let lastSessionId = currentSessId;
+            let needsRollover = true;
+
+            // Check if this desk already has a session created for TODAY
+            if (currentSessId && currentSessId !== 'null') {
+                const sessSnap = await getDoc(doc(db, 'sessions', currentSessId));
+                if (sessSnap.exists()) {
+                    lastSession = sessSnap.data();
+                    if (lastSession.dateStr === todayStr) {
+                        needsRollover = false; // Already synced for today!
+                    }
+                }
+            }
+
+            if (needsRollover) {
+                let carryOverInv = {};
+                let carryOverCash = 0;
+
+                // If we lost the session pointer, find the most recent session for this desk in history
+                if (!lastSession) {
+                    const pastSnap = await getDocs(query(collection(db, 'sessions'), where('deskId', '==', deskId)));
+                    let maxTime = 0;
+                    pastSnap.forEach(docSnap => {
+                        let s = docSnap.data();
+                        let t = s.openedAt?.toMillis() || 0;
+                        if (t > maxTime) { maxTime = t; lastSession = s; lastSessionId = docSnap.id; }
+                    });
+                }
+
+                // Calculate exact final leftovers from that past session
+                if (lastSession) {
+                    carryOverInv = { ...(lastSession.openingBalances?.inventory || {}) };
+                    if (lastSession.status === 'open') carryOverCash = parseFloat(lastSession.openingBalances?.cash) || 0;
+
+                    const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', lastSessionId), where('isDeleted', '==', false)));
+                    txSnap.forEach(tDoc => {
+                        let tx = tDoc.data();
+                        let change = getInventoryChange(tx);
+                        if (change !== 0) carryOverInv[tx.trackAs] = (carryOverInv[tx.trackAs] || 0) + change;
+                        if (lastSession.status === 'open') carryOverCash += (tx.cashAmt || 0);
+                    });
+
+                    // If left open overnight, seal it officially
+                    if (lastSession.status === 'open') {
+                        await updateDoc(doc(db, 'sessions', lastSessionId), {
+                            status: 'rolled_over', rolledOverAt: serverTimestamp(),
+                            expectedClosing: { cash: carryOverCash, inventory: carryOverInv }
+                        });
+                        carryOverCash = 0; // Reset next day cash to 0
+                    }
+                }
+
+                // Create TODAY'S session for this desk with the carried-over stock!
+                // If the desk was closed yesterday, it stays "closed" today (acts as a dormant vault for the Floor Report)
+                let newStatus = (lastSession && lastSession.status === 'open') ? 'open' : 'closed';
                 
-                // Create today's new session using yesterday's inventory leftovers, but reset cash to 0
                 const newSessionRef = doc(collection(db, 'sessions'));
                 await setDoc(newSessionRef, {
-                    deskId: sessionData.deskId, dateStr: todayStr, 
-                    openedBy: 'System Auto-Rollover', openedByUid: 'system', openedAt: serverTimestamp(),
-                    status: 'open', openingBalances: { cash: 0, inventory: rolloverInv }
+                    deskId: deskId, dateStr: todayStr, 
+                    openedBy: newStatus === 'open' ? 'System Auto-Rollover' : 'System Auto-Forward', 
+                    openedByUid: 'system', openedAt: serverTimestamp(),
+                    status: newStatus, openingBalances: { cash: carryOverCash, inventory: carryOverInv }
                 });
-                
-                // Point the desk to the new session (Users remain logged in!)
-                await setDoc(doc(db, 'desks', sessionData.deskId), { status: 'open', currentSessionId: newSessionRef.id }, { merge: true });
+
+                // Point the desk to today's new pre-loaded session
+                await setDoc(doc(db, 'desks', deskId), { status: newStatus, currentSessionId: newSessionRef.id }, { merge: true });
             }
         }
     } catch(e) {
-        console.error("System Error: Seamless rollover failed.", e);
+        console.error("System Error: Seamless daily sync failed.", e);
     }
 }
 
@@ -207,53 +246,30 @@ export async function handleDeskSelect(deskId, deskName, status, sessionId) {
     AppState.currentDeskId = deskId;
     AppState.currentDeskName = deskName;
 
-    // If desk was historically closed or has no session, silently create one to wake it up
-    if (!sessionId || sessionId === 'null' || status !== 'open') {
+    let activeSessionId = sessionId;
+
+    // The boot script already created a dormant session for today. We just wake it up!
+    if (status !== 'open' && activeSessionId && activeSessionId !== 'null') {
+        await updateDoc(doc(db, 'sessions', activeSessionId), {
+            status: 'open',
+            openedBy: AppState.userNickname || AppState.userDisplayName,
+            openedByUid: AppState.currentUser.uid
+        });
+        await setDoc(doc(db, 'desks', deskId), { status: 'open' }, { merge: true });
+    } 
+    // Absolute failsafe just in case the boot script was interrupted
+    else if (!activeSessionId || activeSessionId === 'null') {
         const newSessionRef = doc(collection(db, 'sessions'));
-        sessionId = newSessionRef.id;
-        
-        // NEW: Recover exact stock from the previous session automatically
-        let carryOverInv = {};
-        try {
-            // Fetch past sessions for this specific desk to find the most recent one
-            const pastSnap = await getDocs(query(collection(db, 'sessions'), where('deskId', '==', deskId)));
-            let bestSessDoc = null;
-            let maxTime = 0;
-            
-            pastSnap.forEach(docSnap => {
-                let s = docSnap.data();
-                let t = s.openedAt?.toMillis() || 0;
-                if (t > maxTime) { maxTime = t; bestSessDoc = docSnap; }
-            });
-
-            // If a previous session exists, calculate exactly what was left in the drawer
-            if (bestSessDoc) {
-                let lastSess = bestSessDoc.data();
-                let baseInv = { ...(lastSess.openingBalances?.inventory || {}) };
-                
-                const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', bestSessDoc.id), where('isDeleted', '==', false)));
-                txSnap.forEach(tDoc => {
-                    let tx = tDoc.data();
-                    let change = getInventoryChange(tx);
-                    if (change !== 0) {
-                        baseInv[tx.trackAs] = (baseInv[tx.trackAs] || 0) + change;
-                    }
-                });
-                carryOverInv = baseInv;
-            }
-        } catch(e) {
-            console.error("Failed to recover previous stock:", e);
-        }
-
+        activeSessionId = newSessionRef.id;
         await setDoc(newSessionRef, {
             deskId: deskId, dateStr: getStrictDate(), 
             openedBy: AppState.userNickname || AppState.userDisplayName, openedByUid: AppState.currentUser.uid, openedAt: serverTimestamp(),
-            status: 'open', openingBalances: { cash: 0, inventory: carryOverInv }
+            status: 'open', openingBalances: { cash: 0, inventory: {} }
         });
-        await setDoc(doc(db, 'desks', deskId), { status: 'open', currentSessionId: sessionId }, { merge: true });
+        await setDoc(doc(db, 'desks', deskId), { status: 'open', currentSessionId: activeSessionId }, { merge: true });
     }
 
-    AppState.currentSessionId = sessionId;
+    AppState.currentSessionId = activeSessionId;
     const todayStr = getStrictDate();
     try {
         await setDoc(doc(db, 'users', AppState.currentUser.uid), { assignedDeskId: AppState.currentDeskId, assignedDate: todayStr }, { merge: true });
@@ -263,18 +279,13 @@ export async function handleDeskSelect(deskId, deskName, status, sessionId) {
     document.getElementById('header-title').innerText = `${deskName}`;
     
     try {
-        const sessionSnap = await getDoc(doc(db, 'sessions', sessionId));
+        const sessionSnap = await getDoc(doc(db, 'sessions', activeSessionId));
         if (sessionSnap.exists() && sessionSnap.data().openingBalances) {
             let dbCash = parseFloat(sessionSnap.data().openingBalances.cash) || 0;
-            
-            // Silent fix: If the active session has leftover cash, zero it out in Firestore
             if (dbCash > 0) {
-                await updateDoc(doc(db, 'sessions', sessionId), {
-                    'openingBalances.cash': 0
-                });
+                await updateDoc(doc(db, 'sessions', activeSessionId), { 'openingBalances.cash': 0 });
                 dbCash = 0;
             }
-
             AppState.currentOpeningCash = dbCash;
             AppState.currentOpeningInv = sessionSnap.data().openingBalances.inventory || {}; 
         }
