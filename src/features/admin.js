@@ -501,3 +501,80 @@ export function executeForceTransfer() {
     
     showFlashMessage(`Successfully pulled ${qty}x ${itemName} from ${fromName}`);
 }
+
+export async function healTodaysOpeningStock() {
+    if (!navigator.onLine) { showAppAlert("Offline", "You must be online to heal the database."); return; }
+
+    showAppAlert("Sync Today's Stock", "This will securely recalculate today's starting stock from yesterday's leftovers WITHOUT deleting any live transactions. Proceed?", true, async () => {
+        const todayStr = getStrictDate();
+        showFlashMessage("Recalculating stock... Please wait.");
+        
+        try {
+            // 1. Get all of today's active sessions
+            const todaysSessionsSnap = await getDocs(query(collection(db, 'sessions'), where('dateStr', '==', todayStr)));
+
+            for (const docSnap of todaysSessionsSnap.docs) {
+                const todaySessionId = docSnap.id;
+                const deskId = docSnap.data().deskId;
+
+                // 2. Fetch all past sessions for this specific desk
+                const pastSnap = await getDocs(query(collection(db, 'sessions'), where('deskId', '==', deskId)));
+
+                let maxTime = 0;
+                let latestPastDateStr = '';
+
+                // 3. Find the most recent date BEFORE today
+                pastSnap.forEach(pSnap => {
+                    let s = pSnap.data();
+                    if (s.dateStr !== todayStr) {
+                        let t = s.openedAt?.toMillis() || 0;
+                        if (t > maxTime) {
+                            maxTime = t;
+                            latestPastDateStr = s.dateStr;
+                        }
+                    }
+                });
+
+                if (latestPastDateStr) {
+                    let earliestTime = Infinity;
+                    let trueOpeningInv = {};
+
+                    // 4. Find the EARLIEST session on that past date to get its starting stock
+                    pastSnap.forEach(pSnap => {
+                        let s = pSnap.data();
+                        if (s.dateStr === latestPastDateStr) {
+                            let t = s.openedAt?.toMillis() || Date.now();
+                            if (t < earliestTime) {
+                                earliestTime = t;
+                                trueOpeningInv = { ...(s.openingBalances?.inventory || {}) };
+                            }
+                        }
+                    });
+
+                    let carryOverInv = { ...trueOpeningInv };
+
+                    // 5. Add ALL transactions from that past date to calculate the final leftovers
+                    const txSnap = await getDocs(query(collection(db, 'transactions'), where('deskId', '==', deskId), where('dateStr', '==', latestPastDateStr), where('isDeleted', '==', false)));
+
+                    txSnap.forEach(tDoc => {
+                        let tx = tDoc.data();
+                        let change = getInventoryChange(tx);
+                        if (change !== 0) carryOverInv[tx.trackAs] = (carryOverInv[tx.trackAs] || 0) + change;
+                    });
+
+                    // 6. Safely UPDATE today's session with the correct inventory math (Touches nothing else!)
+                    await updateDoc(doc(db, 'sessions', todaySessionId), {
+                        'openingBalances.inventory': carryOverInv
+                    });
+                }
+            }
+            
+            showFlashMessage("Stock Recalculated Successfully!");
+            setTimeout(() => window.location.reload(), 1500);
+            
+        } catch (e) {
+            console.error(e);
+            showAppAlert("Error", "Could not recalculate stock. Check console.");
+        }
+    }, "Heal Stock");
+}

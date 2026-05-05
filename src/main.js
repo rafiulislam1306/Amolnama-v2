@@ -11,6 +11,7 @@ import { loadFloorMap, adminBypass, enterSandboxMode, handleDeskSelect, confirmO
 import { toggleReportMode, renderPersonalReport, shareReport, shareDeskReport, renderDeskDashboard, fetchTransactionsForDate, getTxListenerUnsubscribe, setTxListenerUnsubscribe, openHistoricalSession } from './features/reports.js';
 import { openManagerCashModal, saveManagerCash, openMainStockModal, saveMainStock, openReturnStockModal, saveReturnStock, openDeskTransfer, executeDeskTransfer, openTransferModal, executeTransfer } from './features/transfers.js';
 import { filterAdminCatalog, toggleAddForm, addInventoryGroup, removeInventoryGroup, openSettings, removeRow, addNewItem, saveSettings, openNicknameManager, saveAdminNickname, kickAgent, nukeAgent, resetMyDeskLock, forceCloseAllDesks, nukeTodaysLedger, fixPastManagerDrops, exportLedgerCSV, openAuditModal, fetchAuditLogs, openForceReallocate, executeForceTransfer } from './features/admin.js';
+import { filterAdminCatalog, toggleAddForm, addInventoryGroup, removeInventoryGroup, openSettings, removeRow, addNewItem, saveSettings, openNicknameManager, saveAdminNickname, kickAgent, nukeAgent, resetMyDeskLock, forceCloseAllDesks, nukeTodaysLedger, fixPastManagerDrops, exportLedgerCSV, openAuditModal, fetchAuditLogs, openForceReallocate, executeForceTransfer, healTodaysOpeningStock } from './features/admin.js';
 import { openDevNotes, addDevNote, editDevNote, cancelInlineEdit, saveInlineEdit, toggleDevNote, deleteDevNote } from './features/devNotes.js';
 import { renderAppUI } from './features/catalog.js';
 import { initUserData } from './core/app-init.js';
@@ -132,6 +133,14 @@ window.permanentlyDeleteTx = permanentlyDeleteTx;
 window.emptyTrash = emptyTrash;
 window.showAuditTrail = showAuditTrail;
 window.openHistoricalSession = openHistoricalSession;
+window.nukeTodaysLedger = nukeTodaysLedger;
+window.fixPastManagerDrops = fixPastManagerDrops;
+window.exportLedgerCSV = exportLedgerCSV;
+window.openAuditModal = openAuditModal;
+window.fetchAuditLogs = fetchAuditLogs;
+window.openForceReallocate = openForceReallocate;
+window.executeForceTransfer = executeForceTransfer;
+window.healTodaysOpeningStock = healTodaysOpeningStock; // <-- ADD THIS LINE
 
 Object.defineProperty(window, 'txListenerUnsubscribe', {
     get: () => getTxListenerUnsubscribe(),
