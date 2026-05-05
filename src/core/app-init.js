@@ -15,12 +15,10 @@ export function updateCurrencyUI() {
         if(!el.innerText.includes('Qty')) el.innerText = userCurrency; 
     }); 
 }
-
 export async function initUserData(onComplete) {
     if(!AppState.currentUser) return;
     try {
-        await performLazyAutoClose(); 
-
+        // 1. Fetch user data first to establish roles
         const userDocRef = doc(db, 'users', AppState.currentUser.uid);
         const userDocSnap = await getDoc(userDocRef);
         const todayStr = getStrictDate();
@@ -39,6 +37,7 @@ export async function initUserData(onComplete) {
 
         await setDoc(userDocRef, { email: AppState.currentUser.email || null, displayName: AppState.userDisplayName || 'User', role: AppState.currentUserRole }, { merge: true });
 
+        // 2. Fetch global catalog & inventory groups BEFORE auto-close
         const globalDoc = await getDoc(doc(db, 'global', 'settings'));
         if (globalDoc.exists() && globalDoc.data().catalog) {
             AppState.globalCatalog = globalDoc.data().catalog;
@@ -48,6 +47,9 @@ export async function initUserData(onComplete) {
             AppState.globalInventoryGroups = defaultInventoryGroups;
             if (AppState.currentUserRole === 'admin') await setDoc(doc(db, 'global', 'settings'), { catalog: AppState.globalCatalog, inventoryGroups: AppState.globalInventoryGroups }, { merge: true });
         }
+
+        // 3. NOW run auto-close so it knows which items to calculate leftovers for
+        await performLazyAutoClose();
 
         document.getElementById('report-user-name').innerText = AppState.userDisplayName;
         if (AppState.currentUser.email) document.getElementById('report-user-email').innerText = AppState.currentUser.email;
