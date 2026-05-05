@@ -211,10 +211,44 @@ export async function handleDeskSelect(deskId, deskName, status, sessionId) {
     if (!sessionId || sessionId === 'null' || status !== 'open') {
         const newSessionRef = doc(collection(db, 'sessions'));
         sessionId = newSessionRef.id;
+        
+        // NEW: Recover exact stock from the previous session automatically
+        let carryOverInv = {};
+        try {
+            // Fetch past sessions for this specific desk to find the most recent one
+            const pastSnap = await getDocs(query(collection(db, 'sessions'), where('deskId', '==', deskId)));
+            let bestSessDoc = null;
+            let maxTime = 0;
+            
+            pastSnap.forEach(docSnap => {
+                let s = docSnap.data();
+                let t = s.openedAt?.toMillis() || 0;
+                if (t > maxTime) { maxTime = t; bestSessDoc = docSnap; }
+            });
+
+            // If a previous session exists, calculate exactly what was left in the drawer
+            if (bestSessDoc) {
+                let lastSess = bestSessDoc.data();
+                let baseInv = { ...(lastSess.openingBalances?.inventory || {}) };
+                
+                const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', bestSessDoc.id), where('isDeleted', '==', false)));
+                txSnap.forEach(tDoc => {
+                    let tx = tDoc.data();
+                    let change = getInventoryChange(tx);
+                    if (change !== 0) {
+                        baseInv[tx.trackAs] = (baseInv[tx.trackAs] || 0) + change;
+                    }
+                });
+                carryOverInv = baseInv;
+            }
+        } catch(e) {
+            console.error("Failed to recover previous stock:", e);
+        }
+
         await setDoc(newSessionRef, {
             deskId: deskId, dateStr: getStrictDate(), 
             openedBy: AppState.userNickname || AppState.userDisplayName, openedByUid: AppState.currentUser.uid, openedAt: serverTimestamp(),
-            status: 'open', openingBalances: { cash: 0, inventory: {} }
+            status: 'open', openingBalances: { cash: 0, inventory: carryOverInv }
         });
         await setDoc(doc(db, 'desks', deskId), { status: 'open', currentSessionId: sessionId }, { merge: true });
     }
