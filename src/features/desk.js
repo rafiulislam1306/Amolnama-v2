@@ -38,12 +38,12 @@ export async function performLazyAutoClose() {
                     expectedClosing: { cash: rolloverCash, inventory: rolloverInv }
                 });
                 
-                // Create today's new session using yesterday's leftovers as the opening balance
+                // Create today's new session using yesterday's inventory leftovers, but reset cash to 0
                 const newSessionRef = doc(collection(db, 'sessions'));
                 await setDoc(newSessionRef, {
                     deskId: sessionData.deskId, dateStr: todayStr, 
                     openedBy: 'System Auto-Rollover', openedByUid: 'system', openedAt: serverTimestamp(),
-                    status: 'open', openingBalances: { cash: rolloverCash, inventory: rolloverInv }
+                    status: 'open', openingBalances: { cash: 0, inventory: rolloverInv }
                 });
                 
                 // Point the desk to the new session (Users remain logged in!)
