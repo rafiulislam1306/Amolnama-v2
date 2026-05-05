@@ -1,10 +1,10 @@
 // src/features/reports.js
-import { collection, query, where, getDocs, onSnapshot } from "firebase/firestore";
+import { collection, query, where, getDocs, onSnapshot, doc, getDoc } from "firebase/firestore";
 import { renderLiveFloorTab } from './desk.js';
 import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
 import { getStrictDate, formatToGBDate } from '../utils/helpers.js';
-import { showAppAlert, showFlashMessage } from '../utils/ui-helpers.js';
+import { showAppAlert, showFlashMessage, openModal } from '../utils/ui-helpers.js';
 import { getPhysicalItems } from './inventory.js';
 
 const userCurrency = 'Tk';
@@ -797,4 +797,131 @@ export async function fetchTransactionsForDate() {
             if (document.getElementById('tab-floor').classList.contains('active')) renderLiveFloorTab();
         });
     } catch (e) { console.error(e); }
+}
+
+// ==========================================
+//   HISTORICAL SESSION VIEWER
+// ==========================================
+export async function openHistoricalSession(sessionId) {
+    openModal('modal-historical');
+    const container = document.getElementById('historical-content');
+    container.innerHTML = '<div class="spinner" style="margin: 40px auto; border-top-color: #b91c1c;"></div>';
+
+    try {
+        const sessionSnap = await getDoc(doc(db, 'sessions', sessionId));
+        if (!sessionSnap.exists()) {
+            container.innerHTML = '<p class="placeholder-text" style="color: #ef4444;">Session not found.</p>';
+            return;
+        }
+
+        const session = sessionSnap.data();
+        let agentName = session.openedBy || 'Unknown Agent';
+        let deskName = (session.deskId || '').replace('_', ' ').toUpperCase();
+        if (session.deskId?.startsWith('personal_')) deskName = `${agentName}'s Drawer`;
+        
+        let deskOpeningCash = parseFloat(session.openingBalances?.cash) || 0;
+        let activeOpeningInv = session.openingBalances?.inventory || {};
+        
+        let deskCashSales = 0, deskAdjustments = 0, deskMfs = 0, deskErsCount = 0, deskErsTotal = 0;
+        let deskItemsSold = {}; 
+        let deskAdjustmentLog = {}; 
+        let invStats = {};
+        
+        getPhysicalItems().forEach(item => {
+            let o = activeOpeningInv[item] || 0;
+            invStats[item] = { open: o, inOut: 0, sold: 0, rem: o };
+        });
+
+        const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', sessionId), where('isDeleted', '==', false)));
+        
+        let txList = [];
+        txSnap.forEach(docSnap => txList.push({ id: docSnap.id, ...docSnap.data() }));
+        txList.sort((a, b) => b.id - a.id);
+
+        let historyHTML = '';
+
+        txList.forEach(tx => {
+            let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
+            let safeMfsAmt = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0);
+            
+            deskMfs += safeMfsAmt;
+            
+            if (tx.type === 'adjustment') {
+                deskAdjustments += safeCashAmt; 
+                deskAdjustmentLog[tx.name] = (deskAdjustmentLog[tx.name] || 0) + safeCashAmt;
+            } else if (tx.type !== 'transfer_out' && tx.type !== 'transfer_in') {
+                deskCashSales += safeCashAmt;
+                if (tx.name === 'ERS Flexiload') {
+                    deskErsCount += Math.abs(tx.qty);
+                    deskErsTotal += tx.amount;
+                } else {
+                    deskItemsSold[tx.name] = (deskItemsSold[tx.name] || 0) + Math.abs(tx.qty);
+                }
+            }
+
+            if (AppState.globalInventoryGroups.includes(tx.trackAs)) {
+                let trackAs = tx.trackAs;
+                let q = Math.abs(tx.qty);
+                if (tx.type === 'transfer_in') { invStats[trackAs].inOut += q; invStats[trackAs].rem += q; }
+                else if (tx.type === 'transfer_out') { invStats[trackAs].inOut -= q; invStats[trackAs].rem -= q; }
+                else if (tx.type === 'adjustment') { invStats[trackAs].inOut += q; invStats[trackAs].rem += q; }
+                else { 
+                    invStats[trackAs].sold += q; 
+                    invStats[trackAs].rem -= q; 
+                }
+            }
+
+            let isOutflow = tx.type === 'adjustment' || tx.type === 'transfer_out';
+            let dotColor = '#10b981';
+            if (tx.type === 'adjustment') dotColor = '#ef4444';
+            else if (tx.type === 'transfer_out' || tx.type === 'transfer_in') dotColor = '#8b5cf6';
+            else if (tx.name !== 'ERS Flexiload') dotColor = '#3390ec';
+
+            let amtColor = isOutflow ? 'var(--danger-text)' : 'var(--text-primary)';
+            let amtPrefix = isOutflow ? '− ' : '';
+            let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
+            let badges = tx.isEdited ? `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Edited</span>` : '';
+
+            historyHTML += `
+                <div style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; margin-bottom: 12px;">
+                    <div style="display: flex; width: 100%; align-items: flex-start; gap: 14px;">
+                        <div style="width: 44px; height: 44px; border-radius: 12px; background: ${dotColor}15; color: ${dotColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${dotColor}30;">
+                            <span style="font-size: 0.95rem; font-weight: 800;">${tx.qty}x</span>
+                        </div>
+                        <div style="flex: 1; min-width: 0; padding-top: 2px;">
+                            <div style="font-size: 1rem; color: var(--text-primary); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 6px;">
+                                ${tx.name}
+                            </div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5; margin-top: 4px;">
+                                ${tx.time} &bull; ${payLabel} &bull; <span style="color: var(--text-primary); font-weight: 600;">By ${tx.agentName?.split(' ')[0] || 'Unknown'}</span> ${badges}
+                            </div>
+                        </div>
+                        <div style="font-size: 1.1rem; font-weight: 800; color: ${amtColor}; flex-shrink: 0; text-align: right; padding-top: 2px;">
+                            ${amtPrefix}${Math.abs(tx.amount || 0)}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        let cashMath = { opening: deskOpeningCash, sales: deskCashSales, adjustments: deskAdjustments, adjustmentLog: deskAdjustmentLog, expected: (deskOpeningCash + deskCashSales + deskAdjustments) };
+        let ersData = { count: deskErsCount, total: deskErsTotal };
+
+        let dashboardHTML = generateDashboardHTML(cashMath, deskMfs, ersData, invStats, deskItemsSold);
+        
+        container.innerHTML = `
+            <div style="margin-bottom: 20px; text-align: center;">
+                <h2 style="margin: 0 0 4px 0; font-size: 1.4rem; color: var(--text-primary);">${deskName}</h2>
+                <div style="color: var(--text-secondary); font-size: 0.9rem; font-weight: 600;">Agent: ${agentName} &bull; ${session.dateStr}</div>
+            </div>
+            ${dashboardHTML}
+            <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary); margin: 24px 0 12px 0;">Shift Ledger</h3>
+            <div style="display: flex; flex-direction: column;">
+                ${historyHTML || '<div class="placeholder-text">No transactions recorded during this shift.</div>'}
+            </div>
+        `;
+    } catch (error) {
+        console.error(error);
+        container.innerHTML = '<p class="placeholder-text" style="color: #ef4444;">Error loading session data.</p>';
+    }
 }
