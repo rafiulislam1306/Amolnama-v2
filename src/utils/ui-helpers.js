@@ -105,7 +105,7 @@ export function initNetworkStatus() {
 }
 
 // ==========================================
-//    NATIVE BOTTOM SHEET DRAG PHYSICS
+//   NATIVE BOTTOM SHEET DRAG PHYSICS
 // ==========================================
 export function setupBottomSheetDrag() {
     document.querySelectorAll('.bottom-sheet').forEach(sheet => {
@@ -127,14 +127,16 @@ export function setupBottomSheetDrag() {
         sheet.addEventListener('touchmove', (e) => {
             if (!isDragging) return;
             
-            // Prevent mobile browser pull-to-refresh while actively dragging the sheet
-            e.preventDefault();
-            
             currentY = e.touches[0].clientY;
             let delta = currentY - startY;
-            // Only allow dragging downwards (positive delta)
+            
+            // FIX: Only prevent default scroll if the user is pulling DOWN to close the modal
             if (delta > 0) {
+                e.preventDefault();
                 sheet.style.transform = `translateY(${delta}px)`;
+            } else {
+                // If they are pulling UP (to scroll down the content), let the browser handle it natively!
+                isDragging = false;
             }
         }, { passive: false });
 
