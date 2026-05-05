@@ -440,14 +440,14 @@ export async function openForceReallocate() {
     openModal('modal-admin-reallocate');
 
     try {
-        const usersSnap = await getDocs(collection(db, 'users'));
-        let fromHTML = '<option value="">-- Select Absent Agent --</option>';
+        const desksSnap = await getDocs(collection(db, 'desks'));
+        let fromHTML = '<option value="">-- Select Source Desk --</option>';
         fromHTML += `<option value="main_vault">Main Vault (Center Stock)</option>`;
         
-        usersSnap.forEach(docSnap => {
-            let u = docSnap.data();
-            let safeName = u.displayName || u.email || 'Unknown Agent';
-            fromHTML += `<option value="personal_${docSnap.id}">${safeName}'s Drawer</option>`;
+        desksSnap.forEach(docSnap => {
+            let d = docSnap.data();
+            let displayName = d.name || docSnap.id.replace('_', ' ').toUpperCase();
+            fromHTML += `<option value="${docSnap.id}">${displayName}</option>`;
         });
         document.getElementById('force-transfer-from').innerHTML = fromHTML;
 
