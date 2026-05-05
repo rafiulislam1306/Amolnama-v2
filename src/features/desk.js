@@ -231,7 +231,17 @@ export async function handleDeskSelect(deskId, deskName, status, sessionId) {
     try {
         const sessionSnap = await getDoc(doc(db, 'sessions', sessionId));
         if (sessionSnap.exists() && sessionSnap.data().openingBalances) {
-            AppState.currentOpeningCash = parseFloat(sessionSnap.data().openingBalances.cash) || 0;
+            let dbCash = parseFloat(sessionSnap.data().openingBalances.cash) || 0;
+            
+            // Silent fix: If the active session has leftover cash, zero it out in Firestore
+            if (dbCash > 0) {
+                await updateDoc(doc(db, 'sessions', sessionId), {
+                    'openingBalances.cash': 0
+                });
+                dbCash = 0;
+            }
+
+            AppState.currentOpeningCash = dbCash;
             AppState.currentOpeningInv = sessionSnap.data().openingBalances.inventory || {}; 
         }
     } catch(e) { console.error("Session fetch error:", e); }
