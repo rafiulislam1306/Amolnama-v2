@@ -516,7 +516,7 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
 
         <!-- 3. Physical Stock Accordion -->
         <div style="background: var(--surface-color); border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 16px; overflow: hidden;">
-            <div style="padding: 11px 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="const c = document.getElementById('inv-grid-content'); const i = document.getElementById('inv-grid-icon'); if(c.style.display==='none'){c.style.display='block'; i.style.transform='rotate(180deg)';}else{c.style.display='none'; i.style.transform='rotate(0deg)';}">
+            <div style="padding: 11px 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="const c = this.nextElementSibling; const i = this.querySelector('svg'); if(c.style.display==='none'){c.style.display='block'; i.style.transform='rotate(180deg)';}else{c.style.display='none'; i.style.transform='rotate(0deg)';}">
                 <div style="display: flex; align-items: flex-start; gap: 10px;">
                     <div style="width: 7px; height: 7px; border-radius: 50%; background: #10b981; margin-top: 6px; flex-shrink: 0;"></div>
                     <div style="display: flex; flex-direction: column;">
@@ -524,9 +524,9 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
                         <span style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.2; margin-top: 3px;">${activeItemCount} active items</span>
                     </div>
                 </div>
-                <svg id="inv-grid-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
-            <div id="inv-grid-content" style="display: none; background: var(--surface-color); border-top: 1px solid var(--border-color);">
+            <div style="display: none; background: var(--surface-color); border-top: 1px solid var(--border-color);">
                 <div style="padding: 0 16px;">
                     <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; padding: 12px 0; border-bottom: 2px solid var(--border-color); font-size: 0.7rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
                         <div>Item</div>
