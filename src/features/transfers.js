@@ -1,5 +1,5 @@
 // src/features/transfers.js
-import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
+import { collection, addDoc, getDocs, query, where, doc, getDoc } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
 import { generateReceiptNo, getStrictDate } from '../utils/helpers.js';
@@ -122,19 +122,24 @@ export async function openDeskTransfer() {
     try {
         const activeSessionsSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'open')));
         let optionsHTML = '';
-        activeSessionsSnap.forEach(docSnap => {
+        
+        for (const docSnap of activeSessionsSnap.docs) {
             let deskData = docSnap.data();
             if(deskData.deskId !== AppState.currentDeskId) {
                 let displayName = deskData.deskId.replace('_', ' ').toUpperCase();
                 
-                if (deskData.deskId.startsWith('personal_')) {
-                    let agentFirstName = deskData.openedBy ? deskData.openedBy.split(' ')[0] : 'Agent';
-                    displayName = `${agentFirstName}'s Drawer`;
-                }
+                // FIX: Fetch the official desk name directly from the database
+                try {
+                    const deskSnap = await getDoc(doc(db, 'desks', deskData.deskId));
+                    if (deskSnap.exists() && deskSnap.data().name) {
+                        displayName = deskSnap.data().name;
+                    }
+                } catch(e) { console.error(e); }
                 
                 optionsHTML += `<option value="${deskData.deskId}|${docSnap.id}">${displayName}</option>`;
             }
-        });
+        }
+        
         targetSelect.innerHTML = optionsHTML || '<option value="">No other desks open</option>';
     } catch(e) { targetSelect.innerHTML = '<option value="">Offline: Cannot fetch desks</option>'; }
 }

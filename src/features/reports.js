@@ -53,6 +53,17 @@ export async function renderPersonalReport() {
                 
                 if (s.status === 'closed' || s.status === 'pending' || s.status === 'rolled_over') {
                     let agentName = s.openedBy ? s.openedBy.split(' ')[0] : 'Agent';
+                    
+                    // FIX: If the system sealed it, fetch the real desk owner's name
+                    if (agentName === 'System' && s.deskId.startsWith('personal_')) {
+                        try {
+                            const deskSnap = await getDoc(doc(db, 'desks', s.deskId));
+                            if (deskSnap.exists() && deskSnap.data().name) {
+                                agentName = deskSnap.data().name.replace("'s Drawer", "");
+                            }
+                        } catch(e) {}
+                    }
+                    
                     let statusLabel = s.status === 'pending' ? 'Pending' : (s.status === 'rolled_over' ? 'Rolled Over' : 'Sealed');
                     let badgeColor = s.status === 'pending' ? '#f59e0b' : (s.status === 'rolled_over' ? '#3b82f6' : '#10b981');
                     let bgCol = s.status === 'pending' ? '#fffbeb' : (s.status === 'rolled_over' ? '#eff6ff' : '#ecfdf5');
@@ -817,7 +828,18 @@ export async function openHistoricalSession(sessionId) {
         const session = sessionSnap.data();
         let agentName = session.openedBy || 'Unknown Agent';
         let deskName = (session.deskId || '').replace('_', ' ').toUpperCase();
-        if (session.deskId?.startsWith('personal_')) deskName = `${agentName}'s Drawer`;
+        
+        // FIX: Grab the official name, and override "System" as the agent
+        try {
+            const deskSnap = await getDoc(doc(db, 'desks', session.deskId));
+            if (deskSnap.exists() && deskSnap.data().name) {
+                deskName = deskSnap.data().name;
+            }
+        } catch(e) {}
+
+        if (agentName.startsWith('System') && deskName.includes("'s Drawer")) {
+            agentName = deskName.replace("'s Drawer", "");
+        }
         
         let deskOpeningCash = parseFloat(session.openingBalances?.cash) || 0;
         let activeOpeningInv = session.openingBalances?.inventory || {};
