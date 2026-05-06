@@ -378,11 +378,26 @@ export async function renderLiveFloorTab() {
 
             let displayDeskName = session.deskId.replace('_', ' ').toUpperCase();
             
-            // FIX: Actually fetch the real name from the database instead of guessing
             try {
                 const deskSnap = await getDoc(doc(db, 'desks', session.deskId));
                 if (deskSnap.exists() && deskSnap.data().name) {
                     displayDeskName = deskSnap.data().name;
+                }
+                
+                // UPGRADE: If it STILL says "Personal Drawer", the agent hasn't logged in yet. 
+                // Let's fetch their name directly and heal the database!
+                if (displayDeskName === 'Personal Drawer' && session.deskId.startsWith('personal_')) {
+                    const uid = session.deskId.replace('personal_', '');
+                    const userSnap = await getDoc(doc(db, 'users', uid));
+                    
+                    if (userSnap.exists()) {
+                        const uData = userSnap.data();
+                        const fName = uData.nickname || (uData.displayName ? uData.displayName.split(' ')[0] : 'Agent');
+                        displayDeskName = `${fName}'s Drawer`;
+                        
+                        // Silently heal the database so it's permanently fixed
+                        setDoc(doc(db, 'desks', session.deskId), { name: displayDeskName }, { merge: true }).catch(()=>{});
+                    }
                 }
             } catch(e) { console.error("Could not fetch real desk name", e); }
 
