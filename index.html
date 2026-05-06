@@ -1,3 +1,4 @@
+// index.html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -93,7 +94,7 @@
 
     <main id="tab-store" class="tab-content">
         <!-- 1. Sticky Store Controls -->
-        <div style="position: sticky; top: -16px; z-index: 50; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid var(--border-color); padding: 16px 16px 4px 16px; margin: -16px -16px 16px -16px; box-shadow: 0 4px 16px rgba(0,0,0,0.05);">
+        <div class="glass-panel" style="position: sticky; top: -16px; z-index: 50; border-bottom: 1px solid var(--border-color); padding: 16px 16px 4px 16px; margin: -16px -16px 16px -16px; box-shadow: 0 4px 16px rgba(0,0,0,0.05);">
             <div class="toggle-container" style="margin-bottom: 16px; display: flex; justify-content: space-between; width: 100%;">
                 <span class="toggle-label" style="font-weight: 700; color: var(--text-secondary);">Payment Mode</span>
                 <div class="toggle-switch" onclick="toggleMFS()" style="margin: 0;">
@@ -130,12 +131,12 @@
 
     <main id="tab-desk" class="tab-content">
         
-                <div id="desk-peek-header" style="display: none; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 12px; padding: 12px; margin-bottom: 16px; align-items: center; justify-content: space-between;">
-            <div style="display: flex; align-items: center; gap: 8px; color: #0284c7; font-weight: 700;">
+                <div id="desk-peek-header" style="display: none; background: var(--info-bg); border: 1px solid var(--info-border); border-radius: 12px; padding: 12px; margin-bottom: 16px; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 8px; color: var(--info-text); font-weight: 700;">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                 <span id="desk-dashboard-title">Desk Name</span>
             </div>
-            <button style="background: var(--surface-color); border: 1px solid #bae6fd; color: #0284c7; padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer;" onclick="handleMyDrawerNav()">Return to My Drawer</button>
+            <button style="background: var(--surface-color); border: 1px solid var(--info-border); color: var(--info-text); padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer;" onclick="handleMyDrawerNav()">Return to My Drawer</button>
         </div>
 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
@@ -143,7 +144,7 @@
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                 Active Agents: <span id="desk-logged-agents" style="color: var(--text-primary);">None</span>
             </div>
-            <button onclick="shareDeskReport()" style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; color: #0284c7; cursor: pointer; transition: transform 0.1s;" title="Share Desk Report">
+            <button onclick="shareDeskReport()" style="background: var(--info-bg); border: 1px solid var(--info-border); border-radius: 12px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; color: var(--info-text); cursor: pointer; transition: transform 0.1s;" title="Share Desk Report">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
             </button>
         </div>
@@ -213,20 +214,20 @@
             <div style="flex: 1; min-width: 0; padding-right: 48px;">
                 <h3 id="report-user-name" style="margin: 0 0 4px 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary); line-height: 1.2;">User Name</h3>
                 <div id="report-user-email" style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 10px; line-height: 1.4;">email@example.com</div>
-                <div style="display: inline-flex; align-items: center; gap: 6px; background: #ecfdf5; color: #10b981; padding: 4px 10px; border-radius: 8px; font-size: 0.85rem; font-weight: 700; border: 1px solid #a7f3d0; white-space: nowrap;">
+                <div style="display: inline-flex; align-items: center; gap: 6px; background: var(--success-bg); color: var(--success-text); padding: 4px 10px; border-radius: 8px; font-size: 0.85rem; font-weight: 700; border: 1px solid var(--success-border); white-space: nowrap;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                     Revenue: <span id="report-total-all">0 Tk</span>
                 </div>
             </div>
 
-            <button onclick="shareReport()" style="position: absolute; top: 20px; right: 20px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 14px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #0284c7; cursor: pointer; transition: transform 0.1s;" title="Share Daily Report">
+            <button onclick="shareReport()" style="position: absolute; top: 20px; right: 20px; background: var(--info-bg); border: 1px solid var(--info-border); border-radius: 14px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: var(--info-text); cursor: pointer; transition: transform 0.1s;" title="Share Daily Report">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
             </button>
         </div>
 
         <!-- ADMIN ONLY: Manager Control Panel -->
-        <div id="admin-report-toggle-wrapper" style="display: none; flex-direction: column; background: linear-gradient(145deg, #f8fafc, var(--surface-color)); border: 1px solid #cbd5e1; border-radius: 20px; padding: 20px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; color: #475569;">
+        <div id="admin-report-toggle-wrapper" style="display: none; flex-direction: column; background: linear-gradient(145deg, var(--bg-color), var(--surface-color)); border: 1px solid var(--border-color); border-radius: 20px; padding: 20px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; color: var(--text-secondary);">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 <h3 style="font-size: 0.9rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin: 0;">Manager Controls</h3>
             </div>
@@ -239,7 +240,7 @@
                 </div>
             </div>
 
-            <button style="width: 100%; background: #fef2f2; border: 1px solid #fecaca; color: #ef4444; display: flex; justify-content: center; align-items: center; gap: 8px; border-radius: 14px; padding: 14px; font-weight: 700; font-size: 1rem; transition: transform 0.1s, background-color 0.1s; cursor: pointer;" onclick="openForceReallocate()">
+            <button style="width: 100%; background: var(--danger-bg); border: 1px solid var(--danger-border); color: var(--danger-text); display: flex; justify-content: center; align-items: center; gap: 8px; border-radius: 14px; padding: 14px; font-weight: 700; font-size: 1rem; transition: transform 0.1s, background-color 0.1s; cursor: pointer;" onclick="openForceReallocate()">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                 Emergency Reallocate
             </button>
@@ -250,7 +251,7 @@
             <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px;">
                 <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary); margin: 0;">Sales Dashboard</h3>
                 <div style="position: relative; display: inline-block;">
-                    <div id="financial-date-label" style="font-size: 0.8rem; color: #6366f1; font-weight: 700; background: #e0e7ff; padding: 6px 12px; border-radius: 8px; border: 1px solid #c7d2fe; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <div id="financial-date-label" style="font-size: 0.8rem; color: var(--purple-text); font-weight: 700; background: var(--purple-bg); padding: 6px 12px; border-radius: 8px; border: 1px solid var(--purple-border); display: flex; align-items: center; gap: 6px; cursor: pointer;">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
                         Today
                     </div>
@@ -267,9 +268,9 @@
                     <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 8px;">MFS Sales</div>
                     <div id="tot-mfs" style="font-size: 1.4rem; font-weight: 800; color: var(--text-primary);">0 Tk</div>
                 </div>
-                <div style="grid-column: span 2; background: linear-gradient(to right, #f0f9ff, var(--surface-color)); border: 1px solid #bae6fd; border-radius: 16px; padding: 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
-                    <div style="font-size: 0.85rem; font-weight: 800; color: #0284c7; text-transform: uppercase;">ERS / Flexiload</div>
-                    <div id="tot-ers" style="font-size: 1.4rem; font-weight: 800; color: #0ea5e9;">0 Tk</div>
+                <div style="grid-column: span 2; background: linear-gradient(to right, var(--info-bg), var(--surface-color)); border: 1px solid var(--info-border); border-radius: 16px; padding: 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+                    <div style="font-size: 0.85rem; font-weight: 800; color: var(--info-text); text-transform: uppercase;">ERS / Flexiload</div>
+                    <div id="tot-ers" style="font-size: 1.4rem; font-weight: 800; color: var(--info-text);">0 Tk</div>
                 </div>
             </div>
         </div>
@@ -506,12 +507,12 @@
     <div id="modal-historical" class="modal-overlay">
         <div class="bottom-sheet" style="padding: 0;">
             
-            <div style="background: #fef2f2; border-bottom: 1px solid #fecaca; padding: 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; border-radius: 20px 20px 0 0;">
-                <h3 style="margin: 0; color: #b91c1c; display: flex; align-items: center; gap: 8px; font-size: 1.1rem; font-weight: 800; letter-spacing: 0.5px;">
+            <div style="background: var(--danger-bg); border-bottom: 1px solid var(--danger-border); padding: 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; border-radius: 20px 20px 0 0;">
+                <h3 style="margin: 0; color: var(--danger-text); display: flex; align-items: center; gap: 8px; font-size: 1.1rem; font-weight: 800; letter-spacing: 0.5px;">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     READ ONLY: VAULT RECORD
                 </h3>
-                <button onclick="closeModal('modal-historical')" style="background: #fee2e2; color: #b91c1c; border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: bold; cursor: pointer; padding: 0;">✕</button>
+                <button onclick="closeModal('modal-historical')" style="background: var(--danger-border); color: var(--danger-text); border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: bold; cursor: pointer; padding: 0;">✕</button>
             </div>
             
             <div id="historical-content" style="padding: 16px; padding-bottom: 40px; background: var(--bg-color);">
@@ -781,11 +782,11 @@
             <div style="flex: 1; overflow-y: auto; padding: 24px 20px; padding-bottom: calc(24px + env(safe-area-inset-bottom));">
                 <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 24px;">Verify your starting float and physical stock before beginning your shift.</p>
                 
-                <div class="admin-form-card" style="margin-bottom: 24px; padding: 20px; border: 2px solid #10b981; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);">
-                    <label style="display: block; font-size: 0.85rem; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Opening Cash Float</label>
+                <div class="admin-form-card" style="margin-bottom: 24px; padding: 20px; border: 2px solid var(--success-border); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);">
+                    <label style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--success-text); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Opening Cash Float</label>
                     <div style="display: flex; align-items: center; gap: 12px;">
-                        <span style="font-size: 1.75rem; font-weight: bold; color: #10b981;">Tk</span>
-                        <input type="number" id="open-cash-float" class="settings-input" style="font-size: 1.75rem; font-weight: 800; padding: 12px 16px; border-color: #10b981; color: #10b981; background: #ecfdf5;" placeholder="0">
+                        <span style="font-size: 1.75rem; font-weight: bold; color: var(--success-text);">Tk</span>
+                        <input type="number" id="open-cash-float" class="settings-input" style="font-size: 1.75rem; font-weight: 800; padding: 12px 16px; border-color: var(--success-border); color: var(--success-text); background: var(--success-bg);" placeholder="0">
                     </div>
                 </div>
 

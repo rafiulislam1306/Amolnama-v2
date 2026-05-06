@@ -1,3 +1,4 @@
+// src/style.css
 @import "tailwindcss";
 
 /* --- 1. CORE VARIABLES & TELEGRAM THEME --- */
@@ -115,8 +116,18 @@ header {
     top: 0;
     z-index: 8500;
 }
+
 @media (prefers-color-scheme: dark) { 
     header { background-color: rgba(23, 33, 43, 0.85); } 
+}
+
+.glass-panel {
+    background-color: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+@media (prefers-color-scheme: dark) {
+    .glass-panel { background-color: rgba(23, 33, 43, 0.85); }
 }
 
 .header-title { font-size: 1.25rem; font-weight: 600; }
