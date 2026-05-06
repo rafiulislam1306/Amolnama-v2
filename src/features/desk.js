@@ -110,6 +110,7 @@ export async function loadFloorMap() {
         const personalDeskId = 'personal_' + AppState.currentUser.uid;
         const myFirstName = AppState.userNickname || (AppState.userDisplayName ? AppState.userDisplayName.split(' ')[0] : 'Agent');
         const myDrawerName = `${myFirstName}'s Drawer`;
+        const safeDrawerName = myDrawerName.replace(/'/g, "\\'");
         let foundPersonal = false;
 
         if (desksSnapshot.empty) {
@@ -136,7 +137,7 @@ export async function loadFloorMap() {
                 personalDeskHTML = `
                     <div style="margin-bottom: 32px;">
                         <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; margin-left: 4px;">My Workspace</div>
-                        <div class="admin-form-card" style="padding: 16px; margin-bottom: 0; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.04);" onclick="handleDeskSelect('${docSnap.id}', '${myDrawerName}', '${desk.status}', '${desk.currentSessionId}')">
+                        <div class="admin-form-card" style="padding: 16px; margin-bottom: 0; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.04);" onclick="handleDeskSelect('${docSnap.id}', '${safeDrawerName}', '${desk.status}', '${desk.currentSessionId}')">
                             <div style="display: flex; align-items: center; gap: 16px;">
                                 <div style="width: 48px; height: 48px; border-radius: 12px; background: #ede9fe; color: #8b5cf6; display: flex; align-items: center; justify-content: center;">
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
@@ -177,7 +178,7 @@ export async function loadFloorMap() {
             personalDeskHTML = `
                 <div style="margin-bottom: 32px;">
                     <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; margin-left: 4px;">My Workspace</div>
-                    <div class="admin-form-card" style="padding: 16px; margin-bottom: 0; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.04);" onclick="handleDeskSelect('${personalDeskId}', '${myDrawerName}', 'closed', 'null')">
+                    <div class="admin-form-card" style="padding: 16px; margin-bottom: 0; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.04);" onclick="handleDeskSelect('${personalDeskId}', '${safeDrawerName}', 'closed', 'null')">
                         <div style="display: flex; align-items: center; gap: 16px;">
                             <div style="width: 48px; height: 48px; border-radius: 12px; background: #ede9fe; color: #8b5cf6; display: flex; align-items: center; justify-content: center;">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
@@ -302,6 +303,10 @@ export async function handleDeskSelect(deskId, deskName, status, sessionId) {
 
     if(window.fetchTransactionsForDate) await window.fetchTransactionsForDate();
     showFlashMessage(`Joined ${deskName}!`);
+    
+    // Auto-route the user directly into their drawer for better UX
+    if (window.switchTab) window.switchTab('desk', deskName);
+    if (window.renderDeskDashboard) window.renderDeskDashboard(deskId);
 }
 
 // Function deprecated but left empty to prevent external errors if called
