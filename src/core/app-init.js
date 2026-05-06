@@ -68,7 +68,7 @@ export async function initUserData(onComplete) {
 
         updateCurrencyUI(); 
         setTimeout(() => {
-            renderAppUI();
+            if (typeof window.renderAppUI === 'function') window.renderAppUI();
         }, 100);
         
         const t = new Date();

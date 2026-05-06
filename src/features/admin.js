@@ -4,7 +4,7 @@ import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
 import { getStrictDate, formatToGBDate, generateReceiptNo } from '../utils/helpers.js';
 import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/ui-helpers.js';
-import { getPhysicalItems } from './inventory.js';
+import { getPhysicalItems, getInventoryChange } from './inventory.js';
 
 // ==========================================
 //   ADMIN CATALOG & INVENTORY SETTINGS

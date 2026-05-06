@@ -192,7 +192,7 @@ function switchTab(tabId, title) {
     
     document.getElementById('header-title').innerText = tabId === 'ers' ? (AppState.currentDeskName || AppState.userNickname || AppState.userDisplayName) : title;
     if (tabId === 'floor') {
-        renderLiveFloorTab();
+        if (typeof window.renderLiveFloorTab === 'function') window.renderLiveFloorTab();
     } else if (tabId === 'desk') {
         if (typeof window.renderDeskDashboard === 'function') window.renderDeskDashboard();
     } else if (tabId === 'store') {
