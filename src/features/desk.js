@@ -377,12 +377,17 @@ export async function renderLiveFloorTab() {
             const isMyDesk = sid === AppState.currentSessionId;
 
             let displayDeskName = session.deskId.replace('_', ' ').toUpperCase();
-            if (session.deskId.startsWith('personal_')) {
-                if (isMyDesk) {
-                    displayDeskName = "My Drawer";
-                } else {
-                    displayDeskName = `${session.openedBy.split(' ')[0]}'s Drawer`;
+            
+            // FIX: Actually fetch the real name from the database instead of guessing
+            try {
+                const deskSnap = await getDoc(doc(db, 'desks', session.deskId));
+                if (deskSnap.exists() && deskSnap.data().name) {
+                    displayDeskName = deskSnap.data().name;
                 }
+            } catch(e) { console.error("Could not fetch real desk name", e); }
+
+            if (session.deskId.startsWith('personal_') && isMyDesk) {
+                displayDeskName = "My Drawer";
             }
 
             let safeDeskName = displayDeskName.replace(/'/g, "\\'");
