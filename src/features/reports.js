@@ -40,7 +40,7 @@ export async function renderPersonalReport() {
     if (currentReportMode === 'floor') {
         try {
             const sessSnap = await getDocs(query(collection(db, 'sessions'), where('dateStr', '==', targetDateStr)));
-            sessSnap.forEach(docSnap => {
+            for (const docSnap of sessSnap.docs) {
                 let s = docSnap.data();
                 floorOpeningCash += parseFloat(s.openingBalances?.cash) || 0;
                 let inv = s.openingBalances?.inventory || {};
@@ -75,7 +75,7 @@ export async function renderPersonalReport() {
                         </button>
                     `;
                 }
-            });
+            }
         } catch(e) { console.error("Could not fetch floor sessions", e); }
     }
 
