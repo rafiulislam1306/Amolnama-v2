@@ -108,6 +108,8 @@ export async function loadFloorMap() {
         let personalDeskHTML = '';
         
         const personalDeskId = 'personal_' + AppState.currentUser.uid;
+        const myFirstName = AppState.userNickname || (AppState.userDisplayName ? AppState.userDisplayName.split(' ')[0] : 'Agent');
+        const myDrawerName = `${myFirstName}'s Drawer`;
         let foundPersonal = false;
 
         if (desksSnapshot.empty) {
@@ -125,16 +127,22 @@ export async function loadFloorMap() {
             
             if (docSnap.id === personalDeskId) {
                 foundPersonal = true;
+                
+                // Silent update to fix existing generic names in Firebase
+                if (desk.name === 'Personal Drawer') {
+                    setDoc(doc(db, 'desks', personalDeskId), { name: myDrawerName }, { merge: true }).catch(()=>{});
+                }
+                
                 personalDeskHTML = `
                     <div style="margin-bottom: 32px;">
                         <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; margin-left: 4px;">My Workspace</div>
-                        <div class="admin-form-card" style="padding: 16px; margin-bottom: 0; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.04);" onclick="handleDeskSelect('${docSnap.id}', 'Personal Drawer', '${desk.status}', '${desk.currentSessionId}')">
+                        <div class="admin-form-card" style="padding: 16px; margin-bottom: 0; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.04);" onclick="handleDeskSelect('${docSnap.id}', '${myDrawerName}', '${desk.status}', '${desk.currentSessionId}')">
                             <div style="display: flex; align-items: center; gap: 16px;">
                                 <div style="width: 48px; height: 48px; border-radius: 12px; background: #ede9fe; color: #8b5cf6; display: flex; align-items: center; justify-content: center;">
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
                                 </div>
                                 <div>
-                                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #0f172a;">Personal Drawer</h3>
+                                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #0f172a;">${myDrawerName}</h3>
                                     <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
                                         ${statusDot} ${statusText}
                                     </div>
@@ -165,17 +173,17 @@ export async function loadFloorMap() {
         });
 
         if (!foundPersonal) {
-            await setDoc(doc(db, 'desks', personalDeskId), { name: 'Personal Drawer', status: 'closed', currentSessionId: null, isPersonal: true });
+            await setDoc(doc(db, 'desks', personalDeskId), { name: myDrawerName, status: 'closed', currentSessionId: null, isPersonal: true });
             personalDeskHTML = `
                 <div style="margin-bottom: 32px;">
                     <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; margin-left: 4px;">My Workspace</div>
-                    <div class="admin-form-card" style="padding: 16px; margin-bottom: 0; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.04);" onclick="handleDeskSelect('${personalDeskId}', 'Personal Drawer', 'closed', 'null')">
+                    <div class="admin-form-card" style="padding: 16px; margin-bottom: 0; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.04);" onclick="handleDeskSelect('${personalDeskId}', '${myDrawerName}', 'closed', 'null')">
                         <div style="display: flex; align-items: center; gap: 16px;">
                             <div style="width: 48px; height: 48px; border-radius: 12px; background: #ede9fe; color: #8b5cf6; display: flex; align-items: center; justify-content: center;">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
                             </div>
                             <div>
-                                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #0f172a;">Personal Drawer</h3>
+                                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #0f172a;">${myDrawerName}</h3>
                                 <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
                                     <div style="width: 10px; height: 10px; border-radius: 50%; background-color: #94a3b8;"></div> <span style="color: #94a3b8; font-size: 0.8rem; font-weight: 600;">Closed</span>
                                 </div>
