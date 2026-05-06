@@ -607,17 +607,24 @@ export async function submitClosingReport() {
         // 2. If money was given to the manager, auto-create a transaction so the drawer cash stays accurate
         if (dropAmount > 0) {
             await setDoc(doc(collection(db, 'transactions')), {
-                sessionId: AppState.currentSessionId,
-                dateStr: getStrictDate(),
-                timestamp: serverTimestamp(),
-                type: 'drop',
-                cat: 'transfer',
-                title: 'Manager Drop',
+                id: Date.now(),
+                receiptNo: `EOD-${Date.now().toString().slice(-4)}`,
+                type: 'adjustment',
+                name: 'Manager Drop',
+                trackAs: 'Physical Cash',
+                amount: dropAmount,
+                qty: 1,
+                payment: 'Dropped to Manager',
                 cashAmt: -Math.abs(dropAmount),
                 mfsAmt: 0,
-                payment: 'Cash',
                 isDeleted: false,
-                agentName: AppState.userNickname || AppState.userDisplayName
+                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                dateStr: getStrictDate(),
+                deskId: AppState.currentDeskId,
+                sessionId: AppState.currentSessionId,
+                agentId: AppState.currentUser.uid,
+                agentName: AppState.userNickname || AppState.userDisplayName,
+                timestamp: serverTimestamp()
             });
         }
     } catch (e) { 

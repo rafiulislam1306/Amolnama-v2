@@ -908,12 +908,63 @@ export async function openHistoricalSession(sessionId) {
         let ersData = { count: deskErsCount, total: deskErsTotal };
 
         let dashboardHTML = generateDashboardHTML(cashMath, deskMfs, ersData, invStats, deskItemsSold);
+
+        // Fetch EOD Snapshot if it exists
+        let eodHTML = '';
+        try {
+            const eodSnap = await getDocs(query(collection(db, 'eod_reports'), where('sessionId', '==', sessionId)));
+            if (!eodSnap.empty) {
+                let eodData = eodSnap.docs[0].data();
+                let varianceColor = eodData.variance < 0 ? '#ef4444' : (eodData.variance > 0 ? '#10b981' : '#475569');
+                let variancePrefix = eodData.variance > 0 ? '+' : '';
+
+                let invDiffHTML = '';
+                for (const [item, actual] of Object.entries(eodData.actualClosing?.inventory || {})) {
+                    let expected = eodData.expectedClosing?.inventory?.[item] || 0;
+                    let diff = actual - expected;
+                    if (diff !== 0) {
+                        let dColor = diff < 0 ? '#ef4444' : '#10b981';
+                        let dPref = diff > 0 ? '+' : '';
+                        invDiffHTML += `<div style="display:flex; justify-content:space-between; font-size:0.8rem; padding:4px 0; border-bottom: 1px dashed #e2e8f0;"><span>${item}</span> <span>Exp: ${expected} | Act: ${actual} <strong style="color:${dColor}; margin-left: 4px;">(${dPref}${diff})</strong></span></div>`;
+                    }
+                }
+
+                eodHTML = `
+                    <div style="background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+                        <h4 style="margin: 0 0 12px 0; font-size: 1rem; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            Official EOD Snapshot
+                        </h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                            <div style="background: #fff; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1;">
+                                <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">System Expected</div>
+                                <div style="font-size: 1.15rem; font-weight: 800; color: #0f172a;">${eodData.expectedClosing.cash} Tk</div>
+                            </div>
+                            <div style="background: #fff; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1;">
+                                <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Actual Counted</div>
+                                <div style="font-size: 1.15rem; font-weight: 800; color: #0f172a;">${eodData.actualClosing.cash} Tk</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #fff; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 12px;">
+                            <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase;">Manager Drop</span>
+                            <span style="font-weight: 800; font-size: 1.1rem; color: #8b5cf6;">${eodData.managerDrop || 0} Tk</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #fff; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: ${invDiffHTML ? '12px' : '0'};">
+                            <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase;">Cash Variance</span>
+                            <span style="font-weight: 800; font-size: 1.1rem; color: ${varianceColor};">${variancePrefix}${eodData.variance} Tk</span>
+                        </div>
+                        ${invDiffHTML ? `<div style="background: #fff; padding: 10px 12px; border-radius: 8px; border: 1px solid #cbd5e1;"><div style="font-size: 0.75rem; font-weight: 800; color: #0f172a; margin-bottom: 8px;">STOCK VARIANCES</div>${invDiffHTML}</div>` : ''}
+                    </div>
+                `;
+            }
+        } catch(e) { console.error("Failed to load EOD snapshot", e); }
         
         container.innerHTML = `
             <div style="margin-bottom: 20px; text-align: center;">
                 <h2 style="margin: 0 0 4px 0; font-size: 1.4rem; color: var(--text-primary);">${deskName}</h2>
                 <div style="color: var(--text-secondary); font-size: 0.9rem; font-weight: 600;">Agent: ${agentName} &bull; ${session.dateStr}</div>
             </div>
+            ${eodHTML}
             ${dashboardHTML}
             <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary); margin: 24px 0 12px 0;">Shift Ledger</h3>
             <div style="display: flex; flex-direction: column;">
