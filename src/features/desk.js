@@ -254,10 +254,11 @@ export async function handleDeskSelect(deskId, deskName, status, sessionId) {
     AppState.currentDeskId = deskId;
     AppState.currentDeskName = deskName;
 
-    let activeSessionId = sessionId;
+    // FIX: Clean up stringified null/undefined passed from HTML buttons
+    let activeSessionId = (sessionId === 'null' || sessionId === 'undefined' || !sessionId) ? null : sessionId;
 
     // The boot script already created a dormant session for today. We just wake it up!
-    if (status !== 'open' && activeSessionId && activeSessionId !== 'null') {
+    if (status !== 'open' && activeSessionId) {
         await updateDoc(doc(db, 'sessions', activeSessionId), {
             status: 'open',
             openedBy: AppState.userNickname || AppState.userDisplayName,
@@ -266,7 +267,7 @@ export async function handleDeskSelect(deskId, deskName, status, sessionId) {
         await setDoc(doc(db, 'desks', deskId), { status: 'open' }, { merge: true });
     } 
     // Absolute failsafe just in case the boot script was interrupted
-    else if (!activeSessionId || activeSessionId === 'null') {
+    else if (!activeSessionId) {
         const newSessionRef = doc(collection(db, 'sessions'));
         activeSessionId = newSessionRef.id;
         await setDoc(newSessionRef, {
