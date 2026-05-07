@@ -461,7 +461,6 @@ export async function downloadReportAsPDF(mode, prefix) {
 
     // 1. Gather Context Data
     let dateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
-    // Format time to remove spaces for filename (e.g. 01:52PM)
     let rawTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     let fileTimeStr = rawTime.replace(/ /g, '').replace(/:/g, '-'); 
     
@@ -495,12 +494,11 @@ export async function downloadReportAsPDF(mode, prefix) {
         ersTotal = document.getElementById('tot-ers')?.innerText?.replace(' Tk', '') || "0";
     }
 
-    // Prepare filename: remove apostrophes and replace spaces with underscores
     let safeDeskName = deskName.replace(/'/g, '').replace(/ /g, '_');
     let safeDateStr = dateStr.replace(/\//g, '-');
     let finalFileName = `${safeDeskName}_Ledger_${safeDateStr}_${fileTimeStr}.pdf`;
 
-    // 2. Build Inventory & Items Rows (Plain Text for PRE tag)
+    // 2. Build Inventory & Items Rows
     let inventoryRowsText = '';
     let itemsRowsText = '';
 
@@ -524,23 +522,22 @@ export async function downloadReportAsPDF(mode, prefix) {
 
     let soldRows = document.querySelectorAll(mode === 'tab-desk' ? '#live-dashboard-wrapper > div:nth-child(4) > div:not(:first-child)' : '#inventory-list > div');
     let hasItems = false;
-    let rowCount = 0; // Track this to calculate height
     if (soldRows && soldRows.length > 0) {
         soldRows.forEach(row => {
             let name = row.children[0]?.innerText;
             let qty = row.children[1]?.innerText;
             if (name && qty && name !== 'No items sold yet' && name !== 'No items or services sold yet') {
                 hasItems = true;
-                rowCount++;
                 itemsRowsText += `  ${qty.padEnd(4, ' ')} ${name}\n`;
             }
         });
     }
     if (!hasItems) itemsRowsText = `  No items sold\n`;
 
-    // 3. Construct the HTML Element to measure dynamic height
+    // 3. Construct the HTML Element
     const printContainer = document.createElement('div');
-    printContainer.style.cssText = "position: absolute; top: 0; left: 0; z-index: -9999; width: 800px; background: white; color: black; padding: 40px; box-sizing: border-box;";
+    // Safely rendered behind the app layer to guarantee html2canvas captures the text
+    printContainer.style.cssText = "position: absolute; top: 0; left: 0; z-index: -9999; width: 800px; background-color: #ffffff; color: #000000; padding: 40px; box-sizing: border-box;";
     
     printContainer.innerHTML = `
 <pre style="margin: 0; font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.5; white-space: pre;">
@@ -575,15 +572,10 @@ ${itemsRowsText}================================================================
 
     document.body.appendChild(printContainer);
 
-    // 4. Calculate exact height required for a single continuous page
+    // Calculate dynamic height for single page
     const pxHeight = printContainer.clientHeight;
-    // Convert pixels to inches (approx 96 DPI), add a small buffer
     const inHeight = Math.max(8, (pxHeight / 96) + 0.5);
 
-    // Give browser a micro-second to render text before snapping
-    await new Promise(resolve => setTimeout(resolve, 50));
-
-    // 5. Generate PDF with dynamic single-page format
     const opt = {
         margin:       0.3,
         filename:     finalFileName,
@@ -593,11 +585,9 @@ ${itemsRowsText}================================================================
     };
 
     try {
-        // Generate the PDF as a file blob
         const pdfBlob = await html2pdf().set(opt).from(printContainer).output('blob');
         const pdfFile = new File([pdfBlob], finalFileName, { type: 'application/pdf' });
 
-        // Check if the device actually supports file sharing natively
         if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
             try {
                 await navigator.share({
@@ -607,22 +597,20 @@ ${itemsRowsText}================================================================
                 });
                 showFlashMessage("Opening share menu...");
             } catch (shareError) {
-                console.warn("Share interrupted:", shareError);
-                // If error is AbortError, it means the user just closed the share menu (no alert needed)
                 if (shareError.name !== 'AbortError') {
                     showAppAlert("Share Error", "Could not open share menu. Try again.");
                 }
             }
         } else {
-            // Tell them their device doesn't support PDF sharing
             showAppAlert("Unsupported", "Your browser or device does not support direct file sharing.");
         }
     } catch (error) {
         console.error("PDF Generation Error:", error);
         showAppAlert("Error", "Failed to generate the PDF ledger.");
     } finally {
-        // Clean up hidden DOM element
-        document.body.removeChild(printContainer);
+        if (document.body.contains(printContainer)) {
+            document.body.removeChild(printContainer);
+        }
     }
 }
 
