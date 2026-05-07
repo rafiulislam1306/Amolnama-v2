@@ -450,37 +450,149 @@ export async function downloadReportAsImage(containerId, prefix) {
     }
 }
 
-// === NEW: PDF GENERATOR ===
-export async function downloadReportAsPDF(containerId, prefix) {
-    const container = document.getElementById(containerId);
-    if (!container || !window.html2pdf) {
-        showAppAlert("Error", "PDF library not loaded or container missing.");
+// === NEW: INVOICE PDF GENERATOR ===
+export async function downloadReportAsPDF(mode, prefix) {
+    if (!window.html2pdf) {
+        showAppAlert("Error", "PDF library not loaded.");
         return;
     }
     
-    showFlashMessage("📄 Generating Official PDF...");
-    
-    // Temporarily hide all buttons so they don't print on the document
-    const buttons = container.querySelectorAll('button');
-    buttons.forEach(btn => btn.style.display = 'none');
+    showFlashMessage("📄 Generating Official Ledger PDF...");
 
+    // 1. Gather Context Data
+    let dateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
+    let timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    
+    let deskName = "Center Ledger";
+    let agents = AppState.userNickname || AppState.userDisplayName;
+
+    let opening = "0", cashSales = "0", mgrDrops = "0", expected = "0";
+    let mfsTotal = "0", ersTotal = "0";
+
+    if (mode === 'tab-desk') {
+        deskName = document.getElementById('desk-dashboard-title')?.innerText || 'My Active Desk';
+        agents = document.getElementById('desk-logged-agents')?.innerText || 'None';
+        
+        opening = document.getElementById('desk-tot-opening')?.innerText?.replace(' Tk', '') || "0";
+        cashSales = document.getElementById('desk-tot-cash-sales')?.innerText?.replace('+ ', '')?.replace(' Tk', '') || "0";
+        mgrDrops = document.getElementById('desk-tot-manager')?.innerText?.replace(' Tk', '') || "0";
+        expected = document.getElementById('desk-tot-expected-cash')?.innerText?.replace(' Tk', '') || "0";
+        
+        // Extract ERS/MFS from the text (e.g. "1500 Tk" -> "1500")
+        const mfsCard = document.evaluate("//div[contains(text(), 'Total MFS')]/following-sibling::div", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        const ersCard = document.evaluate("//div[contains(text(), 'ERS Sent')]/following-sibling::div", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        mfsTotal = mfsCard ? mfsCard.innerText.replace(' Tk', '') : "0";
+        ersTotal = ersCard ? ersCard.innerText.replace(' Tk', '') : "0";
+    } else {
+        if (currentReportMode === 'floor') deskName = "Consolidated Center Ledger";
+        else deskName = "Personal Agent Ledger";
+        
+        opening = "N/A"; mgrDrops = "N/A"; expected = "N/A"; // Personal/Floor mode has different math display
+        cashSales = document.getElementById('tot-cash-sales')?.innerText?.replace(' Tk', '') || "0";
+        mfsTotal = document.getElementById('tot-mfs')?.innerText?.replace(' Tk', '') || "0";
+        ersTotal = document.getElementById('tot-ers')?.innerText?.replace(' Tk', '') || "0";
+    }
+
+    // 2. Build Inventory & Items Rows
+    let inventoryRowsHTML = '';
+    let itemsRowsHTML = '';
+
+    // We extract stock directly from the DOM so it perfectly matches whatever the user is looking at
+    let stockRows = document.querySelectorAll(mode === 'tab-desk' ? '#live-dashboard-wrapper > div:nth-child(3) > div:nth-child(2) > div > div:not(:first-child)' : '#floor-stock-list > div:not(:first-child)');
+    
+    if (stockRows && stockRows.length > 0) {
+        stockRows.forEach(row => {
+            let cols = row.children;
+            if(cols.length === 5) {
+                let item = cols[0].innerText.padEnd(22, ' ');
+                let start = cols[1].innerText.padStart(5, ' ');
+                let inOut = cols[2].innerText.padStart(8, ' ');
+                let sold = cols[3].innerText.padStart(6, ' ');
+                let exp = cols[4].innerText.padStart(10, ' ');
+                inventoryRowsHTML += `<div>${item}${start}${inOut}${sold}${exp}</div>`;
+            }
+        });
+    } else {
+        inventoryRowsHTML = `<div>No physical stock recorded.</div>`;
+    }
+
+    let soldRows = document.querySelectorAll(mode === 'tab-desk' ? '#live-dashboard-wrapper > div:nth-child(4) > div:not(:first-child)' : '#inventory-list > div');
+    let hasItems = false;
+    if (soldRows && soldRows.length > 0) {
+        soldRows.forEach(row => {
+            let name = row.children[0]?.innerText;
+            let qty = row.children[1]?.innerText;
+            if (name && qty && name !== 'No items sold yet' && name !== 'No items or services sold yet') {
+                hasItems = true;
+                itemsRowsHTML += `<div>  ${qty.padEnd(4, ' ')} ${name}</div>`;
+            }
+        });
+    }
+    if (!hasItems) itemsRowsHTML = `<div>  No items sold</div>`;
+
+    // 3. Construct the Hidden HTML Template
+    const printContainer = document.createElement('div');
+    printContainer.style.cssText = "position: absolute; left: -9999px; top: 0; width: 800px; background: white; color: black; font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.5; padding: 40px; box-sizing: border-box;";
+    
+    printContainer.innerHTML = `
+        <div style="white-space: pre;">================================================================
+                           <strong>AMOLNAMA</strong>
+                         <strong>DAILY LEDGER</strong>
+================================================================</div>
+        <div style="display: flex; justify-content: space-between; margin-top: 10px; margin-bottom: 10px;">
+            <div style="white-space: pre;">Desk Name:   ${deskName.padEnd(20, ' ')}
+Agents:      ${agents.padEnd(20, ' ')}</div>
+            <div style="white-space: pre;">Date: ${dateStr}
+Time: ${timeStr}</div>
+        </div>
+        <div style="white-space: pre;">----------------------------------------------------------------
+
+[ 1. CASH FORMULA ]
+  Opening Cash Float:                                ${opening.padStart(8, ' ')} Tk
+  (+) Cash Sales:                                    ${cashSales.padStart(8, ' ')} Tk
+  (+/-) Manager Actions (Drops/Float):               ${mgrDrops.padStart(8, ' ')} Tk
+  -----------------------------------------------------------
+  EXPECTED DRAWER CASH:                              ${expected.padStart(8, ' ')} Tk
+
+[ 2. DIGITAL & ERS ]
+  Total MFS Collected:                               ${mfsTotal.padStart(8, ' ')} Tk
+  Total ERS Disbursed:                               ${ersTotal.padStart(8, ' ')} Tk
+
+----------------------------------------------------------------
+[ 3. PHYSICAL INVENTORY BALANCE ]
+Item                  Start    In/Out    Sold    Expected
+----------------------------------------------------------------
+${inventoryRowsHTML}
+
+----------------------------------------------------------------
+[ 4. ITEMS & SERVICES SOLD ]
+${itemsRowsHTML}
+  
+================================================================
+       Report generated securely by Amolnama on ${dateStr}
+</div>
+    `;
+
+    document.body.appendChild(printContainer);
+
+    // 4. Generate PDF
     const opt = {
-        margin:       0.3, // 0.3 inch margin keeps it clean
-        filename:     `${prefix}_Report_${getStrictDate().replace(/\//g, '-')}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-color') || '#ffffff' },
+        margin:       0.5,
+        filename:     `${prefix}_Ledger_${dateStr.replace(/\//g, '-')}.pdf`,
+        image:        { type: 'jpeg', quality: 1.0 },
+        html2canvas:  { scale: 2, useCORS: true, windowWidth: 800 },
         jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
     };
 
     try {
-        await html2pdf().set(opt).from(container).save();
+        await html2pdf().set(opt).from(printContainer).save();
         showFlashMessage("PDF Downloaded Successfully!");
     } catch (error) {
         console.error(error);
         showAppAlert("Error", "Failed to generate PDF.");
     } finally {
-        // Restore all buttons back to normal after PDF is made
-        buttons.forEach(btn => btn.style.display = '');
+        // Destroy the hidden template
+        document.body.removeChild(printContainer);
     }
 }
 
