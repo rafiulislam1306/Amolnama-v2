@@ -593,31 +593,33 @@ ${itemsRowsText}================================================================
     };
 
     try {
-        // Generate the PDF as a file blob instead of saving immediately
+        // Generate the PDF as a file blob
         const pdfBlob = await html2pdf().set(opt).from(printContainer).output('blob');
-        
-        // Convert blob to standard File object
         const pdfFile = new File([pdfBlob], finalFileName, { type: 'application/pdf' });
 
-        // Check if the device supports the native Web Share API for files (iOS/Android)
+        // Check if the device actually supports file sharing natively
         if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-            await navigator.share({
-                files: [pdfFile],
-                title: finalFileName,
-                text: 'Here is the Amolnama Daily Ledger report.'
-            });
-            showFlashMessage("Opening share menu...");
+            try {
+                await navigator.share({
+                    files: [pdfFile],
+                    title: finalFileName,
+                    text: 'Here is the Amolnama Daily Ledger report.'
+                });
+                showFlashMessage("Opening share menu...");
+            } catch (shareError) {
+                console.warn("Share interrupted:", shareError);
+                // If error is AbortError, it means the user just closed the share menu (no alert needed)
+                if (shareError.name !== 'AbortError') {
+                    showAppAlert("Share Error", "Could not open share menu. Try again.");
+                }
+            }
         } else {
-            // Fallback for Desktop PCs or unsupported browsers: normal download
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(pdfBlob);
-            link.download = finalFileName;
-            link.click();
-            showFlashMessage("PDF Downloaded Successfully!");
+            // Tell them their device doesn't support PDF sharing
+            showAppAlert("Unsupported", "Your browser or device does not support direct file sharing.");
         }
     } catch (error) {
-        console.error(error);
-        showAppAlert("Error", "Failed to generate or share PDF.");
+        console.error("PDF Generation Error:", error);
+        showAppAlert("Error", "Failed to generate the PDF ledger.");
     } finally {
         // Clean up hidden DOM element
         document.body.removeChild(printContainer);
