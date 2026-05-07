@@ -307,7 +307,7 @@ export function buildLifecycleText(txList, openingInv) {
     let text = "";
     for (const [item, data] of Object.entries(stats)) {
         if (data.open === 0 && data.in === 0 && data.sold === 0 && data.out === 0) continue;
-        text += `🔹 *${item}*\n`;
+        text += `- *${item}*\n`;
         text += `   Start: ${data.open} | In: +${data.in} | Out: -${data.out}\n`;
         text += `   Sold: ${data.sold} | Exp. Left: ${data.rem}\n\n`;
     }
@@ -333,20 +333,20 @@ export function shareReport() {
     let reportText = "";
     
     if (currentReportMode === 'floor') {
-        reportText = `🏢 *CENTER REPORT* 🏢\n📅 Date: ${dateStr}\n\n`;
-        reportText += `💰 *SALES SUMMARY*\n`;
+        reportText = `=== *CENTER REPORT* ===\nDate: ${dateStr}\n\n`;
+        reportText += `[ *SALES SUMMARY* ]\n`;
         reportText += `   Total Revenue:  ${totalRevenue}\n`;
         reportText += `   Cash Collected: ${totalCash}\n`;
         reportText += `   MFS Collected:  ${totalMfs}\n`;
         reportText += `   ERS Disbursed:  ${totalErs}\n\n`;
     } else {
-        reportText = `👤 *MY DAILY REPORT* 👤\n📅 Date: ${dateStr}\n🧑‍💻 Agent: ${AppState.userNickname || AppState.userDisplayName}\n\n`;
-        reportText += `💰 *SALES SUMMARY*\n`;
+        reportText = `=== *MY DAILY REPORT* ===\nDate: ${dateStr}\nAgent: ${AppState.userNickname || AppState.userDisplayName}\n\n`;
+        reportText += `[ *SALES SUMMARY* ]\n`;
         reportText += `   Total Revenue:  ${totalRevenue}\n`;
         reportText += `   Cash Collected: ${totalCash}\n`;
         reportText += `   MFS Collected:  ${totalMfs}\n`;
         reportText += `   ERS Disbursed:  ${totalErs}\n\n`;
-        reportText += `📦 *PHYSICAL INVENTORY*\n`;
+        reportText += `[ *PHYSICAL INVENTORY* ]\n`;
         let myTx = AppState.transactions.filter(t => t.agentId === AppState.currentUser.uid);
         reportText += buildLifecycleText(myTx, AppState.currentOpeningInv);
     }
@@ -390,28 +390,28 @@ export function shareDeskReport() {
         }
     });
 
-    let reportText = `📊 *DESK REPORT* 📊\n📅 Date: ${dateStr}\n🏷️ ${deskTitle}\n👥 Agents: ${activeAgents}\n\n`;
-    reportText += `💰 *CASH FORMULA*\n`;
+    let reportText = `=== *DESK REPORT* ===\nDate: ${dateStr}\nDesk: ${deskTitle}\nAgents: ${activeAgents}\n\n`;
+    reportText += `[ *CASH FORMULA* ]\n`;
     reportText += `   Opening Cash: ${opening}\n`;
     reportText += `   Cash Sales:   +${cashSales}\n`;
     reportText += `   Mgr Drops:    ${mgrDrop}\n`;
     reportText += `   ----------------------\n`;
     reportText += `   Expected:     ${expected}\n\n`;
-    reportText += `📱 *DIGITAL SALES*\n`;
+    reportText += `[ *DIGITAL SALES* ]\n`;
     reportText += `   Total MFS:    ${deskMfs} Tk\n\n`;
 
-    reportText += `📦 *PHYSICAL INVENTORY*\n`;
+    reportText += `[ *PHYSICAL INVENTORY* ]\n`;
     let hasInv = false;
     for (const [item, data] of Object.entries(invStats)) {
         if (data.open === 0 && data.in === 0 && data.sold === 0 && data.out === 0) continue;
         hasInv = true;
-        reportText += `🔹 *${item}*\n`;
+        reportText += `- *${item}*\n`;
         reportText += `   Start: ${data.open} | In: +${data.in} | Out: -${data.out}\n`;
         reportText += `   Sold: ${data.sold} | Exp. Left: ${data.rem}\n\n`;
     }
     if (!hasInv) reportText += "   None\n\n";
 
-    reportText += `🧾 *ITEMS SOLD*\n`;
+    reportText += `[ *ITEMS SOLD* ]\n`;
     let hasItems = false;
     for (const [name, qty] of Object.entries(itemsSold)) {
         hasItems = true; reportText += `   ${qty}x ${name}\n`;
