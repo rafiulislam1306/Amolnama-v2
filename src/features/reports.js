@@ -450,6 +450,40 @@ export async function downloadReportAsImage(containerId, prefix) {
     }
 }
 
+// === NEW: PDF GENERATOR ===
+export async function downloadReportAsPDF(containerId, prefix) {
+    const container = document.getElementById(containerId);
+    if (!container || !window.html2pdf) {
+        showAppAlert("Error", "PDF library not loaded or container missing.");
+        return;
+    }
+    
+    showFlashMessage("📄 Generating Official PDF...");
+    
+    // Temporarily hide all buttons so they don't print on the document
+    const buttons = container.querySelectorAll('button');
+    buttons.forEach(btn => btn.style.display = 'none');
+
+    const opt = {
+        margin:       0.3, // 0.3 inch margin keeps it clean
+        filename:     `${prefix}_Report_${getStrictDate().replace(/\//g, '-')}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-color') || '#ffffff' },
+        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    try {
+        await html2pdf().set(opt).from(container).save();
+        showFlashMessage("PDF Downloaded Successfully!");
+    } catch (error) {
+        console.error(error);
+        showAppAlert("Error", "Failed to generate PDF.");
+    } finally {
+        // Restore all buttons back to normal after PDF is made
+        buttons.forEach(btn => btn.style.display = '');
+    }
+}
+
 export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, deskItemsSold) {
     let { opening, sales, adjustments, adjustmentLog, expected } = cashMath;
          

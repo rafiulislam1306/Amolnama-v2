@@ -14,7 +14,7 @@ import { filterAdminCatalog, toggleAddForm, addInventoryGroup, removeInventoryGr
 import { openDevNotes, addDevNote, editDevNote, cancelInlineEdit, saveInlineEdit, toggleDevNote, deleteDevNote } from './features/devNotes.js';
 import { renderAppUI } from './features/catalog.js';
 import { initUserData } from './core/app-init.js';
-import { toggleReportMode, renderPersonalReport, shareReport, shareDeskReport, renderDeskDashboard, fetchTransactionsForDate, getTxListenerUnsubscribe, setTxListenerUnsubscribe, openHistoricalSession, downloadReportAsImage } from './features/reports.js';
+import { toggleReportMode, renderPersonalReport, shareReport, shareDeskReport, renderDeskDashboard, fetchTransactionsForDate, getTxListenerUnsubscribe, setTxListenerUnsubscribe, openHistoricalSession, downloadReportAsImage, downloadReportAsPDF } from './features/reports.js';
 
 // ==========================================
 //    TEMPORARY REFACTORING BRIDGE
@@ -141,6 +141,7 @@ window.openForceReallocate = openForceReallocate;
 window.executeForceTransfer = executeForceTransfer;
 window.healTodaysOpeningStock = healTodaysOpeningStock; // <-- ADD THIS LINE
 window.downloadReportAsImage = downloadReportAsImage;
+window.downloadReportAsPDF = downloadReportAsPDF;
 
 Object.defineProperty(window, 'txListenerUnsubscribe', {
     get: () => getTxListenerUnsubscribe(),
