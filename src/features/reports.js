@@ -528,14 +528,10 @@ export async function downloadReportAsPDF(mode, prefix) {
     }
     if (!hasItems) itemsRowsText = `  No items sold\n`;
 
-    // 3. Construct the Hidden HTML Template
-    const printContainer = document.createElement('div');
-    // FIX 1: Safely hide it behind the app, NOT off-screen
-    printContainer.style.cssText = "position: absolute; top: 0; left: 0; z-index: -9999; width: 800px; background: white; color: black; font-size: 14px; padding: 40px; box-sizing: border-box;";
-    
-    // FIX 2: Use an explicit <pre> tag to guarantee the spacing holds its shape
-    printContainer.innerHTML = `
-<pre style="margin: 0; font-family: 'Courier New', Courier, monospace; line-height: 1.5; font-size: 14px;">
+    // 3. Construct the HTML String (No DOM Injection)
+    const printHTML = `
+        <div style="width: 800px; background-color: #ffffff; color: #000000; padding: 40px; box-sizing: border-box;">
+            <pre style="margin: 0; font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.5; white-space: pre;">
 ================================================================
                            AMOLNAMA
                          DAILY LEDGER
@@ -559,38 +555,29 @@ Agents:      ${agents.padEnd(20, ' ')} Time: ${timeStr}
 [ 3. PHYSICAL INVENTORY BALANCE ]
 Item                  Start    In/Out    Sold    Expected
 ----------------------------------------------------------------
-${inventoryRowsText}
-----------------------------------------------------------------
+${inventoryRowsText}----------------------------------------------------------------
 [ 4. ITEMS & SERVICES SOLD ]
-${itemsRowsText}
-================================================================
+${itemsRowsText}================================================================
        Report generated securely by Amolnama on ${dateStr}
 </pre>
+        </div>
     `;
 
-    document.body.appendChild(printContainer);
-
-    // FIX 3: Give the browser 100 milliseconds to physically paint the text on the hidden canvas
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    // 4. Generate PDF
+    // 4. Generate PDF directly from the string
     const opt = {
         margin:       0.5,
         filename:     `${prefix}_Ledger_${dateStr.replace(/\//g, '-')}.pdf`,
         image:        { type: 'jpeg', quality: 1.0 },
-        html2canvas:  { scale: 2, useCORS: true, windowWidth: 800 },
+        html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
         jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
     };
 
     try {
-        await html2pdf().set(opt).from(printContainer).save();
+        await html2pdf().set(opt).from(printHTML).save();
         showFlashMessage("PDF Downloaded Successfully!");
     } catch (error) {
         console.error(error);
         showAppAlert("Error", "Failed to generate PDF.");
-    } finally {
-        // Destroy the hidden template so it doesn't clutter the DOM
-        document.body.removeChild(printContainer);
     }
 }
 
