@@ -213,12 +213,14 @@ export async function renderPersonalReport() {
         `;
     }
 
-    let finalInventoryListHTML = invHTML || '<div class="report-row" style="color: var(--text-secondary); font-style: italic; padding: 12px 4px;">No items sold yet</div>';
+    document.getElementById('inventory-list').innerHTML = invHTML || '<div class="report-row" style="color: var(--text-secondary); font-style: italic; padding: 12px 4px;">No items sold yet</div>';
+
+    let floorStockSection = document.getElementById('floor-stock-section');
+    if (floorStockSection) floorStockSection.style.display = (currentReportMode === 'floor') ? 'block' : 'none';
 
     if (currentReportMode === 'floor') {
         let liveStockHTML = `
-            <div style="margin-top: 24px; font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; padding: 0 4px; border-bottom: 2px solid var(--border-color); padding-bottom: 8px;">Consolidated Floor Stock</div>
-            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; padding: 12px 4px 8px 4px; border-bottom: 2px solid var(--border-color); font-size: 0.7rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; padding: 4px 4px 8px 4px; border-bottom: 2px solid var(--border-color); font-size: 0.7rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
                 <div>Item</div>
                 <div style="text-align: center;">Start</div>
                 <div style="text-align: center;">In/Out</div>
@@ -247,11 +249,10 @@ export async function renderPersonalReport() {
         }
         
         if (!hasLiveStock) liveStockHTML += '<div style="color: var(--text-secondary); font-style: italic; padding: 12px 4px;">No physical stock recorded today</div>';
-        finalInventoryListHTML += liveStockHTML;
         
         if (vaultButtonsHTML !== '') {
-            finalInventoryListHTML += `
-                <div style="margin-top: 28px; font-size: 0.95rem; font-weight: 800; color: #b91c1c; margin-bottom: 12px; padding: 0 4px; border-bottom: 2px solid #fecaca; padding-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            liveStockHTML += `
+                <div style="margin-top: 20px; font-size: 0.95rem; font-weight: 800; color: #b91c1c; margin-bottom: 12px; padding: 0 4px; border-bottom: 2px solid #fecaca; padding-bottom: 8px; display: flex; align-items: center; gap: 6px;">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     Closed Shift Vault
                 </div>
@@ -260,9 +261,11 @@ export async function renderPersonalReport() {
                 </div>
             `;
         }
+        
+        if (document.getElementById('floor-stock-list')) {
+            document.getElementById('floor-stock-list').innerHTML = liveStockHTML;
+        }
     }
-
-    document.getElementById('inventory-list').innerHTML = finalInventoryListHTML;
     
     document.getElementById('history-log').innerHTML = historyHTML || `
         <div class="empty-state">
