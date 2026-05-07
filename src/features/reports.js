@@ -563,28 +563,32 @@ ${inventoryRowsText}------------------------------------------------------------
 ${itemsRowsText}================================================================
        Report generated securely by Amolnama on ${dateStr}`;
 
-    // Wrap it securely in a div with white-space: pre
     const finalHTMLString = `
-        <div style="width: 800px; background-color: #ffffff; color: #000000; padding: 40px; box-sizing: border-box; font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.5; white-space: pre;">${invoiceContent}</div>
+        <div style="width: 800px; height: auto; background-color: #ffffff; color: #000000; padding: 40px; box-sizing: border-box; font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.5; white-space: pre;">${invoiceContent}</div>
     `;
 
-    // 4. Measure Height using a totally hidden mock element
+    // 4. Measure Exact Height Using Full Scroll Depth
     const heightMeasurer = document.createElement('div');
-    heightMeasurer.style.cssText = "position: absolute; visibility: hidden; width: 800px; font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.5; white-space: pre; padding: 40px; box-sizing: border-box;";
+    // Using height: auto and overflow: visible guarantees the box stretches infinitely to fit the text
+    heightMeasurer.style.cssText = "position: absolute; visibility: hidden; width: 800px; height: auto; overflow: visible; font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.5; white-space: pre; padding: 40px; box-sizing: border-box;";
     heightMeasurer.innerHTML = invoiceContent;
     document.body.appendChild(heightMeasurer);
     
-    const pxHeight = heightMeasurer.clientHeight;
-    const inHeight = Math.max(8, (pxHeight / 96) + 0.5); // Convert to inches
+    // scrollHeight measures the entire unbroken length of the text
+    const pxHeight = heightMeasurer.scrollHeight;
     
-    document.body.removeChild(heightMeasurer); // Immediately remove it
+    // Add a massive 2-inch safety margin so the text NEVER touches the bottom boundary
+    const inHeight = Math.max(8, (pxHeight / 96) + 2); 
+    
+    document.body.removeChild(heightMeasurer);
 
     // 5. Generate PDF natively from the string
     const opt = {
         margin:       0.3,
         filename:     finalFileName,
         image:        { type: 'jpeg', quality: 1.0 },
-        html2canvas:  { scale: 2, useCORS: true, windowWidth: 800 },
+        // Force the screenshot engine to extend all the way down to our true measurement
+        html2canvas:  { scale: 2, useCORS: true, windowWidth: 800, windowHeight: pxHeight + 200, scrollY: 0 },
         jsPDF:        { unit: 'in', format: [8.5, inHeight], orientation: 'portrait' }
     };
 
@@ -593,27 +597,18 @@ ${itemsRowsText}================================================================
         const pdfFile = new File([pdfBlob], finalFileName, { type: 'application/pdf' });
 
         if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-            
-            // Bypass the browser timeout by capturing a fresh, instant tap from the user
-            showAppAlert(
-                "Ledger Ready", 
-                "The official PDF is generated and ready to send.", 
-                true, 
-                async () => {
-                    try {
-                        await navigator.share({
-                            files: [pdfFile],
-                            title: finalFileName,
-                        });
-                    } catch (shareError) {
-                        if (shareError.name !== 'AbortError') {
-                            showFlashMessage("Share cancelled or failed.");
-                        }
-                    }
-                }, 
-                "Share"
-            );
-
+            try {
+                await navigator.share({
+                    files: [pdfFile],
+                    title: finalFileName,
+                    text: 'Here is the Amolnama Daily Ledger report.'
+                });
+                showFlashMessage("Opening share menu...");
+            } catch (shareError) {
+                if (shareError.name !== 'AbortError') {
+                    showAppAlert("Share Error", "Could not open share menu. Try again.");
+                }
+            }
         } else {
             showAppAlert("Unsupported", "Your browser or device does not support direct file sharing.");
         }
