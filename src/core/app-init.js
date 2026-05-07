@@ -66,6 +66,20 @@ export async function initUserData(onComplete) {
             devNoteFab.style.display = AppState.currentUserRole === 'admin' ? 'flex' : 'none';
         }
 
+        // --- MANAGER ROLE UI RESTRICTIONS ---
+        const navBtns = document.querySelectorAll('.nav-item');
+        if (AppState.currentUserRole === 'manager') {
+            if (navBtns.length >= 2) {
+                navBtns[0].style.display = 'none'; // Hide ERS
+                navBtns[1].style.display = 'none'; // Hide Store
+            }
+        } else {
+            if (navBtns.length >= 2) {
+                navBtns[0].style.display = 'flex';
+                navBtns[1].style.display = 'flex';
+            }
+        }
+
         updateCurrencyUI(); 
         setTimeout(() => {
             if (typeof window.renderAppUI === 'function') window.renderAppUI();
@@ -74,7 +88,21 @@ export async function initUserData(onComplete) {
         const t = new Date();
         document.getElementById('report-date-picker').value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
         
-        if (userData.assignedDate === todayStr && userData.assignedDeskId) {
+        // --- ROUTING LOGIC ---
+        if (AppState.currentUserRole === 'manager') {
+            // Managers bypass desk selection and go straight to Floor Map
+            document.getElementById('modal-desk-select').classList.remove('active');
+            AppState.currentDeskId = null; 
+            AppState.currentSessionId = null; 
+            AppState.currentDeskName = 'Manager View';
+            document.getElementById('header-title').innerText = 'Manager View';
+            
+            setTimeout(() => {
+                if (window.switchTab) window.switchTab('floor', 'Live Floor Map');
+                if (window.fetchTransactionsForDate) window.fetchTransactionsForDate(); 
+            }, 150);
+            
+        } else if (userData.assignedDate === todayStr && userData.assignedDeskId) {
             AppState.currentDeskId = userData.assignedDeskId;
             
             const deskSnap = await getDoc(doc(db, 'desks', AppState.currentDeskId));
@@ -102,7 +130,7 @@ export async function initUserData(onComplete) {
         } else {
             await loadFloorMap();
         }
-    } catch(e) { 
+    } catch(e) {
         console.error("App Initialization Error:", e);
         showAppAlert("Connection Error", "Failed to sync user data. If this persists, check your Firestore security rules.");
         await loadFloorMap(); // Fallback: Force the map to open so you aren't stuck
