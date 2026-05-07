@@ -169,3 +169,99 @@ export function setupBottomSheetDrag() {
         });
     });
 }
+
+// ==========================================
+//   CUSTOM UI DROPDOWN GENERATOR
+// ==========================================
+export function initCustomDropdowns() {
+    const selects = document.querySelectorAll('select.settings-input');
+
+    selects.forEach(select => {
+        // Skip if already converted
+        if (select.closest('.custom-select-wrapper')) return;
+
+        // Hide original select completely
+        select.style.display = 'none';
+
+        // Create the wrapper architecture
+        const wrapper = document.createElement('div');
+        wrapper.className = 'custom-select-wrapper';
+        select.parentNode.insertBefore(wrapper, select);
+        wrapper.appendChild(select);
+
+        const trigger = document.createElement('div');
+        trigger.className = 'custom-select-trigger';
+        
+        const optionsContainer = document.createElement('div');
+        optionsContainer.className = 'custom-options';
+
+        wrapper.appendChild(trigger);
+        wrapper.appendChild(optionsContainer);
+
+        // Core rendering logic
+        const renderOptions = () => {
+            optionsContainer.innerHTML = '';
+            
+            let selectedText = select.options[select.selectedIndex]?.text || 'Select...';
+            trigger.innerHTML = `<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px;">${selectedText}</span> 
+                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><polyline points="6 9 12 15 18 9"/></svg>`;
+
+            Array.from(select.children).forEach(child => {
+                if (child.tagName === 'OPTGROUP') {
+                    const groupLabel = document.createElement('div');
+                    groupLabel.className = 'custom-optgroup';
+                    groupLabel.innerText = child.label;
+                    optionsContainer.appendChild(groupLabel);
+                    Array.from(child.children).forEach(opt => createOptionEl(opt));
+                } else if (child.tagName === 'OPTION') {
+                    createOptionEl(child);
+                }
+            });
+        };
+
+        const createOptionEl = (opt) => {
+            const optEl = document.createElement('div');
+            optEl.className = 'custom-option';
+            if (opt.selected) optEl.classList.add('selected');
+            optEl.innerText = opt.text;
+            
+            optEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                select.value = opt.value; 
+                select.dispatchEvent(new Event('change')); // Tell the app it changed!
+                renderOptions(); 
+                optionsContainer.classList.remove('open');
+                trigger.classList.remove('open');
+            });
+            optionsContainer.appendChild(optEl);
+        };
+
+        renderOptions();
+
+        // Magic: Auto-rebuild if the app adds new items to the original hidden select
+        const observer = new MutationObserver(renderOptions);
+        observer.observe(select, { childList: true });
+
+        // Click to open logic
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Close any other open dropdowns first
+            document.querySelectorAll('.custom-options.open').forEach(el => {
+                if (el !== optionsContainer) {
+                    el.classList.remove('open');
+                    el.previousElementSibling.classList.remove('open');
+                }
+            });
+            optionsContainer.classList.toggle('open');
+            trigger.classList.toggle('open');
+        });
+    });
+
+    // Close dropdowns if tapping outside
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.custom-options.open').forEach(el => {
+            el.classList.remove('open');
+            el.previousElementSibling.classList.remove('open');
+        });
+    });
+}

@@ -2,7 +2,7 @@
 // ==========================================
 //    1. IMPORTS & CONFIGURATION
 // ==========================================
-import { showAppAlert, executeAlertConfirm, showFlashMessage, openModal, closeModal, showTooltip, initNetworkStatus, setupBottomSheetDrag } from './utils/ui-helpers.js';
+import { showAppAlert, executeAlertConfirm, showFlashMessage, openModal, closeModal, showTooltip, initNetworkStatus, setupBottomSheetDrag, initCustomDropdowns } from './utils/ui-helpers.js';
 import { initPWA } from './features/pwa.js';
 import { initAuth, signInWithGoogle, logout, openProfileHub } from './features/auth.js';
 import { AppState } from './core/state.js';
@@ -214,3 +214,6 @@ window.addEventListener('click', (event) => {
 
 document.addEventListener('DOMContentLoaded', setupBottomSheetDrag);
 initNetworkStatus();
+
+// Initialize Custom Dropdowns once the UI has loaded
+initCustomDropdowns();

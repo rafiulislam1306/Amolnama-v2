@@ -547,37 +547,51 @@ header {
 .store-cat-group::-webkit-scrollbar { display: none; }
 
 /* =========================================
-   MOBILE DROPDOWN (SELECT) STANDARDIZATION
+   CUSTOM DROPDOWN UI (OPTION B)
    ========================================= */
-select.settings-input, 
-select.settings-input[style] {
-    /* Strip native mobile styling */
-    -webkit-appearance: none !important;
-    -moz-appearance: none !important;
-    appearance: none !important;
-    
-    /* Add our own clean, custom SVG arrow */
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") !important;
-    background-repeat: no-repeat !important;
-    background-position: right 12px center !important;
-    background-size: 16px !important;
-    
-    /* Ensure text doesn't overlap the new arrow */
-    padding-right: 36px !important;
-    cursor: pointer;
-    text-overflow: ellipsis;
+.custom-select-wrapper { position: relative; user-select: none; width: 100%; box-sizing: border-box; }
+
+.custom-select-trigger {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 16px; background: var(--surface-color); border: 1px solid var(--border-color);
+    border-radius: 12px; font-size: 0.95rem; color: var(--text-primary); cursor: pointer;
+    box-sizing: border-box; width: 100%; transition: all 0.2s ease;
 }
 
-/* Add a nice focus ring for accessibility */
-select.settings-input:focus {
-    border-color: var(--accent-color) !important;
-    outline: none !important;
+.custom-select-trigger.open { 
+    border-color: var(--accent-color); 
+    border-bottom-left-radius: 0; 
+    border-bottom-right-radius: 0; 
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 
-/* Ensure the options inside have readable text colors */
-select.settings-input option, 
-select.settings-input optgroup {
-    color: var(--text-primary);
-    background-color: var(--bg-color);
-    font-weight: 600;
+.custom-options {
+    position: absolute; display: none; top: 100%; left: 0; right: 0;
+    background: var(--surface-color); border: 1px solid var(--border-color);
+    border-top: none; border-radius: 0 0 12px 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    z-index: 10000; max-height: 280px; overflow-y: auto; padding-bottom: 8px;
+}
+
+.custom-options.open { display: block; animation: slideDownDrop 0.2s ease forwards; }
+
+@keyframes slideDownDrop {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.custom-option { 
+    padding: 12px 16px; cursor: pointer; border-bottom: 1px solid var(--border-color); 
+    font-size: 0.95rem; color: var(--text-primary); transition: background 0.1s;
+}
+
+.custom-option:last-child { border-bottom: none; }
+
+.custom-option:hover, .custom-option.selected { 
+    background: var(--bg-color); color: var(--accent-color); font-weight: 700; 
+}
+
+.custom-optgroup { 
+    padding: 12px 16px 4px 16px; font-size: 0.75rem; font-weight: 800; 
+    color: var(--text-secondary); background: var(--surface-color); 
+    text-transform: uppercase; letter-spacing: 0.5px;
 }
