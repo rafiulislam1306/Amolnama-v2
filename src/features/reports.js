@@ -461,7 +461,9 @@ export async function downloadReportAsPDF(mode, prefix) {
 
     // 1. Gather Context Data
     let dateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
-    let timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    // Format time to remove spaces for filename (e.g. 01:52PM)
+    let rawTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    let fileTimeStr = rawTime.replace(/ /g, '').replace(/:/g, '-'); 
     
     let deskName = "Center Ledger";
     let agents = AppState.userNickname || AppState.userDisplayName;
@@ -471,9 +473,7 @@ export async function downloadReportAsPDF(mode, prefix) {
 
     if (mode === 'tab-desk') {
         let rawDeskName = document.getElementById('desk-dashboard-title')?.innerText || 'My Active Desk';
-        // Only strip the "(My Drawer)" UI hint. Keep "'s Drawer" intact.
         deskName = rawDeskName.replace(/\(My Drawer\)/i, '').trim();
-        
         agents = document.getElementById('desk-logged-agents')?.innerText || 'None';
         
         opening = document.getElementById('desk-tot-opening')?.innerText?.replace(' Tk', '') || "0";
@@ -494,6 +494,11 @@ export async function downloadReportAsPDF(mode, prefix) {
         mfsTotal = document.getElementById('tot-mfs')?.innerText?.replace(' Tk', '') || "0";
         ersTotal = document.getElementById('tot-ers')?.innerText?.replace(' Tk', '') || "0";
     }
+
+    // Prepare filename: remove apostrophes and replace spaces with underscores
+    let safeDeskName = deskName.replace(/'/g, '').replace(/ /g, '_');
+    let safeDateStr = dateStr.replace(/\//g, '-');
+    let finalFileName = `${safeDeskName}_Ledger_${safeDateStr}_${fileTimeStr}.pdf`;
 
     // 2. Build Inventory & Items Rows (Plain Text for PRE tag)
     let inventoryRowsText = '';
@@ -519,28 +524,32 @@ export async function downloadReportAsPDF(mode, prefix) {
 
     let soldRows = document.querySelectorAll(mode === 'tab-desk' ? '#live-dashboard-wrapper > div:nth-child(4) > div:not(:first-child)' : '#inventory-list > div');
     let hasItems = false;
+    let rowCount = 0; // Track this to calculate height
     if (soldRows && soldRows.length > 0) {
         soldRows.forEach(row => {
             let name = row.children[0]?.innerText;
             let qty = row.children[1]?.innerText;
             if (name && qty && name !== 'No items sold yet' && name !== 'No items or services sold yet') {
                 hasItems = true;
+                rowCount++;
                 itemsRowsText += `  ${qty.padEnd(4, ' ')} ${name}\n`;
             }
         });
     }
     if (!hasItems) itemsRowsText = `  No items sold\n`;
 
-    // 3. Construct the HTML String (No DOM Injection)
-    const printHTML = `
-        <div style="width: 800px; background-color: #ffffff; color: #000000; padding: 40px; box-sizing: border-box;">
-            <pre style="margin: 0; font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.5; white-space: pre;">
+    // 3. Construct the HTML Element to measure dynamic height
+    const printContainer = document.createElement('div');
+    printContainer.style.cssText = "position: absolute; top: 0; left: 0; z-index: -9999; width: 800px; background: white; color: black; padding: 40px; box-sizing: border-box;";
+    
+    printContainer.innerHTML = `
+<pre style="margin: 0; font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.5; white-space: pre;">
 ================================================================
                            AMOLNAMA
                          DAILY LEDGER
 ================================================================
 Desk Name:   ${deskName.padEnd(20, ' ')} Date: ${dateStr}
-Agents:      ${agents.padEnd(20, ' ')} Time: ${timeStr}
+Agents:      ${agents.padEnd(20, ' ')} Time: ${rawTime}
 ----------------------------------------------------------------
 
 [ 1. CASH FORMULA ]
@@ -562,25 +571,56 @@ ${inventoryRowsText}------------------------------------------------------------
 [ 4. ITEMS & SERVICES SOLD ]
 ${itemsRowsText}================================================================
        Report generated securely by Amolnama on ${dateStr}
-</pre>
-        </div>
-    `;
+</pre>`;
 
-    // 4. Generate PDF directly from the string
+    document.body.appendChild(printContainer);
+
+    // 4. Calculate exact height required for a single continuous page
+    const pxHeight = printContainer.clientHeight;
+    // Convert pixels to inches (approx 96 DPI), add a small buffer
+    const inHeight = Math.max(8, (pxHeight / 96) + 0.5);
+
+    // Give browser a micro-second to render text before snapping
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    // 5. Generate PDF with dynamic single-page format
     const opt = {
-        margin:       0.5,
-        filename:     `${prefix}_Ledger_${dateStr.replace(/\//g, '-')}.pdf`,
+        margin:       0.3,
+        filename:     finalFileName,
         image:        { type: 'jpeg', quality: 1.0 },
-        html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
-        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+        html2canvas:  { scale: 2, useCORS: true, windowWidth: 800 },
+        jsPDF:        { unit: 'in', format: [8.5, inHeight], orientation: 'portrait' }
     };
 
     try {
-        await html2pdf().set(opt).from(printHTML).save();
-        showFlashMessage("PDF Downloaded Successfully!");
+        // Generate the PDF as a file blob instead of saving immediately
+        const pdfBlob = await html2pdf().set(opt).from(printContainer).output('blob');
+        
+        // Convert blob to standard File object
+        const pdfFile = new File([pdfBlob], finalFileName, { type: 'application/pdf' });
+
+        // Check if the device supports the native Web Share API for files (iOS/Android)
+        if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+            await navigator.share({
+                files: [pdfFile],
+                title: finalFileName,
+                text: 'Here is the Amolnama Daily Ledger report.'
+            });
+            showFlashMessage("Opening share menu...");
+        } else {
+            // Fallback for Desktop PCs or unsupported browsers: normal download
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(pdfBlob);
+            link.download = finalFileName;
+            link.click();
+            showFlashMessage("PDF Downloaded Successfully!");
+        }
     } catch (error) {
         console.error(error);
-        showAppAlert("Error", "Failed to generate PDF.");
+        showAppAlert("Error", "Failed to generate or share PDF.");
+    } finally {
+        // Clean up hidden DOM element
+        document.body.removeChild(printContainer);
     }
 }
 
