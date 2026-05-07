@@ -534,14 +534,8 @@ export async function downloadReportAsPDF(mode, prefix) {
     }
     if (!hasItems) itemsRowsText = `  No items sold\n`;
 
-    // 3. Construct the HTML Element
-    const printContainer = document.createElement('div');
-    // Safely rendered behind the app layer to guarantee html2canvas captures the text
-    printContainer.style.cssText = "position: absolute; top: 0; left: 0; z-index: -9999; width: 800px; background-color: #ffffff; color: #000000; padding: 40px; box-sizing: border-box;";
-    
-    printContainer.innerHTML = `
-<pre style="margin: 0; font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.5; white-space: pre;">
-================================================================
+    // 3. Construct the pure HTML String (NO <pre> tags allowed to prevent blank rendering bugs)
+    const invoiceContent = `================================================================
                            AMOLNAMA
                          DAILY LEDGER
 ================================================================
@@ -567,15 +561,25 @@ Item                  Start    In/Out    Sold    Expected
 ${inventoryRowsText}----------------------------------------------------------------
 [ 4. ITEMS & SERVICES SOLD ]
 ${itemsRowsText}================================================================
-       Report generated securely by Amolnama on ${dateStr}
-</pre>`;
+       Report generated securely by Amolnama on ${dateStr}`;
 
-    document.body.appendChild(printContainer);
+    // Wrap it securely in a div with white-space: pre
+    const finalHTMLString = `
+        <div style="width: 800px; background-color: #ffffff; color: #000000; padding: 40px; box-sizing: border-box; font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.5; white-space: pre;">${invoiceContent}</div>
+    `;
 
-    // Calculate dynamic height for single page
-    const pxHeight = printContainer.clientHeight;
-    const inHeight = Math.max(8, (pxHeight / 96) + 0.5);
+    // 4. Measure Height using a totally hidden mock element
+    const heightMeasurer = document.createElement('div');
+    heightMeasurer.style.cssText = "position: absolute; visibility: hidden; width: 800px; font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.5; white-space: pre; padding: 40px; box-sizing: border-box;";
+    heightMeasurer.innerHTML = invoiceContent;
+    document.body.appendChild(heightMeasurer);
+    
+    const pxHeight = heightMeasurer.clientHeight;
+    const inHeight = Math.max(8, (pxHeight / 96) + 0.5); // Convert to inches
+    
+    document.body.removeChild(heightMeasurer); // Immediately remove it
 
+    // 5. Generate PDF natively from the string
     const opt = {
         margin:       0.3,
         filename:     finalFileName,
@@ -585,7 +589,7 @@ ${itemsRowsText}================================================================
     };
 
     try {
-        const pdfBlob = await html2pdf().set(opt).from(printContainer).output('blob');
+        const pdfBlob = await html2pdf().set(opt).from(finalHTMLString).output('blob');
         const pdfFile = new File([pdfBlob], finalFileName, { type: 'application/pdf' });
 
         if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
@@ -607,10 +611,6 @@ ${itemsRowsText}================================================================
     } catch (error) {
         console.error("PDF Generation Error:", error);
         showAppAlert("Error", "Failed to generate the PDF ledger.");
-    } finally {
-        if (document.body.contains(printContainer)) {
-            document.body.removeChild(printContainer);
-        }
     }
 }
 
