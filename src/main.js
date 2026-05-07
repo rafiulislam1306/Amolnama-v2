@@ -8,7 +8,7 @@ import { initAuth, signInWithGoogle, logout, openProfileHub } from './features/a
 import { AppState } from './core/state.js';
 import { ersKeyPress, ersBackspace, saveErs, selectItem, qtyKeyPress, qtyBackspace, saveQuantity, instantSaveItem, openEditTx, saveTxEdit, toggleEditSplitFields, updateSplitTotal, cancelTxEdit, autoCalcEditTotal, deleteTransaction, openTrash, restoreTx, permanentlyDeleteTx, emptyTrash, showAuditTrail } from './features/transactions.js';
 import { getPhysicalItems, getInventoryChange, passStockFirewall, switchStoreCategory } from './features/inventory.js';
-import { loadFloorMap, adminBypass, enterSandboxMode, handleDeskSelect, confirmOpenDesk, renderLiveFloorTab, openMyDeskDashboard, peekAtDesk, handleMyDrawerNav, initiateCloseDesk, calculateBlindRetained, submitClosingReport } from './features/desk.js';
+import { loadFloorMap, adminBypass, enterSandboxMode, handleDeskSelect, confirmOpenDesk, renderLiveFloorTab, openMyDeskDashboard, peekAtDesk, handleMyDrawerNav, initiateCloseDesk, submitClosingReport } from './features/desk.js';
 import { openManagerCashModal, saveManagerCash, openMainStockModal, saveMainStock, openReturnStockModal, saveReturnStock, openDeskTransfer, executeDeskTransfer, openTransferModal, executeTransfer } from './features/transfers.js';
 import { filterAdminCatalog, toggleAddForm, addInventoryGroup, removeInventoryGroup, openSettings, removeRow, addNewItem, saveSettings, openNicknameManager, saveAdminNickname, kickAgent, nukeAgent, resetMyDeskLock, forceCloseAllDesks, nukeTodaysLedger, fixPastManagerDrops, exportLedgerCSV, openAuditModal, fetchAuditLogs, openForceReallocate, executeForceTransfer, healTodaysOpeningStock } from './features/admin.js';
 import { openDevNotes, addDevNote, editDevNote, cancelInlineEdit, saveInlineEdit, toggleDevNote, deleteDevNote } from './features/devNotes.js';
@@ -115,7 +115,6 @@ window.renderLiveFloorTab = renderLiveFloorTab;
 window.openMyDeskDashboard = openMyDeskDashboard;
 window.peekAtDesk = peekAtDesk; // <-- FIXED: Was missing!
 window.initiateCloseDesk = initiateCloseDesk;
-window.calculateBlindRetained = calculateBlindRetained;
 window.submitClosingReport = submitClosingReport;
 window.renderAppUI = renderAppUI;
 window.fetchTransactionsForDate = fetchTransactionsForDate;
