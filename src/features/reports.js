@@ -593,18 +593,28 @@ ${itemsRowsText}================================================================
         const pdfFile = new File([pdfBlob], finalFileName, { type: 'application/pdf' });
 
         if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-            try {
-                await navigator.share({
-                    files: [pdfFile],
-                    title: finalFileName,
-                    text: 'Here is the Amolnama Daily Ledger report.'
-                });
-                showFlashMessage("Opening share menu...");
-            } catch (shareError) {
-                if (shareError.name !== 'AbortError') {
-                    showAppAlert("Share Error", "Could not open share menu. Try again.");
-                }
-            }
+            
+            // Bypass the browser timeout by capturing a fresh, instant tap from the user
+            showAppAlert(
+                "Ledger Ready", 
+                "The official PDF is generated and ready to send.", 
+                true, 
+                async () => {
+                    try {
+                        await navigator.share({
+                            files: [pdfFile],
+                            title: finalFileName,
+                            text: 'Here is the Amolnama Daily Ledger report.'
+                        });
+                    } catch (shareError) {
+                        if (shareError.name !== 'AbortError') {
+                            showFlashMessage("Share cancelled or failed.");
+                        }
+                    }
+                }, 
+                "SHARE NOW"
+            );
+
         } else {
             showAppAlert("Unsupported", "Your browser or device does not support direct file sharing.");
         }
