@@ -604,7 +604,6 @@ ${itemsRowsText}================================================================
                         await navigator.share({
                             files: [pdfFile],
                             title: finalFileName,
-                            text: 'Here is the Amolnama Daily Ledger report.'
                         });
                     } catch (shareError) {
                         if (shareError.name !== 'AbortError') {
@@ -612,7 +611,7 @@ ${itemsRowsText}================================================================
                         }
                     }
                 }, 
-                "SHARE NOW"
+                "Share"
             );
 
         } else {
