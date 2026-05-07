@@ -762,6 +762,13 @@ export function setTxListenerUnsubscribe(val) { txListenerUnsubscribe = val; }
 
 export async function fetchTransactionsForDate() {
     if (!AppState.currentUser) return;
+
+    // Force Center/Floor mode for Managers and Admins and hide the toggles
+    if (AppState.currentUserRole === 'admin' || AppState.currentUserRole === 'manager') {
+        currentReportMode = 'floor';
+        if (document.getElementById('toggle-personal')) document.getElementById('toggle-personal').style.display = 'none';
+        if (document.getElementById('toggle-floor')) document.getElementById('toggle-floor').style.display = 'none';
+    }
     
     const datePicker = document.getElementById('report-date-picker');
     if (!datePicker.value) {
