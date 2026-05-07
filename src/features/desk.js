@@ -63,12 +63,54 @@ export async function performLazyAutoClose() {
                         if (lastSession.status === 'open') carryOverCash += (tx.cashAmt || 0);
                     });
 
-                    // If left open overnight, seal it officially
+                    // If left open overnight, seal it officially with Auto-Drop!
                     if (lastSession.status === 'open') {
-                        await updateDoc(doc(db, 'sessions', lastSessionId), {
-                            status: 'rolled_over', rolledOverAt: serverTimestamp(),
-                            expectedClosing: { cash: carryOverCash, inventory: carryOverInv }
+                        let finalCash = carryOverCash;
+                        
+                        // 1. Write the Auto-Drop Transaction for 11:59 PM yesterday
+                        if (finalCash > 0) {
+                            await setDoc(doc(collection(db, 'transactions')), {
+                                id: Date.now() + Math.floor(Math.random() * 1000), // Ensure unique ID
+                                receiptNo: `SYS-${Date.now().toString().slice(-4)}`,
+                                type: 'adjustment',
+                                name: 'System Auto-Handover',
+                                trackAs: 'Physical Cash',
+                                amount: finalCash,
+                                qty: 1,
+                                payment: 'Auto-Dropped to Manager',
+                                cashAmt: -Math.abs(finalCash),
+                                mfsAmt: 0,
+                                isDeleted: false,
+                                time: '11:59 PM',
+                                dateStr: lastSession.dateStr, // Yesterday's date
+                                deskId: deskId,
+                                sessionId: lastSessionId,
+                                agentId: 'system',
+                                agentName: 'System Auto-Close',
+                                timestamp: serverTimestamp() // Safe fallback
+                            });
+                        }
+
+                        // 2. Save the Snapshot
+                        await setDoc(doc(collection(db, 'eod_reports')), {
+                            deskId: deskId,
+                            sessionId: lastSessionId,
+                            dateStr: lastSession.dateStr,
+                            submittedBy: 'System',
+                            submittedAt: serverTimestamp(),
+                            expectedClosing: { cash: finalCash, inventory: carryOverInv },
+                            actualClosing: { cash: 0, inventory: carryOverInv }, // Cash dropped to 0
+                            variance: 0, // No variance because system assumes perfect drop
+                            managerDrop: finalCash,
+                            retainedFloat: 0
                         });
+
+                        // 3. Seal the session
+                        await updateDoc(doc(db, 'sessions', lastSessionId), {
+                            status: 'closed_by_system', closedAt: serverTimestamp(),
+                            expectedClosing: { cash: 0, inventory: carryOverInv } // Cash is now 0
+                        });
+                        
                         carryOverCash = 0; // Reset next day cash to 0
                     }
                 }
@@ -536,55 +578,45 @@ export async function initiateCloseDesk() {
     let invHTML = '';
     let itemsToCount = Object.keys(expectedInv);
     
-    if(itemsToCount.length === 0) invHTML = '<p style="text-align:center; color: var(--text-secondary);">No physical inventory tracked today.</p>';
+    if(itemsToCount.length === 0) invHTML = '<p style="text-align:center; color: var(--text-secondary); font-size: 0.9rem;">No physical inventory tracked today.</p>';
     else {
         itemsToCount.forEach(itemName => {
-            invHTML += `
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
-                    <label class="admin-label" style="margin:0; font-size:0.85rem; color:#334155;">${itemName}</label>
-                    <input type="number" class="actual-inv-input settings-input" data-name="${itemName}" style="width:80px; text-align:center; padding:8px; border-color:#cbd5e1;" placeholder="0">
-                </div>
-            `;
+            let qty = expectedInv[itemName];
+            if (qty > 0) {
+                invHTML += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding: 6px 0; border-bottom:1px dashed #e2e8f0; font-size: 0.9rem;">
+                        <span style="color:#334155; font-weight: 600;">${itemName}</span>
+                        <span style="color:#0f172a; font-weight: 800;">${qty}</span>
+                    </div>
+                `;
+            }
         });
+        if (!invHTML) invHTML = '<p style="text-align:center; color: var(--text-secondary); font-size: 0.9rem;">All tracked stock is at 0.</p>';
     }
 
     const modalContent = `
         <div style="background-color: var(--surface-color); padding: calc(16px + env(safe-area-inset-top)) 20px 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 10;">
-            <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">End of Day Report</h3>
+            <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">Close Shift</h3>
             <button style="background: none; border: none; color: #ef4444; font-weight: 600; font-size: 1rem; padding: 4px 0; cursor: pointer;" onclick="closeModal('modal-close-desk')">Cancel</button>
         </div>
 
         <div style="flex: 1; overflow-y: auto; padding: 24px 20px; padding-bottom: calc(24px + env(safe-area-inset-bottom));">
-      <div style="background: var(--warning-bg); border: 1px solid var(--warning-border); padding: 12px; border-radius: 8px; margin-bottom: 24px;">
-        <p style="color: var(--warning-text); font-size: 0.85rem; margin: 0; font-weight: 600; line-height: 1.4;">Blind Count: Count your physical cash and stock. Enter the totals below to submit your report to the manager.</p>
-      </div>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 24px; line-height: 1.5;">Please hand over the following expected cash and items to your manager. This will permanently seal your shift.</p>
       
-      <div class="admin-form-card" style="margin-bottom: 24px; padding: 20px; border: 2px solid var(--info-border); background: var(--info-bg);">
-        <label style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--info-text); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">1. Actual Cash in Drawer</label>
-        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-          <span style="font-size: 1.75rem; font-weight: bold; color: var(--info-text);">Tk</span>
-          <input type="number" id="actual-cash-input" class="settings-input" style="font-size: 1.75rem; font-weight: 800; padding: 12px 16px; border-color: var(--info-border); color: var(--info-text); background: transparent;" placeholder="0" oninput="calculateBlindRetained()">
-        </div>
-
-        <label style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--purple-text); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; border-top: 1px dashed var(--border-color); padding-top: 16px;">2. Manager Drop</label>
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <span style="font-size: 1.5rem; font-weight: bold; color: var(--purple-text);">Tk</span>
-          <input type="number" id="manager-drop-input" class="settings-input" style="font-size: 1.5rem; font-weight: 800; padding: 10px 16px; border-color: var(--purple-border); color: var(--purple-text); background: var(--purple-bg);" placeholder="0" oninput="calculateBlindRetained()">
-        </div>
-                <div style="margin-top: 16px; font-size: 0.95rem; color: #475569; display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-weight: 600;">Retained Float (For Tomorrow):</span> 
-                    <strong id="retained-float-display" style="color: #0f172a; font-size: 1.1rem;">0 Tk</strong>
-                </div>
+            <div class="admin-form-card" style="margin-bottom: 24px; padding: 20px; border: 2px solid #10b981; background: #ecfdf5;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 800; color: #047857; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Expected Cash Handover</label>
+                <div style="font-size: 2rem; font-weight: 900; color: #065f46;">${expectedCash} Tk</div>
+                <div style="font-size: 0.85rem; font-weight: 600; color: #047857; margin-top: 4px;">Expected MFS: ${expectedMfs} Tk</div>
             </div>
 
-            <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">3. Physical Inventory Count</div>
-            <div class="admin-form-card" style="padding: 16px; margin-bottom: 32px;">
+            <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Expected Physical Stock</div>
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 32px; background: #f8fafc; border: 1px solid #cbd5e1;">
                 ${invHTML}
             </div>
 
-            <button class="btn-primary-full" style="padding: 16px; font-size: 1.1rem; background-color: #10b981; display: flex; justify-content: center; align-items: center; gap: 8px;" onclick="submitClosingReport()">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                SUBMIT EOD REPORT
+            <button class="btn-primary-full" style="padding: 16px; font-size: 1.1rem; background-color: #ef4444; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 4px 16px rgba(239,68,68,0.3);" onclick="submitClosingReport()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                CONFIRM & SEAL DESK
             </button>
         </div>
     `;
@@ -592,39 +624,13 @@ export async function initiateCloseDesk() {
     openModal('modal-close-desk');
 }
 
-export function calculateBlindRetained() {
-    let actual = parseFloat(document.getElementById('actual-cash-input').value) || 0;
-    let drop = parseFloat(document.getElementById('manager-drop-input').value) || 0;
-    let retained = actual - drop;
-    
-    let displayEl = document.getElementById('retained-float-display');
-    if (drop > actual) displayEl.innerHTML = `<span style="color: #ef4444;">Error: Exceeds Drawer Total</span>`;
-    else displayEl.innerText = retained + " Tk";
-}
-
 export async function submitClosingReport() {
-    let actualCash = parseFloat(document.getElementById('actual-cash-input').value);
-    let dropAmount = parseFloat(document.getElementById('manager-drop-input').value) || 0;
-
-    if (isNaN(actualCash) || actualCash < 0) { showAppAlert("Invalid Input", "Please enter your total physical cash."); return; }
-    if (dropAmount < 0 || dropAmount > actualCash) { 
-        showAppAlert("Error", "Manager drop cannot exceed your total physical cash."); 
-        return; 
-    }
-
-    actualClosingStats.cash = actualCash;
-    actualClosingStats.inventory = {};
-
-    document.querySelectorAll('.actual-inv-input').forEach(input => {
-        let itemName = input.getAttribute('data-name');
-        actualClosingStats.inventory[itemName] = parseInt(input.value) || 0;
-    });
-
-    let variance = actualCash - expectedClosingStats.cash;
-    let retainedFloat = actualCash - dropAmount;
+    // In One-Click Close, actual equals expected. The manager handles shortages offline.
+    actualClosingStats.cash = expectedClosingStats.cash;
+    actualClosingStats.inventory = expectedClosingStats.inventory;
 
     try {
-        // 1. Save the daily report to a new collection instead of closing the session
+        // 1. Save the daily report snapshot
         await setDoc(doc(collection(db, 'eod_reports')), {
             deskId: AppState.currentDeskId,
             sessionId: AppState.currentSessionId,
@@ -633,41 +639,40 @@ export async function submitClosingReport() {
             submittedAt: serverTimestamp(),
             expectedClosing: expectedClosingStats,
             actualClosing: actualClosingStats,
-            variance: variance,
-            managerDrop: dropAmount,
-            retainedFloat: retainedFloat
+            variance: 0, // Perfectly balanced conceptually
+            managerDrop: expectedClosingStats.cash,
+            retainedFloat: 0
         });
 
-        // 2. If money was given to the manager, auto-create a transaction so the drawer cash stays accurate
-        if (dropAmount > 0) {
-            await setDoc(doc(collection(db, 'transactions')), {
-                id: Date.now(),
-                receiptNo: `EOD-${Date.now().toString().slice(-4)}`,
-                type: 'adjustment',
-                name: 'Manager Drop',
-                trackAs: 'Physical Cash',
-                amount: dropAmount,
-                qty: 1,
-                payment: 'Dropped to Manager',
-                cashAmt: -Math.abs(dropAmount),
-                mfsAmt: 0,
-                isDeleted: false,
-                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-                dateStr: getStrictDate(),
-                deskId: AppState.currentDeskId,
-                sessionId: AppState.currentSessionId,
-                agentId: AppState.currentUser.uid,
-                agentName: AppState.userNickname || AppState.userDisplayName,
-                timestamp: serverTimestamp()
-            });
-        }
+        // 2. Mark session as closed
+        await updateDoc(doc(db, 'sessions', AppState.currentSessionId), {
+            status: 'closed', closedAt: serverTimestamp()
+        });
+
+        // 3. Mark desk as closed and detach session pointer
+        await updateDoc(doc(db, 'desks', AppState.currentDeskId), {
+            status: 'closed', currentSessionId: null
+        });
+
+        // 4. Release the user's desk lock
+        await updateDoc(doc(db, 'users', AppState.currentUser.uid), {
+            assignedDeskId: null, assignedDate: null
+        });
+
     } catch (e) { 
         showFlashMessage("Offline: Report queued for sync."); 
+        console.error(e);
     } finally {
         closeModal('modal-close-desk');
-        showFlashMessage("EOD Report Submitted!");
+        showFlashMessage("Desk Sealed! Shift complete.");
+        
+        // Reset local state and boot them back to the Floor Map
+        AppState.currentDeskId = null;
+        AppState.currentSessionId = null;
+        document.getElementById('header-title').innerText = 'Floor Map';
+        
         if(window.fetchTransactionsForDate) window.fetchTransactionsForDate();
+        if(window.switchTab) window.switchTab('floor', 'Live Floor Map');
         loadFloorMap(); 
-        // Note: AppState variables are NOT cleared, so the user stays at their desk!
     }
 }
