@@ -134,7 +134,7 @@ export async function renderPersonalReport() {
         let agentBadge = currentReportMode === 'floor' ? ` &bull; <span style="color: var(--text-primary); font-weight: 600;">By ${tx.agentName.split(' ')[0]}</span>` : '';
 
         let actionBtns = '';
-        if (currentReportMode === 'personal' || AppState.currentUserRole === 'admin') {
+        if (currentReportMode === 'personal' || AppState.currentUserRole === 'admin' || AppState.currentUserRole === 'manager') {
             actionBtns = `
                 <div class="tx-actions" style="display: none; width: 100%; padding-top: 12px; margin-top: 12px; border-top: 1px dashed var(--border-color); justify-content: flex-end; gap: 8px;">
                     <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: var(--accent-color); border-color: var(--accent-color); gap: 6px;" onclick="event.stopPropagation(); openEditTx(${tx.id})">
@@ -683,7 +683,7 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
         if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
         
         let actionBtns = '';
-        if (targetDeskId === AppState.currentDeskId || AppState.currentUserRole === 'admin') {
+        if (targetDeskId === AppState.currentDeskId || AppState.currentUserRole === 'admin' || AppState.currentUserRole === 'manager') {
             actionBtns = `
                 <div class="tx-actions" style="display: none; width: 100%; padding-top: 12px; margin-top: 12px; border-top: 1px dashed var(--border-color); justify-content: flex-end; gap: 8px;">
                     <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: var(--accent-color); border-color: var(--accent-color); gap: 6px;" onclick="event.stopPropagation(); openEditTx(${tx.id})">
@@ -777,7 +777,7 @@ export async function fetchTransactionsForDate() {
     try {
                 let txQuery = query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr));
                 
-                if (AppState.currentUserRole !== 'admin' && currentReportMode !== 'floor') {
+                if (AppState.currentUserRole !== 'admin' && AppState.currentUserRole !== 'manager' && currentReportMode !== 'floor') {
                     // FIX: If the agent is at a desk, load ALL transactions for that desk so they see inbound manager transfers.
                     if (AppState.currentDeskId && AppState.currentDeskId !== 'sandbox') {
                         txQuery = query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr), where('deskId', '==', AppState.currentDeskId));

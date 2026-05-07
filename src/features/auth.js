@@ -49,8 +49,8 @@ export function openProfileHub() {
     document.getElementById('hub-user-email').innerText = AppState.currentUser.email || 'No Email Linked';
     
     let roleBadge = document.getElementById('hub-user-role');
-    if (AppState.currentUserRole === 'admin') {
-        roleBadge.innerText = 'Center Admin';
+    if (AppState.currentUserRole === 'admin' || AppState.currentUserRole === 'manager') {
+        roleBadge.innerText = AppState.currentUserRole === 'admin' ? 'Center Admin' : 'Center Manager';
         roleBadge.style.background = '#e0f2fe';
         roleBadge.style.color = '#0284c7';
         document.getElementById('hub-admin-section').style.display = 'block';
