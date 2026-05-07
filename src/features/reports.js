@@ -470,7 +470,10 @@ export async function downloadReportAsPDF(mode, prefix) {
     let mfsTotal = "0", ersTotal = "0";
 
     if (mode === 'tab-desk') {
-        deskName = document.getElementById('desk-dashboard-title')?.innerText || 'My Active Desk';
+        let rawDeskName = document.getElementById('desk-dashboard-title')?.innerText || 'My Active Desk';
+        // Only strip the "(My Drawer)" UI hint. Keep "'s Drawer" intact.
+        deskName = rawDeskName.replace(/\(My Drawer\)/i, '').trim();
+        
         agents = document.getElementById('desk-logged-agents')?.innerText || 'None';
         
         opening = document.getElementById('desk-tot-opening')?.innerText?.replace(' Tk', '') || "0";
