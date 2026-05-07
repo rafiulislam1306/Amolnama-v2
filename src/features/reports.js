@@ -478,7 +478,6 @@ export async function downloadReportAsPDF(mode, prefix) {
         mgrDrops = document.getElementById('desk-tot-manager')?.innerText?.replace(' Tk', '') || "0";
         expected = document.getElementById('desk-tot-expected-cash')?.innerText?.replace(' Tk', '') || "0";
         
-        // Extract ERS/MFS from the text (e.g. "1500 Tk" -> "1500")
         const mfsCard = document.evaluate("//div[contains(text(), 'Total MFS')]/following-sibling::div", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
         const ersCard = document.evaluate("//div[contains(text(), 'ERS Sent')]/following-sibling::div", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
         mfsTotal = mfsCard ? mfsCard.innerText.replace(' Tk', '') : "0";
@@ -487,17 +486,16 @@ export async function downloadReportAsPDF(mode, prefix) {
         if (currentReportMode === 'floor') deskName = "Consolidated Center Ledger";
         else deskName = "Personal Agent Ledger";
         
-        opening = "N/A"; mgrDrops = "N/A"; expected = "N/A"; // Personal/Floor mode has different math display
+        opening = "N/A"; mgrDrops = "N/A"; expected = "N/A";
         cashSales = document.getElementById('tot-cash-sales')?.innerText?.replace(' Tk', '') || "0";
         mfsTotal = document.getElementById('tot-mfs')?.innerText?.replace(' Tk', '') || "0";
         ersTotal = document.getElementById('tot-ers')?.innerText?.replace(' Tk', '') || "0";
     }
 
-    // 2. Build Inventory & Items Rows
-    let inventoryRowsHTML = '';
-    let itemsRowsHTML = '';
+    // 2. Build Inventory & Items Rows (Plain Text for PRE tag)
+    let inventoryRowsText = '';
+    let itemsRowsText = '';
 
-    // We extract stock directly from the DOM so it perfectly matches whatever the user is looking at
     let stockRows = document.querySelectorAll(mode === 'tab-desk' ? '#live-dashboard-wrapper > div:nth-child(3) > div:nth-child(2) > div > div:not(:first-child)' : '#floor-stock-list > div:not(:first-child)');
     
     if (stockRows && stockRows.length > 0) {
@@ -509,11 +507,11 @@ export async function downloadReportAsPDF(mode, prefix) {
                 let inOut = cols[2].innerText.padStart(8, ' ');
                 let sold = cols[3].innerText.padStart(6, ' ');
                 let exp = cols[4].innerText.padStart(10, ' ');
-                inventoryRowsHTML += `<div>${item}${start}${inOut}${sold}${exp}</div>`;
+                inventoryRowsText += `${item}${start}${inOut}${sold}${exp}\n`;
             }
         });
     } else {
-        inventoryRowsHTML = `<div>No physical stock recorded.</div>`;
+        inventoryRowsText = `No physical stock recorded.\n`;
     }
 
     let soldRows = document.querySelectorAll(mode === 'tab-desk' ? '#live-dashboard-wrapper > div:nth-child(4) > div:not(:first-child)' : '#inventory-list > div');
@@ -524,28 +522,27 @@ export async function downloadReportAsPDF(mode, prefix) {
             let qty = row.children[1]?.innerText;
             if (name && qty && name !== 'No items sold yet' && name !== 'No items or services sold yet') {
                 hasItems = true;
-                itemsRowsHTML += `<div>  ${qty.padEnd(4, ' ')} ${name}</div>`;
+                itemsRowsText += `  ${qty.padEnd(4, ' ')} ${name}\n`;
             }
         });
     }
-    if (!hasItems) itemsRowsHTML = `<div>  No items sold</div>`;
+    if (!hasItems) itemsRowsText = `  No items sold\n`;
 
     // 3. Construct the Hidden HTML Template
     const printContainer = document.createElement('div');
-    printContainer.style.cssText = "position: absolute; left: -9999px; top: 0; width: 800px; background: white; color: black; font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.5; padding: 40px; box-sizing: border-box;";
+    // FIX 1: Safely hide it behind the app, NOT off-screen
+    printContainer.style.cssText = "position: absolute; top: 0; left: 0; z-index: -9999; width: 800px; background: white; color: black; font-size: 14px; padding: 40px; box-sizing: border-box;";
     
+    // FIX 2: Use an explicit <pre> tag to guarantee the spacing holds its shape
     printContainer.innerHTML = `
-        <div style="white-space: pre;">================================================================
-                           <strong>AMOLNAMA</strong>
-                         <strong>DAILY LEDGER</strong>
-================================================================</div>
-        <div style="display: flex; justify-content: space-between; margin-top: 10px; margin-bottom: 10px;">
-            <div style="white-space: pre;">Desk Name:   ${deskName.padEnd(20, ' ')}
-Agents:      ${agents.padEnd(20, ' ')}</div>
-            <div style="white-space: pre;">Date: ${dateStr}
-Time: ${timeStr}</div>
-        </div>
-        <div style="white-space: pre;">----------------------------------------------------------------
+<pre style="margin: 0; font-family: 'Courier New', Courier, monospace; line-height: 1.5; font-size: 14px;">
+================================================================
+                           AMOLNAMA
+                         DAILY LEDGER
+================================================================
+Desk Name:   ${deskName.padEnd(20, ' ')} Date: ${dateStr}
+Agents:      ${agents.padEnd(20, ' ')} Time: ${timeStr}
+----------------------------------------------------------------
 
 [ 1. CASH FORMULA ]
   Opening Cash Float:                                ${opening.padStart(8, ' ')} Tk
@@ -562,18 +559,19 @@ Time: ${timeStr}</div>
 [ 3. PHYSICAL INVENTORY BALANCE ]
 Item                  Start    In/Out    Sold    Expected
 ----------------------------------------------------------------
-${inventoryRowsHTML}
-
+${inventoryRowsText}
 ----------------------------------------------------------------
 [ 4. ITEMS & SERVICES SOLD ]
-${itemsRowsHTML}
-  
+${itemsRowsText}
 ================================================================
        Report generated securely by Amolnama on ${dateStr}
-</div>
+</pre>
     `;
 
     document.body.appendChild(printContainer);
+
+    // FIX 3: Give the browser 100 milliseconds to physically paint the text on the hidden canvas
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     // 4. Generate PDF
     const opt = {
@@ -591,7 +589,7 @@ ${itemsRowsHTML}
         console.error(error);
         showAppAlert("Error", "Failed to generate PDF.");
     } finally {
-        // Destroy the hidden template
+        // Destroy the hidden template so it doesn't clutter the DOM
         document.body.removeChild(printContainer);
     }
 }
