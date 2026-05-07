@@ -156,6 +156,7 @@ Use this section to identify exactly which function controls a feature — so yo
 - `buildLifecycleText(txList, openingInv)` — builds inventory lifecycle text for share report
 - `fallbackCopy(text)` — clipboard fallback for older browsers
 - `getTxListenerUnsubscribe()`, `setTxListenerUnsubscribe(val)` — manages real-time listener lifecycle
+- `downloadReportAsImage(containerId, prefix)` — uses html2canvas to capture a high-res image of the specified tab and triggers a local file download
 
 ---
 

@@ -289,33 +289,27 @@ export function buildLifecycleText(txList, openingInv) {
 
     txList.forEach(tx => {
         if (tx.isDeleted || tx.name === 'Physical Cash' || tx.name === 'ERS Flexiload') return;
-        
         let trackAs = tx.trackAs;
         if (!AppState.globalInventoryGroups.includes(trackAs)) return;
 
         if (!stats[trackAs]) stats[trackAs] = { open: 0, in: 0, out: 0, sold: 0, rem: 0, rev: 0 };
-        
         hasItems = true;
         let q = Math.abs(tx.qty);
         
         if (tx.type === 'transfer_in') { stats[trackAs].in += q; stats[trackAs].rem += q; }
         else if (tx.type === 'transfer_out') { stats[trackAs].out += q; stats[trackAs].rem -= q; }
         else if (tx.type === 'adjustment') { stats[trackAs].in += q; stats[trackAs].rem += q; }
-        else { 
-            stats[trackAs].sold += q; 
-            stats[trackAs].rem -= q; 
-            stats[trackAs].rev += (tx.amount || 0); 
-        }
+        else { stats[trackAs].sold += q; stats[trackAs].rem -= q; stats[trackAs].rev += (tx.amount || 0); }
     });
 
-    if (!hasItems) return "None\n";
+    if (!hasItems) return "   No physical items tracked.\n";
 
     let text = "";
     for (const [item, data] of Object.entries(stats)) {
         if (data.open === 0 && data.in === 0 && data.sold === 0 && data.out === 0) continue;
-        text += `> ${item}\n`;
-        text += `  Opened: ${data.open} | In: ${data.in} | Out: ${data.out} | Sold: ${data.sold}\n`;
-        text += `  Remaining: ${data.rem} | Revenue: ${data.rev} Tk\n\n`;
+        text += `🔹 *${item}*\n`;
+        text += `   Start: ${data.open} | In: +${data.in} | Out: -${data.out}\n`;
+        text += `   Sold: ${data.sold} | Exp. Left: ${data.rem}\n\n`;
     }
     return text;
 }
@@ -323,15 +317,10 @@ export function buildLifecycleText(txList, openingInv) {
 export function fallbackCopy(text) {
     try {
         const textArea = document.createElement("textarea");
-        textArea.value = text;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textArea);
-        showFlashMessage("Report Copied!");
-    } catch (err) {
-        showAppAlert("Error", "Could not copy report to clipboard.");
-    }
+        textArea.value = text; document.body.appendChild(textArea); textArea.select();
+        document.execCommand("copy"); document.body.removeChild(textArea);
+        showFlashMessage("Report Copied to Clipboard!");
+    } catch (err) { showAppAlert("Error", "Could not copy report."); }
 }
 
 export function shareReport() {
@@ -344,15 +333,26 @@ export function shareReport() {
     let reportText = "";
     
     if (currentReportMode === 'floor') {
-        reportText = `Center Report: ${dateStr}\n\nSALES SUMMARY\nRevenue: ${totalRevenue}\nCash Collected: ${totalCash}\nMFS Collected: ${totalMfs}\nERS Disbursed: ${totalErs}\n\n`;
+        reportText = `🏢 *CENTER REPORT* 🏢\n📅 Date: ${dateStr}\n\n`;
+        reportText += `💰 *SALES SUMMARY*\n`;
+        reportText += `   Total Revenue:  ${totalRevenue}\n`;
+        reportText += `   Cash Collected: ${totalCash}\n`;
+        reportText += `   MFS Collected:  ${totalMfs}\n`;
+        reportText += `   ERS Disbursed:  ${totalErs}\n\n`;
     } else {
-        reportText = `My Daily Report: ${dateStr}\nAgent: ${AppState.userNickname || AppState.userDisplayName}\n\nPERSONAL SALES SUMMARY\nRevenue: ${totalRevenue}\nCash Collected: ${totalCash}\nMFS Collected: ${totalMfs}\nERS Disbursed: ${totalErs}\n\nPHYSICAL INVENTORY LIFECYCLE\n`;
+        reportText = `👤 *MY DAILY REPORT* 👤\n📅 Date: ${dateStr}\n🧑‍💻 Agent: ${AppState.userNickname || AppState.userDisplayName}\n\n`;
+        reportText += `💰 *SALES SUMMARY*\n`;
+        reportText += `   Total Revenue:  ${totalRevenue}\n`;
+        reportText += `   Cash Collected: ${totalCash}\n`;
+        reportText += `   MFS Collected:  ${totalMfs}\n`;
+        reportText += `   ERS Disbursed:  ${totalErs}\n\n`;
+        reportText += `📦 *PHYSICAL INVENTORY*\n`;
         let myTx = AppState.transactions.filter(t => t.agentId === AppState.currentUser.uid);
         reportText += buildLifecycleText(myTx, AppState.currentOpeningInv);
     }
 
-    if (navigator.share) navigator.share({ title: 'Report', text: reportText }).catch(e => console.log(e));
-    else { try { navigator.clipboard.writeText(reportText).then(() => showFlashMessage("Report Copied!")).catch(() => fallbackCopy(reportText)); } catch (e) { fallbackCopy(reportText); } }
+    if (navigator.share) navigator.share({ title: 'Amolnama Report', text: reportText }).catch(e => console.log(e));
+    else fallbackCopy(reportText);
 }
 
 export function shareDeskReport() {
@@ -367,67 +367,84 @@ export function shareDeskReport() {
     let expected = document.getElementById('desk-tot-expected-cash') ? document.getElementById('desk-tot-expected-cash').innerText : '0 Tk';
 
     let deskTx = AppState.transactions.filter(t => t.deskId === AppState.currentDeskId && t.dateStr === dateStr);
-    let deskMfs = 0;
-    let itemsSold = {};
-    let invStats = {};
+    let deskMfs = 0; let itemsSold = {}; let invStats = {};
 
-    // 1. Initialize inventory stats from drawer opening
     getPhysicalItems().forEach(item => {
         let o = AppState.currentOpeningInv[item] || 0;
         invStats[item] = { open: o, in: 0, out: 0, sold: 0, rem: o };
     });
 
-    // 2. Tally up all metrics
     deskTx.forEach(tx => {
         if(tx.isDeleted) return;
-
-        // Tally MFS
         deskMfs += (tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0));
 
-        // Tally Items Sold (Exclude pure cash actions and ERS)
         if (tx.type !== 'adjustment' && tx.type !== 'transfer_out' && tx.type !== 'transfer_in' && tx.name !== 'ERS Flexiload' && tx.name !== 'Physical Cash') {
             itemsSold[tx.name] = (itemsSold[tx.name] || 0) + Math.abs(tx.qty);
         }
 
-        // Tally Physical Inventory Lifecycle
         if (AppState.globalInventoryGroups.includes(tx.trackAs)) {
-            let trackAs = tx.trackAs;
-            let q = Math.abs(tx.qty);
-            if (tx.type === 'transfer_in') { invStats[trackAs].in += q; invStats[trackAs].rem += q; }
+            let trackAs = tx.trackAs; let q = Math.abs(tx.qty);
+            if (tx.type === 'transfer_in' || tx.type === 'adjustment') { invStats[trackAs].in += q; invStats[trackAs].rem += q; }
             else if (tx.type === 'transfer_out') { invStats[trackAs].out += q; invStats[trackAs].rem -= q; }
-            else if (tx.type === 'adjustment') { invStats[trackAs].in += q; invStats[trackAs].rem += q; }
-            else { 
-                invStats[trackAs].sold += q; 
-                invStats[trackAs].rem -= q; 
-            }
+            else { invStats[trackAs].sold += q; invStats[trackAs].rem -= q; }
         }
     });
 
-    // 3. Build text block
-    let reportText = `Desk Report: ${dateStr}\n${deskTitle}\nAgents: ${activeAgents}\n\n`;
-    reportText += `Opening Cash: ${opening}\nCash Sales: ${cashSales}\nManager Drops: ${mgrDrop}\n------------------------\n`;
-    reportText += `Expected Cash: ${expected}\nExpected MFS: ${deskMfs} Tk\n\n`;
+    let reportText = `📊 *DESK REPORT* 📊\n📅 Date: ${dateStr}\n🏷️ ${deskTitle}\n👥 Agents: ${activeAgents}\n\n`;
+    reportText += `💰 *CASH FORMULA*\n`;
+    reportText += `   Opening Cash: ${opening}\n`;
+    reportText += `   Cash Sales:   +${cashSales}\n`;
+    reportText += `   Mgr Drops:    ${mgrDrop}\n`;
+    reportText += `   ----------------------\n`;
+    reportText += `   Expected:     ${expected}\n\n`;
+    reportText += `📱 *DIGITAL SALES*\n`;
+    reportText += `   Total MFS:    ${deskMfs} Tk\n\n`;
 
-    reportText += `PHYSICAL INVENTORY LIFECYCLE\n`;
+    reportText += `📦 *PHYSICAL INVENTORY*\n`;
     let hasInv = false;
     for (const [item, data] of Object.entries(invStats)) {
         if (data.open === 0 && data.in === 0 && data.sold === 0 && data.out === 0) continue;
         hasInv = true;
-        reportText += `> ${item}\nStart: ${data.open} | In/Out: +${data.in}/-${data.out} | Sold: ${data.sold} | Exp.: ${data.rem}\n`;
+        reportText += `🔹 *${item}*\n`;
+        reportText += `   Start: ${data.open} | In: +${data.in} | Out: -${data.out}\n`;
+        reportText += `   Sold: ${data.sold} | Exp. Left: ${data.rem}\n\n`;
     }
-    if (!hasInv) reportText += "None\n";
+    if (!hasInv) reportText += "   None\n\n";
 
-    reportText += `\nTRANSACTION DETAILS\n`;
+    reportText += `🧾 *ITEMS SOLD*\n`;
     let hasItems = false;
     for (const [name, qty] of Object.entries(itemsSold)) {
-        hasItems = true;
-        reportText += `${name} (${qty}x)\n`;
+        hasItems = true; reportText += `   ${qty}x ${name}\n`;
     }
-    if (!hasItems) reportText += "No items sold\n";
+    if (!hasItems) reportText += "   No items sold\n";
 
-    // 4. Share or Copy
     if (navigator.share) navigator.share({ title: 'Desk Report', text: reportText }).catch(e => console.log(e));
-    else { try { navigator.clipboard.writeText(reportText).then(() => showFlashMessage("Desk Report Copied!")).catch(() => fallbackCopy(reportText)); } catch (e) { fallbackCopy(reportText); } }
+    else fallbackCopy(reportText);
+}
+
+// === NEW: IMAGE GENERATOR CORE ===
+export async function downloadReportAsImage(containerId, prefix) {
+    const container = document.getElementById(containerId);
+    if (!container || !window.html2canvas) {
+        showAppAlert("Error", "Image generation library not loaded or container missing.");
+        return;
+    }
+    showFlashMessage("📸 Generating Image Snapshot...");
+    try {
+        const canvas = await html2canvas(container, {
+            scale: 2, // High resolution
+            useCORS: true,
+            backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-color') || '#ffffff'
+        });
+        const link = document.createElement('a');
+        link.download = `${prefix}_Report_${getStrictDate().replace(/\//g, '-')}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        showFlashMessage("Image Saved to Device!");
+    } catch (error) {
+        console.error(error);
+        showAppAlert("Error", "Failed to generate image.");
+    }
 }
 
 export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, deskItemsSold) {
