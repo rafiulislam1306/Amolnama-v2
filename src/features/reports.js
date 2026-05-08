@@ -450,7 +450,144 @@ export async function downloadReportAsImage(containerId, prefix) {
     }
 }
 
-try {
+// === NEW: INVOICE PDF GENERATOR ===
+export async function downloadReportAsPDF(mode, prefix) {
+    if (!window.html2pdf) {
+        showAppAlert("Error", "PDF library not loaded.");
+        return;
+    }
+    
+    showFlashMessage("📄 Generating Official Ledger PDF...");
+
+    // 1. Gather Context Data
+    let dateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
+    let rawTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    let fileTimeStr = rawTime.replace(/ /g, '').replace(/:/g, '-'); 
+    
+    let deskName = "Center Ledger";
+    let agents = AppState.userNickname || AppState.userDisplayName;
+
+    let opening = "0", cashSales = "0", mgrDrops = "0", expected = "0";
+    let mfsTotal = "0", ersTotal = "0";
+
+    if (mode === 'tab-desk') {
+        let rawDeskName = document.getElementById('desk-dashboard-title')?.innerText || 'My Active Desk';
+        deskName = rawDeskName.replace(/\(My Drawer\)/i, '').trim();
+        agents = document.getElementById('desk-logged-agents')?.innerText || 'None';
+        
+        opening = document.getElementById('desk-tot-opening')?.innerText?.replace(' Tk', '') || "0";
+        cashSales = document.getElementById('desk-tot-cash-sales')?.innerText?.replace('+ ', '')?.replace(' Tk', '') || "0";
+        mgrDrops = document.getElementById('desk-tot-manager')?.innerText?.replace(' Tk', '') || "0";
+        expected = document.getElementById('desk-tot-expected-cash')?.innerText?.replace(' Tk', '') || "0";
+        
+        const mfsCard = document.evaluate("//div[contains(text(), 'Total MFS')]/following-sibling::div", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        const ersCard = document.evaluate("//div[contains(text(), 'ERS Sent')]/following-sibling::div", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        mfsTotal = mfsCard ? mfsCard.innerText.replace(' Tk', '') : "0";
+        ersTotal = ersCard ? ersCard.innerText.replace(' Tk', '') : "0";
+    } else {
+        if (currentReportMode === 'floor') deskName = "Consolidated Center Ledger";
+        else deskName = "Personal Agent Ledger";
+        
+        opening = "N/A"; mgrDrops = "N/A"; expected = "N/A";
+        cashSales = document.getElementById('tot-cash-sales')?.innerText?.replace(' Tk', '') || "0";
+        mfsTotal = document.getElementById('tot-mfs')?.innerText?.replace(' Tk', '') || "0";
+        ersTotal = document.getElementById('tot-ers')?.innerText?.replace(' Tk', '') || "0";
+    }
+
+    let safeDeskName = deskName.replace(/'/g, '').replace(/ /g, '_');
+    let safeDateStr = dateStr.replace(/\//g, '-');
+    let finalFileName = `${safeDeskName}_Ledger_${safeDateStr}_${fileTimeStr}.pdf`;
+
+    // 2. Build Inventory & Items Rows
+    let inventoryRowsText = '';
+    let itemsRowsText = '';
+
+    let stockRows = document.querySelectorAll(mode === 'tab-desk' ? '#live-dashboard-wrapper > div:nth-child(3) > div:nth-child(2) > div > div:not(:first-child)' : '#floor-stock-list > div:not(:first-child)');
+    
+    if (stockRows && stockRows.length > 0) {
+        stockRows.forEach(row => {
+            let cols = row.children;
+            if(cols.length === 5) {
+                let item = cols[0].innerText.padEnd(22, ' ');
+                let start = cols[1].innerText.padStart(5, ' ');
+                let inOut = cols[2].innerText.padStart(8, ' ');
+                let sold = cols[3].innerText.padStart(6, ' ');
+                let exp = cols[4].innerText.padStart(10, ' ');
+                inventoryRowsText += `${item}${start}${inOut}${sold}${exp}\n`;
+            }
+        });
+    } else {
+        inventoryRowsText = `No physical stock recorded.\n`;
+    }
+
+    let soldRows = document.querySelectorAll(mode === 'tab-desk' ? '#live-dashboard-wrapper > div:nth-child(4) > div:not(:first-child)' : '#inventory-list > div');
+    let hasItems = false;
+    if (soldRows && soldRows.length > 0) {
+        soldRows.forEach(row => {
+            let name = row.children[0]?.innerText;
+            let qty = row.children[1]?.innerText;
+            if (name && qty && name !== 'No items sold yet' && name !== 'No items or services sold yet') {
+                hasItems = true;
+                itemsRowsText += `  ${qty.padEnd(4, ' ')} ${name}\n`;
+            }
+        });
+    }
+    if (!hasItems) itemsRowsText = `  No items sold\n`;
+
+    // 3. Construct the pure HTML String
+    const invoiceContent = `================================================================
+                           AMOLNAMA
+                         DAILY LEDGER
+================================================================
+Desk Name:   ${deskName.padEnd(20, ' ')} Date: ${dateStr}
+Agents:      ${agents.padEnd(20, ' ')} Time: ${rawTime}
+----------------------------------------------------------------
+
+[ 1. CASH FORMULA ]
+  Opening Cash Float:                                ${opening.padStart(8, ' ')} Tk
+  (+) Cash Sales:                                    ${cashSales.padStart(8, ' ')} Tk
+  (+/-) Manager Actions (Drops/Float):               ${mgrDrops.padStart(8, ' ')} Tk
+  -----------------------------------------------------------
+  EXPECTED DRAWER CASH:                              ${expected.padStart(8, ' ')} Tk
+
+[ 2. DIGITAL & ERS ]
+  Total MFS Collected:                               ${mfsTotal.padStart(8, ' ')} Tk
+  Total ERS Disbursed:                               ${ersTotal.padStart(8, ' ')} Tk
+
+----------------------------------------------------------------
+[ 3. PHYSICAL INVENTORY BALANCE ]
+Item                  Start    In/Out    Sold    Expected
+----------------------------------------------------------------
+${inventoryRowsText}----------------------------------------------------------------
+[ 4. ITEMS & SERVICES SOLD ]
+${itemsRowsText}================================================================
+       Report generated securely by Amolnama on ${dateStr}`;
+
+    const finalHTMLString = `
+        <div style="width: 800px; height: auto; background-color: #ffffff; color: #000000; padding: 40px; box-sizing: border-box; font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.5; white-space: pre;">${invoiceContent}</div>
+    `;
+
+    // 4. Measure Exact Height Using Full Scroll Depth
+    const heightMeasurer = document.createElement('div');
+    heightMeasurer.style.cssText = "position: absolute; visibility: hidden; width: 800px; height: auto; overflow: visible; font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.5; white-space: pre; padding: 40px; box-sizing: border-box;";
+    heightMeasurer.innerHTML = invoiceContent;
+    document.body.appendChild(heightMeasurer);
+    
+    const pxHeight = heightMeasurer.scrollHeight;
+    const inHeight = Math.max(8, (pxHeight / 96) + 2); 
+    
+    document.body.removeChild(heightMeasurer);
+
+    // 5. Generate PDF natively from the string
+    const opt = {
+        margin:       0.3,
+        filename:     finalFileName,
+        image:        { type: 'jpeg', quality: 1.0 },
+        html2canvas:  { scale: 2, useCORS: true, windowWidth: 800, windowHeight: pxHeight + 200, scrollY: 0 },
+        jsPDF:        { unit: 'in', format: [8.5, inHeight], orientation: 'portrait' }
+    };
+
+    try {
         const pdfBlob = await html2pdf().set(opt).from(finalHTMLString).output('blob');
         
         // Ensure perfect file formatting for Android/iOS Web Share API compatibility
@@ -508,6 +645,7 @@ try {
         console.error("PDF Generation Error:", error);
         showAppAlert("Error", "Failed to generate the PDF ledger.");
     }
+}
 
 export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, deskItemsSold) {
     let { opening, sales, adjustments, adjustmentLog, expected } = cashMath;
