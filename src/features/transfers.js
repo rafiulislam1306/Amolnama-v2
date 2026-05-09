@@ -174,14 +174,40 @@ export function executeDeskTransfer() {
         senderTx = { id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName };
         receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${AppState.currentDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, isRemoteTransfer: true };
         showFlashMessage(navigator.onLine ? `Sent ${qty}x ${itemName} to ${targetDeskName}!` : "Offline: Transfer queued");
+        
+        closeModal('modal-desk-transfer');
+        addDoc(collection(db, 'transactions'), senderTx).catch(e => console.error(e));
+        addDoc(collection(db, 'transactions'), receiverTx).catch(e => console.error(e));
     } else {
-        // PULL LOGIC: We take from them, and give to ourselves
-        senderTx = { id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Pulled by ${AppState.currentDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, isRemoteTransfer: true };
-        receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Pulled from ${targetDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName };
-        showFlashMessage(navigator.onLine ? `Pulled ${qty}x ${itemName} from ${targetDeskName}!` : "Offline: Transfer queued");
+        // Fetch target desk stock before pulling
+        let theirStock = 0;
+        getDoc(doc(db, 'sessions', targetSessionId)).then(async (tSessSnap) => {
+            let theirInv = tSessSnap.exists() ? (tSessSnap.data().openingBalances?.inventory || {}) : {};
+            theirStock = theirInv[itemName] || 0;
+            const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', targetSessionId), where('isDeleted', '==', false), where('trackAs', '==', itemName)));
+            txSnap.forEach(tDoc => { 
+                let t = tDoc.data();
+                if (t.type === 'transfer_in') theirStock += Math.abs(t.qty);
+                else if (t.type === 'transfer_out') theirStock -= Math.abs(t.qty);
+                else if (t.type === 'adjustment') theirStock += Math.abs(t.qty);
+                else theirStock -= Math.abs(t.qty);
+            });
+            
+            if (theirStock < qty) {
+                showAppAlert("Pull Failed", `${targetDeskName} only has ${theirStock}x ${itemName} available.`);
+                return;
+            }
+            
+            senderTx = { id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Pulled by ${AppState.currentDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, isRemoteTransfer: true };
+            receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Pulled from ${targetDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName };
+            
+            closeModal('modal-desk-transfer');
+            addDoc(collection(db, 'transactions'), senderTx).catch(e => console.error(e));
+            addDoc(collection(db, 'transactions'), receiverTx).catch(e => console.error(e));
+            showFlashMessage(navigator.onLine ? `Pulled ${qty}x ${itemName} from ${targetDeskName}!` : "Offline: Transfer queued");
+        });
+        return; // Halt main thread to wait for async query
     }
-
-    closeModal('modal-desk-transfer');
     addDoc(collection(db, 'transactions'), senderTx).catch(e => console.error(e));
     addDoc(collection(db, 'transactions'), receiverTx).catch(e => console.error(e));
 }

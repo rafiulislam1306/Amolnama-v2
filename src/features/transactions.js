@@ -291,6 +291,13 @@ export function saveTxEdit() {
 
 export function deleteTransaction(docId, localId) {
     if(!AppState.currentUser) return;
+    
+    let tx = AppState.transactions.find(t => t.docId === docId || t.id === localId);
+    if (tx && (tx.type === 'transfer_out' || tx.type === 'transfer_in')) {
+        showAppAlert("Action Blocked", "Remote transfers cannot be deleted via the Trash bin to prevent stock duplication. Please issue a reverse transfer from the Desk Actions menu instead.");
+        return;
+    }
+
     showAppAlert("Delete Item", "Are you sure you want to move this transaction to the trash?", true, () => {
         let nowStr = new Date().toISOString();
         let agentStr = AppState.userNickname || AppState.userDisplayName;
@@ -354,7 +361,7 @@ export function restoreTx(docId, localId) {
         let txIndex = AppState.trashTransactions.findIndex(t => t.id === localId);
         if (txIndex > -1) {
             let tx = AppState.trashTransactions[txIndex];
-            if (!passStockFirewall(tx.name, tx.qty)) return;
+            if (tx.type !== 'transfer_in' && !passStockFirewall(tx.name, tx.qty)) return;
             tx.isDeleted = false; tx.isRestored = true;
             tx.restoredBy = agentStr; tx.restoredByUid = AppState.currentUser.uid; tx.restoredAt = nowStr;
             AppState.trashTransactions.splice(txIndex, 1);
