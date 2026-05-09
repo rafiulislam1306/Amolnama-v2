@@ -791,7 +791,7 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
     const isToday = targetDateStr === formatToGBDate(getStrictDate());
 
     if (targetDeskId === 'sandbox') {
-        activeSessionId = null;
+        activeSessionId = 'sandbox_session';
         deskOpeningCash = AppState.currentOpeningCash || 0;
         activeOpeningInv = AppState.currentOpeningInv || {};
     } else if (targetDeskId === AppState.currentDeskId && isToday && AppState.currentSessionId) {

@@ -385,7 +385,8 @@ export async function renderLiveFloorTab() {
 
             txSnap.forEach(txDoc => {
                 let tx = txDoc.data();
-                liveCash += (tx.cashAmt || 0);
+                let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
+                liveCash += safeCashAmt;
                 
                 let change = getInventoryChange(tx);
                 if (change !== 0) {
@@ -569,7 +570,8 @@ export async function initiateCloseDesk() {
 
     txSnap.forEach(docSnap => {
         let tx = docSnap.data();
-        expectedCash += (tx.cashAmt || 0); 
+        let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
+        expectedCash += safeCashAmt; 
         expectedMfs += (tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0));
         
         let change = getInventoryChange(tx);
