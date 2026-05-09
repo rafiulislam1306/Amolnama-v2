@@ -40,21 +40,21 @@ export async function renderPersonalReport() {
     if (currentReportMode === 'floor') {
         try {
             const sessSnap = await getDocs(query(collection(db, 'sessions'), where('dateStr', '==', targetDateStr)));
+            
+            let deskFirstSessions = {};
+
             for (const docSnap of sessSnap.docs) {
                 let s = docSnap.data();
-                floorOpeningCash += parseFloat(s.openingBalances?.cash) || 0;
-                let inv = s.openingBalances?.inventory || {};
-                for (let [item, qty] of Object.entries(inv)) {
-                    if (floorInvStats[item]) {
-                        floorInvStats[item].open += qty;
-                        floorInvStats[item].rem += qty;
-                    }
+                
+                // Group sessions by desk to find the true morning start
+                let t = s.openedAt?.toMillis() || 0;
+                if (!deskFirstSessions[s.deskId] || t < deskFirstSessions[s.deskId].time) {
+                    deskFirstSessions[s.deskId] = { time: t, data: s };
                 }
                 
                 if (s.status === 'closed' || s.status === 'pending' || s.status === 'rolled_over') {
                     let agentName = s.openedBy ? s.openedBy.split(' ')[0] : 'Agent';
                     
-                    // FIX: If the system sealed it, fetch the real desk owner's name
                     if (agentName === 'System' && s.deskId.startsWith('personal_')) {
                         try {
                             const deskSnap = await getDoc(doc(db, 'desks', s.deskId));
@@ -76,13 +76,32 @@ export async function renderPersonalReport() {
                     `;
                 }
             }
+
+            // Apply the true morning opening balances once per desk
+            Object.values(deskFirstSessions).forEach(firstSess => {
+                let s = firstSess.data;
+                floorOpeningCash += parseFloat(s.openingBalances?.cash) || 0;
+                let inv = s.openingBalances?.inventory || {};
+                for (let [item, qty] of Object.entries(inv)) {
+                    if (floorInvStats[item]) {
+                        floorInvStats[item].open += qty;
+                        floorInvStats[item].rem += qty;
+                    }
+                }
+            });
+
         } catch(e) { console.error("Could not fetch floor sessions", e); }
     }
 
     [...AppState.transactions].reverse().forEach(tx => {
         if (tx.isDeleted) return;
-        if (currentReportMode === 'personal' && tx.agentId !== AppState.currentUser.uid) return;
-        if (currentReportMode === 'personal' && tx.isRemoteTransfer) return; 
+        
+        if (currentReportMode === 'personal') {
+            let isMyAction = tx.agentId === AppState.currentUser.uid;
+            let isMyDeskTransfer = AppState.currentDeskId && tx.deskId === AppState.currentDeskId && (tx.type === 'transfer_in' || tx.type === 'transfer_out');
+            
+            if (!isMyAction && !isMyDeskTransfer) return;
+        }
 
         let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
         let safeMfsAmt = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0);
