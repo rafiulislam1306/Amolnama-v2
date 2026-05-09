@@ -208,8 +208,6 @@ export function executeDeskTransfer() {
         });
         return; // Halt main thread to wait for async query
     }
-    addDoc(collection(db, 'transactions'), senderTx).catch(e => console.error(e));
-    addDoc(collection(db, 'transactions'), receiverTx).catch(e => console.error(e));
 }
 
 let targetTransferDeskId = null; 
