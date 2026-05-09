@@ -590,3 +590,62 @@ export async function healTodaysOpeningStock() {
         }
     }, "Heal Stock");
 }
+
+export async function runLedgerDiagnostic() {
+    if (!AppState.currentDeskId || AppState.currentDeskId === 'sandbox') {
+        showAppAlert("Error", "Please join a live desk first to run its diagnostic.");
+        return;
+    }
+
+    showFlashMessage("Running diagnostic engine...");
+    let log = `=== LEDGER DIAGNOSTIC ===\n`;
+    log += `Date: ${getStrictDate()}\n`;
+    log += `Desk: ${AppState.currentDeskId} (${AppState.currentDeskName})\n`;
+    log += `Session: ${AppState.currentSessionId}\n\n`;
+
+    try {
+        // 1. Analyze Sessions
+        log += `[ SESSIONS LOGGED TODAY ]\n`;
+        const sessSnap = await getDocs(query(collection(db, 'sessions'), where('dateStr', '==', getStrictDate()), where('deskId', '==', AppState.currentDeskId)));
+        
+        if (sessSnap.empty) log += `  ERROR: No sessions exist for today!\n`;
+        
+        sessSnap.forEach(d => {
+            let s = d.data();
+            let tStr = (s.openedAt && typeof s.openedAt.toMillis === 'function') ? new Date(s.openedAt.toMillis()).toLocaleTimeString() : 'MISSING_TIMESTAMP';
+            log += `> Session: ${d.id}\n`;
+            log += `  Status: ${s.status} | Opened: ${tStr}\n`;
+            log += `  Opening Cash: ${s.openingBalances?.cash || 0}\n`;
+            log += `  Opening Inventory Keys: ${Object.keys(s.openingBalances?.inventory || {}).length}\n`;
+            log += `  Raw Inv Data: ${JSON.stringify(s.openingBalances?.inventory || {})}\n\n`;
+        });
+
+        // 2. Analyze Transactions
+        log += `[ TRANSACTIONS LOGGED TODAY ]\n`;
+        const txSnap = await getDocs(query(collection(db, 'transactions'), where('dateStr', '==', getStrictDate()), where('deskId', '==', AppState.currentDeskId)));
+        
+        let txs = [];
+        txSnap.forEach(d => txs.push({docId: d.id, ...d.data()}));
+        txs.sort((a,b) => a.id - b.id); // Sort chronologically
+
+        log += `Total TX Count: ${txs.length}\n`;
+        txs.forEach(t => {
+            let delStr = t.isDeleted ? '[DELETED] ' : '';
+            log += `  ${t.time} | ${delStr}${t.type} | ${t.name} (Qty: ${t.qty}) | Amt: ${t.amount}\n`;
+        });
+
+        // 3. Output to Clipboard
+        const textArea = document.createElement("textarea");
+        textArea.value = log;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+
+        showAppAlert("Diagnostic Complete", "A raw data log has been copied to your clipboard. Please paste it to your developer.", false, null, "Got it");
+
+    } catch (e) {
+        console.error(e);
+        showAppAlert("Diagnostic Failed", e.message);
+    }
+}

@@ -41,13 +41,30 @@ export async function performLazyAutoClose() {
 
                 // If we lost the session pointer, find the most recent session for this desk in history
                 if (!lastSession) {
-                    const pastSnap = await getDocs(query(collection(db, 'sessions'), where('deskId', '==', deskId)));
-                    let maxTime = 0;
-                    pastSnap.forEach(docSnap => {
-                        let s = docSnap.data();
-                        let t = s.openedAt?.toMillis() || 0;
-                        if (t > maxTime) { maxTime = t; lastSession = s; lastSessionId = docSnap.id; }
-                    });
+                    try {
+                        const pastSnap = await getDocs(query(collection(db, 'sessions'), where('deskId', '==', deskId)));
+                        let maxTime = 0;
+                        pastSnap.forEach(docSnap => {
+                            let s = docSnap.data();
+                            let t = 0;
+                            
+                            // Safely extract timestamp, handling cache objects and missing methods
+                            if (s.openedAt) {
+                                if (typeof s.openedAt.toMillis === 'function') t = s.openedAt.toMillis();
+                                else if (s.openedAt.seconds) t = s.openedAt.seconds * 1000;
+                            }
+                            
+                            // Fallback to parsed date string if timestamp is entirely missing
+                            if (t === 0 && s.dateStr) {
+                                let pts = s.dateStr.split('/');
+                                if (pts.length === 3) t = new Date(`${pts[2]}-${pts[1]}-${pts[0]}`).getTime();
+                            }
+                            
+                            if (t > maxTime) { maxTime = t; lastSession = s; lastSessionId = docSnap.id; }
+                        });
+                    } catch (err) {
+                        console.error("Failed to recover session history for desk:", deskId, err);
+                    }
                 }
 
                 // Calculate exact final leftovers from that past session
