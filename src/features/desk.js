@@ -12,49 +12,72 @@ import { getInventoryChange, getPhysicalItems } from './inventory.js';
 export async function performLazyAutoClose() {
     const todayStr = getStrictDate();
     try {
-        // Get ALL desks to ensure everyone's stock rolls over to today's ledger automatically
         const desksSnap = await getDocs(collection(db, 'desks'));
 
         for (const deskDoc of desksSnap.docs) {
             const deskId = deskDoc.id;
             const deskData = deskDoc.data();
-            const currentSessId = deskData.currentSessionId;
-
+            let currentSessId = deskData.currentSessionId;
+            
             let lastSession = null;
-            let lastSessionId = currentSessId;
-            let needsRollover = true;
+            let lastSessionId = null;
+            let needsRollover = false;
 
-            // Check if this desk already has a session created for TODAY
+            // 1. Determine if the current pointer is old
             if (currentSessId && currentSessId !== 'null') {
                 const sessSnap = await getDoc(doc(db, 'sessions', currentSessId));
                 if (sessSnap.exists()) {
-                    lastSession = sessSnap.data();
-                    if (lastSession.dateStr === todayStr) {
-                        needsRollover = false; // Already synced for today!
+                    const sData = sessSnap.data();
+                    if (sData.dateStr !== todayStr) {
+                        // Pointer is for an old day (e.g. Thursday) -> ROLLOVER REQUIRED
+                        lastSession = sData;
+                        lastSessionId = currentSessId;
+                        needsRollover = true;
                     }
                 }
+            } else {
+                // No pointer -> Might need rollover from history
+                needsRollover = true;
             }
 
             if (needsRollover) {
+                // 2. Find the most recent session from the past (if lastSession not already found)
+                if (!lastSession) {
+                    try {
+                        const pastSnap = await getDocs(query(collection(db, 'sessions'), where('deskId', '==', deskId)));
+                        let maxTime = 0;
+                        pastSnap.forEach(docSnap => {
+                            let s = docSnap.data();
+                            if (s.dateStr === todayStr) return; // Ignore any blank ones already created for today
+                            
+                            let t = 0;
+                            if (s.openedAt) {
+                                if (typeof s.openedAt.toMillis === 'function') t = s.openedAt.toMillis();
+                                else if (s.openedAt.seconds) t = s.openedAt.seconds * 1000;
+                            }
+                            if (t === 0 && s.dateStr) {
+                                let pts = s.dateStr.split('/');
+                                if (pts.length === 3) t = new Date(`${pts[2]}-${pts[1]}-${pts[0]}`).getTime();
+                            }
+                            
+                            if (t > maxTime) {
+                                maxTime = t;
+                                lastSession = s;
+                                lastSessionId = docSnap.id;
+                            }
+                        });
+                    } catch (err) { console.error("History scan failed:", err); }
+                }
+
                 let carryOverInv = {};
                 let carryOverCash = 0;
 
-                // If we lost the session pointer, find the most recent session for this desk in history
-                if (!lastSession) {
-                    const pastSnap = await getDocs(query(collection(db, 'sessions'), where('deskId', '==', deskId)));
-                    let maxTime = 0;
-                    pastSnap.forEach(docSnap => {
-                        let s = docSnap.data();
-                        let t = s.openedAt?.toMillis() || 0;
-                        if (t > maxTime) { maxTime = t; lastSession = s; lastSessionId = docSnap.id; }
-                    });
-                }
-
-                // Calculate exact final leftovers from that past session
+                // 3. Calculate leftovers from the found history
                 if (lastSession) {
                     carryOverInv = { ...(lastSession.openingBalances?.inventory || {}) };
                     if (lastSession.status === 'open') carryOverCash = parseFloat(lastSession.openingBalances?.cash) || 0;
 
+                    // Fetch ALL transactions for that session (including Saturday's stuck sales)
                     const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', lastSessionId), where('isDeleted', '==', false)));
                     txSnap.forEach(tDoc => {
                         let tx = tDoc.data();
@@ -63,77 +86,56 @@ export async function performLazyAutoClose() {
                         if (lastSession.status === 'open') carryOverCash += (tx.cashAmt || 0);
                     });
 
-                    // If left open overnight, seal it officially with Auto-Drop!
+                    // Seal the old session if it was left open
                     if (lastSession.status === 'open') {
                         let finalCash = carryOverCash;
-                        
-                        // 1. Write the Auto-Drop Transaction for 11:59 PM yesterday
                         if (finalCash > 0) {
                             await setDoc(doc(collection(db, 'transactions')), {
-                                id: Date.now() + Math.floor(Math.random() * 1000), // Ensure unique ID
+                                id: Date.now() + Math.floor(Math.random() * 1000),
                                 receiptNo: `SYS-${Date.now().toString().slice(-4)}`,
-                                type: 'adjustment',
-                                name: 'System Auto-Handover',
-                                trackAs: 'Physical Cash',
-                                amount: finalCash,
-                                qty: 1,
-                                payment: 'Auto-Dropped to Manager',
-                                cashAmt: -Math.abs(finalCash),
-                                mfsAmt: 0,
-                                isDeleted: false,
-                                time: '11:59 PM',
-                                dateStr: lastSession.dateStr, // Yesterday's date
-                                deskId: deskId,
-                                sessionId: lastSessionId,
-                                agentId: 'system',
-                                agentName: 'System Auto-Close',
-                                timestamp: serverTimestamp() // Safe fallback
+                                type: 'adjustment', name: 'System Auto-Handover',
+                                trackAs: 'Physical Cash', amount: finalCash, qty: 1,
+                                payment: 'Auto-Dropped to Manager', cashAmt: -Math.abs(finalCash), mfsAmt: 0,
+                                isDeleted: false, time: '11:59 PM', dateStr: lastSession.dateStr,
+                                deskId: deskId, sessionId: lastSessionId, agentId: 'system',
+                                agentName: 'System Auto-Close', timestamp: serverTimestamp()
                             });
                         }
-
-                        // 2. Save the Snapshot
-                        await setDoc(doc(collection(db, 'eod_reports')), {
-                            deskId: deskId,
-                            sessionId: lastSessionId,
-                            dateStr: lastSession.dateStr,
-                            submittedBy: 'System',
-                            submittedAt: serverTimestamp(),
-                            expectedClosing: { cash: finalCash, inventory: carryOverInv },
-                            actualClosing: { cash: 0, inventory: carryOverInv }, // Cash dropped to 0
-                            variance: 0, // No variance because system assumes perfect drop
-                            managerDrop: finalCash,
-                            retainedFloat: 0
-                        });
-
-                        // 3. Seal the session
                         await updateDoc(doc(db, 'sessions', lastSessionId), {
                             status: 'closed_by_system', closedAt: serverTimestamp(),
-                            expectedClosing: { cash: 0, inventory: carryOverInv } // Cash is now 0
+                            expectedClosing: { cash: 0, inventory: carryOverInv }
                         });
-                        
-                        carryOverCash = 0; // Reset next day cash to 0
+                        carryOverCash = 0;
                     }
                 }
 
-                // Create TODAY'S session for this desk with the carried-over stock!
-                // If the desk was closed yesterday, it stays "closed" today (acts as a dormant vault for the Floor Report)
+                // 4. Create the new Saturday session or Repair an existing blank one
+                const todayQuery = await getDocs(query(collection(db, 'sessions'), where('deskId', '==', deskId), where('dateStr', '==', todayStr)));
+                let newSessionId;
                 let newStatus = (lastSession && lastSession.status === 'open') ? 'open' : 'closed';
-                
-                const newSessionRef = doc(collection(db, 'sessions'));
-                await setDoc(newSessionRef, {
-                    deskId: deskId, dateStr: todayStr, 
-                    openedBy: newStatus === 'open' ? 'System Auto-Rollover' : 'System Auto-Forward', 
-                    openedByUid: 'system', openedAt: serverTimestamp(),
-                    status: newStatus, openingBalances: { cash: carryOverCash, inventory: carryOverInv }
-                });
 
-                // Point the desk to today's new pre-loaded session
-                await setDoc(doc(db, 'desks', deskId), { status: newStatus, currentSessionId: newSessionRef.id }, { merge: true });
+                if (!todayQuery.empty) {
+                    // REPAIR: Update the blank session already created today
+                    newSessionId = todayQuery.docs[0].id;
+                    await updateDoc(doc(db, 'sessions', newSessionId), {
+                        openingBalances: { cash: carryOverCash, inventory: carryOverInv }
+                    });
+                } else {
+                    // NEW: Create brand new session
+                    const newSessionRef = doc(collection(db, 'sessions'));
+                    newSessionId = newSessionRef.id;
+                    await setDoc(newSessionRef, {
+                        deskId: deskId, dateStr: todayStr, 
+                        openedBy: 'System Auto-Rollover', openedByUid: 'system', openedAt: serverTimestamp(),
+                        status: newStatus, openingBalances: { cash: carryOverCash, inventory: carryOverInv }
+                    });
+                }
+
+                // 5. Finalize Desk Pointer
+                await updateDoc(doc(db, 'desks', deskId), { status: newStatus, currentSessionId: newSessionId }, { merge: true });
             }
         }
-    } catch(e) {
-        console.error("System Error: Seamless daily sync failed.", e);
-    }
+    } catch(e) { console.error("Rollover system failed:", e); }
 }
 
 // ==========================================
@@ -311,14 +313,13 @@ export async function handleDeskSelect(deskId, deskName, status, sessionId) {
     } 
     // Absolute failsafe just in case the boot script was interrupted
     else if (!activeSessionId) {
-        const newSessionRef = doc(collection(db, 'sessions'));
-        activeSessionId = newSessionRef.id;
-        await setDoc(newSessionRef, {
-            deskId: deskId, dateStr: getStrictDate(), 
-            openedBy: AppState.userNickname || AppState.userDisplayName, openedByUid: AppState.currentUser.uid, openedAt: serverTimestamp(),
-            status: 'open', openingBalances: { cash: 0, inventory: {} }
-        });
-        await setDoc(doc(db, 'desks', deskId), { status: 'open', currentSessionId: activeSessionId }, { merge: true });
+        // If we get here, the background rollover didn't finish. 
+        // We'll trigger a focused auto-close right now to fix the stock!
+        await performLazyAutoClose(); 
+        
+        // Re-fetch the desk data now that it's fixed
+        const deskFix = await getDoc(doc(db, 'desks', deskId));
+        activeSessionId = deskFix.data().currentSessionId;
     }
 
     AppState.currentSessionId = activeSessionId;
@@ -385,7 +386,8 @@ export async function renderLiveFloorTab() {
 
             txSnap.forEach(txDoc => {
                 let tx = txDoc.data();
-                liveCash += (tx.cashAmt || 0);
+                let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
+                liveCash += safeCashAmt;
                 
                 let change = getInventoryChange(tx);
                 if (change !== 0) {
@@ -517,6 +519,11 @@ export function openMyDeskDashboard() {
 }
 
 export function peekAtDesk(targetDeskId, targetDeskName) {
+    if (AppState.currentUserRole !== 'admin' && AppState.currentUserRole !== 'manager') {
+        showAppAlert("Access Denied", "Only Center Managers and Admins have clearance to view active remote desk ledgers.");
+        return;
+    }
+
     if (targetDeskId === AppState.currentDeskId) {
         openMyDeskDashboard(); 
     } else {
@@ -564,7 +571,8 @@ export async function initiateCloseDesk() {
 
     txSnap.forEach(docSnap => {
         let tx = docSnap.data();
-        expectedCash += (tx.cashAmt || 0); 
+        let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
+        expectedCash += safeCashAmt; 
         expectedMfs += (tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0));
         
         let change = getInventoryChange(tx);

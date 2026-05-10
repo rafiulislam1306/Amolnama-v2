@@ -1,4 +1,3 @@
-// src/features/reports.js
 import { collection, query, where, getDocs, onSnapshot, doc, getDoc } from "firebase/firestore";
 import { renderLiveFloorTab } from './desk.js';
 import { db } from '../config/firebase.js';
@@ -40,21 +39,22 @@ export async function renderPersonalReport() {
     if (currentReportMode === 'floor') {
         try {
             const sessSnap = await getDocs(query(collection(db, 'sessions'), where('dateStr', '==', targetDateStr)));
+            
+            let deskFirstSessions = {};
+
             for (const docSnap of sessSnap.docs) {
                 let s = docSnap.data();
-                floorOpeningCash += parseFloat(s.openingBalances?.cash) || 0;
-                let inv = s.openingBalances?.inventory || {};
-                for (let [item, qty] of Object.entries(inv)) {
-                    if (floorInvStats[item]) {
-                        floorInvStats[item].open += qty;
-                        floorInvStats[item].rem += qty;
-                    }
-                }
+                
+                // Group sessions by desk to find the true morning start
+            // FIX: Use Infinity so pending writes (missing timestamps) don't overwrite valid morning sessions
+            let t = (s.openedAt && typeof s.openedAt.toMillis === 'function') ? s.openedAt.toMillis() : Infinity;
+            if (!deskFirstSessions[s.deskId] || t < deskFirstSessions[s.deskId].time) {
+                deskFirstSessions[s.deskId] = { time: t, data: s };
+            }
                 
                 if (s.status === 'closed' || s.status === 'pending' || s.status === 'rolled_over') {
                     let agentName = s.openedBy ? s.openedBy.split(' ')[0] : 'Agent';
                     
-                    // FIX: If the system sealed it, fetch the real desk owner's name
                     if (agentName === 'System' && s.deskId.startsWith('personal_')) {
                         try {
                             const deskSnap = await getDoc(doc(db, 'desks', s.deskId));
@@ -76,13 +76,32 @@ export async function renderPersonalReport() {
                     `;
                 }
             }
+
+            // Apply the true morning opening balances once per desk
+            Object.values(deskFirstSessions).forEach(firstSess => {
+                let s = firstSess.data;
+                floorOpeningCash += parseFloat(s.openingBalances?.cash) || 0;
+                let inv = s.openingBalances?.inventory || {};
+                for (let [item, qty] of Object.entries(inv)) {
+                    if (floorInvStats[item]) {
+                        floorInvStats[item].open += qty;
+                        floorInvStats[item].rem += qty;
+                    }
+                }
+            });
+
         } catch(e) { console.error("Could not fetch floor sessions", e); }
     }
 
     [...AppState.transactions].reverse().forEach(tx => {
         if (tx.isDeleted) return;
-        if (currentReportMode === 'personal' && tx.agentId !== AppState.currentUser.uid) return;
-        if (currentReportMode === 'personal' && tx.isRemoteTransfer) return; 
+        
+        if (currentReportMode === 'personal') {
+            let isMyAction = tx.agentId === AppState.currentUser.uid;
+            let isMyDeskTransfer = AppState.currentDeskId && tx.deskId === AppState.currentDeskId && (tx.type === 'transfer_in' || tx.type === 'transfer_out');
+            
+            if (!isMyAction && !isMyDeskTransfer) return;
+        }
 
         let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
         let safeMfsAmt = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0);
@@ -473,8 +492,7 @@ export async function downloadReportAsPDF(mode, prefix) {
     if (mode === 'tab-desk') {
         let rawDeskName = document.getElementById('desk-dashboard-title')?.innerText || 'My Active Desk';
         deskName = rawDeskName.replace(/\(My Drawer\)/i, '').trim();
-        agents = document.getElementById('desk-logged-agents')?.innerText || 'None';
-        
+        agents = document.getElementById('desk-logged-agents')?.innerText || 'None';        
         opening = document.getElementById('desk-tot-opening')?.innerText?.replace(' Tk', '') || "0";
         cashSales = document.getElementById('desk-tot-cash-sales')?.innerText?.replace('+ ', '')?.replace(' Tk', '') || "0";
         mgrDrops = document.getElementById('desk-tot-manager')?.innerText?.replace(' Tk', '') || "0";
@@ -534,7 +552,7 @@ export async function downloadReportAsPDF(mode, prefix) {
     }
     if (!hasItems) itemsRowsText = `  No items sold\n`;
 
-    // 3. Construct the pure HTML String
+    // 3. Construct the pure HTML String (NO <pre> tags allowed to prevent blank rendering bugs)
     const invoiceContent = `================================================================
                            AMOLNAMA
                          DAILY LEDGER
@@ -569,11 +587,15 @@ ${itemsRowsText}================================================================
 
     // 4. Measure Exact Height Using Full Scroll Depth
     const heightMeasurer = document.createElement('div');
+    // Using height: auto and overflow: visible guarantees the box stretches infinitely to fit the text
     heightMeasurer.style.cssText = "position: absolute; visibility: hidden; width: 800px; height: auto; overflow: visible; font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.5; white-space: pre; padding: 40px; box-sizing: border-box;";
     heightMeasurer.innerHTML = invoiceContent;
     document.body.appendChild(heightMeasurer);
     
+    // scrollHeight measures the entire unbroken length of the text
     const pxHeight = heightMeasurer.scrollHeight;
+    
+    // Add a massive 2-inch safety margin so the text NEVER touches the bottom boundary
     const inHeight = Math.max(8, (pxHeight / 96) + 2); 
     
     document.body.removeChild(heightMeasurer);
@@ -583,63 +605,30 @@ ${itemsRowsText}================================================================
         margin:       0.3,
         filename:     finalFileName,
         image:        { type: 'jpeg', quality: 1.0 },
+        // Force the screenshot engine to extend all the way down to our true measurement
         html2canvas:  { scale: 2, useCORS: true, windowWidth: 800, windowHeight: pxHeight + 200, scrollY: 0 },
         jsPDF:        { unit: 'in', format: [8.5, inHeight], orientation: 'portrait' }
     };
 
     try {
         const pdfBlob = await html2pdf().set(opt).from(finalHTMLString).output('blob');
-        
-        // Ensure perfect file formatting for Android/iOS Web Share API compatibility
-        const pdfFile = new File([pdfBlob], finalFileName, { 
-            type: 'application/pdf', 
-            lastModified: new Date().getTime() 
-        });
+        const pdfFile = new File([pdfBlob], finalFileName, { type: 'application/pdf' });
 
         if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-            
-            // 1. Create a pure, native Full-Screen Action Overlay
-            const overlay = document.createElement('div');
-            overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 999999; display: flex; align-items: center; justify-content: center; flex-direction: column; backdrop-filter: blur(4px);';
-            
-            const shareBtn = document.createElement('button');
-            shareBtn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 10px; vertical-align: middle;"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg> Share Ledger Now';
-            shareBtn.style.cssText = 'padding: 16px 32px; font-size: 1.1rem; background: #10b981; color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4); display: flex; align-items: center;';
-            
-            const closeBtn = document.createElement('button');
-            closeBtn.innerText = 'Cancel';
-            closeBtn.style.cssText = 'margin-top: 24px; padding: 12px 24px; background: transparent; color: #9ca3af; border: 1px solid #4b5563; border-radius: 8px; cursor: pointer; font-size: 1rem;';
-
-            overlay.appendChild(shareBtn);
-            overlay.appendChild(closeBtn);
-            document.body.appendChild(overlay);
-
-            // 2. The Share Action (Now guaranteed to have a 0ms delay from the physical tap)
-            shareBtn.onclick = async () => {
-                try {
-                    // Sharing JUST the file. Adding text/titles is known to crash Android Web Views.
-                    await navigator.share({ files: [pdfFile] });
-                } catch (shareError) {
-                    if (shareError.name !== 'AbortError') {
-                        showAppAlert("Share Error", "Failed to complete share action.");
-                    }
-                } finally {
-                    // Remove the overlay after sharing is complete or cancelled
-                    if (document.body.contains(overlay)) {
-                        document.body.removeChild(overlay);
-                    }
+            try {
+                await navigator.share({
+                    files: [pdfFile],
+                    title: finalFileName,
+                    text: 'Here is the Amolnama Daily Ledger report.'
+                });
+                showFlashMessage("Opening share menu...");
+            } catch (shareError) {
+                if (shareError.name !== 'AbortError') {
+                    showAppAlert("Share Error", "Could not open share menu. Try again.");
                 }
-            };
-
-            // 3. The Cancel Action
-            closeBtn.onclick = () => {
-                if (document.body.contains(overlay)) {
-                    document.body.removeChild(overlay);
-                }
-            };
-
+            }
         } else {
-            showAppAlert("Unsupported", "Your browser or device does not support direct PDF file sharing.");
+            showAppAlert("Unsupported", "Your browser or device does not support direct file sharing.");
         }
     } catch (error) {
         console.error("PDF Generation Error:", error);
@@ -702,7 +691,6 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
     }
 
     return `
-        <!-- 1. Cash Formula Card -->
         <div class="admin-form-card" style="padding: 0; margin-bottom: 16px; background: var(--surface-color); border: 1px solid var(--border-color); box-shadow: 0 1px 2px rgba(0,0,0,0.02); overflow: hidden;">
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 11px 16px;">
                 <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500;">Opening Cash</span>
@@ -730,7 +718,6 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
             </div>
         </div>
 
-        <!-- 2. MFS and ERS Cards -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
             <div style="background: var(--surface-color); border: 1px solid var(--border-color); padding: 14px; border-radius: 12px; text-align: left;">
                 <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;">Total MFS</div>
@@ -742,7 +729,6 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
             </div>
         </div>
 
-        <!-- 3. Physical Stock Accordion -->
         <div style="background: var(--surface-color); border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 16px; overflow: hidden;">
             <div style="padding: 11px 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="const c = this.nextElementSibling; const i = this.querySelector('svg'); if(c.style.display==='none'){c.style.display='block'; i.style.transform='rotate(180deg)';}else{c.style.display='none'; i.style.transform='rotate(0deg)';}">
                 <div style="display: flex; align-items: flex-start; gap: 10px;">
@@ -768,7 +754,6 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
             </div>
         </div>
 
-        <!-- 4. Items & Services Sold List -->
         <div style="background: var(--surface-color); border-radius: 12px; border: 1px solid var(--border-color); overflow: hidden; margin-bottom: 24px;">
             <div style="display: flex; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--border-color); background: var(--bg-color);">
                 <span style="font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px;">Items & services sold</span>
@@ -791,7 +776,7 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
     const isToday = targetDateStr === formatToGBDate(getStrictDate());
 
     if (targetDeskId === 'sandbox') {
-        activeSessionId = null;
+        activeSessionId = 'sandbox_session';
         deskOpeningCash = AppState.currentOpeningCash || 0;
         activeOpeningInv = AppState.currentOpeningInv || {};
     } else if (targetDeskId === AppState.currentDeskId && isToday && AppState.currentSessionId) {
@@ -953,7 +938,7 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
 }
 
 // ==========================================
-//    DATE FILTER & REAL-TIME SYNC LOGIC
+//   DATE FILTER & REAL-TIME SYNC LOGIC
 // ==========================================
 let txListenerUnsubscribe = null;
 
@@ -1034,7 +1019,7 @@ export async function fetchTransactionsForDate() {
 }
 
 // ==========================================
-//   HISTORICAL SESSION VIEWER
+//  HISTORICAL SESSION VIEWER
 // ==========================================
 export async function openHistoricalSession(sessionId) {
     openModal('modal-historical');

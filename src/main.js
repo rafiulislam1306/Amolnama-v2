@@ -10,7 +10,7 @@ import { ersKeyPress, ersBackspace, saveErs, selectItem, qtyKeyPress, qtyBackspa
 import { getPhysicalItems, getInventoryChange, passStockFirewall, switchStoreCategory } from './features/inventory.js';
 import { loadFloorMap, adminBypass, enterSandboxMode, handleDeskSelect, confirmOpenDesk, renderLiveFloorTab, openMyDeskDashboard, peekAtDesk, handleMyDrawerNav, initiateCloseDesk, submitClosingReport } from './features/desk.js';
 import { openManagerCashModal, saveManagerCash, openMainStockModal, saveMainStock, openReturnStockModal, saveReturnStock, openDeskTransfer, executeDeskTransfer, openTransferModal, executeTransfer } from './features/transfers.js';
-import { filterAdminCatalog, toggleAddForm, addInventoryGroup, removeInventoryGroup, openSettings, removeRow, addNewItem, saveSettings, openNicknameManager, saveAdminNickname, kickAgent, nukeAgent, resetMyDeskLock, forceCloseAllDesks, nukeTodaysLedger, fixPastManagerDrops, exportLedgerCSV, openAuditModal, fetchAuditLogs, openForceReallocate, executeForceTransfer, healTodaysOpeningStock } from './features/admin.js';
+import { filterAdminCatalog, toggleAddForm, addInventoryGroup, removeInventoryGroup, openSettings, removeRow, addNewItem, saveSettings, openNicknameManager, saveAdminNickname, kickAgent, nukeAgent, resetMyDeskLock, forceCloseAllDesks, nukeTodaysLedger, fixPastManagerDrops, exportLedgerCSV, openAuditModal, fetchAuditLogs, openForceReallocate, executeForceTransfer, healTodaysOpeningStock, runLedgerDiagnostic } from './features/admin.js';
 import { openDevNotes, addDevNote, editDevNote, cancelInlineEdit, saveInlineEdit, toggleDevNote, deleteDevNote } from './features/devNotes.js';
 import { renderAppUI } from './features/catalog.js';
 import { initUserData } from './core/app-init.js';
@@ -139,7 +139,8 @@ window.openAuditModal = openAuditModal;
 window.fetchAuditLogs = fetchAuditLogs;
 window.openForceReallocate = openForceReallocate;
 window.executeForceTransfer = executeForceTransfer;
-window.healTodaysOpeningStock = healTodaysOpeningStock; // <-- ADD THIS LINE
+window.healTodaysOpeningStock = healTodaysOpeningStock; 
+window.runLedgerDiagnostic = runLedgerDiagnostic;
 window.downloadReportAsImage = downloadReportAsImage;
 window.downloadReportAsPDF = downloadReportAsPDF;
 

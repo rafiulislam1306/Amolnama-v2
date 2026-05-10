@@ -505,7 +505,7 @@ export function executeForceTransfer() {
 export async function healTodaysOpeningStock() {
     if (!navigator.onLine) { showAppAlert("Offline", "You must be online to heal the database."); return; }
 
-    showAppAlert("Sync Today's Stock", "This will securely recalculate today's starting stock from yesterday's leftovers WITHOUT deleting any live transactions. Proceed?", true, async () => {
+    showAppAlert("Sync Today's Stock", "This will securely recalculate today's starting stock from your last open day (e.g., Thursday) WITHOUT deleting any live transactions. Proceed?", true, async () => {
         const todayStr = getStrictDate();
         showFlashMessage("Recalculating stock... Please wait.");
         
@@ -520,14 +520,24 @@ export async function healTodaysOpeningStock() {
                 // 2. Fetch all past sessions for this specific desk
                 const pastSnap = await getDocs(query(collection(db, 'sessions'), where('deskId', '==', deskId)));
 
-                let maxTime = 0;
                 let latestPastDateStr = '';
+                let maxTime = -1; // Use -1 to ensure even a 0 timestamp gets caught
 
                 // 3. Find the most recent date BEFORE today
                 pastSnap.forEach(pSnap => {
                     let s = pSnap.data();
-                    if (s.dateStr !== todayStr) {
-                        let t = s.openedAt?.toMillis() || 0;
+                    if (s.dateStr && s.dateStr !== todayStr) {
+                        // Safely parse timestamp, or fallback to parsing the date string
+                        let t = (s.openedAt && typeof s.openedAt.toMillis === 'function') ? s.openedAt.toMillis() : 0;
+                        
+                        // If timestamp is broken, generate a reliable fallback time from the date string
+                        if (t === 0) {
+                            let parts = s.dateStr.split('/');
+                            if (parts.length === 3) {
+                                t = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`).getTime();
+                            }
+                        }
+
                         if (t > maxTime) {
                             maxTime = t;
                             latestPastDateStr = s.dateStr;
@@ -543,7 +553,9 @@ export async function healTodaysOpeningStock() {
                     pastSnap.forEach(pSnap => {
                         let s = pSnap.data();
                         if (s.dateStr === latestPastDateStr) {
-                            let t = s.openedAt?.toMillis() || Date.now();
+                            let t = (s.openedAt && typeof s.openedAt.toMillis === 'function') ? s.openedAt.toMillis() : 0;
+                            if (t === 0) t = Date.now(); // Fallback if missing
+                            
                             if (t < earliestTime) {
                                 earliestTime = t;
                                 trueOpeningInv = { ...(s.openingBalances?.inventory || {}) };
@@ -562,7 +574,7 @@ export async function healTodaysOpeningStock() {
                         if (change !== 0) carryOverInv[tx.trackAs] = (carryOverInv[tx.trackAs] || 0) + change;
                     });
 
-                    // 6. Safely UPDATE today's session with the correct inventory math (Touches nothing else!)
+                    // 6. Safely UPDATE today's session with the correct inventory math
                     await updateDoc(doc(db, 'sessions', todaySessionId), {
                         'openingBalances.inventory': carryOverInv
                     });
@@ -577,4 +589,63 @@ export async function healTodaysOpeningStock() {
             showAppAlert("Error", "Could not recalculate stock. Check console.");
         }
     }, "Heal Stock");
+}
+
+export async function runLedgerDiagnostic() {
+    if (!AppState.currentDeskId || AppState.currentDeskId === 'sandbox') {
+        showAppAlert("Error", "Please join a live desk first to run its diagnostic.");
+        return;
+    }
+
+    showFlashMessage("Running diagnostic engine...");
+    let log = `=== LEDGER DIAGNOSTIC ===\n`;
+    log += `Date: ${getStrictDate()}\n`;
+    log += `Desk: ${AppState.currentDeskId} (${AppState.currentDeskName})\n`;
+    log += `Session: ${AppState.currentSessionId}\n\n`;
+
+    try {
+        // 1. Analyze Sessions
+        log += `[ SESSIONS LOGGED TODAY ]\n`;
+        const sessSnap = await getDocs(query(collection(db, 'sessions'), where('dateStr', '==', getStrictDate()), where('deskId', '==', AppState.currentDeskId)));
+        
+        if (sessSnap.empty) log += `  ERROR: No sessions exist for today!\n`;
+        
+        sessSnap.forEach(d => {
+            let s = d.data();
+            let tStr = (s.openedAt && typeof s.openedAt.toMillis === 'function') ? new Date(s.openedAt.toMillis()).toLocaleTimeString() : 'MISSING_TIMESTAMP';
+            log += `> Session: ${d.id}\n`;
+            log += `  Status: ${s.status} | Opened: ${tStr}\n`;
+            log += `  Opening Cash: ${s.openingBalances?.cash || 0}\n`;
+            log += `  Opening Inventory Keys: ${Object.keys(s.openingBalances?.inventory || {}).length}\n`;
+            log += `  Raw Inv Data: ${JSON.stringify(s.openingBalances?.inventory || {})}\n\n`;
+        });
+
+        // 2. Analyze Transactions
+        log += `[ TRANSACTIONS LOGGED TODAY ]\n`;
+        const txSnap = await getDocs(query(collection(db, 'transactions'), where('dateStr', '==', getStrictDate()), where('deskId', '==', AppState.currentDeskId)));
+        
+        let txs = [];
+        txSnap.forEach(d => txs.push({docId: d.id, ...d.data()}));
+        txs.sort((a,b) => a.id - b.id); // Sort chronologically
+
+        log += `Total TX Count: ${txs.length}\n`;
+        txs.forEach(t => {
+            let delStr = t.isDeleted ? '[DELETED] ' : '';
+            log += `  ${t.time} | ${delStr}${t.type} | ${t.name} (Qty: ${t.qty}) | Amt: ${t.amount}\n`;
+        });
+
+        // 3. Output to Clipboard
+        const textArea = document.createElement("textarea");
+        textArea.value = log;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+
+        showAppAlert("Diagnostic Complete", "A raw data log has been copied to your clipboard. Please paste it to your developer.", false, null, "Got it");
+
+    } catch (e) {
+        console.error(e);
+        showAppAlert("Diagnostic Failed", e.message);
+    }
 }
