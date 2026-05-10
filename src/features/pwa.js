@@ -1,9 +1,11 @@
 // src/features/pwa.js
 import { showAppAlert } from '../utils/ui-helpers.js';
 
+let deferredPrompt = null;
+
 export function initPWA() {
     // ==========================================
-    //    SERVICE WORKER FOR PWA INSTALL
+    //   SERVICE WORKER FOR PWA INSTALL
     // ==========================================
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
@@ -42,9 +44,8 @@ export function initPWA() {
     }
 
     // ==========================================
-    //    NATIVE APP INSTALL PROMPT
+    //   NATIVE APP INSTALL PROMPT
     // ==========================================
-    let deferredPrompt;
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
@@ -52,19 +53,19 @@ export function initPWA() {
         if (installBtn) installBtn.style.display = 'flex';
     });
 
-    export async function installPWA() {
-        if (!deferredPrompt) return;
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-            document.getElementById('install-app-btn').style.display = 'none';
-        }
-        deferredPrompt = null;
-    }
-
     window.addEventListener('appinstalled', () => {
         const installBtn = document.getElementById('install-app-btn');
         if (installBtn) installBtn.style.display = 'none';
         deferredPrompt = null;
     });
+}
+
+export async function installPWA() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+        document.getElementById('install-app-btn').style.display = 'none';
+    }
+    deferredPrompt = null;
 }
