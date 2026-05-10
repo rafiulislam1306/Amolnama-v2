@@ -54,6 +54,10 @@ export function openMainStockModal() {
         selectEl.appendChild(opt);
     });
     openModal('modal-main-stock');
+    setTimeout(() => {
+        const qtyInput = document.getElementById('main-stock-qty');
+        if (qtyInput) { qtyInput.focus(); }
+    }, 150);
 }
 
 export function saveMainStock() {
@@ -83,6 +87,10 @@ export function openReturnStockModal() {
         selectEl.appendChild(opt);
     });
     openModal('modal-return-stock');
+    setTimeout(() => {
+        const qtyInput = document.getElementById('return-stock-qty');
+        if (qtyInput) { qtyInput.focus(); }
+    }, 150);
 }
 
 export function saveReturnStock() {
@@ -118,6 +126,10 @@ export async function openDeskTransfer() {
     let targetSelect = document.getElementById('desk-transfer-target');
     targetSelect.innerHTML = '<option value="">Loading active desks...</option>';
     openModal('modal-desk-transfer');
+    setTimeout(() => {
+        const qtyInput = document.getElementById('desk-transfer-qty');
+        if (qtyInput) { qtyInput.focus(); }
+    }, 150);
 
     try {
         const activeSessionsSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'open')));

@@ -40,10 +40,28 @@ export function showFlashMessage(text) {
     let msg = document.createElement('div'); 
     msg.className = 'flash-pill';
     msg.innerHTML = `${text}`;
+    
+    // Inject smooth, native-feeling slide animation directly
+    msg.style.cssText = `
+        position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+        background: #1e293b; color: #f8fafc; padding: 12px 24px; border-radius: 99px;
+        font-weight: 600; font-size: 0.9rem; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        z-index: 100000; opacity: 0; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        white-space: nowrap; pointer-events: none; text-align: center;
+    `;
+    
     document.body.appendChild(msg); 
     
+    // Trigger slide up
     setTimeout(() => {
-        msg.classList.add('fade-out');
+        msg.style.transform = 'translateX(-50%) translateY(0)';
+        msg.style.opacity = '1';
+    }, 10);
+
+    // Trigger slide down and remove
+    setTimeout(() => {
+        msg.style.transform = 'translateX(-50%) translateY(20px)';
+        msg.style.opacity = '0';
         setTimeout(() => msg.remove(), 300);
     }, 2700);
 }

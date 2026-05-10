@@ -638,10 +638,13 @@ ${itemsRowsText}================================================================
 
 export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, deskItemsSold) {
     let { opening, sales, adjustments, adjustmentLog, expected } = cashMath;
-         
+    
+    // UX: Format large numbers with commas
+    const fmt = (num) => Number(num || 0).toLocaleString('en-IN');
+          
     let invRows = '';
     let activeItemCount = 0;
-          
+              
     for (const [item, d] of Object.entries(invStats)) {
         if (d.open === 0 && d.inOut === 0 && d.sold === 0 && d.rem === 0) continue;
         activeItemCount++;
@@ -660,7 +663,7 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
     }
     
     if (!invRows) invRows = `<div style="padding: 20px; text-align: center; color: var(--text-secondary); font-size: 0.85rem; font-style: italic;">No physical stock recorded today</div>`;
-         
+          
     let itemsHTML = '';
     let itemRowsArray = Object.entries(deskItemsSold);
     
@@ -676,15 +679,15 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
     });
     if (!itemsHTML) itemsHTML = '<div style="color: var(--text-secondary); font-style: italic; padding: 14px; font-size: 0.85rem; text-align: center;">No items or services sold yet</div>';
 
-    let formattedAdjustments = adjustments !== 0 ? (adjustments > 0 ? `+${adjustments}` : adjustments) : '0';
-         
+    let formattedAdjustments = adjustments !== 0 ? (adjustments > 0 ? `+${fmt(adjustments)}` : fmt(adjustments)) : '0';
+          
     let adjBreakdownHTML = '';
     if (Object.keys(adjustmentLog).length > 0) {
         for (const [name, val] of Object.entries(adjustmentLog)) {
             adjBreakdownHTML += `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding-left: 12px; font-size: 0.85rem;">
                     <span style="color: var(--text-secondary);">${name}</span>
-                    <strong style="color: ${val < 0 ? '#ef4444' : '#10b981'}; font-weight: 500;">${val > 0 ? '+' : ''}${val} Tk</strong>
+                    <strong style="color: ${val < 0 ? '#ef4444' : '#10b981'}; font-weight: 500;">${val > 0 ? '+' : ''}${fmt(val)} Tk</strong>
                 </div>
             `;
         }
@@ -694,11 +697,11 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
         <div class="admin-form-card" style="padding: 0; margin-bottom: 16px; background: var(--surface-color); border: 1px solid var(--border-color); box-shadow: 0 1px 2px rgba(0,0,0,0.02); overflow: hidden;">
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 11px 16px;">
                 <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500;">Opening Cash</span>
-                <span id="desk-tot-opening" style="font-size: 0.95rem; color: var(--text-primary); font-weight: 500;">${opening} Tk</span>
+                <span id="desk-tot-opening" style="font-size: 0.95rem; color: var(--text-primary); font-weight: 500;">${fmt(opening)} Tk</span>
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 11px 16px;">
                 <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500;">+ Cash Sales</span>
-                <span id="desk-tot-cash-sales" style="font-size: 0.95rem; color: var(--text-primary); font-weight: 500;">+${sales} Tk</span>
+                <span id="desk-tot-cash-sales" style="font-size: 0.95rem; color: var(--text-primary); font-weight: 500;">+${fmt(sales)} Tk</span>
             </div>
             <div style="padding: 11px 16px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="const breakdown = this.nextElementSibling; const icon = this.querySelector('svg'); if(breakdown.style.display === 'none') { breakdown.style.display = 'block'; icon.style.transform = 'rotate(180deg)'; } else { breakdown.style.display = 'none'; icon.style.transform = 'rotate(0deg)'; }">
@@ -714,18 +717,18 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 11px 16px; background: var(--bg-color); border-top: 1px solid var(--border-color);">
                 <span style="font-size: 0.7rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Expected Cash</span>
-                <span id="desk-tot-expected-cash" style="font-size: 1.4rem; font-weight: 500; color: var(--text-primary);">${expected} Tk</span>
+                <span id="desk-tot-expected-cash" style="font-size: 1.4rem; font-weight: 500; color: var(--text-primary);">${fmt(expected)} Tk</span>
             </div>
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
             <div style="background: var(--surface-color); border: 1px solid var(--border-color); padding: 14px; border-radius: 12px; text-align: left;">
                 <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;">Total MFS</div>
-                <div style="font-size: 1.25rem; font-weight: 500; color: var(--text-primary);">${mfsTotal} <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: normal;">Tk</span></div>
+                <div style="font-size: 1.25rem; font-weight: 500; color: var(--text-primary);">${fmt(mfsTotal)} <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: normal;">Tk</span></div>
             </div>
             <div style="background: var(--surface-color); border: 1px solid var(--border-color); padding: 14px; border-radius: 12px; text-align: left;">
-                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;">ERS Sent (${ersData.count}x)</div>
-                <div style="font-size: 1.25rem; font-weight: 500; color: var(--text-primary);">${ersData.total} <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: normal;">Tk</span></div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;">ERS Sent (${fmt(ersData.count)}x)</div>
+                <div style="font-size: 1.25rem; font-weight: 500; color: var(--text-primary);">${fmt(ersData.total)} <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: normal;">Tk</span></div>
             </div>
         </div>
 
