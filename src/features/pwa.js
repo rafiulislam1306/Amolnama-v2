@@ -52,7 +52,7 @@ export function initPWA() {
         if (installBtn) installBtn.style.display = 'flex';
     });
 
-    window.installPWA = async function() {
+    export async function installPWA() {
         if (!deferredPrompt) return;
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;

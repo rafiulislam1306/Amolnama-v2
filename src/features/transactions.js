@@ -1,7 +1,7 @@
 // src/features/transactions.js
 import { collection, doc, addDoc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db } from '../config/firebase.js';
-import { generateReceiptNo, getStrictDate } from '../utils/helpers.js';
+import { generateReceiptNo, getStrictDate, formatToGBDate } from '../utils/helpers.js';
 import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/ui-helpers.js';
 import { AppState } from '../core/state.js';
 import { passStockFirewall } from './inventory.js';
@@ -81,9 +81,7 @@ export function saveQuantity() {
     
     // Prevent sales while viewing historical dates
     const datePicker = document.getElementById('report-date-picker');
-    const t = new Date();
-    const todayLocal = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
-    if (datePicker && datePicker.value && datePicker.value !== todayLocal) {
+    if (datePicker && datePicker.value && formatToGBDate(datePicker.value) !== getStrictDate()) {
         showAppAlert("Action Blocked", "You cannot process new transactions while viewing a past date. Please return to 'Today'.");
         return;
     }
@@ -97,10 +95,7 @@ export function saveQuantity() {
 export function instantSaveItem(itemName, price) {
   // Prevent sales while viewing historical dates
   const datePicker = document.getElementById('report-date-picker');
-  const t = new Date();
-  const todayLocal = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
-  
-  if (datePicker && datePicker.value && datePicker.value !== todayLocal) {
+  if (datePicker && datePicker.value && formatToGBDate(datePicker.value) !== getStrictDate()) {
       showAppAlert("Action Blocked", "You cannot process new transactions while viewing a past date. Please return to 'Today'.");
       return;
   }
@@ -224,13 +219,14 @@ export function updateSplitTotal() {
     let totalAmount = parseFloat(document.getElementById('edit-tx-amount').value) || 0;
     let cashInput = document.getElementById('edit-tx-cash');
     let mfsInput = document.getElementById('edit-tx-mfs');
-         
-    if (document.activeElement === cashInput) {
-        let cashAmt = parseFloat(cashInput.value) || 0;
-        mfsInput.value = Math.max(0, totalAmount - cashAmt);
-    } else if (document.activeElement === mfsInput) {
+          
+    if (document.activeElement === mfsInput) {
         let mfsAmt = parseFloat(mfsInput.value) || 0;
         cashInput.value = Math.max(0, totalAmount - mfsAmt);
+    } else {
+        // Default fallback: balances MFS based on Cash if neither is actively focused (e.g., when Qty changes)
+        let cashAmt = parseFloat(cashInput.value) || 0;
+        mfsInput.value = Math.max(0, totalAmount - cashAmt);
     }
 }
 

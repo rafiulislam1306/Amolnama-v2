@@ -352,9 +352,6 @@ export async function handleDeskSelect(deskId, deskName, status, sessionId) {
     if (window.renderDeskDashboard) window.renderDeskDashboard(deskId);
 }
 
-// Function deprecated but left empty to prevent external errors if called
-export async function confirmOpenDesk() { return; }
-
 // ==========================================
 //    FLOOR MAP UI & DRAWER ROUTING
 // ==========================================
