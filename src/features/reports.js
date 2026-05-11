@@ -459,16 +459,16 @@ export async function downloadReportAsPDF(mode, prefix) {
                 let bg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
                 inventoryRowsText += `
                     <tr style="background-color: ${bg}; border-bottom: 1px solid #e2e8f0;">
-                        <td style="padding: 12px 16px; font-weight: 600; color: #334155;">${cols[0].innerText}</td>
-                        <td style="padding: 12px 16px; text-align: center; color: #64748b;">${cols[1].innerText}</td>
-                        <td style="padding: 12px 16px; text-align: center; font-weight: bold; color: ${cols[2].innerText.includes('+') ? '#10b981' : (cols[2].innerText.includes('-') ? '#ef4444' : '#64748b')};">${cols[2].innerText}</td>
-                        <td style="padding: 12px 16px; text-align: center; color: #f59e0b;">${cols[3].innerText}</td>
-                        <td style="padding: 12px 16px; text-align: center; font-weight: bold; color: #0ea5e9;">${cols[4].innerText}</td>
+                        <td style="padding: 10px; font-weight: 600; color: #334155;">${cols[0].innerText}</td>
+                        <td style="padding: 10px; text-align: center; color: #64748b;">${cols[1].innerText}</td>
+                        <td style="padding: 10px; text-align: center; font-weight: bold; color: ${cols[2].innerText.includes('+') ? '#10b981' : (cols[2].innerText.includes('-') ? '#ef4444' : '#64748b')};">${cols[2].innerText}</td>
+                        <td style="padding: 10px; text-align: center; color: #f59e0b;">${cols[3].innerText}</td>
+                        <td style="padding: 10px; text-align: center; font-weight: bold; color: #0ea5e9;">${cols[4].innerText}</td>
                     </tr>`;
             }
         });
     } else {
-        inventoryRowsText = `<tr><td colspan="5" style="padding: 20px; text-align: center; color: #94a3b8; font-style: italic;">No physical stock recorded today.</td></tr>`;
+        inventoryRowsText = `<tr><td colspan="5" style="padding: 16px; text-align: center; color: #94a3b8; font-style: italic;">No physical stock recorded today.</td></tr>`;
     }
 
     // 3. Build Items Sold Table Rows
@@ -485,77 +485,76 @@ export async function downloadReportAsPDF(mode, prefix) {
                 let bg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
                 itemsRowsText += `
                     <tr style="background-color: ${bg}; border-bottom: 1px solid #e2e8f0;">
-                        <td style="padding: 12px 16px; color: #334155; font-weight: 500;">${name}</td>
-                        <td style="padding: 12px 16px; text-align: right; color: #0f172a; font-weight: bold;">${qty}</td>
+                        <td style="padding: 10px 16px; color: #334155; font-weight: 500;">${name}</td>
+                        <td style="padding: 10px 16px; text-align: right; color: #0f172a; font-weight: bold;">${qty}</td>
                     </tr>`;
             }
         });
     }
-    if (!hasItems) itemsRowsText = `<tr><td colspan="2" style="padding: 20px; text-align: center; color: #94a3b8; font-style: italic;">No items or services sold.</td></tr>`;
+    if (!hasItems) itemsRowsText = `<tr><td colspan="2" style="padding: 16px; text-align: center; color: #94a3b8; font-style: italic;">No items or services sold.</td></tr>`;
 
-    // 4. Construct Modern HTML Template (Fixed Width: 800px)
+    // 4. Construct Modern HTML Template (Mobile Width: 480px)
     const invoiceContent = `
-        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #0f172a; padding: 40px; width: 800px; box-sizing: border-box; background-color: #ffffff;">
+        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #0f172a; padding: 20px; width: 480px; box-sizing: border-box; background-color: #ffffff;">
             
-            <div style="border-bottom: 3px solid #0ea5e9; padding-bottom: 24px; margin-bottom: 32px; display: flex; justify-content: space-between; align-items: flex-end;">
+            <div style="border-bottom: 3px solid #0ea5e9; padding-bottom: 16px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px;">
                 <div>
-                    <h1 style="margin: 0; color: #0ea5e9; font-size: 32px; font-weight: 800; letter-spacing: -0.5px;">AMOLNAMA</h1>
-                    <h2 style="margin: 6px 0 0 0; color: #475569; font-size: 16px; font-weight: 500; text-transform: uppercase; letter-spacing: 2px;">Daily Ledger Report</h2>
+                    <h1 style="margin: 0; color: #0ea5e9; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">AMOLNAMA</h1>
+                    <h2 style="margin: 4px 0 0 0; color: #475569; font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;">Daily Ledger Report</h2>
                 </div>
-                <div style="text-align: right; font-size: 13px; color: #64748b; line-height: 1.6;">
-                    <strong>Date:</strong> ${dateStr}<br>
-                    <strong>Time:</strong> ${rawTime}<br>
+                <div style="font-size: 13px; color: #64748b; line-height: 1.6;">
+                    <strong>Date:</strong> ${dateStr} &nbsp;|&nbsp; <strong>Time:</strong> ${rawTime}<br>
                     <strong>Desk:</strong> <span style="color: #0f172a; font-weight: bold;">${deskName}</span><br>
-                    <strong>Agent(s):</strong> ${agents}
+                    <strong>Agent:</strong> ${agents}
                 </div>
             </div>
 
-            <div style="display: flex; gap: 24px; margin-bottom: 32px;">
+            <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px;">
                 
-                <div style="flex: 1.5; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
-                    <div style="background-color: #f8fafc; padding: 12px 20px; font-weight: bold; color: #334155; border-bottom: 1px solid #e2e8f0; font-size: 14px; text-transform: uppercase;">Cash Reconciliation</div>
-                    <div style="padding: 20px; font-size: 15px;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                <div style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+                    <div style="background-color: #f8fafc; padding: 10px 16px; font-weight: bold; color: #334155; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-transform: uppercase;">Cash Reconciliation</div>
+                    <div style="padding: 16px; font-size: 14px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                             <span style="color: #64748b;">Opening Float:</span>
                             <strong>${opening} Tk</strong>
                         </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                             <span style="color: #64748b;">(+) Cash Sales:</span>
                             <strong style="color: #10b981;">${cashSales} Tk</strong>
                         </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px dashed #cbd5e1;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed #cbd5e1;">
                             <span style="color: #64748b;">(+/-) Manager Actions:</span>
                             <strong style="color: ${mgrDrops.includes('-') ? '#ef4444' : '#0f172a'};">${mgrDrops} Tk</strong>
                         </div>
-                        <div style="display: flex; justify-content: space-between; font-size: 18px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 16px;">
                             <span style="font-weight: bold; color: #0f172a;">Expected Drawer:</span>
                             <strong style="color: #0ea5e9;">${expected} Tk</strong>
                         </div>
                     </div>
                 </div>
 
-                <div style="flex: 1; display: flex; flex-direction: column; gap: 16px;">
-                    <div style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: #64748b; font-size: 14px; font-weight: bold; text-transform: uppercase;">Total MFS</span>
-                        <strong style="font-size: 20px; color: #8b5cf6;">${mfsTotal} Tk</strong>
+                <div style="display: flex; gap: 12px;">
+                    <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 4px;">
+                        <span style="color: #64748b; font-size: 12px; font-weight: bold; text-transform: uppercase;">Total MFS</span>
+                        <strong style="font-size: 18px; color: #8b5cf6;">${mfsTotal} Tk</strong>
                     </div>
-                    <div style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: #64748b; font-size: 14px; font-weight: bold; text-transform: uppercase;">ERS Sent</span>
-                        <strong style="font-size: 20px; color: #f59e0b;">${ersTotal} Tk</strong>
+                    <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 4px;">
+                        <span style="color: #64748b; font-size: 12px; font-weight: bold; text-transform: uppercase;">ERS Sent</span>
+                        <strong style="font-size: 18px; color: #f59e0b;">${ersTotal} Tk</strong>
                     </div>
                 </div>
             </div>
 
-            <div style="margin-bottom: 32px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
-                <div style="background-color: #f1f5f9; padding: 12px 20px; font-weight: bold; color: #0f172a; border-bottom: 2px solid #cbd5e1; font-size: 14px; text-transform: uppercase;">Physical Stock Tracking</div>
-                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <div style="margin-bottom: 24px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+                <div style="background-color: #f1f5f9; padding: 10px 16px; font-weight: bold; color: #0f172a; border-bottom: 2px solid #cbd5e1; font-size: 13px; text-transform: uppercase;">Physical Stock</div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                     <thead>
-                        <tr style="color: #475569; border-bottom: 1px solid #cbd5e1;">
-                            <th style="padding: 12px 16px; text-align: left;">Item</th>
-                            <th style="padding: 12px 16px; text-align: center;">Start</th>
-                            <th style="padding: 12px 16px; text-align: center;">In/Out</th>
-                            <th style="padding: 12px 16px; text-align: center;">Sold</th>
-                            <th style="padding: 12px 16px; text-align: center;">Exp. Left</th>
+                        <tr style="color: #475569; border-bottom: 1px solid #cbd5e1; background: #f8fafc;">
+                            <th style="padding: 10px; text-align: left;">Item</th>
+                            <th style="padding: 10px; text-align: center;">Start</th>
+                            <th style="padding: 10px; text-align: center;">In/Out</th>
+                            <th style="padding: 10px; text-align: center;">Sold</th>
+                            <th style="padding: 10px; text-align: center;">Exp.</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -564,13 +563,13 @@ export async function downloadReportAsPDF(mode, prefix) {
                 </table>
             </div>
 
-            <div style="margin-bottom: 32px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
-                <div style="background-color: #f1f5f9; padding: 12px 20px; font-weight: bold; color: #0f172a; border-bottom: 2px solid #cbd5e1; font-size: 14px; text-transform: uppercase;">Digital Items & Services Sold</div>
-                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <div style="margin-bottom: 24px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+                <div style="background-color: #f1f5f9; padding: 10px 16px; font-weight: bold; color: #0f172a; border-bottom: 2px solid #cbd5e1; font-size: 13px; text-transform: uppercase;">Items Sold</div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                     <thead>
-                        <tr style="color: #475569; border-bottom: 1px solid #cbd5e1;">
-                            <th style="padding: 12px 16px; text-align: left;">Product/Service Name</th>
-                            <th style="padding: 12px 16px; text-align: right;">Qty Sold</th>
+                        <tr style="color: #475569; border-bottom: 1px solid #cbd5e1; background: #f8fafc;">
+                            <th style="padding: 10px 16px; text-align: left;">Product/Service Name</th>
+                            <th style="padding: 10px 16px; text-align: right;">Qty</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -579,7 +578,7 @@ export async function downloadReportAsPDF(mode, prefix) {
                 </table>
             </div>
 
-            <div style="text-align: center; color: #94a3b8; font-size: 12px; padding-top: 24px; border-top: 1px solid #e2e8f0; margin-top: 40px; padding-bottom: 20px;">
+            <div style="text-align: center; color: #94a3b8; font-size: 11px; padding-top: 16px; border-top: 1px solid #e2e8f0; margin-top: 24px;">
                 Generated securely by Amolnama POS System
             </div>
         </div>
@@ -587,13 +586,13 @@ export async function downloadReportAsPDF(mode, prefix) {
 
     // 5. Measure exact dynamic height to prevent page breaks
     const heightMeasurer = document.createElement('div');
-    heightMeasurer.style.cssText = "position: absolute; visibility: hidden; width: 800px; height: auto; overflow: visible; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;";
+    heightMeasurer.style.cssText = "position: absolute; visibility: hidden; width: 480px; height: auto; overflow: visible; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;";
     heightMeasurer.innerHTML = invoiceContent;
     document.body.appendChild(heightMeasurer);
     const pxHeight = heightMeasurer.scrollHeight;
     
     // Calculate precise width/height in inches (assuming 96 DPI)
-    const inWidth = 800 / 96; 
+    const inWidth = 480 / 96; 
     const inHeight = Math.max(8, (pxHeight / 96) + 0.2); 
     document.body.removeChild(heightMeasurer);
 
@@ -602,7 +601,7 @@ export async function downloadReportAsPDF(mode, prefix) {
         margin:       0, // Forced zero margin to snap edge-to-edge
         filename:     finalFileName,
         image:        { type: 'jpeg', quality: 1.0 },
-        html2canvas:  { scale: 2, useCORS: true, windowWidth: 800, width: 800, windowHeight: pxHeight, scrollY: 0 },
+        html2canvas:  { scale: 2, useCORS: true, windowWidth: 480, width: 480, windowHeight: pxHeight, scrollY: 0 },
         jsPDF:        { unit: 'in', format: [inWidth, inHeight], orientation: 'portrait' }
     };
 
