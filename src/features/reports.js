@@ -444,31 +444,6 @@ export function shareDeskReport() {
     else fallbackCopy(reportText);
 }
 
-// === NEW: IMAGE GENERATOR CORE ===
-export async function downloadReportAsImage(containerId, prefix) {
-    const container = document.getElementById(containerId);
-    if (!container || !window.html2canvas) {
-        showAppAlert("Error", "Image generation library not loaded or container missing.");
-        return;
-    }
-    showFlashMessage("📸 Generating Image Snapshot...");
-    try {
-        const canvas = await html2canvas(container, {
-            scale: 2, // High resolution
-            useCORS: true,
-            backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-color') || '#ffffff'
-        });
-        const link = document.createElement('a');
-        link.download = `${prefix}_Report_${getStrictDate().replace(/\//g, '-')}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-        showFlashMessage("Image Saved to Device!");
-    } catch (error) {
-        console.error(error);
-        showAppAlert("Error", "Failed to generate image.");
-    }
-}
-
 // === NEW: INVOICE PDF GENERATOR (CONTINUOUS FIXED-WIDTH LAYOUT) ===
 export async function downloadReportAsPDF(mode, prefix) {
     if (!window.html2pdf) {
