@@ -7,14 +7,6 @@ import { showAppAlert, showFlashMessage, openModal } from '../utils/ui-helpers.j
 import { getPhysicalItems } from './inventory.js';
 
 const userCurrency = 'Tk';
-let currentReportMode = 'personal';
-
-export function toggleReportMode(mode) {
-    currentReportMode = mode;
-    document.getElementById('toggle-personal').classList.toggle('active', mode === 'personal');
-    document.getElementById('toggle-floor').classList.toggle('active', mode === 'floor');
-    renderPersonalReport();
-}
 
 export async function renderPersonalReport() {
     let filterVal = document.getElementById('personal-history-filter') ? document.getElementById('personal-history-filter').value : 'all';
@@ -36,8 +28,7 @@ export async function renderPersonalReport() {
 
     let vaultButtonsHTML = ''; 
 
-    if (currentReportMode === 'floor') {
-        try {
+    try {
             const sessSnap = await getDocs(query(collection(db, 'sessions'), where('dateStr', '==', targetDateStr)));
             
             let deskFirstSessions = {};
@@ -91,17 +82,9 @@ export async function renderPersonalReport() {
             });
 
         } catch(e) { console.error("Could not fetch floor sessions", e); }
-    }
 
     [...AppState.transactions].reverse().forEach(tx => {
         if (tx.isDeleted) return;
-        
-        if (currentReportMode === 'personal') {
-            let isMyAction = tx.agentId === AppState.currentUser.uid;
-            let isMyDeskTransfer = AppState.currentDeskId && tx.deskId === AppState.currentDeskId && (tx.type === 'transfer_in' || tx.type === 'transfer_out');
-            
-            if (!isMyAction && !isMyDeskTransfer) return;
-        }
 
         let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
         let safeMfsAmt = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0);
@@ -120,7 +103,7 @@ export async function renderPersonalReport() {
             }
         }
 
-        if (currentReportMode === 'floor' && AppState.globalInventoryGroups.includes(tx.trackAs)) {
+        if (AppState.globalInventoryGroups.includes(tx.trackAs)) {
             let trackAs = tx.trackAs;
             let q = Math.abs(tx.qty);
             
@@ -150,11 +133,9 @@ export async function renderPersonalReport() {
         
         if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
         if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
-        let agentBadge = currentReportMode === 'floor' ? ` &bull; <span style="color: var(--text-primary); font-weight: 600;">By ${tx.agentName.split(' ')[0]}</span>` : '';
+        let agentBadge = ` &bull; <span style="color: var(--text-primary); font-weight: 600;">By ${tx.agentName.split(' ')[0]}</span>`;
 
-        let actionBtns = '';
-        if (currentReportMode === 'personal' || AppState.currentUserRole === 'admin' || AppState.currentUserRole === 'manager') {
-            actionBtns = `
+        let actionBtns = `
                 <div class="tx-actions" style="display: none; width: 100%; padding-top: 12px; margin-top: 12px; border-top: 1px dashed var(--border-color); justify-content: flex-end; gap: 8px;">
                     <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: var(--accent-color); border-color: var(--accent-color); gap: 6px;" onclick="event.stopPropagation(); openEditTx(${tx.id})">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> Edit
@@ -198,15 +179,9 @@ export async function renderPersonalReport() {
         `;
     });
 
-    if (currentReportMode === 'floor') {
-        document.getElementById('report-user-name').innerText = "Center Report";
-        document.getElementById('report-user-email').innerText = `Opening Cash: ${floorOpeningCash} Tk | Manager Drops: ${floorManagerDrops} Tk`;
-        document.getElementById('report-user-photo').src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666666'%3E%3Cpath d='M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z'/%3E%3C/svg%3E";
-    } else {
-        document.getElementById('report-user-name').innerText = AppState.userDisplayName;
-        document.getElementById('report-user-email').innerText = AppState.currentUser.email || 'email@example.com';
-        if (AppState.currentUser.photoURL) document.getElementById('report-user-photo').src = AppState.currentUser.photoURL;
-    }
+    document.getElementById('report-user-name').innerText = "Center Report";
+    document.getElementById('report-user-email').innerText = `Opening Cash: ${floorOpeningCash} Tk | Manager Drops: ${floorManagerDrops} Tk`;
+    document.getElementById('report-user-photo').src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666666'%3E%3Cpath d='M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z'/%3E%3C/svg%3E";
 
     if(document.getElementById('report-total-all')) document.getElementById('report-total-all').innerText = (myCash + myMfs) + ' ' + userCurrency;
     if(document.getElementById('tot-cash-sales')) {
@@ -235,10 +210,9 @@ export async function renderPersonalReport() {
     document.getElementById('inventory-list').innerHTML = invHTML || '<div class="report-row" style="color: var(--text-secondary); font-style: italic; padding: 12px 4px;">No items sold yet</div>';
 
     let floorStockSection = document.getElementById('floor-stock-section');
-    if (floorStockSection) floorStockSection.style.display = (currentReportMode === 'floor') ? 'block' : 'none';
+    if (floorStockSection) floorStockSection.style.display = 'block';
 
-    if (currentReportMode === 'floor') {
-        let liveStockHTML = `
+    let liveStockHTML = `
             <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; padding: 4px 4px 8px 4px; border-bottom: 2px solid var(--border-color); font-size: 0.7rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
                 <div>Item</div>
                 <div style="text-align: center;">Start</div>
@@ -284,7 +258,6 @@ export async function renderPersonalReport() {
         if (document.getElementById('floor-stock-list')) {
             document.getElementById('floor-stock-list').innerHTML = liveStockHTML;
         }
-    }
     
     document.getElementById('history-log').innerHTML = historyHTML || `
         <div class="empty-state">
@@ -352,26 +325,12 @@ export function shareReport() {
     let totalCash = document.getElementById('tot-cash-sales').innerText;
     let totalErs = document.getElementById('tot-ers').innerText;
     
-    let reportText = "";
-    
-    if (currentReportMode === 'floor') {
-        reportText = `=== *CENTER REPORT* ===\nDate: ${dateStr}\n\n`;
-        reportText += `[ *SALES SUMMARY* ]\n`;
-        reportText += `   Total Revenue:  ${totalRevenue}\n`;
-        reportText += `   Cash Collected: ${totalCash}\n`;
-        reportText += `   MFS Collected:  ${totalMfs}\n`;
-        reportText += `   ERS Disbursed:  ${totalErs}\n\n`;
-    } else {
-        reportText = `=== *MY DAILY REPORT* ===\nDate: ${dateStr}\nAgent: ${AppState.userNickname || AppState.userDisplayName}\n\n`;
-        reportText += `[ *SALES SUMMARY* ]\n`;
-        reportText += `   Total Revenue:  ${totalRevenue}\n`;
-        reportText += `   Cash Collected: ${totalCash}\n`;
-        reportText += `   MFS Collected:  ${totalMfs}\n`;
-        reportText += `   ERS Disbursed:  ${totalErs}\n\n`;
-        reportText += `[ *PHYSICAL INVENTORY* ]\n`;
-        let myTx = AppState.transactions.filter(t => t.agentId === AppState.currentUser.uid);
-        reportText += buildLifecycleText(myTx, AppState.currentOpeningInv);
-    }
+    let reportText = `=== *CENTER REPORT* ===\nDate: ${dateStr}\n\n`;
+    reportText += `[ *SALES SUMMARY* ]\n`;
+    reportText += `   Total Revenue:  ${totalRevenue}\n`;
+    reportText += `   Cash Collected: ${totalCash}\n`;
+    reportText += `   MFS Collected:  ${totalMfs}\n`;
+    reportText += `   ERS Disbursed:  ${totalErs}\n\n`;
 
     if (navigator.share) navigator.share({ title: 'Amolnama Report', text: reportText }).catch(e => console.log(e));
     else fallbackCopy(reportText);
@@ -478,8 +437,7 @@ export async function downloadReportAsPDF(mode, prefix) {
         mfsTotal = mfsCard ? mfsCard.innerText.replace(' Tk', '') : "0";
         ersTotal = ersCard ? ersCard.innerText.replace(' Tk', '') : "0";
     } else {
-        if (currentReportMode === 'floor') deskName = "Consolidated Center Ledger";
-        else deskName = "Personal Agent Ledger";
+        deskName = "Consolidated Center Ledger";
         
         opening = "N/A"; mgrDrops = "N/A"; expected = "N/A";
         cashSales = document.getElementById('tot-cash-sales')?.innerText?.replace(' Tk', '') || "0";
@@ -983,12 +941,6 @@ export function setTxListenerUnsubscribe(val) { txListenerUnsubscribe = val; }
 export async function fetchTransactionsForDate() {
     if (!AppState.currentUser) return;
 
-    // Force Center/Floor mode for Managers and Admins and hide the whole banner
-    if (AppState.currentUserRole === 'admin' || AppState.currentUserRole === 'manager') {
-        currentReportMode = 'floor';
-        if (document.getElementById('data-scope-banner')) document.getElementById('data-scope-banner').style.display = 'none';
-    }
-    
     const datePicker = document.getElementById('report-date-picker');
     if (!datePicker.value) {
         const t = new Date(); 
@@ -1001,16 +953,7 @@ export async function fetchTransactionsForDate() {
     if (txListenerUnsubscribe) { txListenerUnsubscribe(); txListenerUnsubscribe = null; }
 
     try {
-                let txQuery = query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr));
-                
-                if (AppState.currentUserRole !== 'admin' && AppState.currentUserRole !== 'manager' && currentReportMode !== 'floor') {
-                    // FIX: If the agent is at a desk, load ALL transactions for that desk so they see inbound manager transfers.
-                    if (AppState.currentDeskId && AppState.currentDeskId !== 'sandbox') {
-                        txQuery = query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr), where('deskId', '==', AppState.currentDeskId));
-                    } else {
-                        txQuery = query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr), where('agentId', '==', AppState.currentUser.uid));
-                    }
-                }
+        let txQuery = query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr));
 
         txListenerUnsubscribe = onSnapshot(
             txQuery,
