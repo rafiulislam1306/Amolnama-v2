@@ -124,6 +124,7 @@ export function openSettings() {
             });
         }
     });
+    if (typeof window.initCustomDropdowns === 'function') window.initCustomDropdowns();
     openModal('modal-settings');
 }
 

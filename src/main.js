@@ -143,6 +143,7 @@ window.healTodaysOpeningStock = healTodaysOpeningStock;
 window.runLedgerDiagnostic = runLedgerDiagnostic;
 window.downloadReportAsImage = downloadReportAsImage;
 window.downloadReportAsPDF = downloadReportAsPDF;
+window.initCustomDropdowns = initCustomDropdowns;
 
 Object.defineProperty(window, 'txListenerUnsubscribe', {
     get: () => getTxListenerUnsubscribe(),
