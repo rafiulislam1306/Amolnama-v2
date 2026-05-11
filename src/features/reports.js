@@ -145,7 +145,6 @@ export async function renderPersonalReport() {
                     </button>
                 </div>
             `;
-        }
 
         let isOutflow = tx.type === 'adjustment' || tx.type === 'transfer_out';
         let dotColor = '#10b981'; // Default Green (ERS)
