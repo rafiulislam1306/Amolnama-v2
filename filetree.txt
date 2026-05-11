@@ -1,0 +1,48 @@
+Amolnama-v2/
+├── .github
+│   └── workflows
+│       └── deploy.yml
+├── public
+│   ├── favicon.svg
+│   ├── icon-192.png
+│   ├── icon-512.png
+│   ├── icons.svg
+│   ├── manifest.json
+│   └── sw.js
+├── src
+│   ├── assets
+│   │   ├── hero.png
+│   │   ├── javascript.svg
+│   │   └── vite.svg
+│   ├── config
+│   │   └── firebase.js
+│   ├── core
+│   │   ├── app-init.js
+│   │   ├── constants.js
+│   │   └── state.js
+│   ├── features
+│   │   ├── admin.js
+│   │   ├── auth.js
+│   │   ├── catalog.js
+│   │   ├── desk.js
+│   │   ├── devNotes.js
+│   │   ├── inventory.js
+│   │   ├── pwa.js
+│   │   ├── reports.js
+│   │   ├── transactions.js
+│   │   └── transfers.js
+│   ├── utils
+│   │   ├── helpers.js
+│   │   └── ui-helpers.js
+│   ├── counter.js
+│   ├── main.js
+│   └── style.css
+├── .gitignore
+├── index.html
+├── package-lock.json
+├── package.json
+├── postcss.config.js
+├── README.md
+├── tailwind.config.js
+├── tree.cjs
+└── vite.config.js

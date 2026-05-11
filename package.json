@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "tree": "node tree.cjs"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.4",
