@@ -778,11 +778,7 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
     const targetDateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
     const isToday = targetDateStr === formatToGBDate(getStrictDate());
 
-    if (targetDeskId === 'sandbox') {
-        activeSessionId = 'sandbox_session';
-        deskOpeningCash = AppState.currentOpeningCash || 0;
-        activeOpeningInv = AppState.currentOpeningInv || {};
-    } else if (targetDeskId === AppState.currentDeskId && isToday && AppState.currentSessionId) {
+    if (targetDeskId === AppState.currentDeskId && isToday && AppState.currentSessionId) {
         activeSessionId = AppState.currentSessionId;
         deskOpeningCash = AppState.currentOpeningCash;
         activeOpeningInv = AppState.currentOpeningInv;
@@ -984,9 +980,7 @@ export async function fetchTransactionsForDate() {
             txQuery,
             { includeMetadataChanges: true },
             (txSnapshot) => {
-            AppState.transactions = []; AppState.trashTransactions = []; 
-            let localSandboxTxs = AppState.currentDeskId === 'sandbox' ? AppState.transactions.filter(t => t.docId && t.docId.startsWith('local_')) : [];
-            let localSandboxTrash = AppState.currentDeskId === 'sandbox' ? AppState.trashTransactions.filter(t => t.docId && t.docId.startsWith('local_')) : [];
+            AppState.transactions = []; AppState.trashTransactions = [];
 
             txSnapshot.forEach(doc => {
                 let tx = doc.data(); tx.docId = doc.id; 
@@ -997,11 +991,6 @@ export async function fetchTransactionsForDate() {
                     AppState.trashTransactions.push(tx); 
                 }
             });
-
-            if (AppState.currentDeskId === 'sandbox') {
-                AppState.transactions.push(...localSandboxTxs);
-                AppState.trashTransactions.push(...localSandboxTrash);
-            }
             
             AppState.transactions.sort((a, b) => a.id - b.id);
             AppState.trashTransactions.sort((a, b) => a.id - b.id);

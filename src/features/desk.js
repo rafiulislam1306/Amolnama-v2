@@ -197,7 +197,7 @@ export async function loadFloorMap() {
                         </div>
                     </div>
                 `;
-            } else if (!desk.isPersonal && docSnap.id !== 'sandbox') {
+            } else if (!desk.isPersonal) {
                 sharedDesksHTML += `
                     <div class="admin-form-card" style="padding: 16px; margin-bottom: 12px; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-color); box-shadow: 0 2px 8px rgba(0,0,0,0.02);" onclick="handleDeskSelect('${docSnap.id}', '${desk.name}', '${desk.status}', '${desk.currentSessionId}')">
                         <div style="display: flex; align-items: center; gap: 16px;">
@@ -249,50 +249,8 @@ export async function loadFloorMap() {
             `;
         }
         
-        let adminToolsHTML = '';
-        if (AppState.currentUserRole === 'admin') {
-            adminToolsHTML = `
-                <div style="margin-top: auto; padding-top: 24px; display: flex; gap: 16px; justify-content: center; opacity: 0.8;">
-                    <button style="border: none; background: transparent; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); cursor: pointer;" onclick="adminBypass()">Global View</button>
-                    <span style="color: var(--border-color);">|</span>
-                    <button style="border: none; background: transparent; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); cursor: pointer;" onclick="enterSandboxMode()">Test Sandbox</button>
-                </div>
-            `;
-        }
-        
-        container.innerHTML = personalDeskHTML + sharedDesksHTML + adminToolsHTML;
+        container.innerHTML = personalDeskHTML + sharedDesksHTML;
     } catch (e) { container.innerHTML = `<div style="color:#ef4444; padding:16px;">Error loading map. Refresh app.</div>`; }
-}
-
-export function adminBypass() {
-    document.getElementById('modal-desk-select').classList.remove('active');
-    AppState.currentDeskId = null; AppState.currentSessionId = null; AppState.currentDeskName = 'Global Admin Mode';
-    document.getElementById('header-title').innerText = 'Global Admin Mode';
-    if(window.switchTab) window.switchTab('floor', 'Live Floor Map');
-    if(window.fetchTransactionsForDate) window.fetchTransactionsForDate(); 
-    showFlashMessage("Admin Mode Activated");
-}
-
-export function enterSandboxMode() {
-    if (window.txListenerUnsubscribe) { window.txListenerUnsubscribe(); window.txListenerUnsubscribe = null; }
-    AppState.currentDeskId = 'sandbox';
-    AppState.currentSessionId = 'sandbox_session';
-    AppState.currentDeskName = 'Sandbox';
-    AppState.currentOpeningCash = 10000; 
-    
-    AppState.currentOpeningInv = {};
-    getPhysicalItems().forEach(item => AppState.currentOpeningInv[item] = 50);
-    
-    AppState.transactions = [];
-    AppState.trashTransactions = [];
-    
-    document.getElementById('modal-desk-select').classList.remove('active');
-    document.getElementById('header-title').innerHTML = `Sandbox <span style="font-size:0.7rem; background:#ef4444; color:#fff; padding:2px 6px; border-radius:8px;">LOCAL</span>`;
-    
-    if(window.renderPersonalReport) window.renderPersonalReport();
-    if (document.getElementById('tab-desk').classList.contains('active') && window.renderDeskDashboard) window.renderDeskDashboard();
-    
-    showFlashMessage("Entered Sandbox Mode!");
 }
 
 export async function handleDeskSelect(deskId, deskName, status, sessionId) {

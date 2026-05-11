@@ -8,7 +8,7 @@ import { initAuth, signInWithGoogle, logout, openProfileHub } from './features/a
 import { AppState } from './core/state.js';
 import { ersKeyPress, ersBackspace, saveErs, selectItem, qtyKeyPress, qtyBackspace, saveQuantity, instantSaveItem, openEditTx, saveTxEdit, toggleEditSplitFields, updateSplitTotal, cancelTxEdit, autoCalcEditTotal, deleteTransaction, openTrash, restoreTx, permanentlyDeleteTx, emptyTrash, showAuditTrail } from './features/transactions.js';
 import { getPhysicalItems, getInventoryChange, passStockFirewall, switchStoreCategory } from './features/inventory.js';
-import { loadFloorMap, adminBypass, enterSandboxMode, handleDeskSelect, renderLiveFloorTab, openMyDeskDashboard, peekAtDesk, handleMyDrawerNav, initiateCloseDesk, submitClosingReport } from './features/desk.js';
+import { loadFloorMap, handleDeskSelect, renderLiveFloorTab, openMyDeskDashboard, peekAtDesk, handleMyDrawerNav, initiateCloseDesk, submitClosingReport } from './features/desk.js';
 import { openManagerCashModal, saveManagerCash, openMainStockModal, saveMainStock, openReturnStockModal, saveReturnStock, openDeskTransfer, executeDeskTransfer, openTransferModal, executeTransfer } from './features/transfers.js';
 import { filterAdminCatalog, toggleAddForm, addInventoryGroup, removeInventoryGroup, openSettings, removeRow, addNewItem, saveSettings, openNicknameManager, saveAdminNickname, kickAgent, nukeAgent, resetMyDeskLock, forceCloseAllDesks, nukeTodaysLedger, fixPastManagerDrops, exportLedgerCSV, openAuditModal, fetchAuditLogs, openForceReallocate, executeForceTransfer, healTodaysOpeningStock, runLedgerDiagnostic } from './features/admin.js';
 import { openDevNotes, addDevNote, editDevNote, cancelInlineEdit, saveInlineEdit, toggleDevNote, deleteDevNote } from './features/devNotes.js';
@@ -64,8 +64,6 @@ window.getInventoryChange = getInventoryChange;
 window.passStockFirewall = passStockFirewall;
 window.switchStoreCategory = switchStoreCategory;
 window.loadFloorMap = loadFloorMap;
-window.adminBypass = adminBypass;
-window.enterSandboxMode = enterSandboxMode;
 window.handleDeskSelect = handleDeskSelect;
 window.toggleReportMode = toggleReportMode;
 window.renderPersonalReport = renderPersonalReport;

@@ -116,7 +116,7 @@ export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt 
     if(!AppState.currentUser) return;
     
     // Prevent transactions if the desk hasn't been opened
-    if (!AppState.currentSessionId && AppState.currentDeskId !== 'sandbox') {
+    if (!AppState.currentSessionId) {
         showAppAlert("Desk Closed", "You must open your desk and verify your float before making transactions.");
         return;
     }
@@ -135,19 +135,6 @@ export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt 
         deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName,
         timestamp: serverTimestamp()
     };
-
-    if (AppState.currentDeskId === 'sandbox') {
-        tx.docId = 'local_' + tx.id;
-        AppState.transactions.push(tx);
-        AppState.transactions.sort((a, b) => a.id - b.id);
-        if (typeof window.renderPersonalReport === 'function') window.renderPersonalReport();
-        if (document.getElementById('tab-desk') && document.getElementById('tab-desk').classList.contains('active') && typeof window.renderDeskDashboard === 'function') {
-            window.renderDeskDashboard();
-        }
-        showFlashMessage("Saved to Sandbox!");
-        if (AppState.isMfs && typeof window.toggleMFS === 'function') window.toggleMFS();
-        return;
-    }
 
     let confirmMsg = type === 'ERS' ? `ERS ${amount} Tk Logged!` : `${qty}x ${name} Logged!`;
 
@@ -270,14 +257,7 @@ export function saveTxEdit() {
     
     closeModal('modal-edit-tx');
     currentEditTxId = null;
-         
-    if (AppState.currentDeskId === 'sandbox') {
-        tx.qty = newQty; tx.amount = newAmount; tx.payment = method === 'Split' ? 'Split' : method; tx.cashAmt = finalCash; tx.mfsAmt = finalMfs; tx.isEdited = true; tx.editHistory = updatedEditHistory;
-        if (window.renderPersonalReport) window.renderPersonalReport(); 
-        if (document.getElementById('tab-desk').classList.contains('active') && window.renderDeskDashboard) window.renderDeskDashboard();
-        showFlashMessage("Sandbox Transaction Updated!"); 
-        return;
-    }
+
     if (tx.docId) {
         let msg = `${tx.name} Updated!`;
         updateDoc(doc(db, 'transactions', tx.docId), { qty: newQty, amount: newAmount, payment: method === 'Split' ? 'Split' : method, cashAmt: finalCash, mfsAmt: finalMfs, isEdited: true, editHistory: updatedEditHistory }).catch(e => console.error(e));
@@ -297,19 +277,7 @@ export function deleteTransaction(docId, localId) {
     showAppAlert("Delete Item", "Are you sure you want to move this transaction to the trash?", true, () => {
         let nowStr = new Date().toISOString();
         let agentStr = AppState.userNickname || AppState.userDisplayName;
-        if (AppState.currentDeskId === 'sandbox') {
-            let txIndex = AppState.transactions.findIndex(t => t.id === localId);
-            if(txIndex > -1) { 
-                let tx = AppState.transactions.splice(txIndex, 1)[0];
-                tx.isDeleted = true; 
-                tx.deletedBy = agentStr; tx.deletedByUid = AppState.currentUser.uid; tx.deletedAt = nowStr;
-                AppState.trashTransactions.push(tx); 
-                if (window.renderPersonalReport) window.renderPersonalReport(); 
-                if (document.getElementById('tab-desk').classList.contains('active') && window.renderDeskDashboard) window.renderDeskDashboard();
-                showFlashMessage("Moved to Sandbox Trash!"); 
-            }
-            return;
-        }
+
         if(docId) {
             updateDoc(doc(db, 'transactions', docId), { isDeleted: true, deletedBy: agentStr, deletedByUid: AppState.currentUser.uid, deletedAt: nowStr }).catch(e => console.error(e));
             showFlashMessage(navigator.onLine ? "Moved to Trash!" : "Offline: Trash queued");
@@ -353,22 +321,7 @@ export function restoreTx(docId, localId) {
     if(!AppState.currentUser) return;
     let nowStr = new Date().toISOString();
     let agentStr = AppState.userNickname || AppState.userDisplayName;
-    if (AppState.currentDeskId === 'sandbox') {
-        let txIndex = AppState.trashTransactions.findIndex(t => t.id === localId);
-        if (txIndex > -1) {
-            let tx = AppState.trashTransactions[txIndex];
-            if (tx.type !== 'transfer_in' && !passStockFirewall(tx.name, tx.qty)) return;
-            tx.isDeleted = false; tx.isRestored = true;
-            tx.restoredBy = agentStr; tx.restoredByUid = AppState.currentUser.uid; tx.restoredAt = nowStr;
-            AppState.trashTransactions.splice(txIndex, 1);
-            AppState.transactions.push(tx);
-            if (window.renderPersonalReport) window.renderPersonalReport(); 
-            if (document.getElementById('tab-desk').classList.contains('active') && window.renderDeskDashboard) window.renderDeskDashboard();
-            showFlashMessage("Sandbox Transaction Restored!");
-            setTimeout(() => { renderTrash(); if(AppState.trashTransactions.length === 0) closeModal('modal-trash'); }, 500);
-        }
-        return;
-    }
+
     if(docId) {
         try {
             let tx = AppState.trashTransactions.find(t => t.docId === docId);
@@ -397,12 +350,6 @@ export function emptyTrash() {
     showAppAlert("Empty Trash", "Are you sure you want to permanently delete ALL items in the trash?", true, () => {
         closeModal('modal-trash');
         
-        if (AppState.currentDeskId === 'sandbox') {
-            AppState.trashTransactions = [];
-            renderTrash();
-            showFlashMessage("Sandbox Trash Emptied!");
-            return;
-        }
         const idsToDelete = AppState.trashTransactions.map(t => t.docId).filter(id => id);
         
         Promise.all(idsToDelete.map(id => deleteDoc(doc(db, 'transactions', id))))

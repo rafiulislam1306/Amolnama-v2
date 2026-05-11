@@ -134,8 +134,6 @@ Use this section to identify exactly which function controls a feature — so yo
 - `loadFloorMap()` — loads desk selection screen from Firestore
 - `handleDeskSelect(deskId, deskName, status, sessionId)` — joins open desk or opens new desk flow
 - `confirmOpenDesk()` — finalizes opening a desk, saves session to Firestore
-- `adminBypass()` — admin enters global view mode without a desk
-- `enterSandboxMode()` — enters local test mode with dummy data
 - `renderLiveFloorTab()` — renders live floor map with all active desks
 - `openMyDeskDashboard()` — navigates to current user's drawer tab
 - `peekAtDesk(deskId, deskName)` — views another agent's desk (read-only)
