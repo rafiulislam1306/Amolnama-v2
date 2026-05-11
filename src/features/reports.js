@@ -469,7 +469,7 @@ export async function downloadReportAsImage(containerId, prefix) {
     }
 }
 
-// === NEW: INVOICE PDF GENERATOR ===
+// === NEW: INVOICE PDF GENERATOR (CONTINUOUS FIXED-WIDTH LAYOUT) ===
 export async function downloadReportAsPDF(mode, prefix) {
     if (!window.html2pdf) {
         showAppAlert("Error", "PDF library not loaded.");
@@ -516,102 +516,166 @@ export async function downloadReportAsPDF(mode, prefix) {
     let safeDateStr = dateStr.replace(/\//g, '-');
     let finalFileName = `${safeDeskName}_Ledger_${safeDateStr}_${fileTimeStr}.pdf`;
 
-    // 2. Build Inventory & Items Rows
+    // 2. Build Inventory Table Rows
     let inventoryRowsText = '';
-    let itemsRowsText = '';
-
     let stockRows = document.querySelectorAll(mode === 'tab-desk' ? '#live-dashboard-wrapper > div:nth-child(3) > div:nth-child(2) > div > div:not(:first-child)' : '#floor-stock-list > div:not(:first-child)');
     
     if (stockRows && stockRows.length > 0) {
-        stockRows.forEach(row => {
+        stockRows.forEach((row, index) => {
             let cols = row.children;
             if(cols.length === 5) {
-                let item = cols[0].innerText.padEnd(22, ' ');
-                let start = cols[1].innerText.padStart(5, ' ');
-                let inOut = cols[2].innerText.padStart(8, ' ');
-                let sold = cols[3].innerText.padStart(6, ' ');
-                let exp = cols[4].innerText.padStart(10, ' ');
-                inventoryRowsText += `${item}${start}${inOut}${sold}${exp}\n`;
+                let bg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+                inventoryRowsText += `
+                    <tr style="background-color: ${bg}; border-bottom: 1px solid #e2e8f0;">
+                        <td style="padding: 12px 16px; font-weight: 600; color: #334155;">${cols[0].innerText}</td>
+                        <td style="padding: 12px 16px; text-align: center; color: #64748b;">${cols[1].innerText}</td>
+                        <td style="padding: 12px 16px; text-align: center; font-weight: bold; color: ${cols[2].innerText.includes('+') ? '#10b981' : (cols[2].innerText.includes('-') ? '#ef4444' : '#64748b')};">${cols[2].innerText}</td>
+                        <td style="padding: 12px 16px; text-align: center; color: #f59e0b;">${cols[3].innerText}</td>
+                        <td style="padding: 12px 16px; text-align: center; font-weight: bold; color: #0ea5e9;">${cols[4].innerText}</td>
+                    </tr>`;
             }
         });
     } else {
-        inventoryRowsText = `No physical stock recorded.\n`;
+        inventoryRowsText = `<tr><td colspan="5" style="padding: 20px; text-align: center; color: #94a3b8; font-style: italic;">No physical stock recorded today.</td></tr>`;
     }
 
+    // 3. Build Items Sold Table Rows
+    let itemsRowsText = '';
     let soldRows = document.querySelectorAll(mode === 'tab-desk' ? '#live-dashboard-wrapper > div:nth-child(4) > div:not(:first-child)' : '#inventory-list > div');
     let hasItems = false;
+    
     if (soldRows && soldRows.length > 0) {
-        soldRows.forEach(row => {
+        soldRows.forEach((row, index) => {
             let name = row.children[0]?.innerText;
             let qty = row.children[1]?.innerText;
             if (name && qty && name !== 'No items sold yet' && name !== 'No items or services sold yet') {
                 hasItems = true;
-                itemsRowsText += `  ${qty.padEnd(4, ' ')} ${name}\n`;
+                let bg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+                itemsRowsText += `
+                    <tr style="background-color: ${bg}; border-bottom: 1px solid #e2e8f0;">
+                        <td style="padding: 12px 16px; color: #334155; font-weight: 500;">${name}</td>
+                        <td style="padding: 12px 16px; text-align: right; color: #0f172a; font-weight: bold;">${qty}</td>
+                    </tr>`;
             }
         });
     }
-    if (!hasItems) itemsRowsText = `  No items sold\n`;
+    if (!hasItems) itemsRowsText = `<tr><td colspan="2" style="padding: 20px; text-align: center; color: #94a3b8; font-style: italic;">No items or services sold.</td></tr>`;
 
-    // 3. Construct the pure HTML String (NO <pre> tags allowed to prevent blank rendering bugs)
-    const invoiceContent = `================================================================
-                           AMOLNAMA
-                         DAILY LEDGER
-================================================================
-Desk Name:   ${deskName.padEnd(20, ' ')} Date: ${dateStr}
-Agents:      ${agents.padEnd(20, ' ')} Time: ${rawTime}
-----------------------------------------------------------------
+    // 4. Construct Modern HTML Template (Fixed Width: 800px)
+    const invoiceContent = `
+        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #0f172a; padding: 40px; width: 800px; box-sizing: border-box; background-color: #ffffff;">
+            
+            <div style="border-bottom: 3px solid #0ea5e9; padding-bottom: 24px; margin-bottom: 32px; display: flex; justify-content: space-between; align-items: flex-end;">
+                <div>
+                    <h1 style="margin: 0; color: #0ea5e9; font-size: 32px; font-weight: 800; letter-spacing: -0.5px;">AMOLNAMA</h1>
+                    <h2 style="margin: 6px 0 0 0; color: #475569; font-size: 16px; font-weight: 500; text-transform: uppercase; letter-spacing: 2px;">Daily Ledger Report</h2>
+                </div>
+                <div style="text-align: right; font-size: 13px; color: #64748b; line-height: 1.6;">
+                    <strong>Date:</strong> ${dateStr}<br>
+                    <strong>Time:</strong> ${rawTime}<br>
+                    <strong>Desk:</strong> <span style="color: #0f172a; font-weight: bold;">${deskName}</span><br>
+                    <strong>Agent(s):</strong> ${agents}
+                </div>
+            </div>
 
-[ 1. CASH FORMULA ]
-  Opening Cash Float:                                ${opening.padStart(8, ' ')} Tk
-  (+) Cash Sales:                                    ${cashSales.padStart(8, ' ')} Tk
-  (+/-) Manager Actions (Drops/Float):               ${mgrDrops.padStart(8, ' ')} Tk
-  -----------------------------------------------------------
-  EXPECTED DRAWER CASH:                              ${expected.padStart(8, ' ')} Tk
+            <div style="display: flex; gap: 24px; margin-bottom: 32px;">
+                
+                <div style="flex: 1.5; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+                    <div style="background-color: #f8fafc; padding: 12px 20px; font-weight: bold; color: #334155; border-bottom: 1px solid #e2e8f0; font-size: 14px; text-transform: uppercase;">Cash Reconciliation</div>
+                    <div style="padding: 20px; font-size: 15px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                            <span style="color: #64748b;">Opening Float:</span>
+                            <strong>${opening} Tk</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                            <span style="color: #64748b;">(+) Cash Sales:</span>
+                            <strong style="color: #10b981;">${cashSales} Tk</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px dashed #cbd5e1;">
+                            <span style="color: #64748b;">(+/-) Manager Actions:</span>
+                            <strong style="color: ${mgrDrops.includes('-') ? '#ef4444' : '#0f172a'};">${mgrDrops} Tk</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 18px;">
+                            <span style="font-weight: bold; color: #0f172a;">Expected Drawer:</span>
+                            <strong style="color: #0ea5e9;">${expected} Tk</strong>
+                        </div>
+                    </div>
+                </div>
 
-[ 2. DIGITAL & ERS ]
-  Total MFS Collected:                               ${mfsTotal.padStart(8, ' ')} Tk
-  Total ERS Disbursed:                               ${ersTotal.padStart(8, ' ')} Tk
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 16px;">
+                    <div style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #64748b; font-size: 14px; font-weight: bold; text-transform: uppercase;">Total MFS</span>
+                        <strong style="font-size: 20px; color: #8b5cf6;">${mfsTotal} Tk</strong>
+                    </div>
+                    <div style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #64748b; font-size: 14px; font-weight: bold; text-transform: uppercase;">ERS Sent</span>
+                        <strong style="font-size: 20px; color: #f59e0b;">${ersTotal} Tk</strong>
+                    </div>
+                </div>
+            </div>
 
-----------------------------------------------------------------
-[ 3. PHYSICAL INVENTORY BALANCE ]
-Item                  Start    In/Out    Sold    Expected
-----------------------------------------------------------------
-${inventoryRowsText}----------------------------------------------------------------
-[ 4. ITEMS & SERVICES SOLD ]
-${itemsRowsText}================================================================
-       Report generated securely by Amolnama on ${dateStr}`;
+            <div style="margin-bottom: 32px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+                <div style="background-color: #f1f5f9; padding: 12px 20px; font-weight: bold; color: #0f172a; border-bottom: 2px solid #cbd5e1; font-size: 14px; text-transform: uppercase;">Physical Stock Tracking</div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                    <thead>
+                        <tr style="color: #475569; border-bottom: 1px solid #cbd5e1;">
+                            <th style="padding: 12px 16px; text-align: left;">Item</th>
+                            <th style="padding: 12px 16px; text-align: center;">Start</th>
+                            <th style="padding: 12px 16px; text-align: center;">In/Out</th>
+                            <th style="padding: 12px 16px; text-align: center;">Sold</th>
+                            <th style="padding: 12px 16px; text-align: center;">Exp. Left</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${inventoryRowsText}
+                    </tbody>
+                </table>
+            </div>
 
-    const finalHTMLString = `
-        <div style="width: 800px; height: auto; background-color: #ffffff; color: #000000; padding: 40px; box-sizing: border-box; font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.5; white-space: pre;">${invoiceContent}</div>
+            <div style="margin-bottom: 32px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+                <div style="background-color: #f1f5f9; padding: 12px 20px; font-weight: bold; color: #0f172a; border-bottom: 2px solid #cbd5e1; font-size: 14px; text-transform: uppercase;">Digital Items & Services Sold</div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                    <thead>
+                        <tr style="color: #475569; border-bottom: 1px solid #cbd5e1;">
+                            <th style="padding: 12px 16px; text-align: left;">Product/Service Name</th>
+                            <th style="padding: 12px 16px; text-align: right;">Qty Sold</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsRowsText}
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="text-align: center; color: #94a3b8; font-size: 12px; padding-top: 24px; border-top: 1px solid #e2e8f0; margin-top: 40px; padding-bottom: 20px;">
+                Generated securely by Amolnama POS System &bull; amolnama.web.app
+            </div>
+        </div>
     `;
 
-    // 4. Measure Exact Height Using Full Scroll Depth
+    // 5. Measure exact dynamic height to prevent page breaks
     const heightMeasurer = document.createElement('div');
-    // Using height: auto and overflow: visible guarantees the box stretches infinitely to fit the text
-    heightMeasurer.style.cssText = "position: absolute; visibility: hidden; width: 800px; height: auto; overflow: visible; font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.5; white-space: pre; padding: 40px; box-sizing: border-box;";
+    heightMeasurer.style.cssText = "position: absolute; visibility: hidden; width: 800px; height: auto; overflow: visible; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;";
     heightMeasurer.innerHTML = invoiceContent;
     document.body.appendChild(heightMeasurer);
-    
-    // scrollHeight measures the entire unbroken length of the text
     const pxHeight = heightMeasurer.scrollHeight;
     
-    // Add a massive 2-inch safety margin so the text NEVER touches the bottom boundary
-    const inHeight = Math.max(8, (pxHeight / 96) + 2); 
-    
+    // Calculate precise width/height in inches (assuming 96 DPI)
+    const inWidth = 800 / 96; 
+    const inHeight = Math.max(8, (pxHeight / 96) + 0.2); 
     document.body.removeChild(heightMeasurer);
 
-    // 5. Generate PDF natively from the string
+    // 6. Generate PDF natively
     const opt = {
-        margin:       0.3,
+        margin:       0, // Forced zero margin to snap edge-to-edge
         filename:     finalFileName,
         image:        { type: 'jpeg', quality: 1.0 },
-        // Force the screenshot engine to extend all the way down to our true measurement
-        html2canvas:  { scale: 2, useCORS: true, windowWidth: 800, windowHeight: pxHeight + 200, scrollY: 0 },
-        jsPDF:        { unit: 'in', format: [8.5, inHeight], orientation: 'portrait' }
+        html2canvas:  { scale: 2, useCORS: true, windowWidth: 800, width: 800, windowHeight: pxHeight, scrollY: 0 },
+        jsPDF:        { unit: 'in', format: [inWidth, inHeight], orientation: 'portrait' }
     };
 
     try {
-        const pdfBlob = await html2pdf().set(opt).from(finalHTMLString).output('blob');
+        const pdfBlob = await html2pdf().set(opt).from(invoiceContent).output('blob');
         
         // Universal direct download method
         const url = URL.createObjectURL(pdfBlob);
@@ -621,7 +685,6 @@ ${itemsRowsText}================================================================
         document.body.appendChild(link);
         link.click();
         
-        // Clean up the temporary URL
         setTimeout(() => {
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
