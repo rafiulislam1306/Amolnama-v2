@@ -139,7 +139,6 @@ Use this section to identify exactly which function controls a feature — so yo
 - `peekAtDesk(deskId, deskName)` — views another agent's desk (read-only)
 - `handleMyDrawerNav()` — Drawer nav button handler; routes to desk or floor map
 - `initiateCloseDesk()` — builds and opens shift closing modal
-- `calculateBlindRetained()` — live calculation of retained float in closing modal
 - `submitClosingReport()` — saves closing report to Firestore, frees desk
 
 ---

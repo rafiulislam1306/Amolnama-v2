@@ -162,6 +162,17 @@ let currentEditTxId = null;
 export function openEditTx(id) {
     let tx = AppState.transactions.find(t => t.id === id);
     if(!tx) return;
+    
+    // STRICT POS PROTOCOL: Block editing of non-sale items to prevent math corruption
+    if (tx.type === 'transfer_out' || tx.type === 'transfer_in') {
+        showAppAlert("Action Blocked", "Remote stock transfers cannot be edited. Please issue a reverse transfer from the Desk Actions menu instead.");
+        return;
+    }
+    if (tx.type === 'adjustment') {
+        showAppAlert("Action Blocked", "Cash adjustments (Drops, Floats, Expenses) cannot be edited to protect ledger integrity. Please delete the item and log it again.");
+        return;
+    }
+
     currentEditTxId = id;
     document.getElementById('edit-tx-name').innerText = "Edit: " + tx.name;
     document.getElementById('edit-tx-qty').value = tx.qty || 1;
