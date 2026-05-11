@@ -648,7 +648,7 @@ export async function downloadReportAsPDF(mode, prefix) {
             </div>
 
             <div style="text-align: center; color: #94a3b8; font-size: 12px; padding-top: 24px; border-top: 1px solid #e2e8f0; margin-top: 40px; padding-bottom: 20px;">
-                Generated securely by Amolnama POS System &bull; amolnama.web.app
+                Generated securely by Amolnama POS System
             </div>
         </div>
     `;
