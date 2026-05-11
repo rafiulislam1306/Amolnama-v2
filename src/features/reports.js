@@ -612,24 +612,22 @@ ${itemsRowsText}================================================================
 
     try {
         const pdfBlob = await html2pdf().set(opt).from(finalHTMLString).output('blob');
-        const pdfFile = new File([pdfBlob], finalFileName, { type: 'application/pdf' });
+        
+        // Universal direct download method
+        const url = URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = finalFileName;
+        document.body.appendChild(link);
+        link.click();
+        
+        // Clean up the temporary URL
+        setTimeout(() => {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }, 100);
 
-        if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-            try {
-                await navigator.share({
-                    files: [pdfFile],
-                    title: finalFileName,
-                    text: 'Here is the Amolnama Daily Ledger report.'
-                });
-                showFlashMessage("Opening share menu...");
-            } catch (shareError) {
-                if (shareError.name !== 'AbortError') {
-                    showAppAlert("Share Error", "Could not open share menu. Try again.");
-                }
-            }
-        } else {
-            showAppAlert("Unsupported", "Your browser or device does not support direct file sharing.");
-        }
+        showFlashMessage("PDF Saved to Downloads!");
     } catch (error) {
         console.error("PDF Generation Error:", error);
         showAppAlert("Error", "Failed to generate the PDF ledger.");
