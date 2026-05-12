@@ -42,7 +42,7 @@ export function renderAppUI() {
             let container = document.getElementById(containerId);
             if (!container) return; // Skip if category HTML container doesn't exist
             
-            let isLocked = item.managerOnly && AppState.currentUserRole !== 'center_manager';
+            let isLocked = item.managerOnly && !['center_manager', 'admin', 'owner'].includes(AppState.currentUserRole);
 
             let row = document.createElement('div');
             row.className = 'dynamic-item';

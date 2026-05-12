@@ -68,7 +68,7 @@ export async function initUserData(onComplete) {
 
         // --- MANAGER ROLE UI RESTRICTIONS ---
         const navBtns = document.querySelectorAll('.nav-item');
-        if (AppState.currentUserRole === 'manager') {
+        if (['manager', 'owner'].includes(AppState.currentUserRole)) {
             if (navBtns.length >= 2) {
                 navBtns[0].style.display = 'none'; // Hide ERS
                 navBtns[1].style.display = 'none'; // Hide Store
@@ -89,13 +89,15 @@ export async function initUserData(onComplete) {
         document.getElementById('report-date-picker').value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
         
         // --- ROUTING LOGIC ---
-        if (AppState.currentUserRole === 'manager') {
-            // Managers bypass desk selection and go straight to Floor Map
+        if (['manager', 'owner'].includes(AppState.currentUserRole)) {
+            // Managers and Owners bypass desk selection and go straight to Floor Map
             document.getElementById('modal-desk-select').classList.remove('active');
             AppState.currentDeskId = null; 
             AppState.currentSessionId = null; 
-            AppState.currentDeskName = 'Manager View';
-            document.getElementById('header-title').innerText = 'Manager View';
+            
+            let viewName = AppState.currentUserRole === 'owner' ? 'Owner View' : 'Manager View';
+            AppState.currentDeskName = viewName;
+            document.getElementById('header-title').innerText = viewName;
             
             setTimeout(() => {
                 if (window.switchTab) window.switchTab('floor', 'Live Floor Map');
