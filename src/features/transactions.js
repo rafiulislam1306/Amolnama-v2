@@ -50,8 +50,8 @@ let currentQty = '1';
 
 export function selectItem(itemName, price) {
     let catItem = Object.values(AppState.globalCatalog).find(c => c.name === itemName);
-    if (catItem?.managerOnly && !['center_manager', 'admin', 'owner'].includes(AppState.currentUserRole)) {
-        showAppAlert("Access Denied", "🔒 Only Center Managers and Admins can process this service.");
+    if (catItem?.managerOnly && !['manager', 'center_manager', 'owner'].includes(AppState.currentUserRole)) {
+        showAppAlert("Access Denied", "🔒 Only Center Managers and Owners can process this service.");
         return;
     }
     
@@ -100,8 +100,8 @@ export function saveQuantity() {
 
 export function instantSaveItem(itemName, price) {
   let catItem = Object.values(AppState.globalCatalog).find(c => c.name === itemName);
-  if (catItem?.managerOnly && !['center_manager', 'admin', 'owner'].includes(AppState.currentUserRole)) {
-      showAppAlert("Access Denied", "🔒 Only Center Managers and Admins can process this service.");
+  if (catItem?.managerOnly && !['manager', 'center_manager', 'owner'].includes(AppState.currentUserRole)) {
+      showAppAlert("Access Denied", "🔒 Only Center Managers and Owners can process this service.");
       return;
   }
 
