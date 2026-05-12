@@ -50,7 +50,7 @@ let currentQty = '1';
 
 export function selectItem(itemName, price) {
     let catItem = Object.values(AppState.globalCatalog).find(c => c.name === itemName);
-    if (catItem?.managerOnly && AppState.currentUserRole !== 'admin' && AppState.currentUserRole !== 'center_manager') {
+    if (catItem?.managerOnly && AppState.currentUserRole !== 'center_manager') {
         showAppAlert("Access Denied", "🔒 Only Center Manager can process this service.");
         return;
     }
@@ -100,7 +100,7 @@ export function saveQuantity() {
 
 export function instantSaveItem(itemName, price) {
   let catItem = Object.values(AppState.globalCatalog).find(c => c.name === itemName);
-  if (catItem?.managerOnly && AppState.currentUserRole !== 'admin' && AppState.currentUserRole !== 'center_manager') {
+  if (catItem?.managerOnly && AppState.currentUserRole !== 'center_manager') {
       showAppAlert("Access Denied", "🔒 Only Center Manager can process this service.");
       return;
   }

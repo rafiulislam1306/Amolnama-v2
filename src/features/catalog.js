@@ -42,7 +42,7 @@ export function renderAppUI() {
             let container = document.getElementById(containerId);
             if (!container) return; // Skip if category HTML container doesn't exist
             
-            let isLocked = item.managerOnly && AppState.currentUserRole !== 'admin' && AppState.currentUserRole !== 'center_manager';
+            let isLocked = item.managerOnly && AppState.currentUserRole !== 'center_manager';
 
             let row = document.createElement('div');
             row.className = 'dynamic-item';
@@ -55,6 +55,7 @@ export function renderAppUI() {
             const startPress = (e) => {
                 if (e.button && e.button !== 0) return; 
                 if (isLocked) {
+                    isCancelled = true; // FIX: Prevents the release from triggering a sale attempt
                     if (typeof window.showAppAlert === 'function') window.showAppAlert("Access Denied", "🔒 Only a Center Manager can process this item.");
                     return;
                 }
