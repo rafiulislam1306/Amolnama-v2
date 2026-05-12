@@ -17,6 +17,24 @@ export const priorityItemSortOrder = [
     'eSIM Skitto Replacement' // Fallback for naming variations
 ];
 
+export const priorityInventorySortOrder = [
+    'No. 1 Plan',
+    'Prime',
+    'Djuice',
+    'Skitto',
+    'Power Prime',
+    'Recycle SIM',
+    'eSIM Prepaid',
+    'eSIM Postpaid',
+    'eSIM Skitto',
+    'Regular Kit',
+    'Skitto Kit',
+    'eSIM Kit',
+    'eSIM Skitto Kit',
+    'eSIM', // Safety fallback for older data
+    'Skitto eSIM' // Safety fallback for older data
+];
+
 export const defaultInventoryGroups = ['Regular Kit', 'Skitto Kit', 'eSIM', 'Skitto eSIM', 'Power Prime', 'Recycle SIM', 'No. 1 Plan', 'Prime', 'Djuice'];
 
 export const defaultCatalog = {

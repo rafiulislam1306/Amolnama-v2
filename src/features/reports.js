@@ -5,7 +5,7 @@ import { AppState } from '../core/state.js';
 import { getStrictDate, formatToGBDate } from '../utils/helpers.js';
 import { showAppAlert, showFlashMessage, openModal } from '../utils/ui-helpers.js';
 import { getPhysicalItems } from './inventory.js';
-import { priorityItemSortOrder } from '../core/constants.js';
+import { priorityItemSortOrder, priorityInventorySortOrder } from '../core/constants.js';
 
 const userCurrency = 'Tk';
 
@@ -233,7 +233,16 @@ export async function renderPersonalReport() {
         `;
         
         let hasLiveStock = false;
-        for (const [item, d] of Object.entries(floorInvStats)) {
+        let sortedFloorInv = Object.entries(floorInvStats).sort((a, b) => {
+            let indexA = priorityInventorySortOrder.indexOf(a[0]);
+            let indexB = priorityInventorySortOrder.indexOf(b[0]);
+            if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+            if (indexA !== -1) return -1;
+            if (indexB !== -1) return 1;
+            return a[0].localeCompare(b[0]);
+        });
+
+        for (const [item, d] of sortedFloorInv) {
             if (d.open === 0 && d.inOut === 0 && d.sold === 0 && d.rem === 0) continue;
             hasLiveStock = true;
             
@@ -651,7 +660,16 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
     let invRows = '';
     let activeItemCount = 0;
               
-    for (const [item, d] of Object.entries(invStats)) {
+    let sortedInvStats = Object.entries(invStats).sort((a, b) => {
+        let indexA = priorityInventorySortOrder.indexOf(a[0]);
+        let indexB = priorityInventorySortOrder.indexOf(b[0]);
+        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+        if (indexA !== -1) return -1;
+        if (indexB !== -1) return 1;
+        return a[0].localeCompare(b[0]);
+    });
+
+    for (const [item, d] of sortedInvStats) {
         if (d.open === 0 && d.inOut === 0 && d.sold === 0 && d.rem === 0) continue;
         activeItemCount++;
                   
