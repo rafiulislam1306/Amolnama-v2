@@ -118,6 +118,10 @@ export function openSettings() {
                                 ${trackOptions}
                             </select>
                         </div>
+                        <div style="grid-column: span 2; display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                            <input type="checkbox" class="i-manager-only" id="mgr_${item.key}" ${item.managerOnly ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
+                            <label for="mgr_${item.key}" class="admin-label" style="margin: 0; color: #ef4444; font-weight: 700; cursor: pointer;">🔒 Restricted (Center Manager Only)</label>
+                        </div>
                     </div>
                 `;
                 container.appendChild(row); setupDragAndDrop(row); 
@@ -173,7 +177,8 @@ export async function saveSettings() {
                 AppState.globalCatalog[key].price = parseFloat(row.querySelector('.i-price').value) || 0;
                 AppState.globalCatalog[key].cat = row.querySelector('.i-cat').value;
                 AppState.globalCatalog[key].trackAs = row.querySelector('.i-track').value;
-                AppState.globalCatalog[key].order = orderCounter++; 
+                AppState.globalCatalog[key].managerOnly = row.querySelector('.i-manager-only') ? row.querySelector('.i-manager-only').checked : false;
+                AppState.globalCatalog[key].order = orderCounter++;
             }
         }
     });

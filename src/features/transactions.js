@@ -49,6 +49,12 @@ let currentItemPrice = 0;
 let currentQty = '1';
 
 export function selectItem(itemName, price) {
+    let catItem = Object.values(AppState.globalCatalog).find(c => c.name === itemName);
+    if (catItem?.managerOnly && AppState.currentUserRole !== 'admin' && AppState.currentUserRole !== 'center_manager') {
+        showAppAlert("Access Denied", "🔒 Only Center Manager can process this service.");
+        return;
+    }
+    
     document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
     currentItemName = itemName; currentItemPrice = price; currentQty = '1';
     updateQtyDisplay(); 
@@ -93,6 +99,12 @@ export function saveQuantity() {
 }
 
 export function instantSaveItem(itemName, price) {
+  let catItem = Object.values(AppState.globalCatalog).find(c => c.name === itemName);
+  if (catItem?.managerOnly && AppState.currentUserRole !== 'admin' && AppState.currentUserRole !== 'center_manager') {
+      showAppAlert("Access Denied", "🔒 Only Center Manager can process this service.");
+      return;
+  }
+
   // Prevent sales while viewing historical dates
   const datePicker = document.getElementById('report-date-picker');
   if (datePicker && datePicker.value && formatToGBDate(datePicker.value) !== getStrictDate()) {

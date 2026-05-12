@@ -42,9 +42,11 @@ export function renderAppUI() {
             let container = document.getElementById(containerId);
             if (!container) return; // Skip if category HTML container doesn't exist
             
+            let isLocked = item.managerOnly && AppState.currentUserRole !== 'admin' && AppState.currentUserRole !== 'center_manager';
+
             let row = document.createElement('div');
             row.className = 'dynamic-item';
-            row.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border-color); cursor: pointer; user-select: none; transition: background-color 0.1s;';
+            row.style.cssText = `display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border-color); cursor: pointer; user-select: none; transition: background-color 0.1s; ${isLocked ? 'opacity: 0.6; background-color: #f8fafc;' : ''}`;
             
             let pressTimer;
             let isLongPress = false;
@@ -52,6 +54,10 @@ export function renderAppUI() {
             
             const startPress = (e) => {
                 if (e.button && e.button !== 0) return; 
+                if (isLocked) {
+                    if (typeof window.showAppAlert === 'function') window.showAppAlert("Access Denied", "🔒 Only a Center Manager can process this item.");
+                    return;
+                }
                 isLongPress = false;
                 isCancelled = false;
                 row.style.backgroundColor = 'var(--bg-color)'; 
@@ -85,19 +91,21 @@ export function renderAppUI() {
             
             let priceDisplay = safePrice > 0 ? `<span style="font-size: 0.9rem; font-weight: 700; color: var(--text-secondary);">${safePrice} ${userCurrency}</span>` : `<span style="font-size: 0.9rem; font-weight: 700; color: #10b981;">Free</span>`;
             
+            let actionIcon = isLocked 
+                ? `<div style="background: #fee2e2; border: 1px solid #fca5a5; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: #ef4444;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>`
+                : `<div style="background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: var(--text-primary);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>`;
+
             row.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1;">
                     <div style="flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: var(--bg-color); border-radius: 10px;">${iconSVG}</div>
                     <div style="display: flex; flex-direction: column; min-width: 0;">
-                        <span style="font-weight: 600; color: var(--text-primary); font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.display || item.name}</span>
-                        <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 500;">Tap to add • Hold for Qty</span>
+                        <span style="font-weight: 600; color: ${isLocked ? '#94a3b8' : 'var(--text-primary)'}; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.display || item.name}</span>
+                        <span style="font-size: 0.75rem; color: ${isLocked ? '#ef4444' : 'var(--text-secondary)'}; font-weight: 600;">${isLocked ? '🔒 Center Manager Only' : 'Tap to add • Hold for Qty'}</span>
                     </div>
                 </div>
                 <div style="display: flex; align-items: center; gap: 12px; flex-shrink: 0; padding-left: 12px;">
                     ${priceDisplay}
-                    <div style="background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: var(--text-primary);">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    </div>
+                    ${actionIcon}
                 </div>
             `;
             container.appendChild(row);
