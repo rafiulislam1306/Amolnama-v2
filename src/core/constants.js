@@ -1,5 +1,22 @@
 // src/core/constants.js
 
+export const priorityItemSortOrder = [
+    'No. 1 Plan',
+    'Prime',
+    'Djuice',
+    'Skitto',
+    'Power Prime',
+    'Recycle SIM',
+    'eSIM Prepaid',
+    'eSIM Postpaid',
+    'eSIM Skitto',
+    'Regular Replacement',
+    'Skitto Replacement',
+    'eSIM Replacement',
+    'Skitto eSIM Replacement',
+    'eSIM Skitto Replacement' // Fallback for naming variations
+];
+
 export const defaultInventoryGroups = ['Regular Kit', 'Skitto Kit', 'eSIM', 'Skitto eSIM', 'Power Prime', 'Recycle SIM', 'No. 1 Plan', 'Prime', 'Djuice'];
 
 export const defaultCatalog = {

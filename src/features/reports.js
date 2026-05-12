@@ -5,6 +5,7 @@ import { AppState } from '../core/state.js';
 import { getStrictDate, formatToGBDate } from '../utils/helpers.js';
 import { showAppAlert, showFlashMessage, openModal } from '../utils/ui-helpers.js';
 import { getPhysicalItems } from './inventory.js';
+import { priorityItemSortOrder } from '../core/constants.js';
 
 const userCurrency = 'Tk';
 
@@ -198,7 +199,16 @@ export async function renderPersonalReport() {
     }
 
     let invHTML = '';
-    for (const [name, qty] of Object.entries(myItemsSold)) {
+    let sortedPersonalItems = Object.entries(myItemsSold).sort((a, b) => {
+        let indexA = priorityItemSortOrder.indexOf(a[0]);
+        let indexB = priorityItemSortOrder.indexOf(b[0]);
+        if (indexA !== -1 && indexB !== -1) return indexA - indexB; // Both priority: sort by index
+        if (indexA !== -1) return -1; // Only A priority: A goes up
+        if (indexB !== -1) return 1;  // Only B priority: B goes up
+        return a[0].localeCompare(b[0]); // Neither priority: alphabetical
+    });
+
+    for (const [name, qty] of sortedPersonalItems) {
         invHTML += `
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 4px; border-bottom: 1px solid var(--border-color);">
                 <span style="font-weight: 600; color: var(--text-primary); font-size: 1rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px;">${name}</span>
@@ -661,7 +671,14 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
     if (!invRows) invRows = `<div style="padding: 20px; text-align: center; color: var(--text-secondary); font-size: 0.85rem; font-style: italic;">No physical stock recorded today</div>`;
           
     let itemsHTML = '';
-    let itemRowsArray = Object.entries(deskItemsSold);
+    let itemRowsArray = Object.entries(deskItemsSold).sort((a, b) => {
+        let indexA = priorityItemSortOrder.indexOf(a[0]);
+        let indexB = priorityItemSortOrder.indexOf(b[0]);
+        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+        if (indexA !== -1) return -1;
+        if (indexB !== -1) return 1;
+        return a[0].localeCompare(b[0]);
+    });
     
     itemRowsArray.forEach(([name, qty], index) => {
         let isLast = index === itemRowsArray.length - 1;
