@@ -89,9 +89,9 @@ export async function renderPersonalReport() {
         let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
         let safeMfsAmt = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0);
         
-        if (tx.type === 'adjustment' && tx.name === 'Physical Cash') {
+        if (tx.type === 'adjustment') {
             floorManagerDrops += safeCashAmt;
-        } else if (tx.type !== 'adjustment' && tx.type !== 'transfer_out' && tx.type !== 'transfer_in') {
+        } else if (tx.type !== 'transfer_out' && tx.type !== 'transfer_in') {
             myCash += safeCashAmt; 
             myMfs += safeMfsAmt;
             
@@ -122,7 +122,7 @@ export async function renderPersonalReport() {
         
         if (filterVal === 'all') showTx = true;
         else if (filterVal === 'ers' && tx.name === 'ERS Flexiload') showTx = true;
-        else if (filterVal === 'cash_ops' && tx.type === 'adjustment' && tx.name === 'Physical Cash') showTx = true;
+        else if (filterVal === 'cash_ops' && tx.type === 'adjustment') showTx = true;
         else if (filterVal === 'transfers' && (tx.type === 'transfer_in' || tx.type === 'transfer_out')) showTx = true;
         else if (filterVal === txCat) showTx = true;
 
@@ -178,8 +178,9 @@ export async function renderPersonalReport() {
         `;
     });
 
+    let expectedCenterCash = floorOpeningCash + myCash + floorManagerDrops;
     document.getElementById('report-user-name').innerText = "Center Report";
-    document.getElementById('report-user-email').innerText = `Opening Cash: ${floorOpeningCash} Tk | Manager Drops: ${floorManagerDrops} Tk`;
+    document.getElementById('report-user-email').innerHTML = `Opening: <span id="center-tot-opening">${floorOpeningCash}</span> Tk &bull; Drops: <span id="center-tot-drops">${floorManagerDrops}</span> Tk &bull; <span style="color: #0ea5e9; font-weight: 800;">Expected: <span id="center-tot-expected">${expectedCenterCash}</span> Tk</span>`;
     document.getElementById('report-user-photo').src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666666'%3E%3Cpath d='M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z'/%3E%3C/svg%3E";
 
     if(document.getElementById('report-total-all')) document.getElementById('report-total-all').innerText = (myCash + myMfs) + ' ' + userCurrency;
@@ -438,7 +439,10 @@ export async function downloadReportAsPDF(mode, prefix) {
     } else {
         deskName = "Consolidated Center Ledger";
         
-        opening = "N/A"; mgrDrops = "N/A"; expected = "N/A";
+        opening = document.getElementById('center-tot-opening')?.innerText || "0";
+        mgrDrops = document.getElementById('center-tot-drops')?.innerText || "0";
+        expected = document.getElementById('center-tot-expected')?.innerText || "0";
+        
         cashSales = document.getElementById('tot-cash-sales')?.innerText?.replace(' Tk', '') || "0";
         mfsTotal = document.getElementById('tot-mfs')?.innerText?.replace(' Tk', '') || "0";
         ersTotal = document.getElementById('tot-ers')?.innerText?.replace(' Tk', '') || "0";
