@@ -368,7 +368,7 @@ header {
 /* --- 9. FLASH PILLS (SUCCESS MESSAGES) --- */
 .flash-pill {
     position: fixed;
-    bottom: 24px; /* Default bottom alignment */
+    top: calc(24px + env(safe-area-inset-top)); /* Moved to top, respecting device notches */
     left: 50%;
     transform: translateX(-50%);
     background: #1e293b;
