@@ -193,23 +193,31 @@ export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt 
 }
 
 // ==========================================
-//    EDIT, SPLIT PAYMENT, & TRASH
+//   EDIT, SPLIT PAYMENT, & TRASH
 // ==========================================
 let currentEditTxId = null;
+
+export function isTransactionModifiable(tx, action) {
+    if (tx.type === 'transfer_out' || tx.type === 'transfer_in') {
+        let msg = action === 'delete' 
+            ? "Remote transfers cannot be deleted via the Trash bin to prevent stock duplication. Please issue a reverse transfer from the Desk Actions menu instead." 
+            : "Remote stock transfers cannot be edited. Please issue a reverse transfer from the Desk Actions menu instead.";
+        showAppAlert("Action Blocked", msg);
+        return false;
+    }
+    if (action === 'edit' && tx.type === 'adjustment') {
+        showAppAlert("Action Blocked", "Cash adjustments (Drops, Floats, Expenses) cannot be edited to protect ledger integrity. Please delete the item and log it again.");
+        return false;
+    }
+    return true;
+}
 
 export function openEditTx(id) {
     let tx = AppState.transactions.find(t => t.id === id);
     if(!tx) return;
     
     // STRICT POS PROTOCOL: Block editing of non-sale items to prevent math corruption
-    if (tx.type === 'transfer_out' || tx.type === 'transfer_in') {
-        showAppAlert("Action Blocked", "Remote stock transfers cannot be edited. Please issue a reverse transfer from the Desk Actions menu instead.");
-        return;
-    }
-    if (tx.type === 'adjustment') {
-        showAppAlert("Action Blocked", "Cash adjustments (Drops, Floats, Expenses) cannot be edited to protect ledger integrity. Please delete the item and log it again.");
-        return;
-    }
+    if (!isTransactionModifiable(tx, 'edit')) return;
 
     currentEditTxId = id;
     document.getElementById('edit-tx-name').innerText = "Edit: " + tx.name;
@@ -320,10 +328,7 @@ export function deleteTransaction(docId, localId) {
     if (AppState.currentDeskId === 'sandbox') return; // Enforce Sandbox Safety Rule
     
     let tx = AppState.transactions.find(t => t.docId === docId || t.id === localId);
-    if (tx && (tx.type === 'transfer_out' || tx.type === 'transfer_in')) {
-        showAppAlert("Action Blocked", "Remote transfers cannot be deleted via the Trash bin to prevent stock duplication. Please issue a reverse transfer from the Desk Actions menu instead.");
-        return;
-    }
+    if (tx && !isTransactionModifiable(tx, 'delete')) return;
 
     showAppAlert("Delete Item", "Are you sure you want to move this transaction to the trash?", true, () => {
         let nowStr = new Date().toISOString();
