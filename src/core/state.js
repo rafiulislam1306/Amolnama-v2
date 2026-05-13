@@ -21,5 +21,6 @@ export const AppState = {
     
     devNotesQueue: [],
     
-    isMfs: false
+    isMfs: false,
+    needsRender: { desk: true, report: true, floor: true }
 };

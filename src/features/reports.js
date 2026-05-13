@@ -1016,18 +1016,24 @@ export async function fetchTransactionsForDate() {
             
             AppState.transactions.sort((a, b) => a.id - b.id);
             AppState.trashTransactions.sort((a, b) => a.id - b.id);
-            
-            renderPersonalReport();
-            
-            if (document.getElementById('tab-desk').classList.contains('active')) {
-                renderDeskDashboard();
-            } else if (AppState.currentDeskId) {
-                renderDeskDashboard(AppState.currentDeskId); 
-            }
-            
+
+            // 1. Check which tab is currently visible
+            const activeDeskTab = document.getElementById('tab-desk').classList.contains('active');
+            const activeReportTab = document.getElementById('tab-report').classList.contains('active');
+            const activeFloorTab = document.getElementById('tab-floor').classList.contains('active');
+
+            // 2. Render only the active tab; flag the others as "dirty"
+            if (activeReportTab) renderPersonalReport();
+            else AppState.needsRender.report = true;
+
+            if (activeDeskTab) renderDeskDashboard();
+            else if (AppState.currentDeskId) AppState.needsRender.desk = true;
+
+            if (activeFloorTab) renderLiveFloorTab();
+            else AppState.needsRender.floor = true;
+
             const financialLabel = document.getElementById('financial-date-label');
             if (financialLabel) financialLabel.innerHTML = `${dateLabel}`;
-            if (document.getElementById('tab-floor').classList.contains('active')) renderLiveFloorTab();
         });
     } catch (e) { console.error(e); }
 }

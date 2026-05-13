@@ -190,10 +190,23 @@ function switchTab(tabId, title) {
     }
     
     document.getElementById('header-title').innerText = tabId === 'ers' ? (AppState.currentDeskName || AppState.userNickname || AppState.userDisplayName) : title;
+    
+    // Only redraw the DOM if the dirty flag is true (meaning new data arrived while tab was hidden)
     if (tabId === 'floor') {
-        if (typeof window.renderLiveFloorTab === 'function') window.renderLiveFloorTab();
+        if (AppState.needsRender.floor && typeof window.renderLiveFloorTab === 'function') {
+            window.renderLiveFloorTab();
+            AppState.needsRender.floor = false; // Clear the flag
+        }
     } else if (tabId === 'desk') {
-        if (typeof window.renderDeskDashboard === 'function') window.renderDeskDashboard();
+        if (AppState.needsRender.desk && typeof window.renderDeskDashboard === 'function') {
+            window.renderDeskDashboard();
+            AppState.needsRender.desk = false; // Clear the flag
+        }
+    } else if (tabId === 'report') {
+        if (AppState.needsRender.report && typeof window.renderPersonalReport === 'function') {
+            window.renderPersonalReport();
+            AppState.needsRender.report = false; // Clear the flag
+        }
     } else if (tabId === 'store') {
         if (typeof window.renderAppUI === 'function') window.renderAppUI();
     }
