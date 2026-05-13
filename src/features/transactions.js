@@ -160,9 +160,23 @@ export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt 
         timestamp: serverTimestamp()
     };
 
+    // --- OPTIMISTIC UI INJECTION ---
+    // Push to local state immediately with a pending flag so the UI shows it instantly
+    AppState.transactions.push({ ...tx, isPending: true });
+    
+    // Force the UI to repaint instantly without waiting for the Firestore roundtrip
+    if (typeof window.renderDeskDashboard === 'function') window.renderDeskDashboard(AppState.currentDeskId);
+    if (typeof window.renderPersonalReport === 'function') window.renderPersonalReport();
+    if (typeof window.renderAppUI === 'function') window.renderAppUI(); // Updates visual stock limits
+    // -------------------------------
+
     let confirmMsg = type === 'ERS' ? `ERS ${amount} Tk Logged!` : `${qty}x ${name} Logged!`;
 
     addDoc(collection(db, 'transactions'), tx).catch(e => {
+        // Revert optimistic update on failure
+        AppState.transactions = AppState.transactions.filter(t => t.id !== tx.id);
+        if (typeof window.renderDeskDashboard === 'function') window.renderDeskDashboard(AppState.currentDeskId);
+        if (typeof window.renderPersonalReport === 'function') window.renderPersonalReport();
         showAppAlert("Storage Error", "Could not save locally. Check storage.");
         console.error(e);
     });
