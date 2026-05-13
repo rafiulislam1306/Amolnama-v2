@@ -39,107 +39,38 @@ Object.defineProperties(window, {
 
 initPWA();
 
-// Bind UI Helpers to the window
-window.signInWithGoogle = signInWithGoogle;
-window.logout = logout;
-window.openProfileHub = openProfileHub;
-window.executeAlertConfirm = executeAlertConfirm;
-window.showTooltip = showTooltip;
-window.openModal = openModal;
-window.closeModal = closeModal;
-window.showAppAlert = showAppAlert;
-window.showFlashMessage = showFlashMessage;
-window.switchTab = switchTab;
-window.handleMyDrawerNav = handleMyDrawerNav;
-window.ersKeyPress = ersKeyPress;
-window.ersBackspace = ersBackspace;
-window.saveErs = saveErs;
-window.selectItem = selectItem;
-window.qtyKeyPress = qtyKeyPress;
-window.qtyBackspace = qtyBackspace;
-window.saveQuantity = saveQuantity;
-window.toggleMFS = toggleMFS;
-window.getPhysicalItems = getPhysicalItems;
-window.getInventoryChange = getInventoryChange;
-window.passStockFirewall = passStockFirewall;
-window.switchStoreCategory = switchStoreCategory;
-window.loadFloorMap = loadFloorMap;
-window.handleDeskSelect = handleDeskSelect;
-window.renderPersonalReport = renderPersonalReport;
-window.shareReport = shareReport;
-window.shareDeskReport = shareDeskReport;
-window.renderDeskDashboard = renderDeskDashboard;
-window.openManagerCashModal = openManagerCashModal;
-window.saveManagerCash = saveManagerCash;
-window.openMainStockModal = openMainStockModal;
-window.saveMainStock = saveMainStock;
-window.openReturnStockModal = openReturnStockModal;
-window.saveReturnStock = saveReturnStock;
-window.openDeskTransfer = openDeskTransfer;
-window.executeDeskTransfer = executeDeskTransfer;
-window.openTransferModal = openTransferModal;
-window.executeTransfer = executeTransfer;
-window.filterAdminCatalog = filterAdminCatalog;
-window.toggleAddForm = toggleAddForm;
-window.addInventoryGroup = addInventoryGroup;
-window.removeInventoryGroup = removeInventoryGroup;
-window.openSettings = openSettings;
-window.removeRow = removeRow;
-window.addNewItem = addNewItem;
-window.saveSettings = saveSettings;
-window.openNicknameManager = openNicknameManager;
-window.saveAdminNickname = saveAdminNickname;
-window.kickAgent = kickAgent;
-window.nukeAgent = nukeAgent;
-window.resetMyDeskLock = resetMyDeskLock;
-window.forceCloseAllDesks = forceCloseAllDesks;
-window.nukeTodaysLedger = nukeTodaysLedger;
-window.fixPastManagerDrops = fixPastManagerDrops;
-window.exportLedgerCSV = exportLedgerCSV;
-window.openAuditModal = openAuditModal;
-window.fetchAuditLogs = fetchAuditLogs;
-window.openForceReallocate = openForceReallocate;
-window.executeForceTransfer = executeForceTransfer;
-window.openDevNotes = openDevNotes;
-window.addDevNote = addDevNote;
-window.editDevNote = editDevNote;
-window.cancelInlineEdit = cancelInlineEdit;
-window.saveInlineEdit = saveInlineEdit;
-window.toggleDevNote = toggleDevNote;
-window.deleteDevNote = deleteDevNote;
-window.renderLiveFloorTab = renderLiveFloorTab;
-window.openMyDeskDashboard = openMyDeskDashboard;
-window.peekAtDesk = peekAtDesk; // <-- FIXED: Was missing!
-window.initiateCloseDesk = initiateCloseDesk;
-window.installPWA = installPWA;
-window.submitClosingReport = submitClosingReport;
-window.renderAppUI = renderAppUI;
-window.fetchTransactionsForDate = fetchTransactionsForDate;
-window.shareDeskReport = shareDeskReport;
-window.openEditTx = openEditTx;
-window.saveTxEdit = saveTxEdit;
-window.toggleEditSplitFields = toggleEditSplitFields;
-window.updateSplitTotal = updateSplitTotal;
-window.cancelTxEdit = cancelTxEdit;
-window.autoCalcEditTotal = autoCalcEditTotal;
-window.deleteTransaction = deleteTransaction;
-window.openTrash = openTrash;
-window.restoreTx = restoreTx;
-window.permanentlyDeleteTx = permanentlyDeleteTx;
-window.emptyTrash = emptyTrash;
-window.showAuditTrail = showAuditTrail;
-window.openHistoricalSession = openHistoricalSession;
-window.nukeTodaysLedger = nukeTodaysLedger;
-window.fixPastManagerDrops = fixPastManagerDrops;
-window.exportLedgerCSV = exportLedgerCSV;
-window.openAuditModal = openAuditModal;
-window.fetchAuditLogs = fetchAuditLogs;
-window.openForceReallocate = openForceReallocate;
-window.executeForceTransfer = executeForceTransfer;
-window.healTodaysOpeningStock = healTodaysOpeningStock; 
-window.runLedgerDiagnostic = runLedgerDiagnostic;
-window.downloadReportAsPDF = downloadReportAsPDF;
-window.initCustomDropdowns = initCustomDropdowns;
+// ==========================================
+//   GLOBAL NAMESPACE & UI BINDINGS
+// ==========================================
+window.Amolnama = {
+    signInWithGoogle, logout, openProfileHub, executeAlertConfirm, showTooltip,
+    openModal, closeModal, showAppAlert, showFlashMessage, switchTab,
+    handleMyDrawerNav, ersKeyPress, ersBackspace, saveErs, selectItem,
+    qtyKeyPress, qtyBackspace, saveQuantity, toggleMFS, getPhysicalItems,
+    getInventoryChange, passStockFirewall, switchStoreCategory, loadFloorMap,
+    handleDeskSelect, renderPersonalReport, shareReport, shareDeskReport,
+    renderDeskDashboard, openManagerCashModal, saveManagerCash, openMainStockModal,
+    saveMainStock, openReturnStockModal, saveReturnStock, openDeskTransfer,
+    executeDeskTransfer, openTransferModal, executeTransfer, filterAdminCatalog,
+    toggleAddForm, addInventoryGroup, removeInventoryGroup, openSettings,
+    removeRow, addNewItem, saveSettings, openNicknameManager, saveAdminNickname,
+    kickAgent, nukeAgent, resetMyDeskLock, forceCloseAllDesks, nukeTodaysLedger,
+    fixPastManagerDrops, exportLedgerCSV, openAuditModal, fetchAuditLogs,
+    openForceReallocate, executeForceTransfer, openDevNotes, addDevNote,
+    editDevNote, cancelInlineEdit, saveInlineEdit, toggleDevNote, deleteDevNote,
+    renderLiveFloorTab, openMyDeskDashboard, peekAtDesk, initiateCloseDesk,
+    installPWA, submitClosingReport, renderAppUI, fetchTransactionsForDate,
+    openEditTx, saveTxEdit, toggleEditSplitFields, updateSplitTotal, cancelTxEdit,
+    autoCalcEditTotal, deleteTransaction, openTrash, restoreTx, permanentlyDeleteTx,
+    emptyTrash, showAuditTrail, openHistoricalSession, healTodaysOpeningStock,
+    runLedgerDiagnostic, downloadReportAsPDF, initCustomDropdowns
+};
+
+// Dynamically bind all Amolnama functions to the global window object.
+// This natively replaces the 80+ manual assignments while keeping legacy HTML onclicks working flawlessly.
+Object.keys(window.Amolnama).forEach(key => {
+    window[key] = window.Amolnama[key];
+});
 
 Object.defineProperty(window, 'txListenerUnsubscribe', {
     get: () => getTxListenerUnsubscribe(),
