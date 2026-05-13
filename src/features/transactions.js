@@ -137,6 +137,7 @@ export function instantSaveItem(itemName, price) {
 // ==========================================
 export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt = 0, mfsAmt = 0) {
     if(!AppState.currentUser) return;
+    if (AppState.currentDeskId === 'sandbox') return; // Enforce Sandbox Safety Rule
     
     // Prevent transactions if the desk hasn't been opened
     if (!AppState.currentSessionId) {
@@ -258,6 +259,7 @@ export function cancelTxEdit() {
 
 export function saveTxEdit() {
     if(!AppState.currentUser) return;
+    if (AppState.currentDeskId === 'sandbox') return; // Enforce Sandbox Safety Rule
     let txIndex = AppState.transactions.findIndex(t => t.id === currentEditTxId);
     if(txIndex === -1) return;
     let tx = AppState.transactions[txIndex];
@@ -301,6 +303,7 @@ export function saveTxEdit() {
 
 export function deleteTransaction(docId, localId) {
     if(!AppState.currentUser) return;
+    if (AppState.currentDeskId === 'sandbox') return; // Enforce Sandbox Safety Rule
     
     let tx = AppState.transactions.find(t => t.docId === docId || t.id === localId);
     if (tx && (tx.type === 'transfer_out' || tx.type === 'transfer_in')) {
