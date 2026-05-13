@@ -383,9 +383,31 @@ export async function renderLiveFloorTab() {
 
             const isMyDesk = sid === AppState.currentSessionId;
 
-            // O(1) Denormalized Read: Use session data directly to prevent N+1 Firestore queries
-            let displayDeskName = session.deskName || session.deskId.replace('_', ' ').toUpperCase();
-            
+            let displayDeskName = session.deskName;
+            let agentNamesStr = session.openedBy ? session.openedBy.split(' ')[0] : 'Agent';
+
+            // SELF-HEALING: If this is an older session missing the denormalized name, or it was auto-opened by the System
+            if (!displayDeskName || agentNamesStr === 'System') {
+                try {
+                    const deskSnap = await getDoc(doc(db, 'desks', session.deskId));
+                    if (deskSnap.exists() && deskSnap.data().name) {
+                        displayDeskName = deskSnap.data().name;
+                    } else {
+                        displayDeskName = session.deskId.startsWith('personal_') ? "Personal Drawer" : session.deskId.replace('_', ' ').toUpperCase();
+                    }
+                    
+                    // If it's a personal drawer, extract the agent's name to replace "System"
+                    if (session.deskId.startsWith('personal_') && displayDeskName.includes("'s Drawer")) {
+                        agentNamesStr = displayDeskName.replace("'s Drawer", "").trim();
+                    }
+
+                    // Permanently heal the session document so we never have to query this again!
+                    updateDoc(doc(db, 'sessions', sid), { deskName: displayDeskName, openedBy: agentNamesStr }).catch(()=>{});
+                } catch(e) {
+                    displayDeskName = session.deskId.replace('_', ' ').toUpperCase();
+                }
+            }
+
             if (session.deskId.startsWith('personal_') && isMyDesk) {
                 displayDeskName = "My Drawer";
             }
@@ -395,9 +417,6 @@ export async function renderLiveFloorTab() {
             let actionBtn = isMyDesk 
                 ? `<button class="btn-primary-full" style="width: 100%; background: #0ea5e9; padding: 14px; margin-top: 8px; border-radius: 14px; font-weight: 700; font-size: 1rem; box-shadow: 0 4px 16px rgba(14, 165, 233, 0.25);" onclick="openMyDeskDashboard()">Open My Drawer</button>`
                 : `<button class="btn-outline" style="width: 100%; color: #8b5cf6; border-color: #8b5cf6; background: transparent; padding: 14px; margin-top: 8px; border-radius: 14px; font-weight: 700; font-size: 1rem;" onclick="peekAtDesk('${session.deskId}', '${safeDeskName}')">View Details</button>`;
-
-            // O(1) Denormalized Read for agent name
-            let agentNamesStr = session.openedBy ? session.openedBy.split(' ')[0] : 'Agent';
 
             let cardStyle = isMyDesk 
                 ? `margin-bottom: 0; padding: 20px; background: linear-gradient(145deg, #ffffff, #f0f9ff); border: 2px solid #38bdf8; border-radius: 20px; box-shadow: 0 8px 24px rgba(14, 165, 233, 0.15); position: relative; overflow: hidden;`
