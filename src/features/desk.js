@@ -272,10 +272,11 @@ async function executeHandleDeskSelect(deskId, deskName, status, sessionId) {
         await updateDoc(doc(db, 'sessions', activeSessionId), {
             status: 'open',
             openedBy: AppState.userNickname || AppState.userDisplayName,
-            openedByUid: AppState.currentUser.uid
+            openedByUid: AppState.currentUser.uid,
+            deskName: deskName // Denormalized for fast O(1) Floor Map rendering
         });
         await setDoc(doc(db, 'desks', deskId), { status: 'open' }, { merge: true });
-    } 
+    }
     // Absolute failsafe just in case the boot script was interrupted
     else if (!activeSessionId) {
         // If we get here, the background rollover didn't finish. 
@@ -382,31 +383,9 @@ export async function renderLiveFloorTab() {
 
             const isMyDesk = sid === AppState.currentSessionId;
 
-            let displayDeskName = session.deskId.replace('_', ' ').toUpperCase();
+            // O(1) Denormalized Read: Use session data directly to prevent N+1 Firestore queries
+            let displayDeskName = session.deskName || session.deskId.replace('_', ' ').toUpperCase();
             
-            try {
-                const deskSnap = await getDoc(doc(db, 'desks', session.deskId));
-                if (deskSnap.exists() && deskSnap.data().name) {
-                    displayDeskName = deskSnap.data().name;
-                }
-                
-                // UPGRADE: If it STILL says "Personal Drawer", the agent hasn't logged in yet. 
-                // Let's fetch their name directly and heal the database!
-                if (displayDeskName === 'Personal Drawer' && session.deskId.startsWith('personal_')) {
-                    const uid = session.deskId.replace('personal_', '');
-                    const userSnap = await getDoc(doc(db, 'users', uid));
-                    
-                    if (userSnap.exists()) {
-                        const uData = userSnap.data();
-                        const fName = uData.nickname || (uData.displayName ? uData.displayName.split(' ')[0] : 'Agent');
-                        displayDeskName = `${fName}'s Drawer`;
-                        
-                        // Silently heal the database so it's permanently fixed
-                        setDoc(doc(db, 'desks', session.deskId), { name: displayDeskName }, { merge: true }).catch(()=>{});
-                    }
-                }
-            } catch(e) { console.error("Could not fetch real desk name", e); }
-
             if (session.deskId.startsWith('personal_') && isMyDesk) {
                 displayDeskName = "My Drawer";
             }
@@ -417,13 +396,8 @@ export async function renderLiveFloorTab() {
                 ? `<button class="btn-primary-full" style="width: 100%; background: #0ea5e9; padding: 14px; margin-top: 8px; border-radius: 14px; font-weight: 700; font-size: 1rem; box-shadow: 0 4px 16px rgba(14, 165, 233, 0.25);" onclick="openMyDeskDashboard()">Open My Drawer</button>`
                 : `<button class="btn-outline" style="width: 100%; color: #8b5cf6; border-color: #8b5cf6; background: transparent; padding: 14px; margin-top: 8px; border-radius: 14px; font-weight: 700; font-size: 1rem;" onclick="peekAtDesk('${session.deskId}', '${safeDeskName}')">View Details</button>`;
 
-            let agentNamesStr = 'Loading...';
-            try {
-                const agentsSnap = await getDocs(query(collection(db, 'users'), where('assignedDeskId', '==', session.deskId)));
-                let names = [];
-                agentsSnap.forEach(aDoc => { names.push(aDoc.data().nickname || aDoc.data().displayName || aDoc.data().email?.split('@')[0] || 'Agent'); });
-                agentNamesStr = names.length > 0 ? names.join(', ') : 'Empty';
-            } catch(e) { agentNamesStr = 'Unknown'; }
+            // O(1) Denormalized Read for agent name
+            let agentNamesStr = session.openedBy ? session.openedBy.split(' ')[0] : 'Agent';
 
             let cardStyle = isMyDesk 
                 ? `margin-bottom: 0; padding: 20px; background: linear-gradient(145deg, #ffffff, #f0f9ff); border: 2px solid #38bdf8; border-radius: 20px; box-shadow: 0 8px 24px rgba(14, 165, 233, 0.15); position: relative; overflow: hidden;`
