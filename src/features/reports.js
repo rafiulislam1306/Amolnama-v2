@@ -423,7 +423,13 @@ export function shareDeskReport() {
 }
 
 // === NEW: INVOICE PDF GENERATOR (CONTINUOUS FIXED-WIDTH LAYOUT) ===
-export async function downloadReportAsPDF(mode, prefix) {
+export function downloadReportAsPDF(mode, prefix) {
+    showAppAlert("Download PDF", "Generate and download the official PDF ledger?", true, () => {
+        executeDownloadReportAsPDF(mode, prefix);
+    }, "Download");
+}
+
+async function executeDownloadReportAsPDF(mode, prefix) {
     if (!window.html2pdf) {
         showAppAlert("Error", "PDF library not loaded.");
         return;

@@ -253,7 +253,14 @@ export async function loadFloorMap() {
     } catch (e) { container.innerHTML = `<div style="color:#ef4444; padding:16px;">Error loading map. Refresh app.</div>`; }
 }
 
-export async function handleDeskSelect(deskId, deskName, status, sessionId) {
+export function handleDeskSelect(deskId, deskName, status, sessionId) {
+    let actionText = status === 'open' ? 'join' : 'open';
+    showAppAlert("Confirm Workspace", `Are you sure you want to ${actionText} ${deskName}?`, true, () => {
+        executeHandleDeskSelect(deskId, deskName, status, sessionId);
+    }, "Confirm");
+}
+
+async function executeHandleDeskSelect(deskId, deskName, status, sessionId) {
     AppState.currentDeskId = deskId;
     AppState.currentDeskName = deskName;
 
