@@ -98,9 +98,15 @@ export function saveQuantity() {
     closeModal('modal-quantity');
 }
 
+let isSaving = false;
+
 export function instantSaveItem(itemName, price) {
+  if (isSaving) return; // Drop accidental double-taps
+  isSaving = true;
+
   let catItem = Object.values(AppState.globalCatalog).find(c => c.name === itemName);
   if (catItem?.managerOnly && !['manager', 'center_manager', 'owner'].includes(AppState.currentUserRole)) {
+      isSaving = false;
       showAppAlert("Access Denied", "🔒 Only Center Managers and Owners can process this service.");
       return;
   }
@@ -108,17 +114,22 @@ export function instantSaveItem(itemName, price) {
   // Prevent sales while viewing historical dates
   const datePicker = document.getElementById('report-date-picker');
   if (datePicker && datePicker.value && formatToGBDate(datePicker.value) !== getStrictDate()) {
+      isSaving = false;
       showAppAlert("Action Blocked", "You cannot process new transactions while viewing a past date. Please return to 'Today'.");
       return;
   }
 
-  if (!passStockFirewall(itemName, 1)) return;
+  if (!passStockFirewall(itemName, 1)) {
+      isSaving = false;
+      return;
+  }
 
   addTransactionToCloud('Item', itemName, price, 1, (price > 0 && AppState.isMfs) ? "MFS" : "Cash");
 
   setTimeout(() => {
     document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
-  }, 100);
+    isSaving = false; // Release the lock after the UI clears
+  }, 300); // 300ms window perfectly absorbs physical screen double-taps
 }
 
 // ==========================================
