@@ -12,6 +12,11 @@ import { getInventoryChange, getPhysicalItems } from './inventory.js';
 export async function performLazyAutoClose() {
     const todayStr = getStrictDate();
     try {
+        // OPTIMIZATION: Check if system already rolled over today (Costs 1 read instead of 20+)
+        const sysDocRef = doc(db, 'global', 'system_status');
+        const sysSnap = await getDoc(sysDocRef);
+        if (sysSnap.exists() && sysSnap.data().lastRolloverDate === todayStr) return;
+
         const desksSnap = await getDocs(collection(db, 'desks'));
 
         for (const deskDoc of desksSnap.docs) {
@@ -135,6 +140,9 @@ export async function performLazyAutoClose() {
                 await updateDoc(doc(db, 'desks', deskId), { status: newStatus, currentSessionId: newSessionId }, { merge: true });
             }
         }
+        
+        // Mark rollover as complete for today so other agents logging in skip this heavy loop
+        await setDoc(doc(db, 'global', 'system_status'), { lastRolloverDate: todayStr }, { merge: true });
     } catch(e) { console.error("Rollover system failed:", e); }
 }
 
