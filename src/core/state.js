@@ -22,5 +22,13 @@ export const AppState = {
     devNotesQueue: [],
     
     isMfs: false,
-    needsRender: { desk: true, report: true, floor: true }
+    needsRender: { desk: true, report: true, floor: true },
+    
+    ui: {
+        currentErsAmount: '0',
+        currentItemName: '',
+        currentItemPrice: 0,
+        currentQty: '1',
+        currentEditTxId: null
+    }
 };

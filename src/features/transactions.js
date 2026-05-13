@@ -9,44 +9,40 @@ import { passStockFirewall } from './inventory.js';
 // ==========================================
 //    ERS KEYPAD LOGIC
 // ==========================================
-let currentErsAmount = '0';
 
 export function updateErsDisplay() { 
     const ersDisplay = document.getElementById('ers-display');
     if (ersDisplay) {
-        ersDisplay.innerText = Number(currentErsAmount).toLocaleString('en-IN'); 
+        ersDisplay.innerText = Number(AppState.ui.currentErsAmount).toLocaleString('en-IN'); 
     }
 }
 
 export function ersKeyPress(num) {
     if (navigator.vibrate) navigator.vibrate(10);
-    if (currentErsAmount === '0') { 
-        if (num !== '00' && num !== '0') currentErsAmount = num; 
+    if (AppState.ui.currentErsAmount === '0') { 
+        if (num !== '00' && num !== '0') AppState.ui.currentErsAmount = num; 
     } else { 
-        if ((currentErsAmount + num).length <= 5) currentErsAmount += num; 
+        if ((AppState.ui.currentErsAmount + num).length <= 5) AppState.ui.currentErsAmount += num; 
     }
     updateErsDisplay();
 }
 
 export function ersBackspace() { 
     if (navigator.vibrate) navigator.vibrate(15);
-    currentErsAmount = currentErsAmount.length > 1 ? currentErsAmount.slice(0, -1) : '0'; 
+    AppState.ui.currentErsAmount = AppState.ui.currentErsAmount.length > 1 ? AppState.ui.currentErsAmount.slice(0, -1) : '0'; 
     updateErsDisplay(); 
 }
 
 export function saveErs(paymentMethod) {
-    const amount = parseInt(currentErsAmount);
+    const amount = parseInt(AppState.ui.currentErsAmount);
     if (amount <= 0) { showAppAlert("Invalid Input", "Please enter a valid amount."); return; }
     addTransactionToCloud('ERS', 'ERS Flexiload', amount, 1, paymentMethod);
-    currentErsAmount = '0'; updateErsDisplay();
+    AppState.ui.currentErsAmount = '0'; updateErsDisplay();
 }
 
 // ==========================================
 //    ITEM QUANTITY MODAL LOGIC
 // ==========================================
-let currentItemName = ''; 
-let currentItemPrice = 0; 
-let currentQty = '1';
 
 export function selectItem(itemName, price) {
     let catItem = Object.values(AppState.globalCatalog).find(c => c.name === itemName);
@@ -56,33 +52,33 @@ export function selectItem(itemName, price) {
     }
     
     document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
-    currentItemName = itemName; currentItemPrice = price; currentQty = '1';
+    AppState.ui.currentItemName = itemName; AppState.ui.currentItemPrice = price; AppState.ui.currentQty = '1';
     updateQtyDisplay(); 
     openModal('modal-quantity');
 }
 
 function updateQtyDisplay() {
-    document.getElementById('qty-item-name').innerText = currentItemName;
-    document.getElementById('qty-display').innerText = currentQty;
-    let qtyInt = parseInt(currentQty) || 0;
-    document.getElementById('qty-calc-display').innerText = currentItemPrice === 0 ? `Inventory Update (0 Tk)` : `${qtyInt} x ${currentItemPrice} = ${qtyInt * currentItemPrice} Tk`;
+    document.getElementById('qty-item-name').innerText = AppState.ui.currentItemName;
+    document.getElementById('qty-display').innerText = AppState.ui.currentQty;
+    let qtyInt = parseInt(AppState.ui.currentQty) || 0;
+    document.getElementById('qty-calc-display').innerText = AppState.ui.currentItemPrice === 0 ? `Inventory Update (0 Tk)` : `${qtyInt} x ${AppState.ui.currentItemPrice} = ${qtyInt * AppState.ui.currentItemPrice} Tk`;
 }
 
 export function qtyKeyPress(num) { 
     if (navigator.vibrate) navigator.vibrate(10);
-    if (currentQty === '0') currentQty = num; 
-    else if (currentQty.length < 3) currentQty += num; 
+    if (AppState.ui.currentQty === '0') AppState.ui.currentQty = num; 
+    else if (AppState.ui.currentQty.length < 3) AppState.ui.currentQty += num; 
     updateQtyDisplay(); 
 }
 
 export function qtyBackspace() { 
     if (navigator.vibrate) navigator.vibrate(15);
-    currentQty = currentQty.length > 1 ? currentQty.slice(0, -1) : '0'; 
+    AppState.ui.currentQty = AppState.ui.currentQty.length > 1 ? AppState.ui.currentQty.slice(0, -1) : '0'; 
     updateQtyDisplay(); 
 }
 
 export function saveQuantity() {
-    let qtyInt = parseInt(currentQty) || 0;
+    let qtyInt = parseInt(AppState.ui.currentQty) || 0;
     if (qtyInt <= 0) { showAppAlert("Invalid Input", "Please enter a quantity of 1 or more."); return; }
     
     // Prevent sales while viewing historical dates
@@ -92,9 +88,9 @@ export function saveQuantity() {
         return;
     }
 
-    if (!passStockFirewall(currentItemName, qtyInt)) return;
+    if (!passStockFirewall(AppState.ui.currentItemName, qtyInt)) return;
 
-    addTransactionToCloud('Item', currentItemName, qtyInt * currentItemPrice, qtyInt, (currentItemPrice > 0 && AppState.isMfs) ? "MFS" : "Cash");
+    addTransactionToCloud('Item', AppState.ui.currentItemName, qtyInt * AppState.ui.currentItemPrice, qtyInt, (AppState.ui.currentItemPrice > 0 && AppState.isMfs) ? "MFS" : "Cash");
     closeModal('modal-quantity');
 }
 
@@ -195,7 +191,6 @@ export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt 
 // ==========================================
 //   EDIT, SPLIT PAYMENT, & TRASH
 // ==========================================
-let currentEditTxId = null;
 
 export function isTransactionModifiable(tx, action) {
     if (tx.type === 'transfer_out' || tx.type === 'transfer_in') {
@@ -219,7 +214,7 @@ export function openEditTx(id) {
     // STRICT POS PROTOCOL: Block editing of non-sale items to prevent math corruption
     if (!isTransactionModifiable(tx, 'edit')) return;
 
-    currentEditTxId = id;
+    AppState.ui.currentEditTxId = id;
     document.getElementById('edit-tx-name').innerText = "Edit: " + tx.name;
     document.getElementById('edit-tx-qty').value = tx.qty || 1;
     document.getElementById('edit-tx-amount').value = tx.amount;
@@ -248,7 +243,7 @@ export function toggleEditSplitFields() {
 }
 
 export function autoCalcEditTotal() {
-    let tx = AppState.transactions.find(t => t.id === currentEditTxId);
+    let tx = AppState.transactions.find(t => t.id === AppState.ui.currentEditTxId);
     if (!tx) return;
          
     let catItem = Object.values(AppState.globalCatalog).find(c => c.name === tx.name);
@@ -275,14 +270,14 @@ export function updateSplitTotal() {
 }
 
 export function cancelTxEdit() {
-    currentEditTxId = null;
+    AppState.ui.currentEditTxId = null;
     closeModal('modal-edit-tx');
 }
 
 export function saveTxEdit() {
     if(!AppState.currentUser) return;
     if (AppState.currentDeskId === 'sandbox') return; // Enforce Sandbox Safety Rule
-    let txIndex = AppState.transactions.findIndex(t => t.id === currentEditTxId);
+    let txIndex = AppState.transactions.findIndex(t => t.id === AppState.ui.currentEditTxId);
     if(txIndex === -1) return;
     let tx = AppState.transactions[txIndex];
     
@@ -314,7 +309,7 @@ export function saveTxEdit() {
     let updatedEditHistory = tx.editHistory ? [...tx.editHistory, prevTxState] : [prevTxState];
     
     closeModal('modal-edit-tx');
-    currentEditTxId = null;
+    AppState.ui.currentEditTxId = null;
 
     if (tx.docId) {
         let msg = `${tx.name} Updated!`;
