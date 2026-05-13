@@ -101,7 +101,7 @@ export async function initUserData(onComplete) {
             
             setTimeout(() => {
                 if (window.switchTab) window.switchTab('floor', 'Live Floor Map');
-                if (window.fetchTransactionsForDate) window.fetchTransactionsForDate(); 
+                fetchTransactionsForDate(); 
             }, 150);
             
         } else if (userData.assignedDate === todayStr && userData.assignedDeskId) {
