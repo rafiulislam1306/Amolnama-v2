@@ -297,7 +297,7 @@ export function nukeAgent(uid, agentName) {
             await setDoc(doc(db, 'users', uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
             const targetDateStr = getStrictDate();
             const txSnap = await getDocs(query(collection(db, 'transactions'), where('agentId', '==', uid), where('dateStr', '==', targetDateStr)));
-            txSnap.forEach(async (t) => { await deleteDoc(doc(db, 'transactions', t.id)); });
+            await Promise.all(txSnap.docs.map(t => deleteDoc(doc(db, 'transactions', t.id))));
             showFlashMessage(`Agent Nixed & Data Erased!`);
             renderUserManagementAdmin();
         } catch(e) { showAppAlert("Error", "Error executing Burn Notice."); }
@@ -314,9 +314,9 @@ export function resetMyDeskLock() {
 export function forceCloseAllDesks() {
     showAppAlert("Force Close All", "FORCE CLOSE ALL DESKS? This will instantly log out every agent on the floor.", true, async () => {
         const snap = await getDocs(collection(db, 'desks'));
-        snap.forEach(async (d) => { await setDoc(doc(db, 'desks', d.id), { status: 'closed', currentSessionId: null }, { merge: true }); });
+        await Promise.all(snap.docs.map(d => setDoc(doc(db, 'desks', d.id), { status: 'closed', currentSessionId: null }, { merge: true })));
         const sSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'open')));
-        sSnap.forEach(async (s) => { await updateDoc(doc(db, 'sessions', s.id), { status: 'closed', closedBy: 'Admin Override' }); });
+        await Promise.all(sSnap.docs.map(s => updateDoc(doc(db, 'sessions', s.id), { status: 'closed', closedBy: 'Admin Override' })));
         window.location.reload();
     }, "Force Close");
 }
@@ -325,7 +325,7 @@ export function nukeTodaysLedger() {
     showAppAlert("Delete Ledger", "PERMANENTLY DELETE TODAY'S LEDGER? This cannot be undone!", true, async () => {
         const targetDateStr = getStrictDate();
         const snap = await getDocs(query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr)));
-        snap.forEach(async (t) => { await deleteDoc(doc(db, 'transactions', t.id)); });
+        await Promise.all(snap.docs.map(t => deleteDoc(doc(db, 'transactions', t.id))));
         window.location.reload();
     }, "Delete Entire Ledger");
 }
