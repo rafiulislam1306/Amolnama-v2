@@ -95,22 +95,26 @@ export function renderAppUI() {
             row.oncontextmenu = (e) => { e.preventDefault(); return false; };
             
             let priceDisplay = safePrice > 0 
-                ? `<span style="font-size: 1.1rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.5px;">${safePrice} <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600;">${userCurrency}</span></span>` 
-                : `<span style="font-size: 0.85rem; font-weight: 800; color: #10b981; background: #d1fae5; padding: 6px 12px; border-radius: 8px;">FREE</span>`;
+                ? `<span style="font-size: 1rem; font-weight: 600; color: var(--text-primary);">${safePrice} <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 500;">${userCurrency}</span></span>` 
+                : `<span style="font-size: 0.85rem; font-weight: 700; color: #10b981; background: #ecfdf5; padding: 4px 10px; border-radius: 6px;">FREE</span>`;
             
             let actionIcon = isLocked 
-                ? `<div style="background: #fef2f2; border: 1.5px solid #fecaca; border-radius: 10px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; color: #ef4444; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.05);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>`
-                : `<div style="background: #f0f9ff; border: 1.5px solid #bae6fd; border-radius: 10px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; color: #0284c7; box-shadow: 0 2px 4px rgba(2, 132, 199, 0.08);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>`;
+                ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`
+                : `<div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; color: var(--accent-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>`;
+
+            let subText = isLocked 
+                ? `<span style="font-size: 0.75rem; color: #ef4444; font-weight: 600; margin-top: 4px;">🔒 Center Manager Only</span>` 
+                : ``; // Remove redundant helper text to eliminate visual clutter
 
             row.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 16px; min-width: 0; flex: 1;">
-                    <div style="flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; background: ${isLocked ? '#f8fafc' : 'var(--bg-color)'}; border-radius: 12px; border: 1px solid var(--border-color);">${iconSVG}</div>
+                    <div style="flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; background: ${isLocked ? '#f8fafc' : 'var(--bg-color)'}; border-radius: 12px; color: ${isLocked ? '#94a3b8' : 'var(--text-secondary)'};">${iconSVG}</div>
                     <div style="display: flex; flex-direction: column; min-width: 0; justify-content: center;">
-                        <span style="font-weight: 700; color: ${isLocked ? '#94a3b8' : 'var(--text-primary)'}; font-size: 1.05rem; letter-spacing: -0.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 4px;">${item.display || item.name}</span>
-                        <span style="font-size: 0.8rem; color: ${isLocked ? '#ef4444' : 'var(--text-secondary)'}; font-weight: 500; line-height: 1;">${isLocked ? '🔒 Center Manager Only' : 'Tap to add • Hold for Qty'}</span>
+                        <span style="font-weight: 600; color: ${isLocked ? '#94a3b8' : 'var(--text-primary)'}; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.display || item.name}</span>
+                        ${subText}
                     </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 16px; flex-shrink: 0; padding-left: 12px;">
+                <div style="display: flex; align-items: center; gap: 14px; flex-shrink: 0; padding-left: 12px;">
                     ${priceDisplay}
                     ${actionIcon}
                 </div>
