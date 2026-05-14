@@ -50,9 +50,14 @@ export function renderAppUI() {
             let container = document.getElementById(containerId);
             if (!container) return; // Skip if category HTML container doesn't exist
             
+            // STRICT RULE: Death TOF and Govt. FOC are ONLY visible to center_manager
+            if ((item.name === 'Death TOF' || item.name === 'Govt. FOC') && AppState.currentUserRole !== 'center_manager') {
+                return; // Hide entirely
+            }
+
             let isLocked = item.managerOnly && !['manager', 'center_manager', 'admin', 'owner'].includes(AppState.currentUserRole);
             
-            // Completely hide restricted items from standard floor agents
+            // Completely hide other restricted items from standard floor agents
             if (isLocked) return;
 
             let row = document.createElement('div');
