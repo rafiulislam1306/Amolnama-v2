@@ -1,27 +1,26 @@
 // src/core/constants.js
 
 export const priorityItemSortOrder = [
-    // SIMs
-    'No. 1 Plan', 'Prime', 'Djuice', 'Skitto', 'Power Prime', 'Recycle SIM', 'eSIM Prepaid', 'eSIM Postpaid', 'eSIM Skitto',
-    // Replacements
-    'Regular Replacement', 'Skitto Replacement', 'eSIM Replacement', 'Skitto eSIM Replacement', 'eSIM Skitto Replacement',
-    // FOCs (Agent)
-    'FOC Regular', 'FOC Skitto', 'FOC eSIM', 'FOC Skitto eSIM',
-    // Free Actions (Manager Only)
-    'Corporate Replacement', 'Govt. FOC', 'Death TOF',
+    // Products
+    'No. 1 Plan', 'Prime', 'Djuice', 'Skitto', 'Power Prime', 'Recycle SIM', 
+    'eSIM Prepaid', 'eSIM Postpaid', 'eSIM Skitto',
+    'Regular Replacement', 'Skitto Replacement', 'eSIM Replacement', 'Skitto eSIM Replacement',
     // Services
-    'Recycle SIM Reissue', 'Itemized Bill', 'Ownership Transfer', 'MNP'
+    'Itemized Bill', 'MNP', 'Ownership Transfer', 'Recycle SIM Reissue', 
+    'Death TOF', 'FOC Regular', 'FOC Skitto', 'FOC eSIM', 'FOC Skitto eSIM', 
+    'Govt. FOC', 'Corporate Replacement'
 ];
 
 export const priorityInventorySortOrder = [
     'No. 1 Plan', 'Prime', 'Djuice', 'Skitto', 'Power Prime', 'Recycle SIM',
-    'Regular Kit', 'Skitto Kit', 'eSIM Kit', 'eSIM Skitto Kit',
-    'eSIM', 'Skitto eSIM' // Safety fallbacks
+    'eSIM Prepaid', 'eSIM Postpaid', 'eSIM Skitto',
+    'Regular Kit', 'Skitto Kit', 'eSIM Kit', 'eSIM Skitto Kit'
 ];
 
 export const defaultInventoryGroups = [
     'No. 1 Plan', 'Prime', 'Djuice', 'Skitto', 'Power Prime', 'Recycle SIM',
-    'Regular Kit', 'Skitto Kit', 'eSIM Kit', 'eSIM Skitto Kit', 'eSIM', 'Skitto eSIM'
+    'eSIM Prepaid', 'eSIM Postpaid', 'eSIM Skitto',
+    'Regular Kit', 'Skitto Kit', 'eSIM Kit', 'eSIM Skitto Kit'
 ];
 
 export const defaultCatalog = {
