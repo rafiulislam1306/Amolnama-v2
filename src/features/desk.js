@@ -394,12 +394,9 @@ export async function renderLiveFloorTab() {
                     let color = isLow ? '#ef4444' : '#475569';
                     invDisplay += `<div style="flex-grow: 1; display: flex; justify-content: space-between; align-items: center; background:${bg}; border: 1px solid ${border}; padding:6px 10px; border-radius:12px; font-size:0.75rem; color:${color}; font-weight:700;"><span style="white-space:nowrap;">${name}</span> <span style="margin-left: 8px; padding-left: 8px; border-left: 1px solid ${border};">${qty}</span></div>`;
                 }
-            }
-            if (liveServicesCount > 0) {
-                invDisplay += `<div style="flex-grow: 1; display: flex; justify-content: space-between; align-items: center; background:#fffbeb; border: 1px solid #fde68a; padding:6px 10px; border-radius:12px; font-size:0.75rem; color:#d97706; font-weight:700;"><span style="white-space:nowrap;">Services</span> <span style="margin-left: 8px; padding-left: 8px; border-left: 1px solid #fde68a;">${liveServicesCount}</span></div>`;
-            }
-            
-            if (invDisplay) {
+            }
+            
+            if (invDisplay) {
                 // Invisible flex-grow spacer to stop the last row from stretching!
                 invDisplay += `<div style="flex-grow: 999;"></div>`;
             } else {
