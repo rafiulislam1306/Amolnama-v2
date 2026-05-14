@@ -1,6 +1,7 @@
 // src/features/catalog.js
 import { AppState } from '../core/state.js';
 import { selectItem, instantSaveItem } from './transactions.js';
+import { priorityItemSortOrder } from '../core/constants.js';
 
 export function renderAppUI() {
     try {
@@ -12,7 +13,14 @@ export function renderAppUI() {
         // Safety check
         if (!AppState.globalCatalog) return;
 
-        Object.values(AppState.globalCatalog).sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(item => {
+        Object.values(AppState.globalCatalog).sort((a, b) => {
+            let indexA = priorityItemSortOrder.indexOf(a.name);
+            let indexB = priorityItemSortOrder.indexOf(b.name);
+            if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+            if (indexA !== -1) return -1;
+            if (indexB !== -1) return 1;
+            return a.name.localeCompare(b.name);
+        }).forEach(item => {
             // Only hide the item if it is explicitly set to false. Otherwise, assume it is active.
             if (item.isActive === false) return;
             

@@ -5,6 +5,7 @@ import { AppState } from '../core/state.js';
 import { getStrictDate } from '../utils/helpers.js';
 import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/ui-helpers.js';
 import { getInventoryChange, getPhysicalItems } from './inventory.js';
+import { priorityInventorySortOrder } from '../core/constants.js';
 
 // ==========================================
 //   THE SEAMLESS DAILY ROLLOVER
@@ -376,7 +377,16 @@ export async function renderLiveFloorTab() {
             });
 
             let invDisplay = '';
-            for (const [name, qty] of Object.entries(liveInv)) {
+            let sortedLiveInv = Object.entries(liveInv).sort((a, b) => {
+                let indexA = priorityInventorySortOrder.indexOf(a[0]);
+                let indexB = priorityInventorySortOrder.indexOf(b[0]);
+                if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+                if (indexA !== -1) return -1;
+                if (indexB !== -1) return 1;
+                return a[0].localeCompare(b[0]);
+            });
+
+            for (const [name, qty] of sortedLiveInv) {
                 if (qty !== 0) {
                     let isLow = qty < 3;
                     let bg = isLow ? '#fef2f2' : '#f8fafc';
