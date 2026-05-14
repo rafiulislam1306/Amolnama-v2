@@ -145,10 +145,11 @@ export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt 
     if (payment === 'MFS') { cashAmt = 0; mfsAmt = amount; }
 
     let catItem = Object.values(AppState.globalCatalog).find(c => c.name === name);
-    let trackAs = catItem ? (catItem.trackAs || name) : name; 
+    let trackAs = catItem ? (catItem.trackAs === '' ? '' : (catItem.trackAs || name)) : name; 
+    let cat = catItem ? catItem.cat : 'unknown';
 
     const tx = {
-        id: Date.now(), receiptNo: generateReceiptNo(), type: type, name: name, trackAs: trackAs, amount: amount, qty: qty,
+        id: Date.now(), receiptNo: generateReceiptNo(), type: type, name: name, trackAs: trackAs, cat: cat, amount: amount, qty: qty,
         payment: payment, cashAmt: cashAmt, mfsAmt: mfsAmt, isDeleted: false,
         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
         dateStr: getStrictDate(),

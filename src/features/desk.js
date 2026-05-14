@@ -363,8 +363,15 @@ export async function renderLiveFloorTab() {
                 let change = getInventoryChange(tx);
                 if (change !== 0) {
                     liveInv[tx.trackAs] = (liveInv[tx.trackAs] || 0) + change;
-                } else if (tx.cat === 'service' || tx.cat === 'free-action') {
-                    liveServicesCount += Math.abs(tx.qty);
+                } else {
+                    let txCategory = tx.cat;
+                    if (!txCategory) {
+                        let catItem = Object.values(AppState.globalCatalog).find(c => c.name === tx.name);
+                        if (catItem) txCategory = catItem.cat;
+                    }
+                    if (txCategory === 'service' || txCategory === 'free-action') {
+                        liveServicesCount += Math.abs(tx.qty);
+                    }
                 }
             });
 

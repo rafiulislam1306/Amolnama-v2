@@ -21,7 +21,7 @@ export function getInventoryChange(tx) {
 
 export function getAvailableStock(itemName) {
     let catItem = Object.values(AppState.globalCatalog).find(c => c.name === itemName);
-    let trackAs = catItem ? (catItem.trackAs || itemName) : itemName; 
+    let trackAs = catItem ? (catItem.trackAs === '' ? '' : (catItem.trackAs || itemName)) : itemName;
     
     if (!AppState.globalInventoryGroups.includes(trackAs)) return Infinity; 
 
@@ -38,7 +38,7 @@ export function getAvailableStock(itemName) {
 
 export function passStockFirewall(itemName, requestedQty) {
     let catItem = Object.values(AppState.globalCatalog).find(c => c.name === itemName);
-    let trackAs = catItem ? (catItem.trackAs || itemName) : itemName; 
+    let trackAs = catItem ? (catItem.trackAs === '' ? '' : (catItem.trackAs || itemName)) : itemName;
     
     if (!AppState.globalInventoryGroups.includes(trackAs)) return true; 
 
