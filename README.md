@@ -129,7 +129,7 @@ Use this section to identify exactly which function controls a feature — so yo
 
 ---
 
-### `src/features/desk.js`
+### src/features/desk.js
 - `performLazyAutoClose()` — auto-closes desks from previous days on boot
 - `loadFloorMap()` — loads desk selection screen from Firestore
 - `handleDeskSelect(deskId, deskName, status, sessionId)` — joins open desk or opens new desk flow
@@ -378,20 +378,6 @@ if (typeof window.renderAppUI === 'function') window.renderAppUI();
 ### 🟡 Rule 6: New `window.*` Bindings Go in `main.js` Only
 
 If you create a new function that needs to be called from HTML `onclick` attributes, it must be bound in `main.js`. Do not bind functions to `window` from inside feature files.
-
----
-
-### 🟡 Rule 7: Sandbox Mode Must Be Handled Separately
-
-Many functions check `AppState.currentDeskId === 'sandbox'` and use local `AppState` instead of Firestore. Any new transaction-saving logic must include a sandbox branch:
-
-```javascript
-if (AppState.currentDeskId === 'sandbox') {
-    // local only, no Firestore
-    return;
-}
-// Firestore logic below
-```
 
 ---
 
