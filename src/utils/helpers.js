@@ -14,8 +14,11 @@ export function generateReceiptNo() {
 }
 
 export function formatToGBDate(iso) { 
-    if(!iso) return null; // Let the caller decide how to handle missing dates
+    if(!iso) return null; 
     if(iso.includes('/')) return iso; 
+    // Defensive check to prevent undefined/undefined/undefined errors
+    if(!iso.includes('-')) return iso; 
+    
     const [y,m,d] = iso.split('-'); 
     return `${d}/${m}/${y}`; 
 }

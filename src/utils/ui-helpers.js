@@ -39,7 +39,8 @@ export function showFlashMessage(text) {
     if (navigator.vibrate) navigator.vibrate(50); 
     let msg = document.createElement('div'); 
     msg.className = 'flash-pill';
-    msg.innerHTML = `${text}`;
+    // Use innerText to completely prevent Cross-Site Scripting (XSS)
+    msg.innerText = text;
     
     // Inject smooth, native-feeling slide animation directly
     msg.style.cssText = `
@@ -221,8 +222,11 @@ export function initCustomDropdowns() {
             optionsContainer.innerHTML = '';
             
             let selectedText = select.options[select.selectedIndex]?.text || 'Select...';
-            trigger.innerHTML = `<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px;">${selectedText}</span> 
+            // Render HTML structure safely without the variable
+            trigger.innerHTML = `<span class="custom-trigger-text" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px;"></span> 
                                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><polyline points="6 9 12 15 18 9"/></svg>`;
+            // Inject text safely via innerText
+            trigger.querySelector('.custom-trigger-text').innerText = selectedText;
 
             Array.from(select.children).forEach(child => {
                 if (child.tagName === 'OPTGROUP') {
