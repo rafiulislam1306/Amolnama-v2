@@ -5,7 +5,6 @@ import { AppState } from './state.js';
 import { getStrictDate } from '../utils/helpers.js';
 import { defaultInventoryGroups, defaultCatalog } from './constants.js';
 import { performLazyAutoClose, loadFloorMap } from '../features/desk.js';
-import { renderAppUI } from '../features/catalog.js';
 import { fetchTransactionsForDate } from '../features/reports.js';
 import { setupBottomSheetDrag, showAppAlert } from '../utils/ui-helpers.js';
 
@@ -81,9 +80,7 @@ export async function initUserData(onComplete) {
         }
 
         updateCurrencyUI(); 
-        setTimeout(() => {
-            if (typeof window.renderAppUI === 'function') window.renderAppUI();
-        }, 100);
+        if (typeof window.renderAppUI === 'function') window.renderAppUI();
         
         const t = new Date();
         document.getElementById('report-date-picker').value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
