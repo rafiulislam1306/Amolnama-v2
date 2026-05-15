@@ -63,8 +63,7 @@ export function renderAppUI() {
             if (isLocked) return;
 
             let row = document.createElement('div');
-            row.className = 'dynamic-item';
-            row.style.cssText = `display: flex; justify-content: space-between; align-items: center; padding: 18px 20px; border-bottom: 1px solid var(--border-color); cursor: pointer; user-select: none; transition: background-color 0.15s ease, transform 0.1s ease; ${isLocked ? 'opacity: 0.6; background-color: #f8fafc;' : 'background-color: transparent;'}`;
+            row.className = `dynamic-item store-item-row${isLocked ? ' is-locked' : ''}`;
             
             let pressTimer;
             let isLongPress = false;
@@ -113,26 +112,26 @@ export function renderAppUI() {
             row.oncontextmenu = (e) => { e.preventDefault(); return false; };
             
             let priceDisplay = safePrice > 0 
-                ? `<span style="font-size: 1rem; font-weight: 600; color: var(--text-primary);">${safePrice} <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 500;">${userCurrency}</span></span>` 
-                : `<span style="font-size: 0.85rem; font-weight: 700; color: #10b981; background: #ecfdf5; padding: 4px 10px; border-radius: 6px;">FREE</span>`;
+                ? `<span class="store-item-price">${safePrice} <span>${userCurrency}</span></span>` 
+                : `<span class="store-item-free">FREE</span>`;
             
             let actionIcon = isLocked 
-                ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`
-                : `<div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; color: var(--accent-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>`;
+                ? `<div class="store-item-action is-danger"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>`
+                : `<div class="store-item-action"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>`;
 
             let subText = isLocked 
                 ? `<span style="font-size: 0.75rem; color: #ef4444; font-weight: 600; margin-top: 4px;">🔒 Center Manager Only</span>` 
                 : ``; // Remove redundant helper text to eliminate visual clutter
 
             row.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 16px; min-width: 0; flex: 1;">
-                    <div style="flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; background: ${isLocked ? '#f8fafc' : 'var(--bg-color)'}; border-radius: 12px; color: ${isLocked ? '#94a3b8' : 'var(--text-secondary)'};">${iconSVG}</div>
-                    <div style="display: flex; flex-direction: column; min-width: 0; justify-content: center;">
-                        <span style="font-weight: 600; color: ${isLocked ? '#94a3b8' : 'var(--text-primary)'}; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.display || item.name}</span>
+                <div class="store-item-main">
+                    <div class="store-item-icon">${iconSVG}</div>
+                    <div class="store-item-copy">
+                        <span class="store-item-name">${item.display || item.name}</span>
                         ${subText}
                     </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 14px; flex-shrink: 0; padding-left: 12px;">
+                <div class="store-item-meta">
                     ${priceDisplay}
                     ${actionIcon}
                 </div>
