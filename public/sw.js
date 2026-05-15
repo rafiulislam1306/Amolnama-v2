@@ -16,7 +16,8 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('SW: Pre-caching core assets');
-        return Promise.allSettled(CORE_ASSETS.map(url => cache.add(url)));
+        // Use Promise.all to ensure atomic caching (fails if any core asset fails)
+        return Promise.all(CORE_ASSETS.map(url => cache.add(url)));
       })
   );
 });
@@ -77,8 +78,13 @@ self.addEventListener('fetch', event => {
             if (cachedResponse) {
                 return cachedResponse;
             }
-            // If the network fails AND the file isn't in the cache, safely return an offline status
-            // instead of returning 'undefined' and crashing the app's fetch engine
+            
+            // SPA Navigation Fallback: If it's a page navigation, serve index.html
+            if (event.request.mode === 'navigate') {
+                return caches.match('/index.html');
+            }
+
+            // If it's a missing image or API call, safely return an offline status
             return new Response('Network error and resource not found in cache.', {
                 status: 503,
                 statusText: 'Service Unavailable'
