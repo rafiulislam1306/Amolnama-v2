@@ -22,8 +22,9 @@ export function initPWA() {
                                   "A new version of Amolnama has been downloaded. Please refresh to apply the update.",
                                     true,
                                     () => {
+                                        // Send the skip waiting signal. 
+                                        // The controllerchange listener below will automatically handle the reload.
                                         newWorker.postMessage({ type: 'SKIP_WAITING' });
-                                        setTimeout(() => window.location.reload(), 200);
                                     },
                                     "Refresh Now"
                               );
