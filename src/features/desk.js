@@ -270,43 +270,34 @@ export function handleDeskSelect(deskId, deskName, status, sessionId) {
 }
 
 async function executeHandleDeskSelect(deskId, deskName, status, sessionId) {
-    AppState.currentDeskId = deskId;
-    AppState.currentDeskName = deskName;
-
-    // FIX: Clean up stringified null/undefined passed from HTML buttons
     let activeSessionId = (sessionId === 'null' || sessionId === 'undefined' || !sessionId) ? null : sessionId;
 
-    // The boot script already created a dormant session for today. We just wake it up!
-    if (status !== 'open' && activeSessionId) {
-        await updateDoc(doc(db, 'sessions', activeSessionId), {
-            status: 'open',
-            openedBy: AppState.userNickname || AppState.userDisplayName,
-            openedByUid: AppState.currentUser.uid,
-            deskName: deskName // Denormalized for fast O(1) Floor Map rendering
-        });
-        await setDoc(doc(db, 'desks', deskId), { status: 'open' }, { merge: true });
-    }
-    // Absolute failsafe just in case the boot script was interrupted
-    else if (!activeSessionId) {
-        // If we get here, the background rollover didn't finish. 
-        // We'll trigger a focused auto-close right now to fix the stock!
-        await performLazyAutoClose(); 
+    try {
+        if (status !== 'open' && activeSessionId) {
+            await updateDoc(doc(db, 'sessions', activeSessionId), {
+                status: 'open',
+                openedBy: AppState.userNickname || AppState.userDisplayName,
+                openedByUid: AppState.currentUser.uid,
+                deskName: deskName 
+            });
+            await setDoc(doc(db, 'desks', deskId), { status: 'open' }, { merge: true });
+        } else if (!activeSessionId) {
+            await performLazyAutoClose(); 
+            const deskFix = await getDoc(doc(db, 'desks', deskId));
+            activeSessionId = deskFix.data().currentSessionId;
+        }
+
+        const todayStr = getStrictDate();
+        await setDoc(doc(db, 'users', AppState.currentUser.uid), { assignedDeskId: deskId, assignedDate: todayStr }, { merge: true });
+
+        // Update local state ONLY after main network requests succeed
+        AppState.currentDeskId = deskId;
+        AppState.currentDeskName = deskName;
+        AppState.currentSessionId = activeSessionId;
+
+        document.getElementById('modal-desk-select').classList.remove('active');
+        document.getElementById('header-title').innerText = `${deskName}`;
         
-        // Re-fetch the desk data now that it's fixed
-        const deskFix = await getDoc(doc(db, 'desks', deskId));
-        activeSessionId = deskFix.data().currentSessionId;
-    }
-
-    AppState.currentSessionId = activeSessionId;
-    const todayStr = getStrictDate();
-    try {
-        await setDoc(doc(db, 'users', AppState.currentUser.uid), { assignedDeskId: AppState.currentDeskId, assignedDate: todayStr }, { merge: true });
-    } catch(e) { console.error("Failed to assign desk to user profile:", e); }
-
-    document.getElementById('modal-desk-select').classList.remove('active');
-    document.getElementById('header-title').innerText = `${deskName}`;
-    
-    try {
         const sessionSnap = await getDoc(doc(db, 'sessions', activeSessionId));
         if (sessionSnap.exists() && sessionSnap.data().openingBalances) {
             let dbCash = parseFloat(sessionSnap.data().openingBalances.cash) || 0;
@@ -317,14 +308,21 @@ async function executeHandleDeskSelect(deskId, deskName, status, sessionId) {
             AppState.currentOpeningCash = dbCash;
             AppState.currentOpeningInv = sessionSnap.data().openingBalances.inventory || {}; 
         }
-    } catch(e) { console.error("Session fetch error:", e); }
 
-    if(window.fetchTransactionsForDate) await window.fetchTransactionsForDate();
-    showFlashMessage(`Joined ${deskName}!`);
-    
-    // Auto-route the user directly into their drawer for better UX
-    if (window.switchTab) window.switchTab('desk', deskName);
-    if (window.renderDeskDashboard) window.renderDeskDashboard(deskId);
+        if(window.fetchTransactionsForDate) await window.fetchTransactionsForDate();
+        showFlashMessage(`Joined ${deskName}!`);
+        
+        if (window.switchTab) window.switchTab('desk', deskName);
+        if (window.renderDeskDashboard) window.renderDeskDashboard(deskId);
+
+    } catch(e) { 
+        console.error("Failed to join desk:", e); 
+        if (typeof window.showAppAlert === 'function') {
+            window.showAppAlert("Connection Error", "Failed to join the workspace safely. Please check your connection and try again.");
+        }
+        // Ensure modal closes so they aren't stuck on a loading spinner if it fails
+        document.getElementById('modal-desk-select').classList.remove('active');
+    }
 }
 
 // ==========================================
@@ -610,12 +608,10 @@ export async function initiateCloseDesk() {
 }
 
 export async function submitClosingReport() {
-    // In One-Click Close, actual equals expected. The manager handles shortages offline.
     actualClosingStats.cash = expectedClosingStats.cash;
     actualClosingStats.inventory = expectedClosingStats.inventory;
 
     try {
-        // 1. Save the daily report snapshot
         await setDoc(doc(collection(db, 'eod_reports')), {
             deskId: AppState.currentDeskId,
             sessionId: AppState.currentSessionId,
@@ -624,34 +620,27 @@ export async function submitClosingReport() {
             submittedAt: serverTimestamp(),
             expectedClosing: expectedClosingStats,
             actualClosing: actualClosingStats,
-            variance: 0, // Perfectly balanced conceptually
+            variance: 0, 
             managerDrop: expectedClosingStats.cash,
             retainedFloat: 0
         });
 
-        // 2. Mark session as closed
         await updateDoc(doc(db, 'sessions', AppState.currentSessionId), {
             status: 'closed', closedAt: serverTimestamp()
         });
 
-        // 3. Mark desk as closed and detach session pointer
         await updateDoc(doc(db, 'desks', AppState.currentDeskId), {
             status: 'closed', currentSessionId: null
         });
 
-        // 4. Release the user's desk lock
         await updateDoc(doc(db, 'users', AppState.currentUser.uid), {
             assignedDeskId: null, assignedDate: null
         });
 
-    } catch (e) { 
-        showFlashMessage("Offline: Report queued for sync."); 
-        console.error(e);
-    } finally {
+        // Only run cleanup if all database writes succeed
         closeModal('modal-close-desk');
         showFlashMessage("Desk Sealed! Shift complete.");
         
-        // Reset local state and boot them back to the Floor Map
         AppState.currentDeskId = null;
         AppState.currentSessionId = null;
         document.getElementById('header-title').innerText = 'Floor Map';
@@ -659,5 +648,11 @@ export async function submitClosingReport() {
         if(window.fetchTransactionsForDate) window.fetchTransactionsForDate();
         if(window.switchTab) window.switchTab('floor', 'Live Floor Map');
         loadFloorMap(); 
-    }
+
+    } catch (e) { 
+        console.error("Failed to close desk:", e);
+        if (typeof window.showAppAlert === 'function') {
+            window.showAppAlert("Sync Error", "Could not seal the desk. Check your connection to ensure the data is saved safely.");
+        }
+    } 
 }
