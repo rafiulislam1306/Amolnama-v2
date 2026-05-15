@@ -1009,6 +1009,14 @@ header {
     border-color: var(--hairline) !important;
 }
 
+#history-log,
+#desk-history-log {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+
 @media (min-width: 760px) {
     body {
         max-width: 520px;
