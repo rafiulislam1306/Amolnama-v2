@@ -19,12 +19,14 @@ export function renderAppUI() {
             if (indexA !== -1 && indexB !== -1) return indexA - indexB;
             if (indexA !== -1) return -1;
             if (indexB !== -1) return 1;
-            return a.name.localeCompare(b.name);
+            // Safely fallback to empty strings if name is missing to prevent fatal crash
+            return (a.name || '').localeCompare(b.name || '');
         }).forEach(item => {
             // Only hide the item if it is explicitly set to false. Otherwise, assume it is active.
             if (item.isActive === false) return;
             
-            let safePrice = parseFloat(item.price) || 0;
+            // Ensure price is never negative
+            let safePrice = Math.max(0, parseFloat(item.price) || 0);
             let containerId = "";
             let iconSVG = "";
             
@@ -139,5 +141,8 @@ export function renderAppUI() {
         });
     } catch (e) {
         console.error("Critical error in renderAppUI:", e);
+        if (typeof window.showAppAlert === 'function') {
+            window.showAppAlert("Display Error", "Could not load the catalog. Please refresh the page or contact support.");
+        }
     }
 }
