@@ -347,13 +347,20 @@ export function buildLifecycleText(txList, openingInv) {
     return text;
 }
 
-export function fallbackCopy(text) {
+export async function fallbackCopy(text) {
     try {
-        const textArea = document.createElement("textarea");
-        textArea.value = text; document.body.appendChild(textArea); textArea.select();
-        document.execCommand("copy"); document.body.removeChild(textArea);
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+        } else {
+            const textArea = document.createElement("textarea");
+            textArea.value = text; document.body.appendChild(textArea); textArea.select();
+            document.execCommand("copy"); document.body.removeChild(textArea);
+        }
         showFlashMessage("Report Copied to Clipboard!");
-    } catch (err) { showAppAlert("Error", "Could not copy report."); }
+    } catch (err) { 
+        console.error("Clipboard error:", err);
+        showAppAlert("Error", "Could not copy report."); 
+    }
 }
 
 export function shareReport() {

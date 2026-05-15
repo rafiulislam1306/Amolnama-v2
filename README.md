@@ -143,14 +143,14 @@ Use this section to identify exactly which function controls a feature — so yo
 
 ---
 
-### `src/features/reports.js`
+### src/features/reports.js
 - `renderPersonalReport()` — renders Report tab: stats, items sold, activity log
 - `renderDeskDashboard(targetDeskId)` — renders Drawer tab: cash formula, stock, ledger
 - `generateDashboardHTML(...)` — builds the HTML for the drawer dashboard cards
 - `fetchTransactionsForDate()` — sets up Firestore `onSnapshot` listener, populates `AppState.transactions`
 - `shareReport()`, `shareDeskReport()` — generates and shares/copies text report
 - `buildLifecycleText(txList, openingInv)` — builds inventory lifecycle text for share report
-- `fallbackCopy(text)` — clipboard fallback for older browsers
+- `fallbackCopy(text)` — copies text using modern Clipboard API with legacy fallback
 - `getTxListenerUnsubscribe()`, `setTxListenerUnsubscribe(val)` — manages real-time listener lifecycle
 - `downloadReportAsPDF(containerId, prefix)` — converts the tab HTML into a standard, formatted PDF while hiding UI elements
 
