@@ -42,7 +42,7 @@ Amolnama uses a **strict Feature-Based Modular Architecture**. No business logic
 
 | File | Responsibility |
 |------|---------------|
-| `state.js` | `AppState` object — single source of truth for all global data |
+| `state.js` | `AppState` object (single source of truth) and `resetAppState()` for clearing session data securely |
 | `constants.js` | `defaultCatalog` and `defaultInventoryGroups` — hardcoded defaults used on first boot |
 | `app-init.js` | Boot sequence — `initUserData`, fetches Firestore config, routes user to floor map or active desk |
 
