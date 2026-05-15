@@ -37,13 +37,15 @@ export function getAvailableStock(itemName) {
 }
 
 export function passStockFirewall(itemName, requestedQty) {
+    let safeQty = Math.abs(parseInt(requestedQty) || 0); // Guard against negatives or NaN
+    
     let catItem = Object.values(AppState.globalCatalog).find(c => c.name === itemName);
     let trackAs = catItem ? (catItem.trackAs === '' ? '' : (catItem.trackAs || itemName)) : itemName;
     
     if (!AppState.globalInventoryGroups.includes(trackAs)) return true; 
 
     let available = getAvailableStock(itemName);
-    if (available < requestedQty) {
+    if (available < safeQty) {
         showAppAlert("Insufficient Stock", `You only have ${available}x ${trackAs} available in your drawer. You cannot complete this transaction.`);
         return false; 
     }
@@ -52,8 +54,13 @@ export function passStockFirewall(itemName, requestedQty) {
 
 export function switchStoreCategory(catId, btn) {
     document.querySelectorAll('.store-pill').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
+    if (btn && btn.classList) {
+        btn.classList.add('active');
+    }
     
     document.querySelectorAll('.store-cat-group').forEach(c => c.style.display = 'none');
-    document.getElementById(catId).style.display = 'block';
+    const targetGroup = document.getElementById(catId);
+    if (targetGroup) {
+        targetGroup.style.display = 'block';
+    }
 }
