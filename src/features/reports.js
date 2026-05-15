@@ -57,8 +57,8 @@ export async function renderPersonalReport() {
                     }
                     
                     let statusLabel = s.status === 'pending' ? 'Pending' : (s.status === 'rolled_over' ? 'Rolled Over' : 'Sealed');
-                    let badgeColor = s.status === 'pending' ? '#f59e0b' : (s.status === 'rolled_over' ? '#3b82f6' : '#10b981');
-                    let bgCol = s.status === 'pending' ? '#fffbeb' : (s.status === 'rolled_over' ? '#eff6ff' : '#ecfdf5');
+                    let badgeColor = s.status === 'pending' ? 'var(--warning-text)' : (s.status === 'rolled_over' ? 'var(--info-text)' : 'var(--success-text)');
+                    let bgCol = s.status === 'pending' ? 'var(--warning-bg)' : (s.status === 'rolled_over' ? 'var(--info-bg)' : 'var(--success-bg)');
                     
                     vaultButtonsHTML += `
                         <button class="btn-outline" style="flex-shrink: 0; border-color: ${badgeColor}; color: ${badgeColor}; background: ${bgCol}; font-size: 0.85rem; padding: 8px 14px; border-radius: 10px; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" onclick="openHistoricalSession('${docSnap.id}')">
@@ -1189,7 +1189,7 @@ export async function openHistoricalSession(sessionId) {
             const eodSnap = await getDocs(query(collection(db, 'eod_reports'), where('sessionId', '==', sessionId)));
             if (!eodSnap.empty) {
                 let eodData = eodSnap.docs[0].data();
-                let varianceColor = eodData.variance < 0 ? '#ef4444' : (eodData.variance > 0 ? '#10b981' : '#475569');
+                let varianceColor = eodData.variance < 0 ? 'var(--danger-text)' : (eodData.variance > 0 ? 'var(--success-text)' : 'var(--text-secondary)');
                 let variancePrefix = eodData.variance > 0 ? '+' : '';
 
                 let invDiffHTML = '';
@@ -1197,37 +1197,37 @@ export async function openHistoricalSession(sessionId) {
                     let expected = eodData.expectedClosing?.inventory?.[item] || 0;
                     let diff = actual - expected;
                     if (diff !== 0) {
-                        let dColor = diff < 0 ? '#ef4444' : '#10b981';
+                        let dColor = diff < 0 ? 'var(--danger-text)' : 'var(--success-text)';
                         let dPref = diff > 0 ? '+' : '';
-                        invDiffHTML += `<div style="display:flex; justify-content:space-between; font-size:0.8rem; padding:4px 0; border-bottom: 1px dashed #e2e8f0;"><span>${item}</span> <span>Exp: ${expected} | Act: ${actual} <strong style="color:${dColor}; margin-left: 4px;">(${dPref}${diff})</strong></span></div>`;
+                        invDiffHTML += `<div style="display:flex; justify-content:space-between; font-size:0.8rem; padding:4px 0; border-bottom: 1px dashed var(--border-color);"><span>${item}</span> <span style="color: var(--text-secondary);">Exp: ${expected} | Act: ${actual} <strong style="color:${dColor}; margin-left: 4px;">(${dPref}${diff})</strong></span></div>`;
                     }
                 }
 
                 eodHTML = `
-                    <div style="background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
-                        <h4 style="margin: 0 0 12px 0; font-size: 1rem; color: #0f172a; display: flex; align-items: center; gap: 8px;">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    <div style="background: var(--bg-color); border: 2px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+                        <h4 style="margin: 0 0 12px 0; font-size: 1rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--success-text)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                             Official EOD Snapshot
                         </h4>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-                            <div style="background: #fff; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1;">
+                            <div style="background: var(--surface-color); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
                                 <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">System Expected</div>
-                                <div style="font-size: 1.15rem; font-weight: 800; color: #0f172a;">${eodData.expectedClosing.cash} Tk</div>
+                                <div style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">${eodData.expectedClosing.cash} Tk</div>
                             </div>
-                            <div style="background: #fff; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1;">
+                            <div style="background: var(--surface-color); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
                                 <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Actual Counted</div>
-                                <div style="font-size: 1.15rem; font-weight: 800; color: #0f172a;">${eodData.actualClosing.cash} Tk</div>
+                                <div style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">${eodData.actualClosing.cash} Tk</div>
                             </div>
                         </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #fff; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: var(--surface-color); border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 12px;">
                             <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase;">Manager Drop</span>
-                            <span style="font-weight: 800; font-size: 1.1rem; color: #8b5cf6;">${eodData.managerDrop || 0} Tk</span>
+                            <span style="font-weight: 800; font-size: 1.1rem; color: var(--purple-text);">${eodData.managerDrop || 0} Tk</span>
                         </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #fff; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: ${invDiffHTML ? '12px' : '0'};">
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: var(--surface-color); border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: ${invDiffHTML ? '12px' : '0'};">
                             <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase;">Cash Variance</span>
                             <span style="font-weight: 800; font-size: 1.1rem; color: ${varianceColor};">${variancePrefix}${eodData.variance} Tk</span>
                         </div>
-                        ${invDiffHTML ? `<div style="background: #fff; padding: 10px 12px; border-radius: 8px; border: 1px solid #cbd5e1;"><div style="font-size: 0.75rem; font-weight: 800; color: #0f172a; margin-bottom: 8px;">STOCK VARIANCES</div>${invDiffHTML}</div>` : ''}
+                        ${invDiffHTML ? `<div style="background: var(--surface-color); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color);"><div style="font-size: 0.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 8px;">STOCK VARIANCES</div>${invDiffHTML}</div>` : ''}
                     </div>
                 `;
             }

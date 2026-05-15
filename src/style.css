@@ -618,3 +618,24 @@ header {
     color: var(--text-secondary); background: var(--surface-color); 
     text-transform: uppercase; letter-spacing: 0.5px;
 }
+
+/* =========================================
+   ACCESSIBILITY: REDUCED MOTION OVERRIDE
+   ========================================= */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        /* Remove smooth scrolling */
+        scroll-behavior: auto !important;
+        /* Strip durations and delays, effectively making animations instant */
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    /* Keep the spinner moving, but slow it down significantly so it isn't completely static */
+    .spinner {
+        animation-duration: 3s !important;
+    }
+}

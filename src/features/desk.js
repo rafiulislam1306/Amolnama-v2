@@ -387,14 +387,14 @@ export async function renderLiveFloorTab() {
             for (const [name, qty] of sortedLiveInv) {
                 if (qty !== 0) {
                     let isLow = qty < 3;
-                    let bg = isLow ? '#fef2f2' : '#f8fafc';
-                    let border = isLow ? '#fca5a5' : '#e2e8f0';
-                    let color = isLow ? '#ef4444' : '#475569';
+                    let bg = isLow ? 'var(--danger-bg)' : 'var(--bg-color)';
+                    let border = isLow ? 'var(--danger-border)' : 'var(--border-color)';
+                    let color = isLow ? 'var(--danger-text)' : 'var(--text-secondary)';
                     invDisplay += `<div style="flex-grow: 1; display: flex; justify-content: space-between; align-items: center; background:${bg}; border: 1px solid ${border}; padding:6px 10px; border-radius:12px; font-size:0.75rem; color:${color}; font-weight:700;"><span style="white-space:nowrap;">${name}</span> <span style="margin-left: 8px; padding-left: 8px; border-left: 1px solid ${border};">${qty}</span></div>`;
                 }
-            }
-            
-            if (invDisplay) {
+            }
+            
+            if (invDisplay) {
                 // Invisible flex-grow spacer to stop the last row from stretching!
                 invDisplay += `<div style="flex-grow: 999;"></div>`;
             } else {
@@ -435,14 +435,14 @@ export async function renderLiveFloorTab() {
             let safeDeskName = displayDeskName.replace(/'/g, "\\'");
 
             let actionBtn = isMyDesk 
-                ? `<button class="btn-primary-full" style="width: 100%; background: #0ea5e9; padding: 14px; margin-top: 8px; border-radius: 14px; font-weight: 700; font-size: 1rem; box-shadow: 0 4px 16px rgba(14, 165, 233, 0.25);" onclick="openMyDeskDashboard()">Open My Drawer</button>`
-                : `<button class="btn-outline" style="width: 100%; color: #8b5cf6; border-color: #8b5cf6; background: transparent; padding: 14px; margin-top: 8px; border-radius: 14px; font-weight: 700; font-size: 1rem;" onclick="peekAtDesk('${session.deskId}', '${safeDeskName}')">View Details</button>`;
+                ? `<button class="btn-primary-full" style="width: 100%; margin-top: 8px; border-radius: 14px;" onclick="openMyDeskDashboard()">Open My Drawer</button>`
+                : `<button class="btn-outline" style="width: 100%; color: var(--purple-text); border-color: var(--purple-border); padding: 14px; margin-top: 8px; border-radius: 14px; font-weight: 700;" onclick="peekAtDesk('${session.deskId}', '${safeDeskName}')">View Details</button>`;
 
             let cardStyle = isMyDesk 
-                ? `margin-bottom: 0; padding: 20px; background: linear-gradient(145deg, #ffffff, #f0f9ff); border: 2px solid #38bdf8; border-radius: 20px; box-shadow: 0 8px 24px rgba(14, 165, 233, 0.15); position: relative; overflow: hidden;`
+                ? `margin-bottom: 0; padding: 20px; background: var(--info-bg); border: 2px solid var(--info-border); border-radius: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); position: relative; overflow: hidden;`
                 : `margin-bottom: 0; padding: 20px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.03); position: relative; overflow: hidden;`;
 
-            let badge = isMyDesk ? `<div style="position: absolute; top: 0; right: 0; background: #38bdf8; color: white; font-size: 0.65rem; font-weight: 800; padding: 6px 16px; border-bottom-left-radius: 16px; text-transform: uppercase; letter-spacing: 1px; box-shadow: -2px 2px 8px rgba(56, 189, 248, 0.2);">My Desk</div>` : '';
+            let badge = isMyDesk ? `<div style="position: absolute; top: 0; right: 0; background: var(--info-text); color: var(--surface-color); font-size: 0.65rem; font-weight: 800; padding: 6px 16px; border-bottom-left-radius: 16px; text-transform: uppercase; letter-spacing: 1px;">My Desk</div>` : '';
 
             let agentIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.7;"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
 
@@ -451,23 +451,23 @@ export async function renderLiveFloorTab() {
                     ${badge}
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
                         <div style="flex: 1; min-width: 0; padding-right: ${isMyDesk ? '60px' : '0'};">
-                            <h4 style="margin: 0 0 6px 0; color: ${isMyDesk ? '#0369a1' : 'var(--text-primary)'}; font-size: 1.25rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            <h4 style="margin: 0 0 6px 0; color: var(--text-primary); font-size: 1.25rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                                 ${displayDeskName}
                             </h4>
-                            <div style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: ${isMyDesk ? '#0284c7' : 'var(--text-secondary)'}; font-weight: 600;">
+                            <div style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: ${isMyDesk ? 'var(--info-text)' : 'var(--text-secondary)'}; font-weight: 600;">
                                 ${agentIcon}
                                 <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${agentNamesStr}</span>
                             </div>
                         </div>
                     </div>
                     
-                    <div style="background: ${isMyDesk ? '#e0f2fe' : 'var(--bg-color)'}; border-radius: 12px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                        <span style="font-size: 0.85rem; font-weight: 700; color: ${isMyDesk ? '#0284c7' : 'var(--text-secondary)'}; text-transform: uppercase; letter-spacing: 0.5px;">Live Cash</span>
-                        <span style="font-size: 1.35rem; font-weight: 800; color: #10b981; letter-spacing: -0.5px;">${liveCash} <span style="font-size: 0.9rem; color: #10b981; opacity: 0.8;">Tk</span></span>
+                    <div style="background: ${isMyDesk ? 'var(--surface-color)' : 'var(--bg-color)'}; border-radius: 12px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border: 1px solid var(--border-color);">
+                        <span style="font-size: 0.85rem; font-weight: 700; color: ${isMyDesk ? 'var(--info-text)' : 'var(--text-secondary)'}; text-transform: uppercase; letter-spacing: 0.5px;">Live Cash</span>
+                        <span style="font-size: 1.35rem; font-weight: 800; color: var(--success-text); letter-spacing: -0.5px;">${liveCash} <span style="font-size: 0.9rem; opacity: 0.8;">Tk</span></span>
                     </div>
 
                     <div style="margin-bottom: ${isMyDesk ? '8px' : '16px'};">
-                        <span style="display: block; font-size: 0.75rem; font-weight: 800; color: ${isMyDesk ? '#0284c7' : 'var(--text-secondary)'}; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Physical Stock</span>
+                        <span style="display: block; font-size: 0.75rem; font-weight: 800; color: ${isMyDesk ? 'var(--info-text)' : 'var(--text-secondary)'}; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Physical Stock</span>
                         <div style="display: flex; flex-wrap: wrap; gap: 8px;">${invDisplay}</div>
                     </div>
                     
