@@ -1,11 +1,17 @@
 // src/features/auth.js
 import { auth } from '../config/firebase.js';
-import { setPersistence, browserLocalPersistence, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import { setPersistence, browserLocalPersistence, onAuthStateChanged, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut } from "firebase/auth";
 import { showAppAlert, openModal } from '../utils/ui-helpers.js';
 import { AppState, resetAppState } from '../core/state.js';
 
 export function initAuth(onLoginSuccess, onLogout) {
     const setupAuthState = () => {
+        getRedirectResult(auth).catch(error => {
+            showAppAlert("Sign-In Failed", error.message);
+            const errorEl = document.getElementById('auth-error');
+            if (errorEl) errorEl.innerText = error.message;
+        });
+
         onAuthStateChanged(auth, user => {
             if (user) {
                 document.getElementById('modal-auth').classList.remove('active');
@@ -27,7 +33,7 @@ export function initAuth(onLoginSuccess, onLogout) {
 
 export function signInWithGoogle() { 
     const provider = new GoogleAuthProvider(); 
-    signInWithPopup(auth, provider).catch(error => {
+    signInWithRedirect(auth, provider).catch(error => {
         showAppAlert("Sign-In Failed", error.message);
         const errorEl = document.getElementById('auth-error');
         if (errorEl) errorEl.innerText = error.message;
