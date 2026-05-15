@@ -1,13 +1,16 @@
-const CACHE_NAME = 'amolnama-v2-cache-v2';
+const CACHE_NAME = 'amolnama-v2-cache-v3';
+
+const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, '');
+const withBase = (path) => `${BASE_PATH}${path}`;
 
 // Define the core files needed for the app to load offline immediately
 const CORE_ASSETS = [
-  '/',
-  '/index.html',
-  '/favicon.svg',
-  '/icons.svg',
-  '/icon-192.png',
-  '/icon-512.png'
+  withBase('/'),
+  withBase('/index.html'),
+  withBase('/favicon.svg'),
+  withBase('/icons.svg'),
+  withBase('/icon-192.png'),
+  withBase('/icon-512.png')
 ];
 
 self.addEventListener('install', event => {
@@ -81,7 +84,7 @@ self.addEventListener('fetch', event => {
             
             // SPA Navigation Fallback: If it's a page navigation, serve index.html
             if (event.request.mode === 'navigate') {
-                return caches.match('/index.html');
+                return caches.match(withBase('/index.html'));
             }
 
             // If it's a missing image or API call, safely return an offline status

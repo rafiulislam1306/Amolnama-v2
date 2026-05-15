@@ -9,7 +9,8 @@ export function initPWA() {
     // ==========================================
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`)
+            const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+            navigator.serviceWorker.register(`${baseUrl}sw.js`, { scope: baseUrl })
               .then(reg => {
                   console.log('Service Worker registered:', reg);
                   reg.update();
