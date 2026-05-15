@@ -44,7 +44,7 @@ export async function renderPersonalReport() {
                 deskFirstSessions[s.deskId] = { time: t, data: s };
             }
                 
-                if (s.status === 'closed' || s.status === 'pending' || s.status === 'rolled_over') {
+                if (s.status === 'closed' || s.status === 'pending' || s.status === 'rolled_over' || s.status === 'closed_by_system') {
                     let agentName = s.openedBy ? s.openedBy.split(' ')[0] : 'Agent';
                     
                     if (agentName === 'System' && s.deskId.startsWith('personal_')) {
@@ -56,9 +56,9 @@ export async function renderPersonalReport() {
                         } catch(e) {}
                     }
                     
-                    let statusLabel = s.status === 'pending' ? 'Pending' : (s.status === 'rolled_over' ? 'Rolled Over' : 'Sealed');
-                    let badgeColor = s.status === 'pending' ? 'var(--warning-text)' : (s.status === 'rolled_over' ? 'var(--info-text)' : 'var(--success-text)');
-                    let bgCol = s.status === 'pending' ? 'var(--warning-bg)' : (s.status === 'rolled_over' ? 'var(--info-bg)' : 'var(--success-bg)');
+                    let statusLabel = s.status === 'pending' ? 'Pending' : ((s.status === 'rolled_over' || s.status === 'closed_by_system') ? 'Rolled Over' : 'Sealed');
+                    let badgeColor = s.status === 'pending' ? 'var(--warning-text)' : ((s.status === 'rolled_over' || s.status === 'closed_by_system') ? 'var(--info-text)' : 'var(--success-text)');
+                    let bgCol = s.status === 'pending' ? 'var(--warning-bg)' : ((s.status === 'rolled_over' || s.status === 'closed_by_system') ? 'var(--info-bg)' : 'var(--success-bg)');
                     
                     vaultButtonsHTML += `
                         <button class="btn-outline" style="flex-shrink: 0; border-color: ${badgeColor}; color: ${badgeColor}; background: ${bgCol}; font-size: 0.85rem; padding: 8px 14px; border-radius: 10px; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" onclick="openHistoricalSession('${docSnap.id}')">
@@ -138,7 +138,7 @@ export async function renderPersonalReport() {
         
         if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
         if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
-        let agentBadge = ` &bull; <span style="color: var(--text-primary); font-weight: 600;">By ${tx.agentName.split(' ')[0]}</span>`;
+        let agentBadge = ` &bull; <span style="color: var(--text-primary); font-weight: 600;">By ${(tx.agentName || 'Unknown').split(' ')[0]}</span>`;
 
         let actionBtns = `
                 <div class="tx-actions" style="display: none; width: 100%; padding-top: 12px; margin-top: 12px; border-top: 1px dashed var(--border-color); justify-content: flex-end; gap: 8px;">
@@ -839,7 +839,7 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
     let activeSessionId = null;
     let activeOpeningInv = {};
     const targetDateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
-    const isToday = targetDateStr === formatToGBDate(getStrictDate());
+    const isToday = targetDateStr === getStrictDate();
 
     if (targetDeskId === AppState.currentDeskId && isToday && AppState.currentSessionId) {
         activeSessionId = AppState.currentSessionId;
@@ -964,7 +964,7 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
                             ${tx.name}
                         </div>
                         <div style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5; margin-top: 4px;">
-                            ${tx.time} &bull; ${payLabel} &bull; <span style="color: var(--text-primary); font-weight: 600;">By ${tx.agentName.split(' ')[0]}</span> ${badges}
+                            ${tx.time} &bull; ${payLabel} &bull; <span style="color: var(--text-primary); font-weight: 600;">By ${(tx.agentName || 'Unknown').split(' ')[0]}</span> ${badges}
                         </div>
                     </div>
                     <div style="font-size: 1.1rem; font-weight: 800; color: ${amtColor}; flex-shrink: 0; text-align: right; padding-top: 2px;">
@@ -1016,7 +1016,7 @@ export async function fetchTransactionsForDate() {
         datePicker.value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
     }
     const targetDateStr = formatToGBDate(datePicker.value);
-    const isToday = targetDateStr === formatToGBDate(getStrictDate());
+    const isToday = targetDateStr === getStrictDate();
     const dateLabel = isToday ? 'Today' : targetDateStr;
 
     if (txListenerUnsubscribe) { txListenerUnsubscribe(); txListenerUnsubscribe = null; }

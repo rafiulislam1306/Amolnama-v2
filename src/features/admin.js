@@ -389,7 +389,7 @@ export async function fetchAuditLogs() {
         let html = '';
         snap.forEach(docSnap => {
             let s = docSnap.data();
-            if (s.status !== 'closed' && s.status !== 'pending') return;
+            if (s.status !== 'closed' && s.status !== 'pending' && s.status !== 'closed_by_system') return;
 
             let vColor = s.variance < 0 ? '#ef4444' : (s.variance > 0 ? '#22c55e' : '#64748b');
             let vText = s.variance < 0 ? `Shortage: ${s.variance} Tk` : (s.variance > 0 ? `Overage: +${s.variance} Tk` : 'Perfectly Balanced');
