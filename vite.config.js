@@ -13,18 +13,14 @@ export default defineConfig({
     // Use esbuild for fast, aggressive minification
     minify: 'esbuild',
     
-    // Rollup chunking strategy
+    // Rollup/Rolldown chunking strategy
     rollupOptions: {
       output: {
-        manualChunks: {
+        manualChunks(id) {
           // Isolate Firebase SDKs into a separate vendor chunk.
-          // This allows the browser to cache Firebase permanently, 
-          // only re-downloading your app code when you push updates.
-          'firebase-vendor': [
-            'firebase/app', 
-            'firebase/firestore', 
-            'firebase/auth'
-          ]
+          if (id.includes('node_modules/firebase')) {
+            return 'firebase-vendor';
+          }
         }
       }
     }
