@@ -2,7 +2,7 @@
 import { auth } from '../config/firebase.js';
 import { setPersistence, browserLocalPersistence, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 import { showAppAlert, openModal } from '../utils/ui-helpers.js';
-import { AppState } from '../core/state.js';
+import { AppState, resetAppState } from '../core/state.js';
 
 export function initAuth(onLoginSuccess, onLogout) {
     const setupAuthState = () => {
@@ -28,12 +28,15 @@ export function initAuth(onLoginSuccess, onLogout) {
 export function signInWithGoogle() { 
     const provider = new GoogleAuthProvider(); 
     signInWithPopup(auth, provider).catch(error => {
-        document.getElementById('auth-error').innerText = error.message;
+        showAppAlert("Sign-In Failed", error.message);
+        const errorEl = document.getElementById('auth-error');
+        if (errorEl) errorEl.innerText = error.message;
     }); 
 }
 
 export function logout() {
     signOut(auth).then(() => {
+        resetAppState(); // Securely wipe memory before browser reloads
         window.location.reload();
     }).catch((error) => {
         showAppAlert("Logout Error", "Something went wrong while signing out.");
