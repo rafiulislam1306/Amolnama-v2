@@ -1,5 +1,5 @@
 // src/features/admin.js
-import { collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, query, where, serverTimestamp } from "firebase/firestore";
+import { collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, query, where, serverTimestamp, writeBatch } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
 import { getStrictDate, formatToGBDate, generateReceiptNo } from '../utils/helpers.js';
@@ -282,6 +282,7 @@ export async function renderUserManagementAdmin() {
 }
 
 export function kickAgent(uid) {
+    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
     showAppAlert("Kick Agent", "Kick this agent from their desk? Their sales data will remain intact.", true, async () => {
         try {
             await setDoc(doc(db, 'users', uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
@@ -292,6 +293,7 @@ export function kickAgent(uid) {
 }
 
 export function nukeAgent(uid, agentName) {
+    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
     showAppAlert("Burn Notice", `WARNING: You are about to kick ${agentName} AND permanently delete EVERY transaction they made today. Proceed?`, true, async () => {
         try {
             await setDoc(doc(db, 'users', uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
@@ -306,31 +308,40 @@ export function nukeAgent(uid, agentName) {
 
 export function resetMyDeskLock() {
     showAppAlert("Release Desk", "Release your desk assignment? You will be sent back to the floor map.", true, async () => {
-        await setDoc(doc(db, 'users', AppState.currentUser.uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
-        window.location.reload();
+        try {
+            await setDoc(doc(db, 'users', AppState.currentUser.uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
+            window.location.reload();
+        } catch(e) { showAppAlert("Error", "Could not release desk lock."); }
     });
 }
 
 export function forceCloseAllDesks() {
+    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
     showAppAlert("Force Close All", "FORCE CLOSE ALL DESKS? This will instantly log out every agent on the floor.", true, async () => {
-        const snap = await getDocs(collection(db, 'desks'));
-        await Promise.all(snap.docs.map(d => setDoc(doc(db, 'desks', d.id), { status: 'closed', currentSessionId: null }, { merge: true })));
-        const sSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'open')));
-        await Promise.all(sSnap.docs.map(s => updateDoc(doc(db, 'sessions', s.id), { status: 'closed', closedBy: 'Admin Override' })));
-        window.location.reload();
+        try {
+            const snap = await getDocs(collection(db, 'desks'));
+            await Promise.all(snap.docs.map(d => setDoc(doc(db, 'desks', d.id), { status: 'closed', currentSessionId: null }, { merge: true })));
+            const sSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'open')));
+            await Promise.all(sSnap.docs.map(s => updateDoc(doc(db, 'sessions', s.id), { status: 'closed', closedBy: 'Admin Override' })));
+            window.location.reload();
+        } catch(e) { showAppAlert("Error", "Could not force close desks."); }
     }, "Force Close");
 }
 
 export function nukeTodaysLedger() {
+    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
     showAppAlert("Delete Ledger", "PERMANENTLY DELETE TODAY'S LEDGER? This cannot be undone!", true, async () => {
-        const targetDateStr = getStrictDate();
-        const snap = await getDocs(query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr)));
-        await Promise.all(snap.docs.map(t => deleteDoc(doc(db, 'transactions', t.id))));
-        window.location.reload();
+        try {
+            const targetDateStr = getStrictDate();
+            const snap = await getDocs(query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr)));
+            await Promise.all(snap.docs.map(t => deleteDoc(doc(db, 'transactions', t.id))));
+            window.location.reload();
+        } catch(e) { showAppAlert("Error", "Could not delete the ledger."); }
     }, "Delete Entire Ledger");
 }
 
 export function fixPastManagerDrops() {
+    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
     showAppAlert("Fix Drops", "Fix past 0 Tk Manager Drops in the database?", true, async () => {
         try {
             const q = query(collection(db, 'transactions'), where('type', '==', 'adjustment'));
@@ -344,8 +355,9 @@ export function fixPastManagerDrops() {
                     count++;
                 }
             }
-            alert(`Successfully fixed ${count} past manager drop(s)! Reloading...`);
-            window.location.reload();
+            showAppAlert("Success", `Successfully fixed ${count} past manager drop(s)! Reloading...`, false, () => {
+                window.location.reload();
+            }, "Got it");
         } catch (e) {
             showAppAlert("Error", "Error fixing drops: " + e.message);
         }
@@ -474,7 +486,9 @@ export async function openForceReallocate() {
     }
 }
 
-export function executeForceTransfer() {
+export async function executeForceTransfer() {
+    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
+    
     let qty = parseInt(document.getElementById('force-transfer-qty').value) || 0;
     if (qty <= 0) { showAppAlert("Invalid Input", "Enter a valid quantity to transfer."); return; }
 
@@ -496,19 +510,26 @@ export function executeForceTransfer() {
     let dateStr = getStrictDate();
     let receiptStr = "ADMIN-" + generateReceiptNo();
 
-    const senderTx = { id: Date.now(), receiptNo: receiptStr, type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Admin Reallocated to ${toName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: fromVal, sessionId: `admin_override_${dateStr}`, agentId: AppState.currentUser.uid, agentName: `Admin (${AppState.userNickname || AppState.userDisplayName})` };
+    const senderTx = { id: Date.now(), receiptNo: receiptStr, type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Admin Reallocated to ${toName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: fromVal, sessionId: `admin_override_${dateStr}`, agentId: AppState.currentUser.uid, agentName: `Admin (${AppState.userNickname || AppState.userDisplayName})`, timestamp: serverTimestamp() };
     
-    const receiverTx = { id: Date.now() + 1, receiptNo: receiptStr, type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Admin Reallocated from ${fromName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: toDeskId, sessionId: toSessionId, agentId: AppState.currentUser.uid, agentName: `Admin (${AppState.userNickname || AppState.userDisplayName})`, isRemoteTransfer: true };
+    const receiverTx = { id: Date.now() + 1, receiptNo: receiptStr, type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Admin Reallocated from ${fromName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: toDeskId, sessionId: toSessionId, agentId: AppState.currentUser.uid, agentName: `Admin (${AppState.userNickname || AppState.userDisplayName})`, isRemoteTransfer: true, timestamp: serverTimestamp() };
 
-    closeModal('modal-admin-reallocate');
-    
-    addDoc(collection(db, 'transactions'), senderTx).catch(e => console.error(e));
-    addDoc(collection(db, 'transactions'), receiverTx).catch(e => console.error(e));
-    
-    showFlashMessage(`Successfully pulled ${qty}x ${itemName} from ${fromName}`);
+    try {
+        const batch = writeBatch(db);
+        batch.set(doc(collection(db, 'transactions')), senderTx);
+        batch.set(doc(collection(db, 'transactions')), receiverTx);
+        
+        await batch.commit();
+        closeModal('modal-admin-reallocate');
+        showFlashMessage(`Successfully pulled ${qty}x ${itemName} from ${fromName}`);
+    } catch(e) {
+        showAppAlert("Transfer Failed", "Could not complete admin transfer. No stock was moved.");
+        console.error(e);
+    }
 }
 
 export async function healTodaysOpeningStock() {
+    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
     if (!navigator.onLine) { showAppAlert("Offline", "You must be online to heal the database."); return; }
 
     showAppAlert("Sync Today's Stock", "This will securely recalculate today's starting stock from your last open day (e.g., Thursday) WITHOUT deleting any live transactions. Proceed?", true, async () => {
@@ -527,16 +548,13 @@ export async function healTodaysOpeningStock() {
                 const pastSnap = await getDocs(query(collection(db, 'sessions'), where('deskId', '==', deskId)));
 
                 let latestPastDateStr = '';
-                let maxTime = -1; // Use -1 to ensure even a 0 timestamp gets caught
+                let maxTime = -1; 
 
                 // 3. Find the most recent date BEFORE today
                 pastSnap.forEach(pSnap => {
                     let s = pSnap.data();
                     if (s.dateStr && s.dateStr !== todayStr) {
-                        // Safely parse timestamp, or fallback to parsing the date string
                         let t = (s.openedAt && typeof s.openedAt.toMillis === 'function') ? s.openedAt.toMillis() : 0;
-                        
-                        // If timestamp is broken, generate a reliable fallback time from the date string
                         if (t === 0) {
                             let parts = s.dateStr.split('/');
                             if (parts.length === 3) {
@@ -560,7 +578,7 @@ export async function healTodaysOpeningStock() {
                         let s = pSnap.data();
                         if (s.dateStr === latestPastDateStr) {
                             let t = (s.openedAt && typeof s.openedAt.toMillis === 'function') ? s.openedAt.toMillis() : 0;
-                            if (t === 0) t = Date.now(); // Fallback if missing
+                            if (t === 0) t = Date.now(); 
                             
                             if (t < earliestTime) {
                                 earliestTime = t;
@@ -598,6 +616,7 @@ export async function healTodaysOpeningStock() {
 }
 
 export async function runLedgerDiagnostic() {
+    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
     if (!AppState.currentDeskId || AppState.currentDeskId === 'sandbox') {
         showAppAlert("Error", "Please join a live desk first to run its diagnostic.");
         return;
@@ -610,7 +629,6 @@ export async function runLedgerDiagnostic() {
     log += `Session: ${AppState.currentSessionId}\n\n`;
 
     try {
-        // 1. Analyze Sessions
         log += `[ SESSIONS LOGGED TODAY ]\n`;
         const sessSnap = await getDocs(query(collection(db, 'sessions'), where('dateStr', '==', getStrictDate()), where('deskId', '==', AppState.currentDeskId)));
         
@@ -626,13 +644,12 @@ export async function runLedgerDiagnostic() {
             log += `  Raw Inv Data: ${JSON.stringify(s.openingBalances?.inventory || {})}\n\n`;
         });
 
-        // 2. Analyze Transactions
         log += `[ TRANSACTIONS LOGGED TODAY ]\n`;
         const txSnap = await getDocs(query(collection(db, 'transactions'), where('dateStr', '==', getStrictDate()), where('deskId', '==', AppState.currentDeskId)));
         
         let txs = [];
         txSnap.forEach(d => txs.push({docId: d.id, ...d.data()}));
-        txs.sort((a,b) => a.id - b.id); // Sort chronologically
+        txs.sort((a,b) => a.id - b.id); 
 
         log += `Total TX Count: ${txs.length}\n`;
         txs.forEach(t => {
@@ -640,7 +657,6 @@ export async function runLedgerDiagnostic() {
             log += `  ${t.time} | ${delStr}${t.type} | ${t.name} (Qty: ${t.qty}) | Amt: ${t.amount}\n`;
         });
 
-        // 3. Output to Clipboard
         const textArea = document.createElement("textarea");
         textArea.value = log;
         document.body.appendChild(textArea);
