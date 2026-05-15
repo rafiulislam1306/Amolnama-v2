@@ -275,9 +275,9 @@ export function cancelTxEdit() {
     closeModal('modal-edit-tx');
 }
 
-export function saveTxEdit() {
+export async function saveTxEdit() {
     if(!AppState.currentUser) return;
-    if (AppState.currentDeskId === 'sandbox') return; // Enforce Sandbox Safety Rule
+    if (AppState.currentDeskId === 'sandbox') return; 
     let txIndex = AppState.transactions.findIndex(t => t.id === AppState.ui.currentEditTxId);
     if(txIndex === -1) return;
     let tx = AppState.transactions[txIndex];
@@ -312,27 +312,57 @@ export function saveTxEdit() {
     closeModal('modal-edit-tx');
     AppState.ui.currentEditTxId = null;
 
+    // --- OPTIMISTIC LOCAL UPDATE ---
+    tx.qty = newQty;
+    tx.amount = newAmount;
+    tx.payment = method === 'Split' ? 'Split' : method;
+    tx.cashAmt = finalCash;
+    tx.mfsAmt = finalMfs;
+    tx.isEdited = true;
+    tx.editHistory = updatedEditHistory;
+
+    if (typeof window.renderDeskDashboard === 'function') window.renderDeskDashboard(AppState.currentDeskId);
+    if (typeof window.renderPersonalReport === 'function') window.renderPersonalReport();
+
+    // --- FIRESTORE UPDATE ---
     if (tx.docId) {
-        let msg = `${tx.name} Updated!`;
-        updateDoc(doc(db, 'transactions', tx.docId), { qty: newQty, amount: newAmount, payment: method === 'Split' ? 'Split' : method, cashAmt: finalCash, mfsAmt: finalMfs, isEdited: true, editHistory: updatedEditHistory }).catch(e => console.error(e));
-        showFlashMessage(navigator.onLine ? msg : "Offline: Edit queued");
+        try {
+            await updateDoc(doc(db, 'transactions', tx.docId), { qty: newQty, amount: newAmount, payment: method === 'Split' ? 'Split' : method, cashAmt: finalCash, mfsAmt: finalMfs, isEdited: true, editHistory: updatedEditHistory });
+            showFlashMessage(navigator.onLine ? `${tx.name} Updated!` : "Offline: Edit queued");
+        } catch(e) {
+            showAppAlert("Save Failed", "Could not save edit to database.");
+            console.error(e);
+        }
+    } else {
+        showFlashMessage("Updated locally (sync pending)");
     }
 }
 
 export function deleteTransaction(docId, localId) {
     if(!AppState.currentUser) return;
-    if (AppState.currentDeskId === 'sandbox') return; // Enforce Sandbox Safety Rule
+    if (AppState.currentDeskId === 'sandbox') return; 
     
     let tx = AppState.transactions.find(t => t.docId === docId || t.id === localId);
     if (tx && !isTransactionModifiable(tx, 'delete')) return;
 
-    showAppAlert("Delete Item", "Are you sure you want to move this transaction to the trash?", true, () => {
+    showAppAlert("Delete Item", "Are you sure you want to move this transaction to the trash?", true, async () => {
         let nowStr = new Date().toISOString();
         let agentStr = AppState.userNickname || AppState.userDisplayName;
 
+        // Optimistic local update
+        if (tx) tx.isDeleted = true;
+        if (typeof window.renderDeskDashboard === 'function') window.renderDeskDashboard(AppState.currentDeskId);
+
         if(docId) {
-            updateDoc(doc(db, 'transactions', docId), { isDeleted: true, deletedBy: agentStr, deletedByUid: AppState.currentUser.uid, deletedAt: nowStr }).catch(e => console.error(e));
-            showFlashMessage(navigator.onLine ? "Moved to Trash!" : "Offline: Trash queued");
+            try {
+                await updateDoc(doc(db, 'transactions', docId), { isDeleted: true, deletedBy: agentStr, deletedByUid: AppState.currentUser.uid, deletedAt: nowStr });
+                showFlashMessage(navigator.onLine ? "Moved to Trash!" : "Offline: Trash queued");
+            } catch(e) {
+                if (tx) tx.isDeleted = false; // Rollback on failure
+                if (typeof window.renderDeskDashboard === 'function') window.renderDeskDashboard(AppState.currentDeskId);
+                showAppAlert("Delete Failed", "Could not move to trash.");
+                console.error(e);
+            }
         }
     }, "Move to Trash");
 }
@@ -369,7 +399,7 @@ export function renderTrash() {
     document.getElementById('trash-log').innerHTML = html;
 }
 
-export function restoreTx(docId, localId) {
+export async function restoreTx(docId, localId) {
     if(!AppState.currentUser) return;
     let nowStr = new Date().toISOString();
     let agentStr = AppState.userNickname || AppState.userDisplayName;
@@ -378,9 +408,12 @@ export function restoreTx(docId, localId) {
         try {
             let tx = AppState.trashTransactions.find(t => t.docId === docId);
             if (tx && !passStockFirewall(tx.name, tx.qty)) return;
-            updateDoc(doc(db, 'transactions', docId), { isDeleted: false, isRestored: true, restoredBy: agentStr, restoredByUid: AppState.currentUser.uid, restoredAt: nowStr }).catch(e => console.error(e));
-            showFlashMessage(navigator.onLine ? (tx ? `${tx.name} Restored!` : "Transaction Restored!") : "Offline: Restore queued");
-            setTimeout(() => { renderTrash(); if(AppState.trashTransactions.length === 0) closeModal('modal-trash'); }, 500);
+            
+            if (tx) {
+                await updateDoc(doc(db, 'transactions', docId), { isDeleted: false, isRestored: true, restoredBy: agentStr, restoredByUid: AppState.currentUser.uid, restoredAt: nowStr });
+                showFlashMessage(navigator.onLine ? `${tx.name} Restored!` : "Offline: Restore queued");
+                setTimeout(() => { renderTrash(); if(AppState.trashTransactions.length === 0) closeModal('modal-trash'); }, 500);
+            }
         } catch(e) {
             showAppAlert("Restore Failed", "Could not restore. Please check your connection.");
             console.error("Restore error:", e);
@@ -389,27 +422,37 @@ export function restoreTx(docId, localId) {
 }
 
 export function permanentlyDeleteTx(docId, localId) {
-    showAppAlert("Permanent Delete", "This transaction will be permanently erased. This cannot be undone.", true, () => {
+    showAppAlert("Permanent Delete", "This transaction will be permanently erased. This cannot be undone.", true, async () => {
         if(docId) {
-            deleteDoc(doc(db, 'transactions', docId)).catch(e => console.error(e));
-            showFlashMessage(navigator.onLine ? "Permanently Deleted!" : "Offline: Delete queued");
+            try {
+                await deleteDoc(doc(db, 'transactions', docId));
+                showFlashMessage(navigator.onLine ? "Permanently Deleted!" : "Offline: Delete queued");
+            } catch(e) {
+                showAppAlert("Delete Failed", "Could not permanently delete.");
+                console.error(e);
+            }
         }
     }, "Delete Forever");
 }
 
-export function emptyTrash() {
+export async function emptyTrash() {
     if(AppState.trashTransactions.length === 0) return;
-    showAppAlert("Empty Trash", "Are you sure you want to permanently delete ALL items in the trash?", true, () => {
-        closeModal('modal-trash');
+    showAppAlert("Empty Trash", "Are you sure you want to permanently delete ALL items in the trash?", true, async () => {
         
         const idsToDelete = AppState.trashTransactions.map(t => t.docId).filter(id => id);
         
-        Promise.all(idsToDelete.map(id => deleteDoc(doc(db, 'transactions', id))))
-            .catch(e => console.error("Error emptying trash:", e));
+        try {
+            // Wait for all deletes to resolve BEFORE clearing the local arrays and UI
+            await Promise.all(idsToDelete.map(id => deleteDoc(doc(db, 'transactions', id))));
             
-        AppState.trashTransactions = [];
-        renderTrash();
-        showFlashMessage("Trash Emptied!");
+            AppState.trashTransactions = [];
+            renderTrash();
+            closeModal('modal-trash');
+            showFlashMessage("Trash Emptied!");
+        } catch(e) {
+            showAppAlert("Error", "Failed to empty trash completely. Check connection.");
+            console.error("Error emptying trash:", e);
+        }
     }, "Empty Trash");
 }
 
