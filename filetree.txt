@@ -38,6 +38,7 @@ Amolnama-v2/
 │   ├── main.js
 │   └── style.css
 ├── .gitignore
+├── filetree.txt
 ├── index.html
 ├── package-lock.json
 ├── package.json
