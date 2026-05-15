@@ -135,7 +135,14 @@ export async function initUserData(onComplete) {
     } catch(e) {
         console.error("App Initialization Error:", e);
         showAppAlert("Connection Error", "Failed to sync user data. If this persists, check your Firestore security rules.");
-        await loadFloorMap(); // Fallback: Force the map to open so you aren't stuck
+        // Fallback: Safely attempt to load map, but swallow errors if offline
+        try {
+            await loadFloorMap();
+        } catch(fallbackErr) {
+            console.error("Fallback routing failed:", fallbackErr);
+            // Close loading overlays manually if everything fails
+            document.getElementById('modal-desk-select').classList.remove('active');
+        }
     } finally {
         if (onComplete) onComplete();
     }
