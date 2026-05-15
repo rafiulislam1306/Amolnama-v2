@@ -165,7 +165,7 @@ Use this section to identify exactly which function controls a feature — so yo
 
 ---
 
-### `src/features/admin.js`
+### src/features/admin.js
 - `openSettings()` — opens admin panel, renders catalog and inventory editor
 - `saveSettings()` — publishes catalog changes to Firestore
 - `filterAdminCatalog()` — search filter for catalog list
@@ -182,7 +182,6 @@ Use this section to identify exactly which function controls a feature — so yo
 - `forceCloseAllDesks()` — emergency close all desks
 - `nukeTodaysLedger()` — permanently deletes today's entire ledger
 - `fixPastManagerDrops()` — data repair tool for legacy 0 Tk drops
-- `exportLedgerCSV()` — downloads today's transactions as CSV
 - `openAuditModal()`, `fetchAuditLogs()` — historical EOD audit viewer
 - `openForceReallocate()`, `executeForceTransfer()` — admin emergency stock reallocation
 

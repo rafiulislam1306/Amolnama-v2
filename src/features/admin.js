@@ -365,33 +365,8 @@ export function fixPastManagerDrops() {
 }
 
 // ==========================================
-//   ADMIN AUDIT LOGS & CSV EXPORT
+//   ADMIN AUDIT LOGS
 // ==========================================
-export async function exportLedgerCSV() {
-    let targetDateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
-    try {
-        const txSnap = await getDocs(query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr)));
-        let csvContent = "data:text/csv;charset=utf-8,ID,Time,Desk,Agent,Type,Item,Qty,TotalAmount,CashAmount,MfsAmount,PaymentMethod,IsEdited,IsDeleted\n";
-        
-        let rows = [];
-        txSnap.forEach(doc => { rows.push(doc.data()); });
-        
-        rows.sort((a,b) => a.id - b.id).forEach(t => {
-            let row = [
-                t.id, t.time, t.deskId || 'None', `"${t.agentName || 'Unknown'}"`, t.type || '', 
-                `"${t.name}"`, t.qty || 0, t.amount || 0, t.cashAmt || 0, t.mfsAmt || 0, 
-                t.payment || '', !!t.isEdited, !!t.isDeleted
-            ];
-            csvContent += row.join(",") + "\n";
-        });
-
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `Amolnama_Ledger_${targetDateStr.replace(/\//g, '-')}.csv`);
-        document.body.appendChild(link); link.click(); document.body.removeChild(link);
-    } catch(e) { showAppAlert("Export Error", e.message); }
-}
 
 export function openAuditModal() {
     openModal('modal-audit');
