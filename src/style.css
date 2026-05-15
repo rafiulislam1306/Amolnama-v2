@@ -639,3 +639,23 @@ header {
         animation-duration: 3s !important;
     }
 }
+
+/* --- TACTILE FEEDBACK FOR INTERACTIVE CONTAINERS --- */
+
+/* 1. Header Tap Feedback */
+header {
+    transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+header:active {
+    opacity: 0.7;
+    background-color: var(--bg-color);
+}
+
+/* 2. Desk Action Cards Tap Feedback */
+.desk-action-card {
+    transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.1s ease;
+}
+.desk-action-card:active {
+    transform: scale(0.96);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
