@@ -82,7 +82,11 @@ export async function renderPersonalReport() {
                 }
             });
 
-        } catch(e) { console.error("Could not fetch floor sessions", e); }
+        } catch(e) { 
+            console.error("Could not fetch floor sessions", e);
+            if (typeof window.showFlashMessage === 'function') window.showFlashMessage("Offline: Center Vault unavailable");
+            vaultButtonsHTML = '<span style="color: #ef4444; font-size: 0.85rem; padding: 4px;">⚠️ Cannot load vault while offline</span>';
+        }
 
     [...AppState.transactions].reverse().forEach(tx => {
         if (tx.isDeleted) return;
@@ -1050,7 +1054,12 @@ export async function fetchTransactionsForDate() {
             const financialLabel = document.getElementById('financial-date-label');
             if (financialLabel) financialLabel.innerHTML = `${dateLabel}`;
         });
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+        console.error(e); 
+        if (typeof window.showAppAlert === 'function') {
+            window.showAppAlert("Sync Error", "Could not connect to the live ledger. Check your internet connection or refresh the page.");
+        }
+    }
 }
 
 // ==========================================
