@@ -99,6 +99,28 @@ input, textarea, select {
     -webkit-user-select: auto;
 }
 
+/* Accessibility: Keyboard Focus Indicators */
+:focus:not(:focus-visible) {
+    outline: none; /* Hide default outline for mouse/touch users */
+}
+
+:focus-visible {
+    outline: 3px solid var(--accent-color);
+    outline-offset: 2px;
+    border-radius: 4px; /* Fallback, adapts slightly to target */
+}
+
+/* Specific curve matching for known rounded components */
+.btn-primary-full:focus-visible, .save-ers-btn:focus-visible, .settings-input:focus-visible {
+    border-radius: 14px;
+}
+.keypad-btn:focus-visible {
+    border-radius: 20px;
+}
+.store-pill:focus-visible, .flash-pill:focus-visible {
+    border-radius: 24px;
+}
+
 /* --- 3. LAYOUT COMPONENTS --- */
 header { 
     background-color: rgba(255, 255, 255, 0.85); 
@@ -263,7 +285,6 @@ header {
 .settings-input { width: 100%; padding: 14px 16px; border: 1.5px solid var(--border-color); border-radius: 14px; background-color: var(--surface-color); color: var(--text-primary); font-size: 1rem; font-weight: 500; transition: all 0.2s ease; -webkit-appearance: none; appearance: none; box-shadow: 0 2px 6px rgba(0,0,0,0.02); }
 .settings-input:focus { border-color: var(--accent-color); background-color: var(--surface-color); outline: none; box-shadow: 0 0 0 4px rgba(51, 144, 236, 0.2); transform: translateY(-1px); }
 
-.action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .action-btn { background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: 14px; padding: 16px 12px; font-size: 1rem; font-weight: 600; color: var(--text-primary); cursor: pointer; text-align: center; transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.1s; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
 .action-btn:active { background-color: var(--bg-color); transform: scale(0.94); }
 
@@ -447,12 +468,8 @@ header {
 /* --- 11. REPORTS, HISTORY & EMPTY STATES --- */
 .section-header { font-size: 0.9rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px; margin-top: 24px; text-transform: uppercase; letter-spacing: 0.5px; }
 
-.report-section { background-color: var(--surface-color); border: none; border-radius: 16px; padding: 18px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-.report-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; }
-.report-header h3 { font-size: 1.1rem; color: var(--text-primary); }
 .report-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.95rem; }
 .report-row:last-child { margin-bottom: 0; }
-.report-total { font-weight: 700; }
 
 #history-log, #desk-history-log {
     background-color: var(--surface-color);
