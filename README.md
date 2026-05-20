@@ -90,6 +90,7 @@ Use this section to identify exactly which function controls a feature — so yo
 ### `src/core/app-init.js`
 - `initUserData(onComplete)` — full boot: fetches user doc, global catalog, routes to desk or floor map
 - `updateCurrencyUI()` — updates currency label across UI
+- `calculateAndDisplayRank()` — silently calculates monthly sales for 6 specific agents and applies top 3 visual rank badges to header avatar
 
 ---
 

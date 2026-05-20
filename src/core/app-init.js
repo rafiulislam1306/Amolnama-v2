@@ -1,5 +1,5 @@
 // src/core/app-init.js
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { AppState } from './state.js';
 import { getStrictDate } from '../utils/helpers.js';
@@ -142,6 +142,64 @@ export async function initUserData(onComplete) {
         }
     } finally {
         if (onComplete) onComplete();
+        calculateAndDisplayRank();
     }
     setTimeout(setupBottomSheetDrag, 300); // Failsafe to attach drag physics
+}
+
+async function calculateAndDisplayRank() {
+    if (!AppState.currentUser) return;
+    
+    const eligibleUsers = [
+        'zmi9OdIBlQQJZo3rszWYQ9sXMVq1', // Rafi
+        'sXeeJMdRycegcf4eAsyDZ53WIrD2', // Shovon
+        'lWuUuOSm38UIm4hsVit8GthtFvK2', // Asha
+        'YqZQ7hH3TUfrNKNhNOCegZrHZs82', // Rakiba
+        'RH6ZFn5Z1XQKNDE24ZYcsZMhvbg1', // Sumon
+        'AHOkNTiM1RV7urXvY3P5hXtUH8J2'  // Wahid
+    ];
+
+    if (!eligibleUsers.includes(AppState.currentUser.uid)) return;
+
+    try {
+        const today = new Date();
+        const currentMonthYear = `/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+
+        const txRef = collection(db, 'transactions');
+        const q = query(txRef, where('userId', 'in', eligibleUsers));
+        const snap = await getDocs(q);
+        
+        let salesData = {};
+        eligibleUsers.forEach(uid => salesData[uid] = 0);
+
+        snap.forEach(docSnap => {
+            const data = docSnap.data();
+            // Match dates like "05/05/2026" checking if it ends with "/05/2026"
+            if (data.date && data.date.endsWith(currentMonthYear) && !data.isDeleted) {
+                salesData[data.userId] += (Number(data.total) || Number(data.amount) || 0);
+            }
+        });
+
+        const sortedUsers = Object.keys(salesData).sort((a, b) => salesData[b] - salesData[a]);
+        const rank = sortedUsers.indexOf(AppState.currentUser.uid) + 1;
+        const badge = document.getElementById('rank-badge');
+        
+        if (badge && rank >= 1 && rank <= 3 && salesData[AppState.currentUser.uid] > 0) {
+            badge.innerText = rank;
+            badge.style.display = 'flex';
+            
+            if (rank === 1) {
+                badge.style.background = '#fbbf24'; // Gold
+                badge.style.color = '#78350f';
+            } else if (rank === 2) {
+                badge.style.background = '#cbd5e1'; // Silver
+                badge.style.color = '#0f172a';
+            } else if (rank === 3) {
+                badge.style.background = '#d97706'; // Bronze
+                badge.style.color = '#ffffff';
+            }
+        }
+    } catch (err) {
+        console.error("Failed to calculate rank:", err);
+    }
 }
