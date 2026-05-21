@@ -170,7 +170,7 @@ export async function loadFloorMap() {
             await setDoc(doc(db, 'desks', 'desk_1'), { name: 'Desk 1', status: 'closed', currentSessionId: null });
             await setDoc(doc(db, 'desks', 'desk_2'), { name: 'Desk 2', status: 'closed', currentSessionId: null });
             await setDoc(doc(db, 'desks', 'desk_3'), { name: 'Desk 3', status: 'closed', currentSessionId: null });
-            loadFloorMap(); return;
+            await loadFloorMap(); return;
         }
 
         desksSnapshot.forEach(docSnap => {

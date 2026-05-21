@@ -166,7 +166,7 @@ async function calculateAndDisplayRank() {
         const currentMonthYear = `/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
 
         const txRef = collection(db, 'transactions');
-        const q = query(txRef, where('userId', 'in', eligibleUsers));
+        const q = query(txRef, where('agentId', 'in', eligibleUsers));
         const snap = await getDocs(q);
         
         let salesData = {};
@@ -175,8 +175,8 @@ async function calculateAndDisplayRank() {
         snap.forEach(docSnap => {
             const data = docSnap.data();
             // Match dates like "05/05/2026" checking if it ends with "/05/2026"
-            if (data.date && data.date.endsWith(currentMonthYear) && !data.isDeleted) {
-                salesData[data.userId] += (Number(data.total) || Number(data.amount) || 0);
+            if (data.dateStr && data.dateStr.endsWith(currentMonthYear) && !data.isDeleted) {
+                salesData[data.agentId] += (Number(data.amount) || 0);
             }
         });
 
