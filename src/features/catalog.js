@@ -78,8 +78,8 @@ export function renderAppUI() {
                 }
                 isLongPress = false;
                 isCancelled = false;
-                row.style.backgroundColor = 'var(--bg-color)'; 
-                row.style.transform = 'scale(0.98)'; // Add tactile scale physics
+                row.style.backgroundColor = 'var(--border-color)'; 
+                row.style.transform = 'scale(0.94)'; 
                 pressTimer = setTimeout(() => {
                     isLongPress = true;
                     if (navigator.vibrate) navigator.vibrate([50]); 

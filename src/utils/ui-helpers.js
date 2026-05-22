@@ -42,28 +42,29 @@ export function showFlashMessage(text) {
     // Use innerText to completely prevent Cross-Site Scripting (XSS)
     msg.innerText = text;
     
-    // Inject smooth, native-feeling slide animation directly
+    // Inject smooth, native-feeling slide and scale spring animation directly
     msg.style.cssText = `
-        position: fixed; top: calc(24px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%) translateY(-20px);
-        background: #1e293b; color: #f8fafc; padding: 12px 24px; border-radius: 99px;
-        font-weight: 600; font-size: 0.9rem; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-        z-index: 100000; opacity: 0; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        position: fixed; top: calc(24px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%) translateY(-20px) scale(0.9);
+        background: rgba(18, 12, 38, 0.85); color: #ffffff; padding: 12px 24px; border-radius: 99px;
+        font-weight: 700; font-size: 0.9rem; box-shadow: 0 12px 32px rgba(124, 58, 237, 0.25);
+        border: 1px solid rgba(167, 139, 250, 0.2); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+        z-index: 100000; opacity: 0; transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
         white-space: nowrap; pointer-events: none; text-align: center;
     `;
     
     document.body.appendChild(msg); 
     
-    // Trigger slide up
+    // Trigger slide down and scale up with spring physics
     setTimeout(() => {
-        msg.style.transform = 'translateX(-50%) translateY(0)';
+        msg.style.transform = 'translateX(-50%) translateY(0) scale(1)';
         msg.style.opacity = '1';
     }, 10);
 
-    // Trigger slide up and remove
+    // Trigger slide up, scale down and remove
     setTimeout(() => {
-        msg.style.transform = 'translateX(-50%) translateY(-20px)';
+        msg.style.transform = 'translateX(-50%) translateY(-20px) scale(0.9)';
         msg.style.opacity = '0';
-        setTimeout(() => msg.remove(), 300);
+        setTimeout(() => msg.remove(), 400);
     }, 2700);
 }
 

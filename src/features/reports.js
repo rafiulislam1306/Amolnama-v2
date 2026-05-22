@@ -61,9 +61,9 @@ export async function renderPersonalReport() {
                     let bgCol = s.status === 'pending' ? 'var(--warning-bg)' : ((s.status === 'rolled_over' || s.status === 'closed_by_system') ? 'var(--info-bg)' : 'var(--success-bg)');
                     
                     vaultButtonsHTML += `
-                        <button class="btn-outline" style="flex-shrink: 0; border-color: ${badgeColor}; color: ${badgeColor}; background: ${bgCol}; font-size: 0.85rem; padding: 8px 14px; border-radius: 10px; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" onclick="openHistoricalSession('${docSnap.id}')">
+                        <button class="btn-outline" style="flex-shrink: 0; border: 1px solid var(--hairline); color: ${badgeColor}; background: var(--surface-strong); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); font-size: 0.85rem; font-weight: 700; padding: 10px 16px; border-radius: 14px; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-soft); transition: transform 0.2s var(--spring-physics);" onclick="openHistoricalSession('${docSnap.id}')" onpointerdown="this.style.transform='scale(0.95)'" onpointerup="this.style.transform='scale(1)'" onpointerleave="this.style.transform='scale(1)'">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                            ${agentName} (${statusLabel})
+                            ${agentName} <span style="font-size: 0.72rem; opacity: 0.8; font-weight: 500;">(${statusLabel})</span>
                         </button>
                     `;
                 }
@@ -161,21 +161,21 @@ export async function renderPersonalReport() {
         let amtPrefix = isOutflow ? '− ' : '';
 
         historyHTML += `
-            <div class="history-item" style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); margin-bottom: 12px; cursor: pointer; transition: transform 0.1s;" onclick="const actions = this.querySelector('.tx-actions'); if(actions) { actions.style.display = actions.style.display === 'none' ? 'flex' : 'none'; }">
+            <div class="history-item" style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-strong); border: 1px solid var(--hairline); border-radius: 18px; box-shadow: var(--shadow-soft); margin-bottom: 12px; cursor: pointer; transition: transform 0.4s var(--spring-physics), background-color 0.2s ease;" onpointerdown="this.style.transform='scale(0.97)'" onpointerup="this.style.transform='scale(1)'" onpointerleave="this.style.transform='scale(1)'" onclick="const actions = this.querySelector('.tx-actions'); if(actions) { actions.style.display = actions.style.display === 'none' ? 'flex' : 'none'; }">
                 <div style="display: flex; width: 100%; align-items: flex-start; gap: 14px;">
-                    <div style="width: 44px; height: 44px; border-radius: 12px; background: ${dotColor}15; color: ${dotColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${dotColor}30;">
-                        <span style="font-size: 0.95rem; font-weight: 800;">${tx.qty}x</span>
+                    <div style="width: 44px; height: 44px; border-radius: 14px; background: ${dotColor}12; color: ${dotColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${dotColor}25;">
+                        <span style="font-size: 0.95rem; font-weight: 900;">${tx.qty}x</span>
                     </div>
                     <div style="flex: 1; min-width: 0; padding-top: 2px;">
-                        <div style="font-size: 1rem; color: var(--text-primary); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 6px;">
+                        <div style="font-size: 1rem; color: var(--text-primary); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 4px;">
                             ${tx.name}
                         </div>
-                        <div style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5; margin-top: 4px;">
-                            <span style="font-family: monospace; color: var(--text-primary); opacity: 0.8; font-weight: 600;">${tx.receiptNo || tx.id}</span> &bull; ${tx.time} &bull; ${payLabel}${agentBadge} ${badges}
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5; font-weight: 600;">
+                            <span style="font-family: monospace; color: var(--text-primary); opacity: 0.8; font-weight: 700;">${tx.receiptNo || tx.id}</span> &bull; ${tx.time} &bull; ${payLabel}${agentBadge} ${badges}
                         </div>
                     </div>
-                    <div style="font-size: 1.1rem; font-weight: 800; color: ${amtColor}; flex-shrink: 0; text-align: right; padding-top: 2px;">
-                        ${amtPrefix}${Math.abs(tx.amount || 0)}
+                    <div style="font-size: 1.15rem; font-weight: 900; color: ${amtColor}; flex-shrink: 0; text-align: right; padding-top: 2px;">
+                        ${amtPrefix}${Math.abs(tx.amount || 0)} <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary);">Tk</span>
                     </div>
                 </div>
                 ${actionBtns}
@@ -757,73 +757,73 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
     }
 
     return `
-        <div class="admin-form-card" style="padding: 0; margin-bottom: 16px; background: var(--surface-color); border: 1px solid var(--border-color); box-shadow: 0 1px 2px rgba(0,0,0,0.02); overflow: hidden;">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 11px 16px;">
-                <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500;">Opening Cash</span>
-                <span id="desk-tot-opening" style="font-size: 0.95rem; color: var(--text-primary); font-weight: 500;">${fmt(opening)} Tk</span>
+        <div class="admin-form-card" style="padding: 0; margin-bottom: 16px; background: var(--surface-strong); border: 1px solid var(--hairline); box-shadow: var(--shadow-card); overflow: hidden; border-radius: var(--radius-card);">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--hairline);">
+                <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 600;">Opening Cash</span>
+                <span id="desk-tot-opening" style="font-size: 1rem; color: var(--text-primary); font-weight: 800;">${fmt(opening)} <span style="font-size: 0.75rem; color: var(--text-secondary);">Tk</span></span>
             </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 11px 16px;">
-                <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500;">+ Cash Sales</span>
-                <span id="desk-tot-cash-sales" style="font-size: 0.95rem; color: var(--text-primary); font-weight: 500;">+${fmt(sales)} Tk</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--hairline);">
+                <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 600;">+ Cash Sales</span>
+                <span id="desk-tot-cash-sales" style="font-size: 1rem; color: var(--success-text); font-weight: 800;">+${fmt(sales)} <span style="font-size: 0.75rem; color: var(--text-secondary);">Tk</span></span>
             </div>
-            <div style="padding: 11px 16px;">
+            <div style="padding: 12px 18px; border-bottom: 1px solid var(--hairline);">
                 <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="const breakdown = this.nextElementSibling; const icon = this.querySelector('svg'); if(breakdown.style.display === 'none') { breakdown.style.display = 'block'; icon.style.transform = 'rotate(180deg)'; } else { breakdown.style.display = 'none'; icon.style.transform = 'rotate(0deg)'; }">
-                    <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500; display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 600; display: flex; align-items: center; gap: 6px;">
                         +/- Cash Actions
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
                     </span>
-                    <span id="desk-tot-manager" style="font-size: 0.95rem; font-weight: 500; color: ${adjustments < 0 ? '#ef4444' : 'var(--text-primary)'};">${formattedAdjustments} Tk</span>
+                    <span id="desk-tot-manager" style="font-size: 1rem; font-weight: 800; color: ${adjustments < 0 ? '#ef4444' : 'var(--text-primary)'};">${formattedAdjustments} <span style="font-size: 0.75rem; color: var(--text-secondary);">Tk</span></span>
                 </div>
-                <div style="display: none; padding-top: 8px; border-top: 1px solid var(--border-color); margin-top: 8px;">
+                <div style="display: none; padding-top: 8px; border-top: 1px dashed var(--hairline); margin-top: 8px;">
                     ${adjBreakdownHTML || '<div style="font-size: 0.85rem; color: var(--text-secondary); text-align: right; font-style: italic;">No actions recorded</div>'}
                 </div>
             </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 11px 16px; background: var(--bg-color); border-top: 1px solid var(--border-color);">
-                <span style="font-size: 0.7rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Expected Cash</span>
-                <span id="desk-tot-expected-cash" style="font-size: 1.4rem; font-weight: 500; color: var(--text-primary);">${fmt(expected)} Tk</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: linear-gradient(135deg, rgba(124, 58, 237, 0.05), rgba(124, 58, 237, 0.12));">
+                <span style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Expected Cash</span>
+                <span id="desk-tot-expected-cash" style="font-size: 1.55rem; font-weight: 900; color: var(--accent-color); letter-spacing: -0.5px;">${fmt(expected)} <span style="font-size: 1rem; font-weight: 700;">Tk</span></span>
             </div>
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-            <div style="background: var(--surface-color); border: 1px solid var(--border-color); padding: 14px; border-radius: 12px; text-align: left;">
-                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;">Total MFS</div>
-                <div style="font-size: 1.25rem; font-weight: 500; color: var(--text-primary);">${fmt(mfsTotal)} <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: normal;">Tk</span></div>
+            <div style="background: var(--surface-strong); border: 1px solid var(--hairline); box-shadow: var(--shadow-soft); padding: 16px; border-radius: var(--radius-card); text-align: left;">
+                <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Total MFS</div>
+                <div style="font-size: 1.35rem; font-weight: 900; color: var(--text-primary);">${fmt(mfsTotal)} <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 700;">Tk</span></div>
             </div>
-            <div style="background: var(--surface-color); border: 1px solid var(--border-color); padding: 14px; border-radius: 12px; text-align: left;">
-                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;">ERS Sent (${fmt(ersData.count)}x)</div>
-                <div style="font-size: 1.25rem; font-weight: 500; color: var(--text-primary);">${fmt(ersData.total)} <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: normal;">Tk</span></div>
+            <div style="background: var(--surface-strong); border: 1px solid var(--hairline); box-shadow: var(--shadow-soft); padding: 16px; border-radius: var(--radius-card); text-align: left;">
+                <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">ERS Sent (${fmt(ersData.count)}x)</div>
+                <div style="font-size: 1.35rem; font-weight: 900; color: var(--text-primary);">${fmt(ersData.total)} <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 700;">Tk</span></div>
             </div>
         </div>
 
-        <div style="background: var(--surface-color); border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 16px; overflow: hidden;">
-            <div style="padding: 11px 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="const c = this.nextElementSibling; const i = this.querySelector('svg'); if(c.style.display==='none'){c.style.display='block'; i.style.transform='rotate(180deg)';}else{c.style.display='none'; i.style.transform='rotate(0deg)';}">
+        <div style="background: var(--surface-strong); border-radius: var(--radius-card); border: 1px solid var(--hairline); box-shadow: var(--shadow-soft); margin-bottom: 16px; overflow: hidden;">
+            <div style="padding: 14px 18px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="const c = this.nextElementSibling; const i = this.querySelector('svg'); if(c.style.display==='none'){c.style.display='block'; i.style.transform='rotate(180deg)';}else{c.style.display='none'; i.style.transform='rotate(0deg)';}">
                 <div style="display: flex; align-items: flex-start; gap: 10px;">
-                    <div style="width: 7px; height: 7px; border-radius: 50%; background: #10b981; margin-top: 6px; flex-shrink: 0;"></div>
+                    <div style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; margin-top: 6px; flex-shrink: 0; box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);"></div>
                     <div style="display: flex; flex-direction: column;">
-                        <span style="font-size: 0.875rem; font-weight: 500; color: var(--text-primary); line-height: 1.2;">Physical stock</span>
-                        <span style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.2; margin-top: 3px;">${activeItemCount} active items</span>
+                        <span style="font-size: 0.9rem; font-weight: 800; color: var(--text-primary); line-height: 1.2;">Physical Stock</span>
+                        <span style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.2; margin-top: 3px; font-weight: 600;">${activeItemCount} active items</span>
                     </div>
                 </div>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
-            <div style="display: none; background: var(--surface-color); border-top: 1px solid var(--border-color);">
-                <div style="padding: 0 16px;">
-                    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; padding: 12px 0; border-bottom: 2px solid var(--border-color); font-size: 0.7rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
+            <div style="display: none; background: var(--surface-soft); border-top: 1px solid var(--hairline);">
+                <div style="padding: 0 18px;">
+                    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; padding: 12px 0; border-bottom: 2px solid var(--hairline); font-size: 0.7rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
                         <div>Item</div>
                         <div style="text-align: center;">Start</div>
                         <div style="text-align: center;">In/Out</div>
                         <div style="text-align: center;">Sold</div>
-                        <div style="text-align: center;">Exp.</div>
+                        <div style="text-align: center; color: var(--accent-color);">Exp.</div>
                     </div>
                     ${invRows}
                 </div>
             </div>
         </div>
 
-        <div style="background: var(--surface-color); border-radius: 12px; border: 1px solid var(--border-color); overflow: hidden; margin-bottom: 24px;">
-            <div style="display: flex; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--border-color); background: var(--bg-color);">
-                <span style="font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px;">Items & services sold</span>
-                <span style="font-size: 0.7rem; font-weight: 500; color: var(--text-secondary);">Today</span>
+        <div style="background: var(--surface-strong); border-radius: var(--radius-card); border: 1px solid var(--hairline); box-shadow: var(--shadow-soft); overflow: hidden; margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid var(--hairline); background: var(--surface-soft);">
+                <span style="font-size: 0.72rem; font-weight: 800; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px;">Items & services sold</span>
+                <span style="font-size: 0.72rem; font-weight: 700; color: var(--text-secondary);">Today</span>
             </div>
             ${itemsHTML}
         </div>
@@ -954,21 +954,21 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
         let amtPrefix = isOutflow ? '− ' : '';
 
         historyHTML += `
-            <div class="history-item" style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); margin-bottom: 12px; cursor: pointer; transition: transform 0.1s;" onclick="const actions = this.querySelector('.tx-actions'); if(actions) { actions.style.display = actions.style.display === 'none' ? 'flex' : 'none'; }">
+            <div class="history-item" style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-strong); border: 1px solid var(--hairline); border-radius: 18px; box-shadow: var(--shadow-soft); margin-bottom: 12px; cursor: pointer; transition: transform 0.4s var(--spring-physics), background-color 0.2s ease;" onpointerdown="this.style.transform='scale(0.97)'" onpointerup="this.style.transform='scale(1)'" onpointerleave="this.style.transform='scale(1)'" onclick="const actions = this.querySelector('.tx-actions'); if(actions) { actions.style.display = actions.style.display === 'none' ? 'flex' : 'none'; }">
                 <div style="display: flex; width: 100%; align-items: flex-start; gap: 14px;">
-                    <div style="width: 44px; height: 44px; border-radius: 12px; background: ${dotColor}15; color: ${dotColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${dotColor}30;">
-                        <span style="font-size: 0.95rem; font-weight: 800;">${tx.qty}x</span>
+                    <div style="width: 44px; height: 44px; border-radius: 14px; background: ${dotColor}12; color: ${dotColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${dotColor}25;">
+                        <span style="font-size: 0.95rem; font-weight: 900;">${tx.qty}x</span>
                     </div>
                     <div style="flex: 1; min-width: 0; padding-top: 2px;">
-                        <div style="font-size: 1rem; color: var(--text-primary); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 6px;">
+                        <div style="font-size: 1rem; color: var(--text-primary); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 4px;">
                             ${tx.name}
                         </div>
-                        <div style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5; margin-top: 4px;">
-                            ${tx.time} &bull; ${payLabel} &bull; <span style="color: var(--text-primary); font-weight: 600;">By ${(tx.agentName || 'Unknown').split(' ')[0]}</span> ${badges}
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5; font-weight: 600;">
+                            <span style="font-family: monospace; color: var(--text-primary); opacity: 0.8; font-weight: 700;">${tx.receiptNo || tx.id}</span> &bull; ${tx.time} &bull; ${payLabel} &bull; <span style="color: var(--text-primary); font-weight: 600;">By ${(tx.agentName || 'Unknown').split(' ')[0]}</span> ${badges}
                         </div>
                     </div>
-                    <div style="font-size: 1.1rem; font-weight: 800; color: ${amtColor}; flex-shrink: 0; text-align: right; padding-top: 2px;">
-                        ${amtPrefix}${Math.abs(tx.amount || 0)}
+                    <div style="font-size: 1.15rem; font-weight: 900; color: ${amtColor}; flex-shrink: 0; text-align: right; padding-top: 2px;">
+                        ${amtPrefix}${Math.abs(tx.amount || 0)} <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary);">Tk</span>
                     </div>
                 </div>
                 ${actionBtns}
