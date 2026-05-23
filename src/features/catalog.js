@@ -163,48 +163,59 @@ export function renderAppUI() {
             let pressTimer;
             let isLongPress = false;
             let isCancelled = false;
-            
+            let startY = 0; // Track finger start position to detect scrolls
+
             const startPress = (e) => {
-                if (e.button && e.button !== 0) return; 
-                if (isLocked) {
-                    isCancelled = true;
-                    if (typeof window.showAppAlert === 'function') window.showAppAlert("Access Denied", "🔒 Only a Center Manager can process this item.");
-                    return;
-                }
-                if (isOutOfStock) {
-                    isCancelled = true;
-                    if (typeof window.showAppAlert === 'function') window.showAppAlert("Stock Alert", `⚠️ ${item.display || item.name} is currently out of stock in your drawer.`);
+                if (e.button && e.button !== 0) return;
+                // Record where the finger landed — decision is made on pointerup
+                startY = e.clientY;
+                if (isLocked || isOutOfStock) {
+                    // Don't fire yet — wait to see if user scrolls or actually taps
                     return;
                 }
                 isLongPress = false;
                 isCancelled = false;
-                row.style.backgroundColor = 'var(--border-color)'; 
-                row.style.transform = 'scale(0.92)'; 
+                row.style.backgroundColor = 'var(--border-color)';
+                row.style.transform = 'scale(0.92)';
                 pressTimer = setTimeout(() => {
                     isLongPress = true;
-                    if (navigator.vibrate) navigator.vibrate([50]); 
-                    selectItem(item.name, safePrice); 
+                    if (navigator.vibrate) navigator.vibrate([50]);
+                    selectItem(item.name, safePrice);
                     row.style.backgroundColor = 'transparent';
                     row.style.transform = 'scale(1)';
-                }, 500); 
+                }, 500);
             };
-            
+
             const cancelPress = () => {
                 isCancelled = true;
                 row.style.backgroundColor = 'transparent';
                 row.style.transform = 'scale(1)';
                 clearTimeout(pressTimer);
             };
-            
+
             const endPress = (e) => {
                 clearTimeout(pressTimer);
                 row.style.backgroundColor = 'transparent';
                 row.style.transform = 'scale(1)';
+
+                // If finger moved more than 8px vertically, it was a scroll — ignore entirely
+                const didScroll = Math.abs((e.clientY || startY) - startY) > 8;
+                if (didScroll) return;
+
+                // Now it's confirmed to be a tap — show locked/OOS alerts here, not on pointerdown
+                if (isLocked) {
+                    if (typeof window.showAppAlert === 'function') window.showAppAlert("Access Denied", "🔒 Only a Center Manager can process this item.");
+                    return;
+                }
+                if (isOutOfStock) {
+                    if (typeof window.showAppAlert === 'function') window.showAppAlert("Stock Alert", `⚠️ ${item.display || item.name} is currently out of stock in your drawer.`);
+                    return;
+                }
                 if (!isLongPress && !isCancelled) {
                     instantSaveItem(item.name, safePrice);
                 }
             };
-            
+
             row.addEventListener('pointerdown', startPress);
             row.addEventListener('pointerup', endPress);
             row.addEventListener('pointerleave', cancelPress);
