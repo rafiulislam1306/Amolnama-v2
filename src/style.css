@@ -1130,3 +1130,39 @@ header {
         box-shadow: 0 0 60px rgba(15, 23, 42, 0.12);
     }
 }
+
+/* ==========================================
+   DESK LEDGER FILTER PILLS
+   ========================================== */
+.desk-filter-pill {
+    flex-shrink: 0;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1.5px solid var(--border-color);
+    background: var(--surface-strong);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.12s ease, box-shadow 0.18s ease;
+    -webkit-tap-highlight-color: transparent;
+    outline: none;
+    line-height: 1;
+}
+
+.desk-filter-pill:active {
+    transform: scale(0.94);
+}
+
+.desk-filter-pill.active {
+    background: var(--accent-color);
+    color: #fff;
+    border-color: var(--accent-color);
+    box-shadow: 0 4px 12px rgba(var(--accent-rgb, 99,102,241), 0.35);
+}
+
+/* Hide scrollbar on the pill row across all browsers */
+.desk-filter-pill + .desk-filter-pill { }
+div:has(> .desk-filter-pill)::-webkit-scrollbar { display: none; }

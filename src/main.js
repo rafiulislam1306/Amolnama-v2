@@ -149,6 +149,17 @@ function toggleMFS() {
     document.querySelectorAll('.sync-mfs').forEach(el => el.classList.toggle('active', AppState.isMfs));
 }
 
+function applyDeskFilter(pill, value) {
+    // Update the hidden value store
+    const hidden = document.getElementById('desk-history-filter');
+    if (hidden) hidden.value = value;
+    // Swap active state on pills
+    document.querySelectorAll('.desk-filter-pill').forEach(p => p.classList.toggle('active', p === pill));
+    // Re-render
+    if (typeof window.renderDeskDashboard === 'function') window.renderDeskDashboard();
+}
+window.applyDeskFilter = applyDeskFilter;
+
 window.addEventListener('click', (event) => {
     if (event.target.classList.contains('modal-overlay') && !['modal-auth', 'splash-screen', 'modal-desk-select', 'modal-nicknames', 'modal-app-alert', 'modal-close-desk', 'modal-edit-tx'].includes(event.target.id)) {
         closeModal(event.target.id);
