@@ -868,7 +868,7 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
 
 
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; border: none !important; box-shadow: none !important; background: transparent !important;">
             <div style="background: var(--surface-strong); border: 1px solid var(--hairline); box-shadow: var(--shadow-soft); padding: 16px; border-radius: var(--radius-card); text-align: left;">
                 <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Total MFS</div>
                 <div style="font-size: 1.35rem; font-weight: 900; color: var(--text-primary);">${fmt(mfsTotal)} <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 700;">Tk</span></div>
