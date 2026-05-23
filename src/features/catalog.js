@@ -250,6 +250,15 @@ export function renderAppUI() {
             `;
             container.appendChild(row);
         });
+
+        // After rendering, hide any category group that ended up empty (e.g., Free Actions for non‑manager users)
+        document.querySelectorAll('.store-cat-group').forEach(group => {
+            const container = group.querySelector('[id^="container-"]');
+            if (container && container.childElementCount === 0) {
+                // Keep the group hidden; optionally show a placeholder if desired
+                group.style.display = 'none';
+            }
+        });
     } catch (e) {
         console.error("Critical error in renderAppUI:", e);
         if (typeof window.showAppAlert === 'function') {
