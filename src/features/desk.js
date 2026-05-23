@@ -376,9 +376,17 @@ export async function renderLiveFloorTab() {
                 }
             });
 
-            // Filter out inactive desks (0 transactions and 0 remaining physical stock)
+            // Filter out inactive desks (no sales/product/service transactions today, 0 remaining physical stock, and 0 live cash)
             let totalStockQty = Object.values(liveInv).reduce((sum, qty) => sum + Math.max(0, qty || 0), 0);
-            if (txSnap.size === 0 && totalStockQty === 0) {
+            let hasSalesActivity = false;
+            txSnap.forEach(txDoc => {
+                let tx = txDoc.data();
+                if (tx.type === 'Item' || tx.type === 'ERS' || tx.type === 'sale') {
+                    hasSalesActivity = true;
+                }
+            });
+
+            if (!hasSalesActivity && totalStockQty === 0 && liveCash === 0) {
                 continue;
             }
 
