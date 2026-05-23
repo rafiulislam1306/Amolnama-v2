@@ -61,7 +61,7 @@ function updateQtyDisplay() {
     document.getElementById('qty-item-name').innerText = AppState.ui.currentItemName;
     document.getElementById('qty-display').innerText = AppState.ui.currentQty;
     let qtyInt = parseInt(AppState.ui.currentQty) || 0;
-    document.getElementById('qty-calc-display').innerText = AppState.ui.currentItemPrice === 0 ? `Inventory Update (0 Tk)` : `${qtyInt} x ${AppState.ui.currentItemPrice} = ${qtyInt * AppState.ui.currentItemPrice} Tk`;
+    document.getElementById('qty-calc-display').innerText = AppState.ui.currentItemPrice === 0 ? `Inventory Update (0 Tk)` : `${qtyInt} x ${fmt(AppState.ui.currentItemPrice)} = ${fmt(qtyInt * AppState.ui.currentItemPrice)} Tk`;
 }
 
 export function qtyKeyPress(num) { 

@@ -110,7 +110,10 @@ function switchTab(tabId, title) {
     const targetTab = document.getElementById('tab-' + tabId);
     if (targetTab) {
         targetTab.classList.add('active');
-        targetTab.scrollTop = 0; // Always open at the top
+        // Force scroll to top, wait for next frame to ensure display:block has applied
+        requestAnimationFrame(() => {
+            targetTab.scrollTop = 0;
+        });
     }
     
     document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));

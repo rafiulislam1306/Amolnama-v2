@@ -257,7 +257,7 @@ export async function renderPersonalReport() {
                     <!-- Opening Cash -->
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-size: 0.88rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px;">Opening Cash</span>
-                        <span style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary); font-family: monospace;">${fmt(floorOpeningCash)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); font-family: inherit;">Tk</span></span>
+                        <span id="center-tot-opening" style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary); font-family: monospace;">${fmt(floorOpeningCash)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); font-family: inherit;">Tk</span></span>
                     </div>
                     
                     <!-- Cash Sales -->
@@ -269,7 +269,7 @@ export async function renderPersonalReport() {
                     <!-- +/- Cash Actions -->
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-size: 0.88rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px;">+/- Cash Actions</span>
-                        <span style="font-size: 1.05rem; font-weight: 800; color: ${floorManagerDrops >= 0 ? '#10b981' : '#ef4444'}; font-family: monospace;">
+                        <span id="center-tot-drops" style="font-size: 1.05rem; font-weight: 800; color: ${floorManagerDrops >= 0 ? '#10b981' : '#ef4444'}; font-family: monospace;">
                             ${floorManagerDrops >= 0 ? '+' : ''}${fmt(floorManagerDrops)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); font-family: inherit;">Tk</span>
                         </span>
                     </div>
@@ -279,7 +279,7 @@ export async function renderPersonalReport() {
                     <!-- Expected Cash Highlight Box -->
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(245, 158, 11, 0.05); border-left: 4px solid #f59e0b; border-radius: 10px;">
                         <span style="font-weight: 900; color: #f59e0b; font-size: 0.88rem; text-transform: uppercase; letter-spacing: 0.8px; white-space: nowrap; flex-shrink: 0;">Expected Cash</span>
-                        <span style="font-weight: 900; color: #f59e0b; font-size: 1.4rem; font-family: monospace; white-space: nowrap; display: inline-flex; align-items: baseline; gap: 4px;">${fmt(expectedCenterCash)} <span style="font-size: 0.9rem; font-weight: 800; font-family: inherit;">Tk</span></span>
+                        <span id="center-tot-expected" style="font-weight: 900; color: #f59e0b; font-size: 1.4rem; font-family: monospace; white-space: nowrap; display: inline-flex; align-items: baseline; gap: 4px;">${fmt(expectedCenterCash)} <span style="font-size: 0.9rem; font-weight: 800; font-family: inherit;">Tk</span></span>
                     </div>
                 </div>
             </div>
