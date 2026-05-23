@@ -180,6 +180,20 @@ window.addEventListener('click', (event) => {
     }
 });
 
+// Nuclear escape hatch: if a modal-overlay is "active" but its content is
+// invisible (ghost overlay after a failed animation), force-close it on next touch
+// so the app never stays frozen.
+window.addEventListener('touchstart', () => {
+    document.querySelectorAll('.modal-overlay.active').forEach(overlay => {
+        const content = overlay.querySelector('.modal-content, .bottom-sheet');
+        if (content) {
+            const rect = content.getBoundingClientRect();
+            const isInvisible = rect.height === 0 || parseFloat(getComputedStyle(content).opacity) < 0.05;
+            if (isInvisible) closeModal(overlay.id);
+        }
+    });
+}, { passive: true });
+
 // Global Keyboard Shortcuts for Desktop Power-Users
 document.addEventListener('keydown', (event) => {
     // 1. ESC key: Close top-most active bottom-sheet modal

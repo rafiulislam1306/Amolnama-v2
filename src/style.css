@@ -443,13 +443,28 @@ header {
 #modal-auth .modal-content.auth-fullscreen { background: transparent; box-shadow: none; display: flex; flex-direction: column; justify-content: center; height: 100%; max-width: 400px; padding: 32px; }
 #modal-auth .modal-content::before { display: none; }
 
-/* Native Error Alert Modal */
+/* Native Error Alert Modal — fully isolated from the bottom-sheet animation system */
 #modal-app-alert { align-items: center; z-index: 100000; }
-#modal-app-alert .modal-content { max-width: 320px; border-radius: 16px; padding: 24px; text-align: center; animation: alertPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+#modal-app-alert .modal-content {
+    /* Override every bottom-sheet property so the alert is never off-screen */
+    position: relative !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;          /* Kill translateY(100%) resting state */
+    animation: alertPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+    max-width: 320px !important;
+    border-radius: 20px !important;
+    padding: 28px 24px !important;
+    text-align: center !important;
+    margin: auto !important;
+    opacity: 1 !important;               /* Never let modalFadeIn start at opacity:0 */
+    box-shadow: 0 24px 64px rgba(0,0,0,0.18) !important;
+}
 #modal-app-alert .modal-content::before { display: none; }
 
 @keyframes alertPop {
-    0% { opacity: 0; transform: scale(0.9); }
+    0%   { opacity: 0; transform: scale(0.88); }
     100% { opacity: 1; transform: scale(1); }
 }
 
@@ -1212,8 +1227,9 @@ header {
     .modal-overlay {
         align-items: center !important;
     }
+    /* All bottom-sheets and regular modals become centered floating cards on tablet */
     .bottom-sheet,
-    .modal-content {
+    .modal-content:not(#modal-app-alert .modal-content) {
         position: relative !important;
         bottom: auto !important;
         left: auto !important;

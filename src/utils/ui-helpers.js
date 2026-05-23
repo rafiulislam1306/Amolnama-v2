@@ -73,7 +73,16 @@ export function openModal(modalId) {
 }
 
 export function closeModal(modalId) { 
-    document.getElementById(modalId).classList.remove('active'); 
+    const overlay = document.getElementById(modalId);
+    if (!overlay) return;
+    overlay.classList.remove('active');
+    // Reset any inline transform/opacity left behind by drag physics or animation forwards-fill
+    const content = overlay.querySelector('.modal-content, .bottom-sheet');
+    if (content) {
+        content.style.transform = '';
+        content.style.transition = '';
+        content.style.opacity = '';
+    }
 }
 
 export function showTooltip(element, text) {
