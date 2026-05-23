@@ -115,7 +115,7 @@
                 </div>
             </div>
 
-            <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; scrollbar-width: none; -webkit-overflow-scrolling: touch;">
+            <div id="store-pills-container" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; scrollbar-width: none; -webkit-overflow-scrolling: touch;">
                 <button class="store-pill active" onclick="switchStoreCategory('cat-new-sim', this)">New SIMs</button>
                 <button class="store-pill" onclick="switchStoreCategory('cat-paid-rep', this)">Replacements</button>
                 <button class="store-pill" onclick="switchStoreCategory('cat-cards', this)">Cards</button>
@@ -141,6 +141,13 @@
             <div id="cat-free" class="store-cat-group" style="display: none;">
                 <div id="container-foc"></div>
                 <div id="container-free-actions"></div>
+            </div>
+            
+            <!-- Global search empty state -->
+            <div id="store-no-results" style="display: none; padding: 48px 16px; text-align: center; color: var(--text-secondary);">
+                <div style="font-size: 2.5rem; margin-bottom: 12px; filter: grayscale(0.2);">🔍</div>
+                <div style="font-weight: 800; color: var(--text-primary); font-size: 1.05rem; margin-bottom: 4px;">No matching items</div>
+                <div style="font-size: 0.8rem; opacity: 0.8;">Double check your spelling or search other keywords.</div>
             </div>
         </div>
     </main>

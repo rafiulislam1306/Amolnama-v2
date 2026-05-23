@@ -5,11 +5,63 @@ import { priorityItemSortOrder } from '../core/constants.js';
 import { getAvailableStock } from './inventory.js';
 
 export function filterStoreCatalog() {
-    const text = document.getElementById('store-search')?.value.toLowerCase() || '';
-    document.querySelectorAll('.store-item-row').forEach(card => {
-        const name = card.querySelector('.store-item-name')?.innerText.toLowerCase() || '';
-        card.style.display = name.includes(text) ? 'flex' : 'none';
-    });
+    const text = document.getElementById('store-search')?.value.toLowerCase().trim() || '';
+    const pillsContainer = document.getElementById('store-pills-container');
+    const noResults = document.getElementById('store-no-results');
+
+    if (text.length > 0) {
+        // 1. Hide category pills container when searching
+        if (pillsContainer) {
+            pillsContainer.style.display = 'none';
+        }
+
+        // 2. Hide/show matching items globally across all categories
+        let hasAnyMatch = false;
+
+        document.querySelectorAll('.store-cat-group').forEach(group => {
+            let hasMatchInGroup = false;
+
+            group.querySelectorAll('.store-item-row').forEach(card => {
+                const name = card.querySelector('.store-item-name')?.innerText.toLowerCase() || '';
+                if (name.includes(text)) {
+                    card.style.display = 'flex';
+                    hasMatchInGroup = true;
+                    hasAnyMatch = true;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            // Show the group container only if it has at least one matching item
+            group.style.display = hasMatchInGroup ? 'block' : 'none';
+        });
+
+        // 3. Toggle empty state
+        if (noResults) {
+            noResults.style.display = hasAnyMatch ? 'none' : 'block';
+        }
+    } else {
+        // 1. Restore pills container display
+        if (pillsContainer) {
+            pillsContainer.style.display = 'flex';
+        }
+
+        // 2. Hide empty state
+        if (noResults) {
+            noResults.style.display = 'none';
+        }
+
+        // 3. Restore all cards to display: flex
+        document.querySelectorAll('.store-item-row').forEach(card => {
+            card.style.display = 'flex';
+        });
+
+        // 4. Restore the active category tab
+        const activePill = document.querySelector('.store-pill.active');
+        if (activePill) {
+            activePill.click();
+        }
+    }
 }
 
 export function renderAppUI() {
