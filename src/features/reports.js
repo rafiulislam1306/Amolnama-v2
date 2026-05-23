@@ -278,8 +278,8 @@ export async function renderPersonalReport() {
 
                     <!-- Expected Cash Highlight Box -->
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(245, 158, 11, 0.05); border-left: 4px solid #f59e0b; border-radius: 10px;">
-                        <span style="font-weight: 900; color: #f59e0b; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.8px;">Expected Cash</span>
-                        <span style="font-weight: 950; color: #f59e0b; font-size: 1.4rem; font-family: monospace;">${fmt(expectedCenterCash)} <span style="font-size: 0.9rem; font-weight: 800; font-family: inherit;">Tk</span></span>
+                        <span style="font-weight: 900; color: #f59e0b; font-size: 0.88rem; text-transform: uppercase; letter-spacing: 0.8px; white-space: nowrap; flex-shrink: 0;">Expected Cash</span>
+                        <span style="font-weight: 900; color: #f59e0b; font-size: 1.4rem; font-family: monospace; white-space: nowrap; display: inline-flex; align-items: baseline; gap: 4px;">${fmt(expectedCenterCash)} <span style="font-size: 0.9rem; font-weight: 800; font-family: inherit;">Tk</span></span>
                     </div>
                 </div>
             </div>
@@ -288,15 +288,15 @@ export async function renderPersonalReport() {
 
     if(document.getElementById('report-total-all')) document.getElementById('report-total-all').innerText = (myCash + myMfs) + ' ' + userCurrency;
     if(document.getElementById('tot-cash-sales')) {
-        document.getElementById('tot-cash-sales').innerText = myCash + ' ' + userCurrency;
+        document.getElementById('tot-cash-sales').innerText = fmt(myCash) + ' ' + userCurrency;
         document.getElementById('tot-cash-sales').style.color = '#0ea5e9';
     }
     if(document.getElementById('tot-mfs')) {
-        document.getElementById('tot-mfs').innerText = myMfs + ' ' + userCurrency;
+        document.getElementById('tot-mfs').innerText = fmt(myMfs) + ' ' + userCurrency;
         document.getElementById('tot-mfs').style.color = '#10b981';
     }
     if(document.getElementById('tot-ers')) {
-        document.getElementById('tot-ers').innerText = myErsTotal + ' ' + userCurrency;
+        document.getElementById('tot-ers').innerText = fmt(myErsTotal) + ' ' + userCurrency;
         document.getElementById('tot-ers').style.color = '#f59e0b';
     }
 
