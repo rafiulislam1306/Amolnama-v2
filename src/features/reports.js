@@ -8,6 +8,7 @@ import { getPhysicalItems } from './inventory.js';
 import { priorityItemSortOrder, priorityInventorySortOrder } from '../core/constants.js';
 
 const userCurrency = 'Tk';
+const fmt = (num) => Number(num || 0).toLocaleString('en-IN');
 
 export async function renderPersonalReport() {
     let filterVal = document.getElementById('personal-history-filter') ? document.getElementById('personal-history-filter').value : 'all';
@@ -125,9 +126,12 @@ export async function renderPersonalReport() {
         let txCat = catItem ? catItem.cat : null;
         let showTx = false;
         
+        // Skip the echo half of desk-to-desk transfers — the canonical side already tells the full story
+        if (tx.isRemoteTransfer) return;
+        
         if (filterVal === 'all') showTx = true;
         else if (filterVal === 'ers' && tx.name === 'ERS Flexiload') showTx = true;
-        else if (filterVal === 'cash_ops' && tx.type === 'adjustment') showTx = true;
+        else if (filterVal === 'cash_actions' && tx.type === 'adjustment') showTx = true;
         else if (filterVal === 'transfers' && (tx.type === 'transfer_in' || tx.type === 'transfer_out')) showTx = true;
         else if (filterVal === txCat) showTx = true;
 
@@ -138,6 +142,14 @@ export async function renderPersonalReport() {
         
         if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
         if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
+        
+        let detailsHTML = '';
+        if (tx.handsetModel) {
+            detailsHTML += `<div style="font-size: 0.8rem; color: var(--accent-color); font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">📱 Model: ${tx.handsetModel}</div>`;
+        }
+        if (tx.notes) {
+            detailsHTML += `<div style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; margin-top: 2px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${tx.notes}">💬 ${tx.notes}</div>`;
+        }
         let agentBadge = ` &bull; <span style="color: var(--text-primary); font-weight: 600;">By ${(tx.agentName || 'Unknown').split(' ')[0]}</span>`;
 
         let actionBtns = `
@@ -151,31 +163,69 @@ export async function renderPersonalReport() {
                 </div>
             `;
 
-        let isOutflow = tx.type === 'adjustment' || tx.type === 'transfer_out';
+        let isOutflow = (tx.type === 'adjustment' && (tx.cashAmt !== undefined ? tx.cashAmt < 0 : true)) || tx.type === 'transfer_out';
         let dotColor = '#10b981'; // Default Green (ERS)
-        if (tx.type === 'adjustment') dotColor = '#ef4444'; // Red
-        else if (tx.type === 'transfer_out' || tx.type === 'transfer_in') dotColor = '#8b5cf6'; // Purple
-        else if (tx.name !== 'ERS Flexiload') dotColor = '#3390ec'; // Blue
+        if (tx.type === 'adjustment') {
+            dotColor = (tx.cashAmt !== undefined ? tx.cashAmt < 0 : true) ? '#ef4444' : '#10b981'; // Red for Outflow, Green for Inflow
+        } else if (tx.type === 'transfer_out' || tx.type === 'transfer_in') {
+            dotColor = '#8b5cf6'; // Purple
+        } else if (tx.name !== 'ERS Flexiload') {
+            dotColor = '#3390ec'; // Blue
+        }
 
         let amtColor = isOutflow ? 'var(--danger-text)' : 'var(--text-primary)';
         let amtPrefix = isOutflow ? '− ' : '';
 
         historyHTML += `
-            <div class="history-item" style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-strong); border: 1px solid var(--hairline); border-radius: 18px; box-shadow: var(--shadow-soft); margin-bottom: 12px; cursor: pointer; transition: transform 0.4s var(--spring-physics), background-color 0.2s ease;" onpointerdown="this.style.transform='scale(0.97)'" onpointerup="this.style.transform='scale(1)'" onpointerleave="this.style.transform='scale(1)'" onclick="const actions = this.querySelector('.tx-actions'); if(actions) { actions.style.display = actions.style.display === 'none' ? 'flex' : 'none'; }">
-                <div style="display: flex; width: 100%; align-items: flex-start; gap: 14px;">
-                    <div style="width: 44px; height: 44px; border-radius: 14px; background: ${dotColor}12; color: ${dotColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${dotColor}25;">
+            <div class="history-item" style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-strong); border: 1px solid var(--border-color); border-radius: 18px; box-shadow: var(--shadow-soft); margin-bottom: 12px; cursor: pointer; transition: transform 0.4s var(--spring-physics), background-color 0.2s ease;" onpointerdown="this.style.transform='scale(0.975)'" onpointerup="this.style.transform='scale(1)'" onpointerleave="this.style.transform='scale(1)'" onclick="const actions = this.querySelector('.tx-actions'); if(actions) { actions.style.display = actions.style.display === 'none' ? 'flex' : 'none'; }">
+                <div style="display: flex; width: 100%; align-items: center; gap: 14px;">
+                    <!-- Left: Tactile Qty Badge -->
+                    <div style="width: 44px; height: 44px; border-radius: 12px; background: ${dotColor}0c; color: ${dotColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${dotColor}18; box-shadow: 0 2px 6px ${dotColor}08;">
                         <span style="font-size: 0.95rem; font-weight: 900;">${tx.qty}x</span>
                     </div>
-                    <div style="flex: 1; min-width: 0; padding-top: 2px;">
-                        <div style="font-size: 1rem; color: var(--text-primary); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 4px;">
+                    
+                    <!-- Middle: Title and Responsive Metadata Grid -->
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 1rem; color: var(--text-primary); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 2px;">
                             ${tx.name}
                         </div>
-                        <div style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5; font-weight: 600;">
-                            <span style="font-family: monospace; color: var(--text-primary); opacity: 0.8; font-weight: 700;">${tx.receiptNo || tx.id}</span> &bull; ${tx.time} &bull; ${payLabel}${agentBadge} ${badges}
+                        ${detailsHTML}
+                        
+                        <!-- Row 1: Receipt + Time (guaranteed single row) -->
+                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1;">
+                            <!-- Receipt No -->
+                            <div style="display: flex; align-items: center; background: rgba(0,0,0,0.02); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-primary); font-weight: 700; font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" title="${tx.receiptNo || tx.id}">
+                                ${tx.receiptNo || tx.id}
+                            </div>
+                            <!-- Time -->
+                            <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                <span style="margin-top: 1px;">${tx.time}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Row 2: Payment + Agent + Badges -->
+                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1; flex-wrap: wrap;">
+                            <!-- Payment Mode -->
+                            <div style="display: flex; align-items: center; gap: 4px; color: ${tx.payment === 'MFS' ? '#10b981' : 'var(--text-secondary)'}; flex-shrink: 0;">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+                                <span style="margin-top: 1px;">${payLabel}</span>
+                            </div>
+                            
+                            <!-- Agent Name -->
+                            <div style="display: flex; align-items: center; gap: 4px; color: var(--text-primary); font-weight: 700; flex-shrink: 0;">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                <span style="margin-top: 1px;">${(tx.agentName || 'Unknown').split(' ')[0]}</span>
+                            </div>
+                            
+                            ${badges}
                         </div>
                     </div>
-                    <div style="font-size: 1.15rem; font-weight: 900; color: ${amtColor}; flex-shrink: 0; text-align: right; padding-top: 2px;">
-                        ${amtPrefix}${Math.abs(tx.amount || 0)} <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary);">Tk</span>
+                    
+                    <!-- Right: Amount display with perfect visual hierarchy -->
+                    <div style="font-size: 1.25rem; font-weight: 900; color: ${amtColor}; flex-shrink: 0; text-align: right; font-family: monospace; display: flex; align-items: baseline; gap: 2px;">
+                        <span>${amtPrefix}${Math.abs(tx.amount || 0)}</span>
+                        <span style="font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); font-family: inherit;">Tk</span>
                     </div>
                 </div>
                 ${actionBtns}
@@ -184,24 +234,57 @@ export async function renderPersonalReport() {
     });
 
     let expectedCenterCash = floorOpeningCash + myCash + floorManagerDrops;
-    document.getElementById('report-user-name').innerText = "Center Report";
-    document.getElementById('report-user-email').innerHTML = `
-        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px;">
-            <div style="background: var(--bg-color); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 8px; display: flex; align-items: center; gap: 4px;">
-                <span style="font-size: 0.7rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Opn:</span>
-                <span id="center-tot-opening" style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">${floorOpeningCash}</span>
+    
+    const cardContainer = document.getElementById('report-profile-card-container');
+    if (cardContainer) {
+        cardContainer.innerHTML = `
+            <div style="background: linear-gradient(135deg, var(--surface-strong), var(--surface-soft)); border: 1px solid var(--border-color); border-radius: 20px; padding: 22px 24px; box-shadow: var(--shadow-soft); display: flex; flex-direction: column; gap: 16px;">
+                <!-- 1. Header Section -->
+                <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 42px; height: 42px; border-radius: 12px; background: rgba(99, 102, 241, 0.08); color: #6366f1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+                        </div>
+                        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 900; color: var(--text-primary); letter-spacing: -0.2px;">Center Report</h3>
+                    </div>
+                    <button onclick="downloadReportAsPDF('tab-report', 'Center_Report')" style="background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 12px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; color: #ef4444; cursor: pointer; transition: all 0.2s ease;" title="Download PDF">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                    </button>
+                </div>
+
+                <!-- 2. Ledger Statement List -->
+                <div style="display: flex; flex-direction: column; gap: 14px; border-top: 1px dashed var(--border-color); padding-top: 18px;">
+                    <!-- Opening Cash -->
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.88rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px;">Opening Cash</span>
+                        <span style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary); font-family: monospace;">${fmt(floorOpeningCash)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); font-family: inherit;">Tk</span></span>
+                    </div>
+                    
+                    <!-- Cash Sales -->
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.88rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px;">Cash Sales</span>
+                        <span style="font-size: 1.05rem; font-weight: 800; color: #10b981; font-family: monospace;">+${fmt(myCash)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); font-family: inherit;">Tk</span></span>
+                    </div>
+                    
+                    <!-- +/- Cash Actions -->
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.88rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px;">+/- Cash Actions</span>
+                        <span style="font-size: 1.05rem; font-weight: 800; color: ${floorManagerDrops >= 0 ? '#10b981' : '#ef4444'}; font-family: monospace;">
+                            ${floorManagerDrops >= 0 ? '+' : ''}${fmt(floorManagerDrops)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); font-family: inherit;">Tk</span>
+                        </span>
+                    </div>
+
+                    <div style="border-top: 1px solid var(--border-color); margin: 6px 0;"></div>
+
+                    <!-- Expected Cash Highlight Box -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(245, 158, 11, 0.05); border-left: 4px solid #f59e0b; border-radius: 10px;">
+                        <span style="font-weight: 900; color: #f59e0b; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.8px;">Expected Cash</span>
+                        <span style="font-weight: 950; color: #f59e0b; font-size: 1.4rem; font-family: monospace;">${fmt(expectedCenterCash)} <span style="font-size: 0.9rem; font-weight: 800; font-family: inherit;">Tk</span></span>
+                    </div>
+                </div>
             </div>
-            <div style="background: var(--bg-color); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 8px; display: flex; align-items: center; gap: 4px;">
-                <span style="font-size: 0.7rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Drp:</span>
-                <span id="center-tot-drops" style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">${floorManagerDrops}</span>
-            </div>
-            <div style="background: var(--info-bg); border: 1px solid var(--info-border); padding: 4px 8px; border-radius: 8px; display: flex; align-items: center; gap: 4px;">
-                <span style="font-size: 0.7rem; font-weight: 800; color: var(--info-text); text-transform: uppercase;">Exp:</span>
-                <span id="center-tot-expected" style="font-size: 0.85rem; font-weight: 800; color: var(--info-text);">${expectedCenterCash}</span>
-            </div>
-        </div>
-    `;
-    document.getElementById('report-user-photo').src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666666'%3E%3Cpath d='M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z'/%3E%3C/svg%3E";
+        `;
+    }
 
     if(document.getElementById('report-total-all')) document.getElementById('report-total-all').innerText = (myCash + myMfs) + ' ' + userCurrency;
     if(document.getElementById('tot-cash-sales')) {
@@ -216,6 +299,8 @@ export async function renderPersonalReport() {
         document.getElementById('tot-ers').innerText = myErsTotal + ' ' + userCurrency;
         document.getElementById('tot-ers').style.color = '#f59e0b';
     }
+
+
 
     let invHTML = '';
     let sortedPersonalItems = Object.entries(myItemsSold).sort((a, b) => {
@@ -297,15 +382,18 @@ export async function renderPersonalReport() {
             document.getElementById('floor-stock-list').innerHTML = liveStockHTML;
         }
     
-    document.getElementById('history-log').innerHTML = historyHTML || `
-        <div class="empty-state">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
-            </svg>
-            <p>No transactions found</p>
-        </div>`;
+    const historyLogEl = document.getElementById('history-log');
+    if (historyLogEl) {
+        historyLogEl.innerHTML = historyHTML || `
+            <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+                </svg>
+                <p>No transactions found</p>
+            </div>`;
+    }
 }
 
 export function buildLifecycleText(txList, openingInv) {
@@ -465,7 +553,7 @@ async function executeDownloadReportAsPDF(mode, prefix) {
 
     // 1. Gather Context Data
     let dateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
-    let rawTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    let rawTime = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     let fileTimeStr = rawTime.replace(/ /g, '').replace(/:/g, '-'); 
     
     let deskName = "Center Ledger";
@@ -570,7 +658,7 @@ async function executeDownloadReportAsPDF(mode, prefix) {
                     <div style="background-color: #f8fafc; padding: 10px 16px; font-weight: bold; color: #334155; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-transform: uppercase;">Cash Reconciliation</div>
                     <div style="padding: 16px; font-size: 14px;">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                            <span style="color: #64748b;">Opening Float:</span>
+                            <span style="color: #64748b;">Opening Cash:</span>
                             <strong>${opening} Tk</strong>
                         </div>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
@@ -756,6 +844,13 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
         }
     }
 
+    // Expected Cash Drawer Gauge Calculation
+    let totalAdded = sales + adjustments;
+    let pct = expected > 0 ? Math.min(100, Math.max(0, (totalAdded / Math.max(1, opening)) * 100)) : 0;
+    let barColor = totalAdded >= 0 ? '#10b981' : '#ef4444';
+
+
+
     return `
         <div class="admin-form-card" style="padding: 0; margin-bottom: 16px; background: var(--surface-strong); border: 1px solid var(--hairline); box-shadow: var(--shadow-card); overflow: hidden; border-radius: var(--radius-card);">
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--hairline);">
@@ -778,13 +873,20 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
                     ${adjBreakdownHTML || '<div style="font-size: 0.85rem; color: var(--text-secondary); text-align: right; font-style: italic;">No actions recorded</div>'}
                 </div>
             </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: linear-gradient(135deg, rgba(124, 58, 237, 0.05), rgba(124, 58, 237, 0.12));">
-                <span style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Expected Cash</span>
-                <span id="desk-tot-expected-cash" style="font-size: 1.55rem; font-weight: 900; color: var(--accent-color); letter-spacing: -0.5px;">${fmt(expected)} <span style="font-size: 1rem; font-weight: 700;">Tk</span></span>
+            <div style="display: flex; flex-direction: column; padding: 14px 18px; background: linear-gradient(135deg, rgba(124, 58, 237, 0.05), rgba(124, 58, 237, 0.12));">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Expected Cash</span>
+                    <span id="desk-tot-expected-cash" style="font-size: 1.55rem; font-weight: 900; color: var(--accent-color); letter-spacing: -0.5px;">${fmt(expected)} <span style="font-size: 1rem; font-weight: 700;">Tk</span></span>
+                </div>
+                <div style="width: 100%; height: 6px; background: var(--border-color); border-radius: 99px; overflow: hidden; margin-top: 10px;">
+                    <div style="width: ${pct}%; height: 100%; background: ${barColor}; border-radius: 99px; transition: width 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);"></div>
+                </div>
             </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; border: none !important; box-shadow: none !important; background: transparent !important;">
             <div style="background: var(--surface-strong); border: 1px solid var(--hairline); box-shadow: var(--shadow-soft); padding: 16px; border-radius: var(--radius-card); text-align: left;">
                 <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Total MFS</div>
                 <div style="font-size: 1.35rem; font-weight: 900; color: var(--text-primary);">${fmt(mfsTotal)} <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 700;">Tk</span></div>
@@ -918,7 +1020,7 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
         
         if (filterVal === 'all') showTx = true;
         else if (filterVal === 'ers' && tx.name === 'ERS Flexiload') showTx = true;
-        else if (filterVal === 'cash_ops' && tx.type === 'adjustment' && tx.name === 'Physical Cash') showTx = true;
+        else if (filterVal === 'cash_actions' && tx.type === 'adjustment' && tx.name === 'Physical Cash') showTx = true;
         else if (filterVal === 'transfers' && (tx.type === 'transfer_in' || tx.type === 'transfer_out')) showTx = true;
         else if (filterVal === txCat) showTx = true;
         
@@ -928,6 +1030,14 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
         let badges = '';
         if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
         if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
+
+        let detailsHTML = '';
+        if (tx.handsetModel) {
+            detailsHTML += `<div style="font-size: 0.8rem; color: var(--accent-color); font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">📱 Model: ${tx.handsetModel}</div>`;
+        }
+        if (tx.notes) {
+            detailsHTML += `<div style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; margin-top: 2px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${tx.notes}">💬 ${tx.notes}</div>`;
+        }
         
         let actionBtns = '';
         if (targetDeskId === AppState.currentDeskId || AppState.currentUserRole === 'admin' || AppState.currentUserRole === 'manager') {
@@ -944,31 +1054,69 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
         }
 
         // --- NEW LEDGER ITEM UI (Safely inside the loop!) ---
-        let isOutflow = tx.type === 'adjustment' || tx.type === 'transfer_out';
+        let isOutflow = (tx.type === 'adjustment' && (tx.cashAmt !== undefined ? tx.cashAmt < 0 : true)) || tx.type === 'transfer_out';
         let dotColor = '#10b981'; // Default Green (ERS)
-        if (tx.type === 'adjustment') dotColor = '#ef4444'; // Red
-        else if (tx.type === 'transfer_out' || tx.type === 'transfer_in') dotColor = '#8b5cf6'; // Purple
-        else if (tx.name !== 'ERS Flexiload') dotColor = '#3390ec'; // Blue
+        if (tx.type === 'adjustment') {
+            dotColor = (tx.cashAmt !== undefined ? tx.cashAmt < 0 : true) ? '#ef4444' : '#10b981'; // Red for Outflow, Green for Inflow
+        } else if (tx.type === 'transfer_out' || tx.type === 'transfer_in') {
+            dotColor = '#8b5cf6'; // Purple
+        } else if (tx.name !== 'ERS Flexiload') {
+            dotColor = '#3390ec'; // Blue
+        }
 
         let amtColor = isOutflow ? 'var(--danger-text)' : 'var(--text-primary)';
         let amtPrefix = isOutflow ? '− ' : '';
 
         historyHTML += `
-            <div class="history-item" style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-strong); border: 1px solid var(--hairline); border-radius: 18px; box-shadow: var(--shadow-soft); margin-bottom: 12px; cursor: pointer; transition: transform 0.4s var(--spring-physics), background-color 0.2s ease;" onpointerdown="this.style.transform='scale(0.97)'" onpointerup="this.style.transform='scale(1)'" onpointerleave="this.style.transform='scale(1)'" onclick="const actions = this.querySelector('.tx-actions'); if(actions) { actions.style.display = actions.style.display === 'none' ? 'flex' : 'none'; }">
-                <div style="display: flex; width: 100%; align-items: flex-start; gap: 14px;">
-                    <div style="width: 44px; height: 44px; border-radius: 14px; background: ${dotColor}12; color: ${dotColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${dotColor}25;">
+            <div class="history-item" style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-strong); border: 1px solid var(--border-color); border-radius: 18px; box-shadow: var(--shadow-soft); margin-bottom: 12px; cursor: pointer; transition: transform 0.4s var(--spring-physics), background-color 0.2s ease;" onpointerdown="this.style.transform='scale(0.975)'" onpointerup="this.style.transform='scale(1)'" onpointerleave="this.style.transform='scale(1)'" onclick="const actions = this.querySelector('.tx-actions'); if(actions) { actions.style.display = actions.style.display === 'none' ? 'flex' : 'none'; }">
+                <div style="display: flex; width: 100%; align-items: center; gap: 14px;">
+                    <!-- Left: Tactile Qty Badge -->
+                    <div style="width: 44px; height: 44px; border-radius: 12px; background: ${dotColor}0c; color: ${dotColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${dotColor}18; box-shadow: 0 2px 6px ${dotColor}08;">
                         <span style="font-size: 0.95rem; font-weight: 900;">${tx.qty}x</span>
                     </div>
-                    <div style="flex: 1; min-width: 0; padding-top: 2px;">
-                        <div style="font-size: 1rem; color: var(--text-primary); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 4px;">
+                    
+                    <!-- Middle: Title and Responsive Metadata Grid -->
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 1rem; color: var(--text-primary); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 2px;">
                             ${tx.name}
                         </div>
-                        <div style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5; font-weight: 600;">
-                            <span style="font-family: monospace; color: var(--text-primary); opacity: 0.8; font-weight: 700;">${tx.receiptNo || tx.id}</span> &bull; ${tx.time} &bull; ${payLabel} &bull; <span style="color: var(--text-primary); font-weight: 600;">By ${(tx.agentName || 'Unknown').split(' ')[0]}</span> ${badges}
+                        ${detailsHTML}
+                        
+                        <!-- Row 1: Receipt + Time (guaranteed single row) -->
+                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1;">
+                            <!-- Receipt No -->
+                            <div style="display: flex; align-items: center; background: rgba(0,0,0,0.02); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-primary); font-weight: 700; font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" title="${tx.receiptNo || tx.id}">
+                                ${tx.receiptNo || tx.id}
+                            </div>
+                            <!-- Time -->
+                            <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                <span style="margin-top: 1px;">${tx.time}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Row 2: Payment + Agent + Badges -->
+                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1; flex-wrap: wrap;">
+                            <!-- Payment Mode -->
+                            <div style="display: flex; align-items: center; gap: 4px; color: ${tx.payment === 'MFS' ? '#10b981' : 'var(--text-secondary)'}; flex-shrink: 0;">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+                                <span style="margin-top: 1px;">${payLabel}</span>
+                            </div>
+                            
+                            <!-- Agent Name -->
+                            <div style="display: flex; align-items: center; gap: 4px; color: var(--text-primary); font-weight: 700; flex-shrink: 0;">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                <span style="margin-top: 1px;">${(tx.agentName || 'Unknown').split(' ')[0]}</span>
+                            </div>
+                            
+                            ${badges}
                         </div>
                     </div>
-                    <div style="font-size: 1.15rem; font-weight: 900; color: ${amtColor}; flex-shrink: 0; text-align: right; padding-top: 2px;">
-                        ${amtPrefix}${Math.abs(tx.amount || 0)} <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary);">Tk</span>
+                    
+                    <!-- Right: Amount display with perfect visual hierarchy -->
+                    <div style="font-size: 1.25rem; font-weight: 900; color: ${amtColor}; flex-shrink: 0; text-align: right; font-family: monospace; display: flex; align-items: baseline; gap: 2px;">
+                        <span>${amtPrefix}${Math.abs(tx.amount || 0)}</span>
+                        <span style="font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); font-family: inherit;">Tk</span>
                     </div>
                 </div>
                 ${actionBtns}
@@ -1152,33 +1300,78 @@ export async function openHistoricalSession(sessionId) {
                 }
             }
 
-            let isOutflow = tx.type === 'adjustment' || tx.type === 'transfer_out';
+            let isOutflow = (tx.type === 'adjustment' && (tx.cashAmt !== undefined ? tx.cashAmt < 0 : true)) || tx.type === 'transfer_out';
             let dotColor = '#10b981';
-            if (tx.type === 'adjustment') dotColor = '#ef4444';
-            else if (tx.type === 'transfer_out' || tx.type === 'transfer_in') dotColor = '#8b5cf6';
-            else if (tx.name !== 'ERS Flexiload') dotColor = '#3390ec';
+            if (tx.type === 'adjustment') {
+                dotColor = (tx.cashAmt !== undefined ? tx.cashAmt < 0 : true) ? '#ef4444' : '#10b981'; // Red for Outflow, Green for Inflow
+            } else if (tx.type === 'transfer_out' || tx.type === 'transfer_in') {
+                dotColor = '#8b5cf6'; // Purple
+            } else if (tx.name !== 'ERS Flexiload') {
+                dotColor = '#3390ec'; // Blue
+            }
 
             let amtColor = isOutflow ? 'var(--danger-text)' : 'var(--text-primary)';
             let amtPrefix = isOutflow ? '− ' : '';
             let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
             let badges = tx.isEdited ? `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Edited</span>` : '';
 
+            let detailsHTML = '';
+            if (tx.handsetModel) {
+                detailsHTML += `<div style="font-size: 0.8rem; color: var(--accent-color); font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">📱 Model: ${tx.handsetModel}</div>`;
+            }
+            if (tx.notes) {
+                detailsHTML += `<div style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; margin-top: 2px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${tx.notes}">💬 ${tx.notes}</div>`;
+            }
+
             historyHTML += `
-                <div style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; margin-bottom: 12px;">
-                    <div style="display: flex; width: 100%; align-items: flex-start; gap: 14px;">
-                        <div style="width: 44px; height: 44px; border-radius: 12px; background: ${dotColor}15; color: ${dotColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${dotColor}30;">
-                            <span style="font-size: 0.95rem; font-weight: 800;">${tx.qty}x</span>
+                <div class="history-item" style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-strong); border: 1px solid var(--border-color); border-radius: 18px; box-shadow: var(--shadow-soft); margin-bottom: 12px;">
+                    <div style="display: flex; width: 100%; align-items: center; gap: 14px;">
+                        <!-- Left: Colour-coded Qty Badge -->
+                        <div style="width: 44px; height: 44px; border-radius: 12px; background: ${dotColor}0c; color: ${dotColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${dotColor}18; box-shadow: 0 2px 6px ${dotColor}08;">
+                            <span style="font-size: 0.95rem; font-weight: 900;">${tx.qty}x</span>
                         </div>
-                        <div style="flex: 1; min-width: 0; padding-top: 2px;">
-                            <div style="font-size: 1rem; color: var(--text-primary); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 6px;">
+
+                        <!-- Middle: Name + Metadata chips -->
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-size: 1rem; color: var(--text-primary); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 2px;">
                                 ${tx.name}
                             </div>
-                            <div style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5; margin-top: 4px;">
-                                ${tx.time} &bull; ${payLabel} &bull; <span style="color: var(--text-primary); font-weight: 600;">By ${tx.agentName?.split(' ')[0] || 'Unknown'}</span> ${badges}
+                            ${detailsHTML}
+                            <!-- Row 1: Receipt + Time (guaranteed single row) -->
+                            <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1;">
+                                <!-- Receipt No -->
+                                <div style="display: flex; align-items: center; background: rgba(0,0,0,0.02); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-primary); font-weight: 700; font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" title="${tx.receiptNo || tx.id}">
+                                    ${tx.receiptNo || tx.id}
+                                </div>
+                                <!-- Time -->
+                                <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                    <span style="margin-top: 1px;">${tx.time}</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Row 2: Payment + Agent + Badges -->
+                            <div style="display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1; flex-wrap: wrap;">
+                                <!-- Payment Mode -->
+                                <div style="display: flex; align-items: center; gap: 4px; color: ${tx.payment === 'MFS' ? '#10b981' : 'var(--text-secondary)'}; flex-shrink: 0;">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+                                    <span style="margin-top: 1px;">${payLabel}</span>
+                                </div>
+                                
+                                <!-- Agent Name -->
+                                <div style="display: flex; align-items: center; gap: 4px; color: var(--text-primary); font-weight: 700; flex-shrink: 0;">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                    <span style="margin-top: 1px;">${(tx.agentName || 'Unknown').split(' ')[0]}</span>
+                                </div>
+                                
+                                ${badges}
                             </div>
                         </div>
-                        <div style="font-size: 1.1rem; font-weight: 800; color: ${amtColor}; flex-shrink: 0; text-align: right; padding-top: 2px;">
-                            ${amtPrefix}${Math.abs(tx.amount || 0)}
+
+                        <!-- Right: Amount -->
+                        <div style="font-size: 1.25rem; font-weight: 900; color: ${amtColor}; flex-shrink: 0; text-align: right; font-family: monospace; display: flex; align-items: baseline; gap: 2px;">
+                            <span>${amtPrefix}${Math.abs(tx.amount || 0)}</span>
+                            <span style="font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); font-family: inherit;">Tk</span>
                         </div>
                     </div>
                 </div>

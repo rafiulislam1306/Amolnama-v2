@@ -222,9 +222,14 @@ export async function openNicknameManager() {
                 </div>
             `;
         });
-        container.innerHTML = html || '<p>No users found in database.</p>';
+        container.innerHTML = html || `
+            <div class="empty-state" style="padding: 24px 12px; opacity: 0.8;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 44px; height: 44px; margin-bottom: 8px; color: var(--text-secondary);"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                <p style="font-size: 0.95rem; font-weight: 700; color: var(--text-secondary);">No staff or users registered yet</p>
+            </div>
+        `;
     } catch(e) {
-        container.innerHTML = '<p style="color: #ef4444;">Error loading users.</p>';
+        container.innerHTML = '<p style="color: #ef4444; font-size: 0.9rem; font-weight: 600; text-align: center; padding: 20px;">Error loading users.</p>';
     }
 }
 
@@ -236,7 +241,8 @@ export async function saveAdminNickname(uid, inputId) {
         
         if (uid === AppState.currentUser.uid) {
             AppState.userNickname = newNick;
-            document.getElementById('report-user-name').innerText = AppState.userNickname || AppState.userDisplayName;
+            const rName = document.getElementById('report-user-name');
+            if (rName) rName.innerText = AppState.userNickname || AppState.userDisplayName;
             if(!AppState.currentDeskId && document.getElementById('tab-ers').classList.contains('active')) {
                 document.getElementById('header-title').innerText = AppState.userNickname || AppState.userDisplayName;
             }
@@ -279,8 +285,13 @@ export async function renderUserManagementAdmin() {
                 `;
             }
         });
-        container.innerHTML = activeCount > 0 ? html : '<p style="font-size: 0.85rem; color: #b45309; margin: 0;">No agents currently locked to a desk.</p>';
-    } catch (e) { container.innerHTML = '<p style="color: #ef4444; font-size: 0.85rem;">Offline: Cannot fetch users.</p>'; }
+        container.innerHTML = activeCount > 0 ? html : `
+            <div class="empty-state" style="padding: 24px 12px; opacity: 0.8;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 44px; height: 44px; margin-bottom: 8px; color: var(--text-secondary);"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                <p style="font-size: 0.95rem; font-weight: 700; color: var(--text-secondary);">No agents currently locked to a desk</p>
+            </div>
+        `;
+    } catch (e) { container.innerHTML = '<p style="color: #ef4444; font-size: 0.85rem; font-weight: 600; text-align: center; padding: 20px;">Offline: Cannot fetch active floor locks.</p>'; }
 }
 
 export function kickAgent(uid) {
@@ -386,7 +397,15 @@ export async function fetchAuditLogs() {
 
     try {
         const snap = await getDocs(query(collection(db, 'sessions'), where('dateStr', '==', targetDateStr)));
-        if(snap.empty) { container.innerHTML = '<p class="placeholder-text">No closed sessions found for this date.</p>'; return; }
+        if(snap.empty) { 
+            container.innerHTML = `
+                <div class="empty-state" style="padding: 40px 20px; opacity: 0.8;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 48px; height: 48px; margin-bottom: 12px; color: var(--text-secondary);"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    <p style="font-size: 0.95rem; font-weight: 700; color: var(--text-secondary);">No closed sessions on this date</p>
+                </div>
+            `; 
+            return; 
+        }
 
         let html = '';
         snap.forEach(docSnap => {
@@ -483,7 +502,7 @@ export async function executeForceTransfer() {
     let fromName = fromSelect.options[fromSelect.selectedIndex].text;
     let toName = toSelect.options[toSelect.selectedIndex].text;
 
-    let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    let timeStr = new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
     let dateStr = getStrictDate();
     let receiptStr = "ADMIN-" + generateReceiptNo();
 

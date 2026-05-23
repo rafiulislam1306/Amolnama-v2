@@ -9,6 +9,38 @@ import { passStockFirewall, getPhysicalItems } from './inventory.js';
 export function openManagerCashModal() {
     if(!AppState.currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
     document.getElementById('mgr-cash-amount').value = '';
+    
+    const notesInput = document.getElementById('mgr-cash-notes');
+    if (notesInput) notesInput.value = '';
+    
+    const handsetModelInput = document.getElementById('mgr-cash-handset-model');
+    if (handsetModelInput) handsetModelInput.value = '';
+    
+    const handsetWrapper = document.getElementById('handset-model-wrapper');
+    if (handsetWrapper) handsetWrapper.style.display = 'none';
+    
+    const notesWrapper = document.getElementById('mgr-cash-notes-wrapper');
+    if (notesWrapper) notesWrapper.style.display = 'block';
+    
+    const actionSelect = document.getElementById('mgr-cash-action');
+    if (actionSelect) {
+        actionSelect.value = 'drop_manager';
+        // Attach change listener if not already done
+        if (!actionSelect.dataset.listenerBound) {
+            actionSelect.addEventListener('change', (e) => {
+                const wrapper = document.getElementById('handset-model-wrapper');
+                const nWrapper = document.getElementById('mgr-cash-notes-wrapper');
+                if (wrapper) {
+                    wrapper.style.display = e.target.value === 'handset_cash' ? 'block' : 'none';
+                }
+                if (nWrapper) {
+                    nWrapper.style.display = e.target.value === 'handset_cash' ? 'none' : 'block';
+                }
+            });
+            actionSelect.dataset.listenerBound = 'true';
+        }
+    }
+    
     openModal('modal-manager-cash');
     setTimeout(() => {
         const amtInput = document.getElementById('mgr-cash-amount');
@@ -32,13 +64,26 @@ export async function saveManagerCash() {
     else if (action === 'handset_cash') { txName = 'Handset Cash'; paymentLabel = 'Cash In (Holding)'; }
     else if (action === 'receive_float') { txName = 'Manager Float'; paymentLabel = 'Cash In (Float)'; }
 
+    let notes = '';
+    if (action !== 'handset_cash') {
+        notes = document.getElementById('mgr-cash-notes') ? document.getElementById('mgr-cash-notes').value.trim() : '';
+    }
+    let handsetModel = '';
+    if (action === 'handset_cash') {
+        const modelInput = document.getElementById('mgr-cash-handset-model');
+        if (modelInput) handsetModel = modelInput.value.trim();
+    }
+
     const tx = {
         id: Date.now(), receiptNo: generateReceiptNo(), type: 'adjustment', name: txName, trackAs: 'Physical Cash', amount: amount, qty: 1,
         payment: paymentLabel, cashAmt: finalValue, mfsAmt: 0, isDeleted: false,
-        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        time: new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'}),
         dateStr: getStrictDate(), deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName,
         timestamp: serverTimestamp()
     };
+
+    if (notes) tx.notes = notes;
+    if (handsetModel) tx.handsetModel = handsetModel;
 
     try {
         await addDoc(collection(db, 'transactions'), tx);
@@ -74,7 +119,7 @@ export async function saveMainStock() {
     const tx = {
         id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty,
         payment: 'Received from Main Stock', cashAmt: 0, mfsAmt: 0, isDeleted: false,
-        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        time: new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'}),
         dateStr: getStrictDate(), deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName,
         timestamp: serverTimestamp()
     };
@@ -115,7 +160,7 @@ export async function saveReturnStock() {
     const tx = {
         id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty,
         payment: 'Returned to Main Stock', cashAmt: 0, mfsAmt: 0, isDeleted: false,
-        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        time: new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'}),
         dateStr: getStrictDate(), deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName,
         timestamp: serverTimestamp()
     };
@@ -189,7 +234,7 @@ export async function executeDeskTransfer() {
     
     let targetDeskName = targetSelect.options[targetSelect.selectedIndex].text;
     let [targetDeskId, targetSessionId] = targetVal.split('|');
-    let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    let timeStr = new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
     let dateStr = getStrictDate();
 
     let directionEl = document.querySelector('input[name="transfer-direction"]:checked');
@@ -275,7 +320,7 @@ export function executeTransfer() {
     let qty = parseInt(document.getElementById('transfer-qty').value) || 0;
     if (qty <= 0) { showAppAlert("Invalid Input", "Enter valid quantity."); return; }
     let itemName = document.getElementById('transfer-item-select').value;
-    let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    let timeStr = new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
     let dateStr = getStrictDate();
 
     let senderName = AppState.currentDeskName || "Admin";
