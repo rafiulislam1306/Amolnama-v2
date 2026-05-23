@@ -128,7 +128,8 @@ export function initNetworkStatus() {
 //   NATIVE BOTTOM SHEET DRAG PHYSICS
 // ==========================================
 export function setupBottomSheetDrag() {
-    document.querySelectorAll('.bottom-sheet').forEach(sheet => {
+    document.querySelectorAll('.bottom-sheet, .modal-content').forEach(sheet => {
+        if (sheet.closest('#modal-app-alert')) return; // Skip alert popups
         let startY = 0;
         let currentY = 0;
         let isDragging = false;

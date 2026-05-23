@@ -108,7 +108,10 @@ function switchTab(tabId, title) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     
     const targetTab = document.getElementById('tab-' + tabId);
-    if (targetTab) targetTab.classList.add('active');
+    if (targetTab) {
+        targetTab.classList.add('active');
+        targetTab.scrollTop = 0; // Always open at the top
+    }
     
     document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
     const navBtns = document.querySelectorAll('.nav-item');
@@ -153,16 +156,78 @@ function applyDeskFilter(pill, value) {
     // Update the hidden value store
     const hidden = document.getElementById('desk-history-filter');
     if (hidden) hidden.value = value;
-    // Swap active state on pills
-    document.querySelectorAll('.desk-filter-pill').forEach(p => p.classList.toggle('active', p === pill));
+    // Swap active state on pills inside its own container
+    pill.parentNode.querySelectorAll('.desk-filter-pill').forEach(p => p.classList.toggle('active', p === pill));
     // Re-render
     if (typeof window.renderDeskDashboard === 'function') window.renderDeskDashboard();
 }
 window.applyDeskFilter = applyDeskFilter;
 
+function applyPersonalFilter(pill, value) {
+    // Update the hidden value store
+    const hidden = document.getElementById('personal-history-filter');
+    if (hidden) hidden.value = value;
+    // Swap active state on pills inside its own container
+    pill.parentNode.querySelectorAll('.desk-filter-pill').forEach(p => p.classList.toggle('active', p === pill));
+    // Re-render
+    if (typeof window.renderPersonalReport === 'function') window.renderPersonalReport();
+}
+window.applyPersonalFilter = applyPersonalFilter;
+
 window.addEventListener('click', (event) => {
     if (event.target.classList.contains('modal-overlay') && !['modal-auth', 'splash-screen', 'modal-desk-select', 'modal-nicknames', 'modal-app-alert', 'modal-close-desk', 'modal-edit-tx'].includes(event.target.id)) {
         closeModal(event.target.id);
+    }
+});
+
+// Global Keyboard Shortcuts for Desktop Power-Users
+document.addEventListener('keydown', (event) => {
+    // 1. ESC key: Close top-most active bottom-sheet modal
+    if (event.key === 'Escape') {
+        const activeModals = Array.from(document.querySelectorAll('.modal-overlay.active'));
+        if (activeModals.length > 0) {
+            const topModal = activeModals[activeModals.length - 1];
+            if (!['splash-screen', 'modal-auth', 'modal-desk-select'].includes(topModal.id)) {
+                if (typeof closeModal === 'function') {
+                    closeModal(topModal.id);
+                } else if (typeof window.closeModal === 'function') {
+                    window.closeModal(topModal.id);
+                } else {
+                    topModal.classList.remove('active');
+                }
+                event.preventDefault();
+            }
+        }
+    }
+    
+    // 2. '/' or 'Ctrl+F' key: Focus global product search (if no inputs are focused)
+    if ((event.key === '/' || (event.ctrlKey && event.key === 'f')) && 
+        !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+        const searchInput = document.getElementById('store-search');
+        if (searchInput) {
+            // Switch to storefront tab if not active
+            const storeTab = document.getElementById('tab-store');
+            if (storeTab && !storeTab.classList.contains('active')) {
+                const storePill = document.querySelector('[onclick*="switchTab"][onclick*="store"]');
+                if (storePill) storePill.click();
+            }
+            searchInput.focus();
+            searchInput.select();
+            event.preventDefault();
+        }
+    }
+    
+    // 3. 'Ctrl+M' key: Toggle Cash vs MFS mode instantly
+    if (event.ctrlKey && event.key.toLowerCase() === 'm') {
+        if (typeof toggleMFS === 'function') {
+            toggleMFS();
+        } else if (typeof window.toggleMFS === 'function') {
+            window.toggleMFS();
+        }
+        if (typeof showFlashMessage === 'function') {
+            showFlashMessage(`Mode: ${AppState.isMfs ? 'MFS (Mobile Financial Services)' : 'Cash'}`);
+        }
+        event.preventDefault();
     }
 });
 

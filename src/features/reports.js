@@ -131,7 +131,7 @@ export async function renderPersonalReport() {
         
         if (filterVal === 'all') showTx = true;
         else if (filterVal === 'ers' && tx.name === 'ERS Flexiload') showTx = true;
-        else if (filterVal === 'cash_ops' && tx.type === 'adjustment') showTx = true;
+        else if (filterVal === 'cash_actions' && tx.type === 'adjustment') showTx = true;
         else if (filterVal === 'transfers' && (tx.type === 'transfer_in' || tx.type === 'transfer_out')) showTx = true;
         else if (filterVal === txCat) showTx = true;
 
@@ -142,6 +142,14 @@ export async function renderPersonalReport() {
         
         if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
         if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
+        
+        let detailsHTML = '';
+        if (tx.handsetModel) {
+            detailsHTML += `<div style="font-size: 0.8rem; color: var(--accent-color); font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">📱 Model: ${tx.handsetModel}</div>`;
+        }
+        if (tx.notes) {
+            detailsHTML += `<div style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; margin-top: 2px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${tx.notes}">💬 ${tx.notes}</div>`;
+        }
         let agentBadge = ` &bull; <span style="color: var(--text-primary); font-weight: 600;">By ${(tx.agentName || 'Unknown').split(' ')[0]}</span>`;
 
         let actionBtns = `
@@ -155,11 +163,15 @@ export async function renderPersonalReport() {
                 </div>
             `;
 
-        let isOutflow = tx.type === 'adjustment' || tx.type === 'transfer_out';
+        let isOutflow = (tx.type === 'adjustment' && (tx.cashAmt !== undefined ? tx.cashAmt < 0 : true)) || tx.type === 'transfer_out';
         let dotColor = '#10b981'; // Default Green (ERS)
-        if (tx.type === 'adjustment') dotColor = '#ef4444'; // Red
-        else if (tx.type === 'transfer_out' || tx.type === 'transfer_in') dotColor = '#8b5cf6'; // Purple
-        else if (tx.name !== 'ERS Flexiload') dotColor = '#3390ec'; // Blue
+        if (tx.type === 'adjustment') {
+            dotColor = (tx.cashAmt !== undefined ? tx.cashAmt < 0 : true) ? '#ef4444' : '#10b981'; // Red for Outflow, Green for Inflow
+        } else if (tx.type === 'transfer_out' || tx.type === 'transfer_in') {
+            dotColor = '#8b5cf6'; // Purple
+        } else if (tx.name !== 'ERS Flexiload') {
+            dotColor = '#3390ec'; // Blue
+        }
 
         let amtColor = isOutflow ? 'var(--danger-text)' : 'var(--text-primary)';
         let amtPrefix = isOutflow ? '− ' : '';
@@ -177,28 +189,31 @@ export async function renderPersonalReport() {
                         <div style="font-size: 1rem; color: var(--text-primary); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 2px;">
                             ${tx.name}
                         </div>
+                        ${detailsHTML}
                         
-                        <!-- Premium Flex Badges for Metadata -->
-                        <div style="display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; margin-top: 6px; line-height: 1;">
+                        <!-- Row 1: Receipt + Time (guaranteed single row) -->
+                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1;">
                             <!-- Receipt No -->
-                            <div style="display: flex; align-items: center; background: rgba(0,0,0,0.02); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-primary); font-weight: 700; font-size: 0.68rem;">
+                            <div style="display: flex; align-items: center; background: rgba(0,0,0,0.02); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-primary); font-weight: 700; font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" title="${tx.receiptNo || tx.id}">
                                 ${tx.receiptNo || tx.id}
                             </div>
-                            
                             <!-- Time -->
-                            <div style="display: flex; align-items: center; gap: 4px;">
+                            <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                                 <span style="margin-top: 1px;">${tx.time}</span>
                             </div>
-                            
+                        </div>
+                        
+                        <!-- Row 2: Payment + Agent + Badges -->
+                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1; flex-wrap: wrap;">
                             <!-- Payment Mode -->
-                            <div style="display: flex; align-items: center; gap: 4px; color: ${tx.payment === 'MFS' ? '#10b981' : 'var(--text-secondary)'};">
+                            <div style="display: flex; align-items: center; gap: 4px; color: ${tx.payment === 'MFS' ? '#10b981' : 'var(--text-secondary)'}; flex-shrink: 0;">
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
                                 <span style="margin-top: 1px;">${payLabel}</span>
                             </div>
                             
                             <!-- Agent Name -->
-                            <div style="display: flex; align-items: center; gap: 4px; color: var(--text-primary); font-weight: 700;">
+                            <div style="display: flex; align-items: center; gap: 4px; color: var(--text-primary); font-weight: 700; flex-shrink: 0;">
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                                 <span style="margin-top: 1px;">${(tx.agentName || 'Unknown').split(' ')[0]}</span>
                             </div>
@@ -367,15 +382,18 @@ export async function renderPersonalReport() {
             document.getElementById('floor-stock-list').innerHTML = liveStockHTML;
         }
     
-    document.getElementById('history-log').innerHTML = historyHTML || `
-        <div class="empty-state">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
-            </svg>
-            <p>No transactions found</p>
-        </div>`;
+    const historyLogEl = document.getElementById('history-log');
+    if (historyLogEl) {
+        historyLogEl.innerHTML = historyHTML || `
+            <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+                </svg>
+                <p>No transactions found</p>
+            </div>`;
+    }
 }
 
 export function buildLifecycleText(txList, openingInv) {
@@ -1002,7 +1020,7 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
         
         if (filterVal === 'all') showTx = true;
         else if (filterVal === 'ers' && tx.name === 'ERS Flexiload') showTx = true;
-        else if (filterVal === 'cash_ops' && tx.type === 'adjustment' && tx.name === 'Physical Cash') showTx = true;
+        else if (filterVal === 'cash_actions' && tx.type === 'adjustment' && tx.name === 'Physical Cash') showTx = true;
         else if (filterVal === 'transfers' && (tx.type === 'transfer_in' || tx.type === 'transfer_out')) showTx = true;
         else if (filterVal === txCat) showTx = true;
         
@@ -1012,6 +1030,14 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
         let badges = '';
         if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
         if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
+
+        let detailsHTML = '';
+        if (tx.handsetModel) {
+            detailsHTML += `<div style="font-size: 0.8rem; color: var(--accent-color); font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">📱 Model: ${tx.handsetModel}</div>`;
+        }
+        if (tx.notes) {
+            detailsHTML += `<div style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; margin-top: 2px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${tx.notes}">💬 ${tx.notes}</div>`;
+        }
         
         let actionBtns = '';
         if (targetDeskId === AppState.currentDeskId || AppState.currentUserRole === 'admin' || AppState.currentUserRole === 'manager') {
@@ -1028,11 +1054,15 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
         }
 
         // --- NEW LEDGER ITEM UI (Safely inside the loop!) ---
-        let isOutflow = tx.type === 'adjustment' || tx.type === 'transfer_out';
+        let isOutflow = (tx.type === 'adjustment' && (tx.cashAmt !== undefined ? tx.cashAmt < 0 : true)) || tx.type === 'transfer_out';
         let dotColor = '#10b981'; // Default Green (ERS)
-        if (tx.type === 'adjustment') dotColor = '#ef4444'; // Red
-        else if (tx.type === 'transfer_out' || tx.type === 'transfer_in') dotColor = '#8b5cf6'; // Purple
-        else if (tx.name !== 'ERS Flexiload') dotColor = '#3390ec'; // Blue
+        if (tx.type === 'adjustment') {
+            dotColor = (tx.cashAmt !== undefined ? tx.cashAmt < 0 : true) ? '#ef4444' : '#10b981'; // Red for Outflow, Green for Inflow
+        } else if (tx.type === 'transfer_out' || tx.type === 'transfer_in') {
+            dotColor = '#8b5cf6'; // Purple
+        } else if (tx.name !== 'ERS Flexiload') {
+            dotColor = '#3390ec'; // Blue
+        }
 
         let amtColor = isOutflow ? 'var(--danger-text)' : 'var(--text-primary)';
         let amtPrefix = isOutflow ? '− ' : '';
@@ -1050,28 +1080,31 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
                         <div style="font-size: 1rem; color: var(--text-primary); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 2px;">
                             ${tx.name}
                         </div>
+                        ${detailsHTML}
                         
-                        <!-- Premium Flex Badges for Metadata -->
-                        <div style="display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; margin-top: 6px; line-height: 1;">
+                        <!-- Row 1: Receipt + Time (guaranteed single row) -->
+                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1;">
                             <!-- Receipt No -->
-                            <div style="display: flex; align-items: center; background: rgba(0,0,0,0.02); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-primary); font-weight: 700; font-size: 0.68rem;">
+                            <div style="display: flex; align-items: center; background: rgba(0,0,0,0.02); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-primary); font-weight: 700; font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" title="${tx.receiptNo || tx.id}">
                                 ${tx.receiptNo || tx.id}
                             </div>
-                            
                             <!-- Time -->
-                            <div style="display: flex; align-items: center; gap: 4px;">
+                            <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                                 <span style="margin-top: 1px;">${tx.time}</span>
                             </div>
-                            
+                        </div>
+                        
+                        <!-- Row 2: Payment + Agent + Badges -->
+                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1; flex-wrap: wrap;">
                             <!-- Payment Mode -->
-                            <div style="display: flex; align-items: center; gap: 4px; color: ${tx.payment === 'MFS' ? '#10b981' : 'var(--text-secondary)'};">
+                            <div style="display: flex; align-items: center; gap: 4px; color: ${tx.payment === 'MFS' ? '#10b981' : 'var(--text-secondary)'}; flex-shrink: 0;">
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
                                 <span style="margin-top: 1px;">${payLabel}</span>
                             </div>
                             
                             <!-- Agent Name -->
-                            <div style="display: flex; align-items: center; gap: 4px; color: var(--text-primary); font-weight: 700;">
+                            <div style="display: flex; align-items: center; gap: 4px; color: var(--text-primary); font-weight: 700; flex-shrink: 0;">
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                                 <span style="margin-top: 1px;">${(tx.agentName || 'Unknown').split(' ')[0]}</span>
                             </div>
@@ -1267,16 +1300,28 @@ export async function openHistoricalSession(sessionId) {
                 }
             }
 
-            let isOutflow = tx.type === 'adjustment' || tx.type === 'transfer_out';
+            let isOutflow = (tx.type === 'adjustment' && (tx.cashAmt !== undefined ? tx.cashAmt < 0 : true)) || tx.type === 'transfer_out';
             let dotColor = '#10b981';
-            if (tx.type === 'adjustment') dotColor = '#ef4444';
-            else if (tx.type === 'transfer_out' || tx.type === 'transfer_in') dotColor = '#8b5cf6';
-            else if (tx.name !== 'ERS Flexiload') dotColor = '#3390ec';
+            if (tx.type === 'adjustment') {
+                dotColor = (tx.cashAmt !== undefined ? tx.cashAmt < 0 : true) ? '#ef4444' : '#10b981'; // Red for Outflow, Green for Inflow
+            } else if (tx.type === 'transfer_out' || tx.type === 'transfer_in') {
+                dotColor = '#8b5cf6'; // Purple
+            } else if (tx.name !== 'ERS Flexiload') {
+                dotColor = '#3390ec'; // Blue
+            }
 
             let amtColor = isOutflow ? 'var(--danger-text)' : 'var(--text-primary)';
             let amtPrefix = isOutflow ? '− ' : '';
             let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
             let badges = tx.isEdited ? `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Edited</span>` : '';
+
+            let detailsHTML = '';
+            if (tx.handsetModel) {
+                detailsHTML += `<div style="font-size: 0.8rem; color: var(--accent-color); font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">📱 Model: ${tx.handsetModel}</div>`;
+            }
+            if (tx.notes) {
+                detailsHTML += `<div style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; margin-top: 2px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${tx.notes}">💬 ${tx.notes}</div>`;
+            }
 
             historyHTML += `
                 <div class="history-item" style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-strong); border: 1px solid var(--border-color); border-radius: 18px; box-shadow: var(--shadow-soft); margin-bottom: 12px;">
@@ -1291,26 +1336,34 @@ export async function openHistoricalSession(sessionId) {
                             <div style="font-size: 1rem; color: var(--text-primary); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 2px;">
                                 ${tx.name}
                             </div>
-                            <div style="display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; margin-top: 6px; line-height: 1;">
+                            ${detailsHTML}
+                            <!-- Row 1: Receipt + Time (guaranteed single row) -->
+                            <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1;">
                                 <!-- Receipt No -->
-                                <div style="display: flex; align-items: center; background: rgba(0,0,0,0.02); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-primary); font-weight: 700; font-size: 0.68rem;">
+                                <div style="display: flex; align-items: center; background: rgba(0,0,0,0.02); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-primary); font-weight: 700; font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" title="${tx.receiptNo || tx.id}">
                                     ${tx.receiptNo || tx.id}
                                 </div>
                                 <!-- Time -->
-                                <div style="display: flex; align-items: center; gap: 4px;">
+                                <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
                                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                                     <span style="margin-top: 1px;">${tx.time}</span>
                                 </div>
+                            </div>
+                            
+                            <!-- Row 2: Payment + Agent + Badges -->
+                            <div style="display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1; flex-wrap: wrap;">
                                 <!-- Payment Mode -->
-                                <div style="display: flex; align-items: center; gap: 4px; color: ${tx.payment === 'MFS' ? '#10b981' : 'var(--text-secondary)'};">
+                                <div style="display: flex; align-items: center; gap: 4px; color: ${tx.payment === 'MFS' ? '#10b981' : 'var(--text-secondary)'}; flex-shrink: 0;">
                                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
                                     <span style="margin-top: 1px;">${payLabel}</span>
                                 </div>
-                                <!-- Agent -->
-                                <div style="display: flex; align-items: center; gap: 4px; color: var(--text-primary); font-weight: 700;">
+                                
+                                <!-- Agent Name -->
+                                <div style="display: flex; align-items: center; gap: 4px; color: var(--text-primary); font-weight: 700; flex-shrink: 0;">
                                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                                     <span style="margin-top: 1px;">${(tx.agentName || 'Unknown').split(' ')[0]}</span>
                                 </div>
+                                
                                 ${badges}
                             </div>
                         </div>

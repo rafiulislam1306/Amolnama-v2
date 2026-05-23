@@ -9,6 +9,38 @@ import { passStockFirewall, getPhysicalItems } from './inventory.js';
 export function openManagerCashModal() {
     if(!AppState.currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
     document.getElementById('mgr-cash-amount').value = '';
+    
+    const notesInput = document.getElementById('mgr-cash-notes');
+    if (notesInput) notesInput.value = '';
+    
+    const handsetModelInput = document.getElementById('mgr-cash-handset-model');
+    if (handsetModelInput) handsetModelInput.value = '';
+    
+    const handsetWrapper = document.getElementById('handset-model-wrapper');
+    if (handsetWrapper) handsetWrapper.style.display = 'none';
+    
+    const notesWrapper = document.getElementById('mgr-cash-notes-wrapper');
+    if (notesWrapper) notesWrapper.style.display = 'block';
+    
+    const actionSelect = document.getElementById('mgr-cash-action');
+    if (actionSelect) {
+        actionSelect.value = 'drop_manager';
+        // Attach change listener if not already done
+        if (!actionSelect.dataset.listenerBound) {
+            actionSelect.addEventListener('change', (e) => {
+                const wrapper = document.getElementById('handset-model-wrapper');
+                const nWrapper = document.getElementById('mgr-cash-notes-wrapper');
+                if (wrapper) {
+                    wrapper.style.display = e.target.value === 'handset_cash' ? 'block' : 'none';
+                }
+                if (nWrapper) {
+                    nWrapper.style.display = e.target.value === 'handset_cash' ? 'none' : 'block';
+                }
+            });
+            actionSelect.dataset.listenerBound = 'true';
+        }
+    }
+    
     openModal('modal-manager-cash');
     setTimeout(() => {
         const amtInput = document.getElementById('mgr-cash-amount');
@@ -32,6 +64,16 @@ export async function saveManagerCash() {
     else if (action === 'handset_cash') { txName = 'Handset Cash'; paymentLabel = 'Cash In (Holding)'; }
     else if (action === 'receive_float') { txName = 'Manager Float'; paymentLabel = 'Cash In (Float)'; }
 
+    let notes = '';
+    if (action !== 'handset_cash') {
+        notes = document.getElementById('mgr-cash-notes') ? document.getElementById('mgr-cash-notes').value.trim() : '';
+    }
+    let handsetModel = '';
+    if (action === 'handset_cash') {
+        const modelInput = document.getElementById('mgr-cash-handset-model');
+        if (modelInput) handsetModel = modelInput.value.trim();
+    }
+
     const tx = {
         id: Date.now(), receiptNo: generateReceiptNo(), type: 'adjustment', name: txName, trackAs: 'Physical Cash', amount: amount, qty: 1,
         payment: paymentLabel, cashAmt: finalValue, mfsAmt: 0, isDeleted: false,
@@ -39,6 +81,9 @@ export async function saveManagerCash() {
         dateStr: getStrictDate(), deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName,
         timestamp: serverTimestamp()
     };
+
+    if (notes) tx.notes = notes;
+    if (handsetModel) tx.handsetModel = handsetModel;
 
     try {
         await addDoc(collection(db, 'transactions'), tx);

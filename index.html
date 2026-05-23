@@ -210,21 +210,22 @@
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> 
                 Close Desk
             </button>
-            <div style="position: sticky; top: 0; z-index: 10; background: rgba(var(--bg-rgb, 240,244,250), 0.85); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--border-color); margin: 0 -16px 12px -16px; padding: 0;">
-                <div style="display: flex; gap: 8px; overflow-x: auto; padding: 10px 16px; scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch;">
-                    <button class="desk-filter-pill active" onclick="applyDeskFilter(this, 'all')">All</button>
-                    <button class="desk-filter-pill" onclick="applyDeskFilter(this, 'ers')">ERS</button>
-                    <button class="desk-filter-pill" onclick="applyDeskFilter(this, 'cash_ops')">Cash Ops</button>
-                    <button class="desk-filter-pill" onclick="applyDeskFilter(this, 'transfers')">Transfers</button>
-                    <button class="desk-filter-pill" onclick="applyDeskFilter(this, 'new-sim')">New SIMs</button>
-                    <button class="desk-filter-pill" onclick="applyDeskFilter(this, 'paid-rep')">Replacements</button>
-                    <button class="desk-filter-pill" onclick="applyDeskFilter(this, 'cards')">Cards</button>
-                    <button class="desk-filter-pill" onclick="applyDeskFilter(this, 'foc')">FOC</button>
-                    <button class="desk-filter-pill" onclick="applyDeskFilter(this, 'service')">Services</button>
-                    <button class="desk-filter-pill" onclick="applyDeskFilter(this, 'free-action')">Free Actions</button>
-                </div>
-                <input type="hidden" id="desk-history-filter" value="all">
+        </div>
+
+        <div style="position: sticky; top: -16px; z-index: 10; background: rgba(var(--bg-rgb, 240,244,250), 0.85); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--border-color); margin: 0 -16px 12px -16px; padding: 0;">
+            <div style="display: flex; gap: 8px; overflow-x: auto; padding: 10px 16px; scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch;">
+                <button class="desk-filter-pill active" onclick="applyDeskFilter(this, 'all')">All</button>
+                <button class="desk-filter-pill" onclick="applyDeskFilter(this, 'ers')">ERS</button>
+                <button class="desk-filter-pill" onclick="applyDeskFilter(this, 'cash_actions')">Cash Actions</button>
+                <button class="desk-filter-pill" onclick="applyDeskFilter(this, 'transfers')">Transfers</button>
+                <button class="desk-filter-pill" onclick="applyDeskFilter(this, 'new-sim')">New SIMs</button>
+                <button class="desk-filter-pill" onclick="applyDeskFilter(this, 'paid-rep')">Replacements</button>
+                <button class="desk-filter-pill" onclick="applyDeskFilter(this, 'cards')">Cards</button>
+                <button class="desk-filter-pill" onclick="applyDeskFilter(this, 'foc')">FOC</button>
+                <button class="desk-filter-pill" onclick="applyDeskFilter(this, 'service')">Services</button>
+                <button class="desk-filter-pill" onclick="applyDeskFilter(this, 'free-action')">Free Actions</button>
             </div>
+            <input type="hidden" id="desk-history-filter" value="all">
         </div>
 
         <div id="desk-history-log" style="display: flex; flex-direction: column; margin-bottom: 24px; padding: 0;">
@@ -281,21 +282,21 @@
             <div id="floor-stock-list" style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 8px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
             </div>
         </div>
-
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <h3 style="font-size: 0.9rem; font-weight: 800; color: var(--text-secondary); margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">Activity Log</h3>
-            <select id="personal-history-filter" class="settings-input" style="width: auto; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; margin: 0; background: var(--surface-color); border-color: var(--border-color); border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);" onchange="renderPersonalReport()">
-                <option value="all">All Activity</option>
-                <option value="ers">ERS Flexiload</option>
-                <option value="cash_ops">Cash Drops & Floats</option>
-                <option value="transfers">Stock Transfers</option>
-                <option value="new-sim">New SIMs</option>
-                <option value="paid-rep">Paid Replacements</option>
-                <option value="cards">Cards</option>
-                <option value="foc">Free of Cost</option>
-                <option value="service">Services</option>
-                <option value="free-action">Free Actions</option>
-            </select>
+        <!-- Sticky Unified Filter Pills (No "Activity Log" text header) -->
+        <div style="position: sticky; top: -16px; z-index: 10; background: rgba(var(--bg-rgb, 240,244,250), 0.85); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--border-color); margin: 0 -16px 12px -16px; padding: 0;">
+            <div style="display: flex; gap: 8px; overflow-x: auto; padding: 10px 16px; scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch;">
+                <button class="desk-filter-pill active" onclick="applyPersonalFilter(this, 'all')">All</button>
+                <button class="desk-filter-pill" onclick="applyPersonalFilter(this, 'ers')">ERS</button>
+                <button class="desk-filter-pill" onclick="applyPersonalFilter(this, 'cash_actions')">Cash Actions</button>
+                <button class="desk-filter-pill" onclick="applyPersonalFilter(this, 'transfers')">Transfers</button>
+                <button class="desk-filter-pill" onclick="applyPersonalFilter(this, 'new-sim')">New SIMs</button>
+                <button class="desk-filter-pill" onclick="applyPersonalFilter(this, 'paid-rep')">Replacements</button>
+                <button class="desk-filter-pill" onclick="applyPersonalFilter(this, 'cards')">Cards</button>
+                <button class="desk-filter-pill" onclick="applyPersonalFilter(this, 'foc')">FOC</button>
+                <button class="desk-filter-pill" onclick="applyPersonalFilter(this, 'service')">Services</button>
+                <button class="desk-filter-pill" onclick="applyPersonalFilter(this, 'free-action')">Free Actions</button>
+            </div>
+            <input type="hidden" id="personal-history-filter" value="all">
         </div>
         
         <div id="history-log" style="display: flex; flex-direction: column; margin-bottom: 16px; padding: 0;">
@@ -415,9 +416,17 @@
                         </optgroup>
                     </select>
                 </div>
-                <div>
+                <div style="margin-top: 16px;">
                     <label class="admin-label">Amount (Tk)</label>
                     <input type="number" id="mgr-cash-amount" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0">
+                </div>
+                <div id="handset-model-wrapper" style="display: none; margin-top: 16px;">
+                    <label class="admin-label">Handset Model</label>
+                    <input type="text" id="mgr-cash-handset-model" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. Redmi Note 13 Pro">
+                </div>
+                <div id="mgr-cash-notes-wrapper" style="margin-top: 16px;">
+                    <label class="admin-label">Notes</label>
+                    <input type="text" id="mgr-cash-notes" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. Refill morning float or Charity donation">
                 </div>
             </div>
             <button class="btn-primary-full" style="background-color: #10b981;" onclick="saveManagerCash()">SAVE ACTION</button>
@@ -576,28 +585,6 @@
         </div>
     </div>
 
-    <style>
-        .bottom-sheet {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: var(--surface-color);
-            border-radius: 20px 20px 0 0;
-            /* Pushes the content up so the last item isn't hidden behind the nav bar */
-            padding: 0 0 calc(76px + env(safe-area-inset-bottom)) 0;
-            max-height: 85vh;
-            overflow-y: auto;
-            transform: translateY(100%);
-            animation: slideUpSheet 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-            box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
-            width: 100%;
-            margin: 0;
-        }
-        @keyframes slideUpSheet {
-            to { transform: translateY(0); }
-        }
-    </style>
 
     <div id="modal-settings" class="modal-overlay">
         <div class="modal-content">
