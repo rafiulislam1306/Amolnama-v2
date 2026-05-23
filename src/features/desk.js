@@ -348,6 +348,8 @@ export async function renderLiveFloorTab() {
         let floorHTML = '';
         for (const docSnap of docsArray) {
             const session = docSnap.data(); const sid = docSnap.id;
+            const isMyDesk = sid === AppState.currentSessionId;
+            
             const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', sid), where('isDeleted', '==', false)));
 
             let liveCash = parseFloat(session.openingBalances.cash) || 0;
@@ -373,6 +375,12 @@ export async function renderLiveFloorTab() {
                     }
                 }
             });
+
+            // Filter out inactive desks (0 transactions and 0 remaining physical stock), except if it is the current user's desk
+            let totalStockQty = Object.values(liveInv).reduce((sum, qty) => sum + Math.max(0, qty || 0), 0);
+            if (txSnap.size === 0 && totalStockQty === 0 && !isMyDesk) {
+                continue;
+            }
 
             let invDisplay = '';
             let sortedLiveInv = Object.entries(liveInv).sort((a, b) => {
@@ -401,7 +409,7 @@ export async function renderLiveFloorTab() {
                 invDisplay = '<span style="font-size:0.8rem; color:var(--text-secondary); font-style: italic;">No physical stock tracked.</span>';
             }
 
-            const isMyDesk = sid === AppState.currentSessionId;
+            // isMyDesk is defined at the beginning of the loop
 
             let displayDeskName = session.deskName;
             let agentNamesStr = session.openedBy ? session.openedBy.split(' ')[0] : 'Agent';
@@ -475,7 +483,11 @@ export async function renderLiveFloorTab() {
                 </div>
             `;
         }
-        container.innerHTML = floorHTML;
+        if (!floorHTML) {
+            container.innerHTML = '<p class="placeholder-text">No active desks on floor.</p>';
+        } else {
+            container.innerHTML = floorHTML;
+        }
     } catch (e) { container.innerHTML = '<p class="placeholder-text" style="color: #ef4444;">Offline: Could not load.</p>'; }
 }
 
