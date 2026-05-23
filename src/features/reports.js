@@ -8,6 +8,7 @@ import { getPhysicalItems } from './inventory.js';
 import { priorityItemSortOrder, priorityInventorySortOrder } from '../core/constants.js';
 
 const userCurrency = 'Tk';
+const fmt = (num) => Number(num || 0).toLocaleString('en-IN');
 
 export async function renderPersonalReport() {
     let filterVal = document.getElementById('personal-history-filter') ? document.getElementById('personal-history-filter').value : 'all';
