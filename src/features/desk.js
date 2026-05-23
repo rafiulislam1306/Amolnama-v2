@@ -376,9 +376,9 @@ export async function renderLiveFloorTab() {
                 }
             });
 
-            // Filter out inactive desks (0 transactions and 0 remaining physical stock), except if it is the current user's desk
+            // Filter out inactive desks (0 transactions and 0 remaining physical stock)
             let totalStockQty = Object.values(liveInv).reduce((sum, qty) => sum + Math.max(0, qty || 0), 0);
-            if (txSnap.size === 0 && totalStockQty === 0 && !isMyDesk) {
+            if (txSnap.size === 0 && totalStockQty === 0) {
                 continue;
             }
 
