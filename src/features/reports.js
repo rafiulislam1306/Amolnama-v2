@@ -137,12 +137,7 @@ export async function renderPersonalReport() {
 
         if (!showTx) return;
         
-        // For desk-to-desk transfers, append agent name so the single card is fully self-explanatory
-        // e.g. "Sent to Sumon by Wahid" or "Pulled from Wahid by Sumon"
         let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
-        if ((tx.type === 'transfer_out' || tx.type === 'transfer_in') && tx.agentName) {
-            payLabel = `${tx.payment} by ${tx.agentName.split(' ')[0]}`;
-        }
         let badges = '';
         
         if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
