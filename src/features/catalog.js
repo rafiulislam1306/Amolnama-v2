@@ -8,6 +8,12 @@ export function filterStoreCatalog() {
     const text = document.getElementById('store-search')?.value.toLowerCase().trim() || '';
     const pillsContainer = document.getElementById('store-pills-container');
     const noResults = document.getElementById('store-no-results');
+    const clearBtn = document.getElementById('store-search-clear');
+
+    // Toggle X Clear Button visibility
+    if (clearBtn) {
+        clearBtn.style.display = text.length > 0 ? 'flex' : 'none';
+    }
 
     if (text.length > 0) {
         // 1. Hide category pills container when searching
@@ -62,6 +68,14 @@ export function filterStoreCatalog() {
             activePill.click();
         }
     }
+}
+
+export function clearStoreSearch() {
+    const searchInput = document.getElementById('store-search');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    filterStoreCatalog();
 }
 
 export function renderAppUI() {
