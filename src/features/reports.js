@@ -217,6 +217,59 @@ export async function renderPersonalReport() {
         document.getElementById('tot-ers').style.color = '#f59e0b';
     }
 
+    // Dynamic Sales Donut Analytics for Personal Report
+    let totalSalesVal = myCash + myMfs + myErsTotal;
+    let cashPct = totalSalesVal > 0 ? (myCash / totalSalesVal) * 100 : 0;
+    let mfsPct = totalSalesVal > 0 ? (myMfs / totalSalesVal) * 100 : 0;
+    let ersPct = totalSalesVal > 0 ? (myErsTotal / totalSalesVal) * 100 : 0;
+
+    let offsetCash = 0;
+    let offsetMfs = -cashPct;
+    let offsetErs = -(cashPct + mfsPct);
+
+    let analyticsContainer = document.getElementById('center-report-analytics-container');
+    if (analyticsContainer) {
+        analyticsContainer.innerHTML = `
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; background: var(--surface-strong); border: 1px solid var(--hairline); border-radius: var(--radius-card); box-shadow: var(--shadow-soft);">
+                <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
+                    <h4 style="margin: 0; font-size: 0.8rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Sales Share Analytics</h4>
+                    <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px;">
+                        <div style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; font-weight: 600; color: var(--text-primary);">
+                            <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
+                            Cash Sales: <strong style="margin-left: auto;">${cashPct.toFixed(0)}%</strong>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; font-weight: 600; color: var(--text-primary);">
+                            <span style="width: 8px; height: 8px; border-radius: 50%; background: #8b5cf6;"></span>
+                            MFS Sales: <strong style="margin-left: auto;">${mfsPct.toFixed(0)}%</strong>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; font-weight: 600; color: var(--text-primary);">
+                            <span style="width: 8px; height: 8px; border-radius: 50%; background: #f59e0b;"></span>
+                            ERS Sent: <strong style="margin-left: auto;">${ersPct.toFixed(0)}%</strong>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="position: relative; width: 88px; height: 88px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                    <svg viewBox="0 0 42 42" style="width: 100%; height: 100%; transform: rotate(-90deg); filter: drop-shadow(0 2px 8px rgba(15, 23, 42, 0.04));">
+                        <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="var(--bg-color)" stroke-width="4.5"></circle>
+                        
+                        ${totalSalesVal > 0 ? `
+                        <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#10b981" stroke-width="4.5" stroke-dasharray="${cashPct} ${100 - cashPct}" stroke-dashoffset="${offsetCash}"></circle>
+                        <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#8b5cf6" stroke-width="4.5" stroke-dasharray="${mfsPct} ${100 - mfsPct}" stroke-dashoffset="${offsetMfs}"></circle>
+                        <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#f59e0b" stroke-width="4.5" stroke-dasharray="${ersPct} ${100 - ersPct}" stroke-dashoffset="${offsetErs}"></circle>
+                        ` : `
+                        <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="var(--border-color)" stroke-width="4.5" stroke-dasharray="100 0" stroke-dashoffset="0"></circle>
+                        `}
+                    </svg>
+                    <div style="position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 800; color: var(--text-secondary); line-height: 1;">
+                        <span>Total</span>
+                        <span style="color: var(--text-primary); font-size: 0.8rem; font-weight: 900; margin-top: 2px;">${fmt(totalSalesVal)}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
     let invHTML = '';
     let sortedPersonalItems = Object.entries(myItemsSold).sort((a, b) => {
         let indexA = priorityItemSortOrder.indexOf(a[0]);
@@ -756,6 +809,21 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
         }
     }
 
+    // Expected Cash Drawer Gauge Calculation
+    let totalAdded = sales + adjustments;
+    let pct = expected > 0 ? Math.min(100, Math.max(0, (totalAdded / Math.max(1, opening)) * 100)) : 0;
+    let barColor = totalAdded >= 0 ? '#10b981' : '#ef4444';
+
+    // SVG Sales Donut Chart Calculation
+    let totalSalesVal = sales + mfsTotal + ersData.total;
+    let cashPct = totalSalesVal > 0 ? (sales / totalSalesVal) * 100 : 0;
+    let mfsPct = totalSalesVal > 0 ? (mfsTotal / totalSalesVal) * 100 : 0;
+    let ersPct = totalSalesVal > 0 ? (ersData.total / totalSalesVal) * 100 : 0;
+
+    let offsetCash = 0;
+    let offsetMfs = -cashPct;
+    let offsetErs = -(cashPct + mfsPct);
+
     return `
         <div class="admin-form-card" style="padding: 0; margin-bottom: 16px; background: var(--surface-strong); border: 1px solid var(--hairline); box-shadow: var(--shadow-card); overflow: hidden; border-radius: var(--radius-card);">
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--hairline);">
@@ -778,9 +846,53 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
                     ${adjBreakdownHTML || '<div style="font-size: 0.85rem; color: var(--text-secondary); text-align: right; font-style: italic;">No actions recorded</div>'}
                 </div>
             </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: linear-gradient(135deg, rgba(124, 58, 237, 0.05), rgba(124, 58, 237, 0.12));">
-                <span style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Expected Cash</span>
-                <span id="desk-tot-expected-cash" style="font-size: 1.55rem; font-weight: 900; color: var(--accent-color); letter-spacing: -0.5px;">${fmt(expected)} <span style="font-size: 1rem; font-weight: 700;">Tk</span></span>
+            <div style="display: flex; flex-direction: column; padding: 14px 18px; background: linear-gradient(135deg, rgba(124, 58, 237, 0.05), rgba(124, 58, 237, 0.12));">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Expected Cash</span>
+                    <span id="desk-tot-expected-cash" style="font-size: 1.55rem; font-weight: 900; color: var(--accent-color); letter-spacing: -0.5px;">${fmt(expected)} <span style="font-size: 1rem; font-weight: 700;">Tk</span></span>
+                </div>
+                <div style="width: 100%; height: 6px; background: var(--border-color); border-radius: 99px; overflow: hidden; margin-top: 10px;">
+                    <div style="width: ${pct}%; height: 100%; background: ${barColor}; border-radius: 99px; transition: width 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Premium SVG Donut Analytics Card -->
+        <div class="admin-form-card" style="padding: 16px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; background: var(--surface-strong); border: 1px solid var(--hairline); border-radius: var(--radius-card); box-shadow: var(--shadow-soft);">
+            <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
+                <h4 style="margin: 0; font-size: 0.8rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Sales Share Analytics</h4>
+                <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px;">
+                    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; font-weight: 600; color: var(--text-primary);">
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
+                        Cash Sales: <strong style="margin-left: auto;">${cashPct.toFixed(0)}%</strong>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; font-weight: 600; color: var(--text-primary);">
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #8b5cf6;"></span>
+                        MFS Sales: <strong style="margin-left: auto;">${mfsPct.toFixed(0)}%</strong>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; font-weight: 600; color: var(--text-primary);">
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #f59e0b;"></span>
+                        ERS Sent: <strong style="margin-left: auto;">${ersPct.toFixed(0)}%</strong>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="position: relative; width: 88px; height: 88px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                <svg viewBox="0 0 42 42" style="width: 100%; height: 100%; transform: rotate(-90deg); filter: drop-shadow(0 2px 8px rgba(15, 23, 42, 0.04));">
+                    <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="var(--bg-color)" stroke-width="4.5"></circle>
+                    
+                    ${totalSalesVal > 0 ? `
+                    <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#10b981" stroke-width="4.5" stroke-dasharray="${cashPct} ${100 - cashPct}" stroke-dashoffset="${offsetCash}"></circle>
+                    <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#8b5cf6" stroke-width="4.5" stroke-dasharray="${mfsPct} ${100 - mfsPct}" stroke-dashoffset="${offsetMfs}"></circle>
+                    <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#f59e0b" stroke-width="4.5" stroke-dasharray="${ersPct} ${100 - ersPct}" stroke-dashoffset="${offsetErs}"></circle>
+                    ` : `
+                    <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="var(--border-color)" stroke-width="4.5" stroke-dasharray="100 0" stroke-dashoffset="0"></circle>
+                    `}
+                </svg>
+                <div style="position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 800; color: var(--text-secondary); line-height: 1;">
+                    <span>Total</span>
+                    <span style="color: var(--text-primary); font-size: 0.8rem; font-weight: 900; margin-top: 2px;">${fmt(totalSalesVal)}</span>
+                </div>
             </div>
         </div>
 

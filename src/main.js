@@ -12,7 +12,7 @@ import { loadFloorMap, handleDeskSelect, renderLiveFloorTab, openMyDeskDashboard
 import { openManagerCashModal, saveManagerCash, openMainStockModal, saveMainStock, openReturnStockModal, saveReturnStock, openDeskTransfer, executeDeskTransfer, openTransferModal, executeTransfer } from './features/transfers.js';
 import { filterAdminCatalog, toggleAddForm, addInventoryGroup, removeInventoryGroup, openSettings, removeRow, addNewItem, saveSettings, openNicknameManager, saveAdminNickname, kickAgent, nukeAgent, resetMyDeskLock, forceCloseAllDesks, nukeTodaysLedger, fixPastManagerDrops, openAuditModal, fetchAuditLogs, openForceReallocate, executeForceTransfer, healTodaysOpeningStock, runLedgerDiagnostic } from './features/admin.js';
 import { openDevNotes, addDevNote, editDevNote, cancelInlineEdit, saveInlineEdit, toggleDevNote, deleteDevNote } from './features/devNotes.js';
-import { renderAppUI } from './features/catalog.js';
+import { renderAppUI, filterStoreCatalog } from './features/catalog.js';
 import { initUserData } from './core/app-init.js';
 import { renderPersonalReport, shareReport, shareDeskReport, renderDeskDashboard, fetchTransactionsForDate, getTxListenerUnsubscribe, setTxListenerUnsubscribe, openHistoricalSession, downloadReportAsPDF } from './features/reports.js';
 
@@ -59,7 +59,7 @@ window.Amolnama = {
     openForceReallocate, executeForceTransfer, openDevNotes, addDevNote,
     editDevNote, cancelInlineEdit, saveInlineEdit, toggleDevNote, deleteDevNote,
     renderLiveFloorTab, openMyDeskDashboard, peekAtDesk, initiateCloseDesk,
-    installPWA, submitClosingReport, renderAppUI, fetchTransactionsForDate,
+    installPWA, submitClosingReport, renderAppUI, filterStoreCatalog, fetchTransactionsForDate,
     openEditTx, saveTxEdit, toggleEditSplitFields, updateSplitTotal, cancelTxEdit,
     autoCalcEditTotal, deleteTransaction, openTrash, restoreTx, permanentlyDeleteTx,
     emptyTrash, showAuditTrail, openHistoricalSession, healTodaysOpeningStock,
