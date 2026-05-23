@@ -869,24 +869,15 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
 
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-            <div style="background: linear-gradient(135deg, rgba(16,185,129,0.06), rgba(16,185,129,0.12)); border: 1px solid rgba(16,185,129,0.2); box-shadow: var(--shadow-soft); padding: 16px; border-radius: var(--radius-card); text-align: left; position: relative; overflow: hidden;">
-                <div style="position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: #10b981; border-radius: 4px 0 0 4px;"></div>
-                <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
-                    <div style="font-size: 0.72rem; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 0.5px;">Total MFS</div>
-                </div>
+            <div style="background: var(--surface-strong); border: 1px solid var(--hairline); box-shadow: var(--shadow-soft); padding: 16px; border-radius: var(--radius-card); text-align: left;">
+                <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Total MFS</div>
                 <div style="font-size: 1.35rem; font-weight: 900; color: var(--text-primary);">${fmt(mfsTotal)} <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 700;">Tk</span></div>
             </div>
-            <div style="background: linear-gradient(135deg, rgba(234,179,8,0.06), rgba(234,179,8,0.12)); border: 1px solid rgba(234,179,8,0.25); box-shadow: var(--shadow-soft); padding: 16px; border-radius: var(--radius-card); text-align: left; position: relative; overflow: hidden;">
-                <div style="position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: #eab308; border-radius: 4px 0 0 4px;"></div>
-                <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ca8a04" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                    <div style="font-size: 0.72rem; font-weight: 700; color: #ca8a04; text-transform: uppercase; letter-spacing: 0.5px;">ERS Sent (${fmt(ersData.count)}x)</div>
-                </div>
+            <div style="background: var(--surface-strong); border: 1px solid var(--hairline); box-shadow: var(--shadow-soft); padding: 16px; border-radius: var(--radius-card); text-align: left;">
+                <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">ERS Sent (${fmt(ersData.count)}x)</div>
                 <div style="font-size: 1.35rem; font-weight: 900; color: var(--text-primary);">${fmt(ersData.total)} <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 700;">Tk</span></div>
             </div>
         </div>
-
 
         <div style="background: var(--surface-strong); border-radius: var(--radius-card); border: 1px solid var(--hairline); box-shadow: var(--shadow-soft); margin-bottom: 16px; overflow: hidden;">
             <div style="padding: 14px 18px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="const c = this.nextElementSibling; const i = this.querySelector('svg'); if(c.style.display==='none'){c.style.display='block'; i.style.transform='rotate(180deg)';}else{c.style.display='none'; i.style.transform='rotate(0deg)';}">
