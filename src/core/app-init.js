@@ -50,12 +50,15 @@ export async function initUserData(onComplete) {
         // 3. NOW run auto-close so it knows which items to calculate leftovers for
         await performLazyAutoClose();
 
-        document.getElementById('report-user-name').innerText = AppState.userDisplayName;
-        if (AppState.currentUser.email) document.getElementById('report-user-email').innerText = AppState.currentUser.email;
+        const rName = document.getElementById('report-user-name');
+        if (rName) rName.innerText = AppState.userDisplayName;
+        const rEmail = document.getElementById('report-user-email');
+        if (rEmail && AppState.currentUser.email) rEmail.innerText = AppState.currentUser.email;
         let toggleWrapper = document.getElementById('admin-report-toggle-wrapper');
         if (toggleWrapper) toggleWrapper.style.display = AppState.currentUserRole === 'admin' ? 'flex' : 'none';
         if (AppState.currentUser.photoURL) {
-            document.getElementById('report-user-photo').src = AppState.currentUser.photoURL;
+            const rPhoto = document.getElementById('report-user-photo');
+            if (rPhoto) rPhoto.src = AppState.currentUser.photoURL;
             document.getElementById('header-user-photo').src = AppState.currentUser.photoURL;
         }
         if(document.getElementById('tab-ers').classList.contains('active')) document.getElementById('header-title').innerText = AppState.userNickname || AppState.userDisplayName;

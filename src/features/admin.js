@@ -236,7 +236,8 @@ export async function saveAdminNickname(uid, inputId) {
         
         if (uid === AppState.currentUser.uid) {
             AppState.userNickname = newNick;
-            document.getElementById('report-user-name').innerText = AppState.userNickname || AppState.userDisplayName;
+            const rName = document.getElementById('report-user-name');
+            if (rName) rName.innerText = AppState.userNickname || AppState.userDisplayName;
             if(!AppState.currentDeskId && document.getElementById('tab-ers').classList.contains('active')) {
                 document.getElementById('header-title').innerText = AppState.userNickname || AppState.userDisplayName;
             }
