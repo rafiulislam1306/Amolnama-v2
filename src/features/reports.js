@@ -189,29 +189,58 @@ export async function renderPersonalReport() {
     const cardContainer = document.getElementById('report-profile-card-container');
     if (cardContainer) {
         cardContainer.innerHTML = `
-            <div style="background: linear-gradient(135deg, var(--surface-strong), var(--surface-soft)); border: 1px solid var(--border-color); border-radius: 20px; padding: 20px 24px; box-shadow: var(--shadow-soft); display: flex; align-items: center; justify-content: space-between; gap: 20px; position: relative;">
-                <!-- Left: Icon & Title -->
-                <div style="display: flex; align-items: center; gap: 16px;">
-                    <div style="width: 48px; height: 48px; border-radius: 14px; background: rgba(99, 102, 241, 0.08); color: #6366f1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
-                    </div>
-                    <div style="min-width: 0;">
-                        <h3 style="margin: 0 0 4px 0; font-size: 1.25rem; font-weight: 900; color: var(--text-primary); letter-spacing: -0.2px;">Center Report</h3>
-                        <div id="center-report-date-pill" style="display: inline-flex; align-items: center; gap: 4px; background: rgba(99, 102, 241, 0.06); color: #6366f1; padding: 3px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; border: 1px solid rgba(99, 102, 241, 0.1);">
-                            📅 ${targetDateStr}
+            <div style="background: linear-gradient(135deg, var(--surface-strong), var(--surface-soft)); border: 1px solid var(--border-color); border-radius: 20px; padding: 22px 24px; box-shadow: var(--shadow-soft); display: flex; flex-direction: column; gap: 16px;">
+                <!-- 1. Header Section -->
+                <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 42px; height: 42px; border-radius: 12px; background: rgba(99, 102, 241, 0.08); color: #6366f1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.08);">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+                        </div>
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.25rem; font-weight: 900; color: var(--text-primary); letter-spacing: -0.2px;">Center Report</h3>
                         </div>
                     </div>
+                    <button onclick="downloadReportAsPDF('tab-report', 'Center_Report')" style="background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 12px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; color: #ef4444; cursor: pointer; transition: all 0.2s ease;" title="Download PDF">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                    </button>
                 </div>
 
-                <!-- Right: Consolidated Revenue & Download -->
-                <div style="display: flex; align-items: center; gap: 20px; flex-shrink: 0;">
-                    <div style="text-align: right;">
-                        <div style="font-size: 0.65rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 2px;">Total Revenue</div>
-                        <div style="font-size: 1.45rem; font-weight: 950; color: #10b981; line-height: 1;">${fmt(myCash + myMfs)} <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary);">Tk</span></div>
+                <!-- 2. Interactive Cash Flow Pipeline Row -->
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border-top: 1px dashed var(--border-color); padding-top: 16px;">
+                    <!-- Element 1: Opening Cash -->
+                    <div style="flex: 1; min-width: 85px;">
+                        <div style="font-size: 0.65rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Opening Cash</div>
+                        <div style="font-size: 1rem; font-weight: 800; color: var(--text-primary);">${fmt(floorOpeningCash)} <span style="font-size: 0.72rem; font-weight: 600; color: var(--text-secondary);">Tk</span></div>
                     </div>
-                    <button onclick="downloadReportAsPDF('tab-report', 'Center_Report')" style="background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 12px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: #ef4444; cursor: pointer; transition: all 0.2s ease;" title="Download PDF" onmouseenter="this.style.background='rgba(239, 68, 68, 0.1)'" onmouseleave="this.style.background='rgba(239, 68, 68, 0.06)'">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                    </button>
+
+                    <!-- Plus Indicator -->
+                    <div style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 800; opacity: 0.6;">＋</div>
+
+                    <!-- Element 2: Cash Sales -->
+                    <div style="flex: 1; min-width: 85px;">
+                        <div style="font-size: 0.65rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Cash Sales</div>
+                        <div style="font-size: 1rem; font-weight: 800; color: #10b981;">+${fmt(myCash)} <span style="font-size: 0.72rem; font-weight: 600; color: var(--text-secondary);">Tk</span></div>
+                    </div>
+
+                    <!-- Plus Indicator -->
+                    <div style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 800; opacity: 0.6;">＋</div>
+
+                    <!-- Element 3: +/- Cash Actions -->
+                    <div style="flex: 1; min-width: 95px;">
+                        <div style="font-size: 0.65rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">+/- Cash Actions</div>
+                        <div style="font-size: 1rem; font-weight: 800; color: ${floorManagerDrops >= 0 ? '#10b981' : '#8b5cf6'};">
+                            ${floorManagerDrops >= 0 ? '+' : ''}${fmt(floorManagerDrops)} <span style="font-size: 0.72rem; font-weight: 600; color: var(--text-secondary);">Tk</span>
+                        </div>
+                    </div>
+
+                    <!-- Divider Line -->
+                    <div style="width: 1px; height: 32px; background: var(--border-color); margin: 0 8px;"></div>
+
+                    <!-- Element 4: Expected Cash -->
+                    <div style="flex: 1.2; min-width: 120px; text-align: right;">
+                        <div style="font-size: 0.65rem; font-weight: 800; color: #f59e0b; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 2px;">Expected Cash</div>
+                        <div style="font-size: 1.35rem; font-weight: 950; color: #f59e0b; line-height: 1;">${fmt(expectedCenterCash)} <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary);">Tk</span></div>
+                    </div>
                 </div>
             </div>
         `;
@@ -586,7 +615,7 @@ async function executeDownloadReportAsPDF(mode, prefix) {
                     <div style="background-color: #f8fafc; padding: 10px 16px; font-weight: bold; color: #334155; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-transform: uppercase;">Cash Reconciliation</div>
                     <div style="padding: 16px; font-size: 14px;">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                            <span style="color: #64748b;">Opening Float:</span>
+                            <span style="color: #64748b;">Opening Cash:</span>
                             <strong>${opening} Tk</strong>
                         </div>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
