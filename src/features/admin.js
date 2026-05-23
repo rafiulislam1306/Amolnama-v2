@@ -484,7 +484,7 @@ export async function executeForceTransfer() {
     let fromName = fromSelect.options[fromSelect.selectedIndex].text;
     let toName = toSelect.options[toSelect.selectedIndex].text;
 
-    let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    let timeStr = new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
     let dateStr = getStrictDate();
     let receiptStr = "ADMIN-" + generateReceiptNo();
 

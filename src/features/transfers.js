@@ -35,7 +35,7 @@ export async function saveManagerCash() {
     const tx = {
         id: Date.now(), receiptNo: generateReceiptNo(), type: 'adjustment', name: txName, trackAs: 'Physical Cash', amount: amount, qty: 1,
         payment: paymentLabel, cashAmt: finalValue, mfsAmt: 0, isDeleted: false,
-        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        time: new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'}),
         dateStr: getStrictDate(), deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName,
         timestamp: serverTimestamp()
     };
@@ -74,7 +74,7 @@ export async function saveMainStock() {
     const tx = {
         id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty,
         payment: 'Received from Main Stock', cashAmt: 0, mfsAmt: 0, isDeleted: false,
-        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        time: new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'}),
         dateStr: getStrictDate(), deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName,
         timestamp: serverTimestamp()
     };
@@ -115,7 +115,7 @@ export async function saveReturnStock() {
     const tx = {
         id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty,
         payment: 'Returned to Main Stock', cashAmt: 0, mfsAmt: 0, isDeleted: false,
-        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        time: new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'}),
         dateStr: getStrictDate(), deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName,
         timestamp: serverTimestamp()
     };
@@ -189,7 +189,7 @@ export async function executeDeskTransfer() {
     
     let targetDeskName = targetSelect.options[targetSelect.selectedIndex].text;
     let [targetDeskId, targetSessionId] = targetVal.split('|');
-    let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    let timeStr = new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
     let dateStr = getStrictDate();
 
     let directionEl = document.querySelector('input[name="transfer-direction"]:checked');
@@ -275,7 +275,7 @@ export function executeTransfer() {
     let qty = parseInt(document.getElementById('transfer-qty').value) || 0;
     if (qty <= 0) { showAppAlert("Invalid Input", "Enter valid quantity."); return; }
     let itemName = document.getElementById('transfer-item-select').value;
-    let timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    let timeStr = new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
     let dateStr = getStrictDate();
 
     let senderName = AppState.currentDeskName || "Admin";

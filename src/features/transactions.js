@@ -150,7 +150,7 @@ export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt 
     const tx = {
         id: Date.now(), receiptNo: generateReceiptNo(), type: type, name: name, trackAs: trackAs, cat: cat, amount: amount, qty: qty,
         payment: payment, cashAmt: cashAmt, mfsAmt: mfsAmt, isDeleted: false,
-        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        time: new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'}),
         dateStr: getStrictDate(),
         deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName,
         timestamp: serverTimestamp()
@@ -462,18 +462,18 @@ export function showAuditTrail(txId) {
     if (tx.editHistory && tx.editHistory.length > 0) {
         msg += `--- EDIT HISTORY ---\n`;
         tx.editHistory.forEach((edit, idx) => {
-            let d = new Date(edit.editedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            let d = new Date(edit.editedAt).toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
             msg += `[${idx+1}] Changed by ${edit.editedBy} at ${d}.\nPrevious State: ${edit.qty}x, ${edit.amount} Tk (${edit.payment})\n\n`;
         });
     }
     
     if (tx.isRestored) {
-        let rd = tx.restoredAt ? new Date(tx.restoredAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Unknown';
+        let rd = tx.restoredAt ? new Date(tx.restoredAt).toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'}) : 'Unknown';
         msg += `--- RESTORED ---\nRestored by ${tx.restoredBy || 'Unknown'} at ${rd}\n\n`;
     }
     
     if (tx.isDeleted) {
-        let dd = tx.deletedAt ? new Date(tx.deletedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Unknown';
+        let dd = tx.deletedAt ? new Date(tx.deletedAt).toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'}) : 'Unknown';
         msg += `--- DELETED ---\nDeleted by ${tx.deletedBy || 'Unknown'} at ${dd}\n\n`;
     }
     
