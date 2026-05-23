@@ -116,6 +116,7 @@
             <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; scrollbar-width: none; -webkit-overflow-scrolling: touch;">
                 <button class="store-pill active" onclick="switchStoreCategory('cat-new-sim', this)">New SIMs</button>
                 <button class="store-pill" onclick="switchStoreCategory('cat-paid-rep', this)">Replacements</button>
+                <button class="store-pill" onclick="switchStoreCategory('cat-cards', this)">Cards</button>
                 <button class="store-pill" onclick="switchStoreCategory('cat-services', this)">Services</button>
                 <button class="store-pill" onclick="switchStoreCategory('cat-free', this)">Free Actions</button>
             </div>
@@ -128,6 +129,9 @@
             </div>
             <div id="cat-paid-rep" class="store-cat-group" style="display: none;">
                 <div id="container-paid-rep"></div>
+            </div>
+            <div id="cat-cards" class="store-cat-group" style="display: none;">
+                <div id="container-cards"></div>
             </div>
             <div id="cat-services" class="store-cat-group" style="display: none;">
                 <div id="container-services"></div>
@@ -207,6 +211,7 @@
                 <option value="transfers">Stock Transfers</option>
                 <option value="new-sim">New SIMs</option>
                 <option value="paid-rep">Paid Replacements</option>
+                <option value="cards">Cards</option>
                 <option value="foc">Free of Cost</option>
                 <option value="service">Services</option>
                 <option value="free-action">Free Actions</option>
@@ -294,6 +299,7 @@
                 <option value="transfers">Stock Transfers</option>
                 <option value="new-sim">New SIMs</option>
                 <option value="paid-rep">Paid Replacements</option>
+                <option value="cards">Cards</option>
                 <option value="foc">Free of Cost</option>
                 <option value="service">Services</option>
                 <option value="free-action">Free Actions</option>
@@ -641,6 +647,7 @@
                             <select id="new-item-category" class="settings-input" style="padding: 10px; width: 100%; box-sizing: border-box;">
                                 <option value="new-sim">New SIM</option>
                                 <option value="paid-rep">Paid Replacement</option>
+                                <option value="cards">Cards</option>
                                 <option value="foc">Free of Cost</option>
                                 <option value="service">Service</option>
                                 <option value="free-action">Free Action</option>

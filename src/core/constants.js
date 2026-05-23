@@ -5,6 +5,8 @@ export const priorityItemSortOrder = [
     'No. 1 Plan', 'Prime', 'Djuice', 'Skitto', 'Power Prime', 'Recycle SIM', 
     'eSIM Prepaid', 'eSIM Postpaid', 'eSIM Skitto',
     'Regular Replacement', 'Skitto Replacement', 'eSIM Replacement', 'Skitto eSIM Replacement',
+    // Cards
+    'GP 10 Tk Card', 'GP 20 Tk Card', 'GP 50 Tk Card', 'GP 100 Tk Card',
     // Services
     'Itemized Bill', 'MNP', 'Ownership Transfer', 'Recycle SIM Reissue', 
     'Death TOF', 'FOC Regular', 'FOC Skitto', 'FOC eSIM', 'FOC Skitto eSIM', 
@@ -14,13 +16,15 @@ export const priorityItemSortOrder = [
 export const priorityInventorySortOrder = [
     'No. 1 Plan', 'Prime', 'Djuice', 'Skitto', 'Power Prime', 'Recycle SIM',
     'eSIM Prepaid', 'eSIM Postpaid', 'eSIM Skitto',
-    'Regular Kit', 'Skitto Kit', 'eSIM Kit', 'eSIM Skitto Kit'
+    'Regular Kit', 'Skitto Kit', 'eSIM Kit', 'eSIM Skitto Kit',
+    'GP 10 Tk Card', 'GP 20 Tk Card', 'GP 50 Tk Card', 'GP 100 Tk Card'
 ];
 
 export const defaultInventoryGroups = [
     'No. 1 Plan', 'Prime', 'Djuice', 'Skitto', 'Power Prime', 'Recycle SIM',
     'eSIM Prepaid', 'eSIM Postpaid', 'eSIM Skitto',
-    'Regular Kit', 'Skitto Kit', 'eSIM Kit', 'eSIM Skitto Kit'
+    'Regular Kit', 'Skitto Kit', 'eSIM Kit', 'eSIM Skitto Kit',
+    'GP 10 Tk Card', 'GP 20 Tk Card', 'GP 50 Tk Card', 'GP 100 Tk Card'
 ];
 
 export const defaultCatalog = {
@@ -54,7 +58,13 @@ export const defaultCatalog = {
     "srv_owner": { name: 'Ownership Transfer', display: 'Ownership Transfer', price: 115, cat: 'service', trackAs: '', isActive: true, order: 21 },
     "srv_mnp": { name: 'MNP', display: 'MNP', price: 457.50, cat: 'service', trackAs: '', isActive: true, order: 22 },
 
+    // Cards
+    "card_10": { name: 'GP 10 Tk Card', display: 'GP 10 Tk Card', price: 10, cat: 'cards', trackAs: 'GP 10 Tk Card', isActive: true, order: 23 },
+    "card_20": { name: 'GP 20 Tk Card', display: 'GP 20 Tk Card', price: 20, cat: 'cards', trackAs: 'GP 20 Tk Card', isActive: true, order: 24 },
+    "card_50": { name: 'GP 50 Tk Card', display: 'GP 50 Tk Card', price: 50, cat: 'cards', trackAs: 'GP 50 Tk Card', isActive: true, order: 25 },
+    "card_100": { name: 'GP 100 Tk Card', display: 'GP 100 Tk Card', price: 100, cat: 'cards', trackAs: 'GP 100 Tk Card', isActive: true, order: 26 },
+
     // MANAGER ONLY ACTIONS (Locked)
-    "foc_govt": { name: 'Govt. FOC', display: 'Govt. FOC', price: 0, cat: 'free-action', trackAs: 'Regular Kit', isActive: true, order: 23, managerOnly: true },
-    "foc_death": { name: 'Death TOF', display: 'Death TOF', price: 0, cat: 'free-action', trackAs: 'Regular Kit', isActive: true, order: 24, managerOnly: true }
+    "foc_govt": { name: 'Govt. FOC', display: 'Govt. FOC', price: 0, cat: 'free-action', trackAs: 'Regular Kit', isActive: true, order: 27, managerOnly: true },
+    "foc_death": { name: 'Death TOF', display: 'Death TOF', price: 0, cat: 'free-action', trackAs: 'Regular Kit', isActive: true, order: 28, managerOnly: true }
 };

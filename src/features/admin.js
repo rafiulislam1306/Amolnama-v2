@@ -67,6 +67,7 @@ export function openSettings() {
     const categories = [
         { id: 'new-sim', title: 'New SIMs', color: '#10b981' },
         { id: 'paid-rep', title: 'Paid Replacements', color: '#f59e0b' },
+        { id: 'cards', title: 'Cards', color: '#ec4899' },
         { id: 'foc', title: 'Free of Cost', color: '#0ea5e9' },
         { id: 'service', title: 'Services', color: '#8b5cf6' },
         { id: 'free-action', title: 'Free Actions', color: '#64748b' }
@@ -107,6 +108,7 @@ export function openSettings() {
                             <select class="settings-input i-cat" style="padding: 10px; width: 100%; box-sizing: border-box;">
                                 <option value="new-sim" ${item.cat==='new-sim'?'selected':''}>New SIM</option>
                                 <option value="paid-rep" ${item.cat==='paid-rep'?'selected':''}>Paid Rep</option>
+                                <option value="cards" ${item.cat==='cards'?'selected':''}>Cards</option>
                                 <option value="foc" ${item.cat==='foc'?'selected':''}>FOC</option>
                                 <option value="service" ${item.cat==='service'?'selected':''}>Service</option>
                                 <option value="free-action" ${item.cat==='free-action'?'selected':''}>Free Action</option>
