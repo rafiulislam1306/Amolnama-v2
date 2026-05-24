@@ -7,7 +7,15 @@ export function initPWA() {
     // ==========================================
     //   SERVICE WORKER FOR PWA INSTALL
     // ==========================================
-    if ('serviceWorker' in navigator) {
+    if (window.Capacitor && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+            for (let registration of registrations) {
+                registration.unregister();
+            }
+        });
+    }
+
+    if ('serviceWorker' in navigator && !window.Capacitor) {
         window.addEventListener('load', () => {
             const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
             navigator.serviceWorker.register(`${baseUrl}sw.js`, { scope: baseUrl })

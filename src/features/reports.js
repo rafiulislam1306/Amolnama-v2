@@ -141,7 +141,7 @@ export async function renderPersonalReport() {
         let agentBadge = ` &bull; <span style="color: var(--text-primary); font-weight: 600;">By ${(tx.agentName || 'Unknown').split(' ')[0]}</span>`;
 
         let actionBtns = `
-                <div class="tx-actions" style="display: none; width: 100%; padding-top: 12px; margin-top: 12px; border-top: 1px dashed var(--border-color); justify-content: flex-end; gap: 8px;">
+                <div class="tx-actions" style="display: none; width: 100%; padding-top: 12px; margin-top: 12px; border-top: 1px dashed var(--hairline); justify-content: flex-end; gap: 8px;">
                     <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: var(--accent-color); border-color: var(--accent-color); gap: 6px;" onclick="event.stopPropagation(); openEditTx(${tx.id})">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> Edit
                     </button>
@@ -187,11 +187,11 @@ export async function renderPersonalReport() {
     document.getElementById('report-user-name').innerText = "Center Report";
     document.getElementById('report-user-email').innerHTML = `
         <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px;">
-            <div style="background: var(--bg-color); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 8px; display: flex; align-items: center; gap: 4px;">
+            <div style="background: var(--bg-color); border: 1px solid var(--hairline); padding: 4px 8px; border-radius: 8px; display: flex; align-items: center; gap: 4px;">
                 <span style="font-size: 0.7rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Opn:</span>
                 <span id="center-tot-opening" style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">${floorOpeningCash}</span>
             </div>
-            <div style="background: var(--bg-color); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 8px; display: flex; align-items: center; gap: 4px;">
+            <div style="background: var(--bg-color); border: 1px solid var(--hairline); padding: 4px 8px; border-radius: 8px; display: flex; align-items: center; gap: 4px;">
                 <span style="font-size: 0.7rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Drp:</span>
                 <span id="center-tot-drops" style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">${floorManagerDrops}</span>
             </div>
@@ -229,7 +229,7 @@ export async function renderPersonalReport() {
 
     for (const [name, qty] of sortedPersonalItems) {
         invHTML += `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 4px; border-bottom: 1px solid var(--border-color);">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 4px; border-bottom: 1px solid var(--hairline);">
                 <span style="font-weight: 600; color: var(--text-primary); font-size: 1rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px;">${name}</span>
                 <span style="font-weight: 800; color: var(--text-secondary); font-size: 1.1rem; flex-shrink: 0;">${qty}x</span>
             </div>
@@ -242,7 +242,7 @@ export async function renderPersonalReport() {
     if (floorStockSection) floorStockSection.style.display = 'block';
 
     let liveStockHTML = `
-            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; padding: 4px 4px 8px 4px; border-bottom: 2px solid var(--border-color); font-size: 0.7rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; padding: 4px 4px 8px 4px; border-bottom: 2px solid var(--hairline); font-size: 0.7rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
                 <div>Item</div>
                 <div style="text-align: center;">Start</div>
                 <div style="text-align: center;">In/Out</div>
@@ -269,7 +269,7 @@ export async function renderPersonalReport() {
             let inOutStr = d.inOut > 0 ? `+${d.inOut}` : (d.inOut < 0 ? `${d.inOut}` : `0`);
 
             liveStockHTML += `
-                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; align-items: center; padding: 12px 4px; border-bottom: 1px dashed var(--border-color); font-size: 0.85rem;">
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; align-items: center; padding: 12px 4px; border-bottom: 1px dashed var(--hairline); font-size: 0.85rem;">
                     <div style="font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; cursor: pointer;" onclick="showTooltip(this, '${item}')">${item}</div>
                     <div style="text-align: center; color: var(--text-secondary); font-weight: 600;">${d.open}</div>
                     <div style="text-align: center; color: ${inOutColor}; font-weight: 700;">${inOutStr}</div>
@@ -287,7 +287,7 @@ export async function renderPersonalReport() {
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     Closed Shift Vault
                 </div>
-                <div style="display: flex; gap: 10px; overflow-x: auto; padding: 4px 4px 16px 4px; scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch;">
+                <div class="no-scrollbar" style="display: flex; gap: 10px; overflow-x: auto; padding: 4px 4px 16px 4px; scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch;">
                     ${vaultButtonsHTML}
                 </div>
             `;
@@ -708,7 +708,7 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
         let inOutColor = d.inOut > 0 ? '#10b981' : (d.inOut < 0 ? '#ef4444' : 'var(--text-secondary)');
         let inOutStr = d.inOut > 0 ? `+${d.inOut}` : (d.inOut < 0 ? `${d.inOut}` : `0`);
         invRows += `
-            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-color); font-size: 0.85rem;">
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--hairline); font-size: 0.85rem;">
                 <div style="font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; cursor: pointer;" onclick="showTooltip(this, '${item}')">${item}</div>
                 <div style="text-align: center; color: var(--text-secondary); font-weight: 500;">${d.open}</div>
                 <div style="text-align: center; color: ${inOutColor}; font-weight: 600;">${inOutStr}</div>
@@ -732,7 +732,7 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
     
     itemRowsArray.forEach(([name, qty], index) => {
         let isLast = index === itemRowsArray.length - 1;
-        let borderStyle = isLast ? '' : 'border-bottom: 1px solid var(--border-color);';
+        let borderStyle = isLast ? '' : 'border-bottom: 1px solid var(--hairline);';
         itemsHTML += `
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; ${borderStyle}">
                 <span style="font-weight: 500; color: var(--text-primary); font-size: 0.875rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px;">${name}</span>
@@ -932,7 +932,7 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
         let actionBtns = '';
         if (targetDeskId === AppState.currentDeskId || AppState.currentUserRole === 'admin' || AppState.currentUserRole === 'manager') {
             actionBtns = `
-                <div class="tx-actions" style="display: none; width: 100%; padding-top: 12px; margin-top: 12px; border-top: 1px dashed var(--border-color); justify-content: flex-end; gap: 8px;">
+                <div class="tx-actions" style="display: none; width: 100%; padding-top: 12px; margin-top: 12px; border-top: 1px dashed var(--hairline); justify-content: flex-end; gap: 8px;">
                     <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: var(--accent-color); border-color: var(--accent-color); gap: 6px;" onclick="event.stopPropagation(); openEditTx(${tx.id})">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> Edit
                     </button>
@@ -982,11 +982,12 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
     document.getElementById('live-dashboard-wrapper').innerHTML = generateDashboardHTML(cashMath, deskMfs, ersData, invStats, deskItemsSold);
     
     let emptyState = `
-        <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary);">
-            <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--bg-color); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px auto;">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <div style="padding: 48px 24px; text-align: center; color: var(--text-secondary);">
+            <div style="width: 56px; height: 56px; border-radius: 16px; background: var(--surface-soft); border: 1px solid var(--hairline); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto; color: var(--accent-color); box-shadow: var(--shadow-soft);">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
             </div>
-            <div style="font-size: 0.9rem; font-weight: 500;">No transactions yet</div>
+            <div style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">No Transactions Yet</div>
+            <div style="font-size: 0.8rem; opacity: 0.8; font-weight: 500;">Activities logged today will appear here.</div>
         </div>`;
 
     document.getElementById('desk-history-log').innerHTML = historyHTML || emptyState;
@@ -1164,7 +1165,7 @@ export async function openHistoricalSession(sessionId) {
             let badges = tx.isEdited ? `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Edited</span>` : '';
 
             historyHTML += `
-                <div style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; margin-bottom: 12px;">
+                <div style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-color); border: 1px solid var(--hairline); border-radius: 16px; margin-bottom: 12px;">
                     <div style="display: flex; width: 100%; align-items: flex-start; gap: 14px;">
                         <div style="width: 44px; height: 44px; border-radius: 12px; background: ${dotColor}15; color: ${dotColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${dotColor}30;">
                             <span style="font-size: 0.95rem; font-weight: 800;">${tx.qty}x</span>
@@ -1206,35 +1207,35 @@ export async function openHistoricalSession(sessionId) {
                     if (diff !== 0) {
                         let dColor = diff < 0 ? 'var(--danger-text)' : 'var(--success-text)';
                         let dPref = diff > 0 ? '+' : '';
-                        invDiffHTML += `<div style="display:flex; justify-content:space-between; font-size:0.8rem; padding:4px 0; border-bottom: 1px dashed var(--border-color);"><span>${item}</span> <span style="color: var(--text-secondary);">Exp: ${expected} | Act: ${actual} <strong style="color:${dColor}; margin-left: 4px;">(${dPref}${diff})</strong></span></div>`;
+                        invDiffHTML += `<div style="display:flex; justify-content:space-between; font-size:0.8rem; padding:4px 0; border-bottom: 1px dashed var(--hairline);"><span>${item}</span> <span style="color: var(--text-secondary);">Exp: ${expected} | Act: ${actual} <strong style="color:${dColor}; margin-left: 4px;">(${dPref}${diff})</strong></span></div>`;
                     }
                 }
 
                 eodHTML = `
-                    <div style="background: var(--bg-color); border: 2px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+                    <div style="background: var(--bg-color); border: 2px solid var(--hairline); border-radius: 12px; padding: 16px; margin-bottom: 24px;">
                         <h4 style="margin: 0 0 12px 0; font-size: 1rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--success-text)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                             Official EOD Snapshot
                         </h4>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-                            <div style="background: var(--surface-color); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                            <div style="background: var(--surface-color); padding: 10px; border-radius: 8px; border: 1px solid var(--hairline);">
                                 <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">System Expected</div>
                                 <div style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">${eodData.expectedClosing.cash} Tk</div>
                             </div>
-                            <div style="background: var(--surface-color); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                            <div style="background: var(--surface-color); padding: 10px; border-radius: 8px; border: 1px solid var(--hairline);">
                                 <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Actual Counted</div>
                                 <div style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">${eodData.actualClosing.cash} Tk</div>
                             </div>
                         </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: var(--surface-color); border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: var(--surface-color); border-radius: 8px; border: 1px solid var(--hairline); margin-bottom: 12px;">
                             <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase;">Manager Drop</span>
                             <span style="font-weight: 800; font-size: 1.1rem; color: var(--purple-text);">${eodData.managerDrop || 0} Tk</span>
                         </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: var(--surface-color); border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: ${invDiffHTML ? '12px' : '0'};">
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: var(--surface-color); border-radius: 8px; border: 1px solid var(--hairline); margin-bottom: ${invDiffHTML ? '12px' : '0'};">
                             <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase;">Cash Variance</span>
                             <span style="font-weight: 800; font-size: 1.1rem; color: ${varianceColor};">${variancePrefix}${eodData.variance} Tk</span>
                         </div>
-                        ${invDiffHTML ? `<div style="background: var(--surface-color); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color);"><div style="font-size: 0.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 8px;">STOCK VARIANCES</div>${invDiffHTML}</div>` : ''}
+                        ${invDiffHTML ? `<div style="background: var(--surface-color); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--hairline);"><div style="font-size: 0.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 8px;">STOCK VARIANCES</div>${invDiffHTML}</div>` : ''}
                     </div>
                 `;
             }

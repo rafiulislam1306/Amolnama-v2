@@ -3,6 +3,7 @@
 //    1. IMPORTS & CONFIGURATION
 // ==========================================
 import { showAppAlert, executeAlertConfirm, showFlashMessage, openModal, closeModal, showTooltip, initNetworkStatus, setupBottomSheetDrag, initCustomDropdowns } from './utils/ui-helpers.js';
+import { setupNativeNavigation } from './utils/native-bridge.js';
 import { initPWA, installPWA } from './features/pwa.js';
 import { initAuth, signInWithGoogle, logout, openProfileHub } from './features/auth.js';
 import { AppState } from './core/state.js';
@@ -38,6 +39,7 @@ Object.defineProperties(window, {
 });
 
 initPWA();
+setupNativeNavigation();
 
 // ==========================================
 //   GLOBAL NAMESPACE & UI BINDINGS
@@ -160,3 +162,28 @@ initNetworkStatus();
 
 // Initialize Custom Dropdowns once the UI has loaded
 initCustomDropdowns();
+
+// --- VIRTUAL KEYBOARD DETECTOR (PREVENT BOTTOM NAV OVERLAP ON MOBILE) ---
+document.addEventListener('focusin', (e) => {
+    const tagName = e.target.tagName;
+    const isTextInput = (tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'submit', 'image', 'file'].includes(e.target.type)) || tagName === 'TEXTAREA';
+    
+    if (isTextInput && window.innerWidth < 760) {
+        const bottomNav = document.querySelector('.bottom-nav');
+        if (bottomNav) {
+            bottomNav.style.display = 'none';
+        }
+    }
+});
+
+document.addEventListener('focusout', (e) => {
+    const tagName = e.target.tagName;
+    const isTextInput = (tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'submit', 'image', 'file'].includes(e.target.type)) || tagName === 'TEXTAREA';
+    
+    if (isTextInput) {
+        const bottomNav = document.querySelector('.bottom-nav');
+        if (bottomNav) {
+            bottomNav.style.display = '';
+        }
+    }
+});

@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  base: '/Amolnama-v2/',
+  base: './',
   
   build: {
     // Explicitly disable source maps to protect proprietary code

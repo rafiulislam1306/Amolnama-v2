@@ -10,6 +10,7 @@
     "tree": "node tree.cjs"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.3.4",
     "@tailwindcss/postcss": "^4.2.4",
     "autoprefixer": "^10.5.0",
     "esbuild": "^0.28.0",
@@ -18,6 +19,10 @@
     "vite": "^8.0.10"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/core": "^8.3.4",
+    "@capacitor/haptics": "^8.0.2",
     "firebase": "^12.12.1"
   }
 }

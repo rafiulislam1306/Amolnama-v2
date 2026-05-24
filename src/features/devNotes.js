@@ -30,16 +30,16 @@ export function renderDevNotes() {
         if (isEditing) {
             html += `
             <div style="background: var(--surface-color); border: 1px solid #8b5cf6; padding: 12px; border-radius: 12px; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.1);">
-                <textarea id="inline-edit-input-${note.id}" style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-family: inherit; font-size: 0.95rem; resize: vertical; margin-bottom: 12px; box-sizing: border-box; background: var(--bg-color); color: var(--text-primary); outline: none;">${note.text}</textarea>
+                <textarea id="inline-edit-input-${note.id}" style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid var(--hairline); border-radius: 8px; font-family: inherit; font-size: 0.95rem; resize: vertical; margin-bottom: 12px; box-sizing: border-box; background: var(--bg-color); color: var(--text-primary); outline: none;">${note.text}</textarea>
                 <div style="display: flex; justify-content: flex-end; gap: 8px;">
-                    <button style="padding: 8px 16px; background: transparent; border: 1px solid var(--border-color); color: var(--text-secondary); border-radius: 8px; cursor: pointer; font-weight: 600;" onclick="cancelInlineEdit()">Cancel</button>
+                    <button style="padding: 8px 16px; background: transparent; border: 1px solid var(--hairline); color: var(--text-secondary); border-radius: 8px; cursor: pointer; font-weight: 600;" onclick="cancelInlineEdit()">Cancel</button>
                     <button style="padding: 8px 16px; background: #8b5cf6; border: none; color: white; border-radius: 8px; cursor: pointer; font-weight: 700;" onclick="saveInlineEdit(${note.id})">Save Edit</button>
                 </div>
             </div>
             `;
         } else {
             html += `
-            <div style="background: var(--surface-color); border: 1px solid ${isRes ? 'var(--border-color)' : pColor}; border-left: 4px solid ${isRes ? 'var(--border-color)' : pColor}; padding: 12px; border-radius: 12px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; opacity: ${isRes ? '0.6' : '1'}; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+            <div style="background: var(--surface-color); border: 1px solid ${isRes ? 'var(--hairline)' : pColor}; border-left: 4px solid ${isRes ? 'var(--hairline)' : pColor}; padding: 12px; border-radius: 12px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; opacity: ${isRes ? '0.6' : '1'}; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
                 <div style="width: 24px; height: 24px; border-radius: 50%; border: 2px solid ${isRes ? 'var(--text-secondary)' : pColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: ${isRes ? 'var(--text-secondary)' : 'transparent'}; color: white; cursor: pointer; transition: all 0.2s; margin-top: 2px;" onclick="toggleDevNote(${note.id})">
                     ${isRes ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
                 </div>

@@ -1,9 +1,10 @@
 // src/utils/ui-helpers.js
+import { triggerNativeHaptic } from './native-bridge.js';
 
 let alertConfirmCallback = null;
 
 export function showAppAlert(title, message, isConfirm = false, confirmCallback = null, confirmText = "OK") {
-    if (navigator.vibrate) navigator.vibrate([50, 50, 50]); 
+    triggerNativeHaptic(isConfirm ? 'warning' : 'error');
     
     document.getElementById('app-alert-title').innerText = title;
     document.getElementById('app-alert-message').innerText = message;
@@ -36,7 +37,7 @@ export function executeAlertConfirm() {
 }
 
 export function showFlashMessage(text) {
-    if (navigator.vibrate) navigator.vibrate(50); 
+    triggerNativeHaptic('light');
     let msg = document.createElement('div'); 
     msg.className = 'flash-pill';
     // Use innerText to completely prevent Cross-Site Scripting (XSS)
@@ -59,7 +60,7 @@ export function showFlashMessage(text) {
         msg.style.transform = 'translateX(-50%) translateY(0) scale(1)';
         msg.style.opacity = '1';
     }, 10);
-
+    
     // Trigger slide up, scale down and remove
     setTimeout(() => {
         msg.style.transform = 'translateX(-50%) translateY(-20px) scale(0.9)';

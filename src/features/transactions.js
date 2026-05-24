@@ -373,7 +373,7 @@ export function renderTrash() {
         [...AppState.trashTransactions].sort((a,b) => b.id - a.id).forEach(tx => {
             let safeDocId = tx.docId ? `'${tx.docId}'` : `null`;
             html += `
-                <div style="border:1px solid var(--border-color); padding:12px; margin-bottom:8px; border-radius:8px; background: var(--surface-color);">
+                <div style="border:1px solid var(--hairline); padding:12px; margin-bottom:8px; border-radius:8px; background: var(--surface-color);">
                     <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
                         <strong style="color: var(--text-primary); text-decoration: line-through;">${tx.qty}x ${tx.name}</strong> 
                         <span style="font-weight:bold; color:#ef4444;">${tx.amount} Tk</span>
