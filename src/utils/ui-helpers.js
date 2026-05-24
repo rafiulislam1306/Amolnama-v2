@@ -138,19 +138,31 @@ export function initNetworkStatus() {
 // ==========================================
 export function setupBottomSheetDrag() {
     document.querySelectorAll('.bottom-sheet, .modal-content').forEach(sheet => {
-        if (sheet.closest('#modal-app-alert')) return; // Skip alert popups
+        // Exclude full-screen modals and popups that shouldn't be swipe-closed
+        if (sheet.closest('#modal-app-alert, #modal-auth, #modal-settings, #modal-desk-select, #modal-close-desk')) return; 
+
         let startY = 0;
         let currentY = 0;
         let isDragging = false;
+        let activeScrollEl = null;
 
         sheet.addEventListener('touchstart', (e) => {
-            // Only allow the sheet to be dragged if the user is scrolled to the very top
-            if (sheet.scrollTop > 0) return;
-            
             startY = e.touches[0].clientY;
-            currentY = startY; // Reset currentY to prevent stale delta calculations
+            currentY = startY; 
             isDragging = true;
             
+            // Dynamically find the innermost scrollable container the user touched
+            activeScrollEl = null;
+            let el = e.target;
+            while (el && el !== sheet && el !== document.body) {
+                const style = window.getComputedStyle(el);
+                if ((style.overflowY === 'auto' || style.overflowY === 'scroll') && el.scrollHeight > el.clientHeight) {
+                    activeScrollEl = el;
+                    break;
+                }
+                el = el.parentElement;
+            }
+
             // Remove CSS animation transitions so the sheet sticks to the thumb perfectly 1:1
             sheet.style.transition = 'none';
         }, { passive: true });
@@ -160,14 +172,35 @@ export function setupBottomSheetDrag() {
             
             currentY = e.touches[0].clientY;
             let delta = currentY - startY;
-            
-            // FIX: Only prevent default scroll if the user is pulling DOWN to close the modal
+
+            // If we're interacting with a scrollable element
+            if (activeScrollEl) {
+                // If the element is scrolled down, let the native scroll handle everything
+                if (activeScrollEl.scrollTop > 0) {
+                    isDragging = false;
+                    return;
+                }
+                
+                // If it's at the top, but the user is pulling UP (scrolling down the list), let native scroll handle it
+                if (delta < 0) {
+                    isDragging = false;
+                    return;
+                }
+            } else {
+                // No scrollable element. If user pulls UP, just abort dragging (can't drag sheet up past the top)
+                if (delta < 0) {
+                    isDragging = false;
+                    return;
+                }
+            }
+
+            // At this point: 
+            // - The user is pulling DOWN (delta > 0)
+            // - They are either touching a non-scrollable area, OR a scrollable area that is pinned to the very top.
+            // We intercept this to drag the sheet.
             if (delta > 0) {
                 e.preventDefault();
                 sheet.style.transform = `translateY(${delta}px)`;
-            } else {
-                // If they are pulling UP (to scroll down the content), let the browser handle it natively!
-                isDragging = false;
             }
         }, { passive: false });
 
@@ -177,6 +210,7 @@ export function setupBottomSheetDrag() {
             
             let delta = currentY - startY;
             let threshold = sheet.offsetHeight * 0.25; // 25% threshold to trigger a close
+            
             // Re-apply the smooth bezier transition for the snap-back or close animation
             sheet.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
 
