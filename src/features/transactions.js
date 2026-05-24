@@ -196,23 +196,76 @@ export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt 
 
     let confirmMsg = type === 'ERS' ? `ERS ${amount} Tk Logged!` : `${qty}x ${name} Logged!`;
 
-    addDoc(collection(db, 'transactions'), tx).catch(e => {
-        // Revert optimistic update on failure
-        AppState.transactions = AppState.transactions.filter(t => t.id !== tx.id);
-        if (typeof window.renderDeskDashboard === 'function') window.renderDeskDashboard(AppState.currentDeskId);
+    addDoc(collection(db, 'transactions'), tx).then(() => {
+        // Success: The listener will pick it up, or if we rely on optimistic updates, it just stays.
+    }).catch(e => {
+        console.warn("Database Error (Quota/Offline): Queuing transaction locally", e);
+        
+        const localTxIndex = AppState.transactions.findIndex(t => t.id === tx.id);
+        if (localTxIndex > -1) {
+            AppState.transactions[localTxIndex].isPending = false;
+            AppState.transactions[localTxIndex].isOffline = true;
+        }
+
+        let offlineTxs = JSON.parse(localStorage.getItem('amolnama_offline_txs') || '[]');
+        const safeTx = { ...tx };
+        delete safeTx.timestamp; // Remove Firebase serverTimestamp
+        offlineTxs.push(safeTx);
+        localStorage.setItem('amolnama_offline_txs', JSON.stringify(offlineTxs));
+        
+        showFlashMessage("Saved Offline (Pending Sync)");
+        
+        if (typeof window.renderAppUI === 'function') window.renderAppUI(); 
         if (typeof window.renderPersonalReport === 'function') window.renderPersonalReport();
-        showAppAlert("Storage Error", "Could not save locally. Check storage.");
-        console.error(e);
+        if (typeof window.renderDeskDashboard === 'function') window.renderDeskDashboard(AppState.currentDeskId);
     });
 
-    if (navigator.onLine) {
-        showFlashMessage(confirmMsg);
-    } else {
-        showFlashMessage("Offline: Queued for sync");
-    }
+    showFlashMessage(confirmMsg);
 
     if (AppState.isMfs && typeof window.toggleMFS === 'function') {
         window.toggleMFS();
+    }
+}
+
+window.syncOfflineTransactions = async function() {
+    let offlineTxs = JSON.parse(localStorage.getItem('amolnama_offline_txs') || '[]');
+    if (offlineTxs.length === 0) return;
+
+    if (typeof window.showAppAlert === 'function') {
+        window.showAppAlert("Syncing", "Attempting to sync " + offlineTxs.length + " transactions...");
+    }
+
+    let successCount = 0;
+    let failedCount = 0;
+
+    for (let i = offlineTxs.length - 1; i >= 0; i--) {
+        const tx = offlineTxs[i];
+        
+        // Re-inject a fresh serverTimestamp since we stripped it when saving locally
+        tx.timestamp = serverTimestamp();
+
+        try {
+            await addDoc(collection(db, 'transactions'), tx);
+            // If successful, remove it from the array
+            offlineTxs.splice(i, 1);
+            successCount++;
+            localStorage.setItem('amolnama_offline_txs', JSON.stringify(offlineTxs));
+            if (typeof window.renderOfflineBanner === 'function') window.renderOfflineBanner(offlineTxs.length);
+        } catch (e) {
+            console.error("Failed to sync transaction during bulk sync:", e);
+            failedCount++;
+            break; // Stop immediately if we hit a quota error or true offline state
+        }
+    }
+
+    if (failedCount > 0) {
+        if (typeof window.showAppAlert === 'function') {
+            window.showAppAlert("Sync Paused", `Synced ${successCount}. Stopped because the database is still locked or offline. Remaining: ${offlineTxs.length}`);
+        }
+    } else {
+        if (typeof window.showAppAlert === 'function') {
+            window.showAppAlert("Sync Complete", "All offline transactions have been securely pushed to the database!");
+        }
     }
 }
 
@@ -230,6 +283,10 @@ export function isTransactionModifiable(tx, action) {
     }
     if (action === 'edit' && tx.type === 'adjustment') {
         showAppAlert("Action Blocked", "Cash adjustments (Drops, Floats, Expenses) cannot be edited to protect ledger integrity. Please delete the item and log it again.");
+        return false;
+    }
+    if (tx.isOffline) {
+        showAppAlert("Action Blocked", "Offline transactions cannot be modified until they are synced to the live database.");
         return false;
     }
     return true;

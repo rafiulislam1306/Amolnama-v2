@@ -18,34 +18,51 @@ export async function initUserData(onComplete) {
     if(!AppState.currentUser) return;
     try {
         // 1. Fetch user data first to establish roles
-        const userDocRef = doc(db, 'users', AppState.currentUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        const todayStr = getStrictDate();
-
         let userData = {};
-        if (userDocSnap.exists()) {
-            userData = userDocSnap.data();
+        try {
+            const userDocSnap = await getDoc(userDocRef);
+            if (userDocSnap.exists()) {
+                userData = userDocSnap.data();
+                localStorage.setItem('amolnama_cache_user_' + AppState.currentUser.uid, JSON.stringify(userData));
+            }
             AppState.currentUserRole = userData.role || 'user';
             AppState.userNickname = userData.nickname || '';
-        } else {
-            AppState.currentUserRole = 'user'; 
+            await setDoc(userDocRef, { email: AppState.currentUser.email || null, displayName: AppState.userDisplayName || 'User', role: AppState.currentUserRole }, { merge: true });
+        } catch (err) {
+            console.warn("Offline Mode: Loading user data from cache", err);
+            userData = JSON.parse(localStorage.getItem('amolnama_cache_user_' + AppState.currentUser.uid) || '{}');
+            AppState.currentUserRole = userData.role || 'user';
+            AppState.userNickname = userData.nickname || '';
         }
 
-        await setDoc(userDocRef, { email: AppState.currentUser.email || null, displayName: AppState.userDisplayName || 'User', role: AppState.currentUserRole }, { merge: true });
-
         // 2. Fetch global catalog & inventory groups BEFORE auto-close
-        const globalDoc = await getDoc(doc(db, 'global', 'settings'));
-        if (globalDoc.exists() && globalDoc.data().catalog) {
-            AppState.globalCatalog = globalDoc.data().catalog;
-            AppState.globalInventoryGroups = globalDoc.data().inventoryGroups || defaultInventoryGroups;
-        } else {
-            AppState.globalCatalog = defaultCatalog;
-            AppState.globalInventoryGroups = defaultInventoryGroups;
-            if (AppState.currentUserRole === 'admin') await setDoc(doc(db, 'global', 'settings'), { catalog: AppState.globalCatalog, inventoryGroups: AppState.globalInventoryGroups }, { merge: true });
+        try {
+            const globalDoc = await getDoc(doc(db, 'global', 'settings'));
+            if (globalDoc.exists() && globalDoc.data().catalog) {
+                AppState.globalCatalog = globalDoc.data().catalog;
+                AppState.globalInventoryGroups = globalDoc.data().inventoryGroups || defaultInventoryGroups;
+                localStorage.setItem('amolnama_cache_global', JSON.stringify({ catalog: AppState.globalCatalog, inventoryGroups: AppState.globalInventoryGroups }));
+            } else {
+                AppState.globalCatalog = defaultCatalog;
+                AppState.globalInventoryGroups = defaultInventoryGroups;
+                if (AppState.currentUserRole === 'admin') await setDoc(doc(db, 'global', 'settings'), { catalog: AppState.globalCatalog, inventoryGroups: AppState.globalInventoryGroups }, { merge: true });
+            }
+        } catch (err) {
+            console.warn("Offline Mode: Loading global catalog from cache", err);
+            const cachedGlobal = JSON.parse(localStorage.getItem('amolnama_cache_global') || 'null');
+            if (cachedGlobal) {
+                AppState.globalCatalog = cachedGlobal.catalog;
+                AppState.globalInventoryGroups = cachedGlobal.inventoryGroups;
+            } else {
+                AppState.globalCatalog = defaultCatalog;
+                AppState.globalInventoryGroups = defaultInventoryGroups;
+            }
         }
 
         // 3. NOW run auto-close so it knows which items to calculate leftovers for
-        await performLazyAutoClose();
+        try {
+            await performLazyAutoClose();
+        } catch(err) { console.warn("Offline Mode: Skipped auto-close", err); }
 
         const rName = document.getElementById('report-user-name');
         if (rName) rName.innerText = AppState.userDisplayName;
@@ -104,27 +121,52 @@ export async function initUserData(onComplete) {
         } else if (userData.assignedDate === todayStr && userData.assignedDeskId) {
             AppState.currentDeskId = userData.assignedDeskId;
             
-            const deskSnap = await getDoc(doc(db, 'desks', AppState.currentDeskId));
-            if (deskSnap.exists() && deskSnap.data().status === 'open') {
-                AppState.currentSessionId = deskSnap.data().currentSessionId;
-                AppState.currentDeskName = deskSnap.data().name;
-                document.getElementById('header-title').innerText = `${AppState.currentDeskName}`;
-                try {
-                    const sessionSnap = await getDoc(doc(db, 'sessions', AppState.currentSessionId));
-                    if (sessionSnap.exists() && sessionSnap.data().openingBalances) {
-                        AppState.currentOpeningCash = parseFloat(sessionSnap.data().openingBalances.cash) || 0;
-                        AppState.currentOpeningInv = sessionSnap.data().openingBalances.inventory || {}; 
-                    }
-                } catch(e) {
-                    console.error("Failed to recover session balances on app load:", e);
+            try {
+                const deskSnap = await getDoc(doc(db, 'desks', AppState.currentDeskId));
+                let deskData;
+                if (deskSnap.exists()) {
+                    deskData = deskSnap.data();
+                    localStorage.setItem('amolnama_cache_desk_' + AppState.currentDeskId, JSON.stringify(deskData));
                 }
-                document.getElementById('modal-desk-select').classList.remove('active');
-                await fetchTransactionsForDate();
-            } else {
-                // The desk was closed (by a manager or auto-close), so we unassign the user.
-                AppState.currentDeskId = null;
-                await setDoc(doc(db, 'users', AppState.currentUser.uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
-                await loadFloorMap();
+
+                if (deskData && deskData.status === 'open') {
+                    AppState.currentSessionId = deskData.currentSessionId;
+                    AppState.currentDeskName = deskData.name;
+                    document.getElementById('header-title').innerText = `${AppState.currentDeskName}`;
+                    
+                    const sessionSnap = await getDoc(doc(db, 'sessions', AppState.currentSessionId));
+                    if (sessionSnap.exists()) {
+                        const sData = sessionSnap.data();
+                        localStorage.setItem('amolnama_cache_session_' + AppState.currentSessionId, JSON.stringify(sData));
+                        if (sData.openingBalances) {
+                            AppState.currentOpeningCash = parseFloat(sData.openingBalances.cash) || 0;
+                            AppState.currentOpeningInv = sData.openingBalances.inventory || {}; 
+                        }
+                    }
+                    document.getElementById('modal-desk-select').classList.remove('active');
+                    await fetchTransactionsForDate();
+                } else {
+                    AppState.currentDeskId = null;
+                    await setDoc(doc(db, 'users', AppState.currentUser.uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
+                    await loadFloorMap();
+                }
+            } catch (err) {
+                console.warn("Offline Mode: Restoring desk/session from cache", err);
+                let deskData = JSON.parse(localStorage.getItem('amolnama_cache_desk_' + AppState.currentDeskId) || 'null');
+                if (deskData && deskData.status === 'open') {
+                    AppState.currentSessionId = deskData.currentSessionId;
+                    AppState.currentDeskName = deskData.name;
+                    document.getElementById('header-title').innerText = `${AppState.currentDeskName}`;
+                    let sData = JSON.parse(localStorage.getItem('amolnama_cache_session_' + AppState.currentSessionId) || 'null');
+                    if (sData && sData.openingBalances) {
+                        AppState.currentOpeningCash = parseFloat(sData.openingBalances.cash) || 0;
+                        AppState.currentOpeningInv = sData.openingBalances.inventory || {}; 
+                    }
+                    document.getElementById('modal-desk-select').classList.remove('active');
+                    await fetchTransactionsForDate();
+                } else {
+                    try { await loadFloorMap(); } catch(e){}
+                }
             }
         } else {
             // Standard agent without active desk assigned today -> Auto-assign and open personal drawer

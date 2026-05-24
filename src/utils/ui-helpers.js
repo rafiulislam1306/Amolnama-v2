@@ -35,6 +35,40 @@ export function executeAlertConfirm() {
     if (alertConfirmCallback) alertConfirmCallback();
 }
 
+window.renderOfflineBanner = function(count) {
+    let banner = document.getElementById('offline-sync-banner');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'offline-sync-banner';
+        banner.style.cssText = `
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100000;
+            background: #f59e0b; color: #fff; padding: 10px 16px;
+            font-weight: 600; font-size: 0.85rem; text-align: center;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+            padding-top: calc(10px + env(safe-area-inset-top));
+        `;
+        document.body.appendChild(banner);
+    }
+
+    const appContainer = document.querySelector('.app-container');
+
+    if (count > 0) {
+        banner.innerHTML = `
+            <span>⚠️ Offline Mode: ${count} pending sales</span>
+            <button onclick="if(window.syncOfflineTransactions) window.syncOfflineTransactions()" 
+                    style="background: #fff; color: #f59e0b; border: none; padding: 4px 10px; border-radius: 4px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 0.75rem;">
+                SYNC NOW
+            </button>
+        `;
+        banner.style.display = 'flex';
+        if (appContainer) appContainer.style.marginTop = '45px';
+    } else {
+        banner.style.display = 'none';
+        if (appContainer) appContainer.style.marginTop = '0';
+    }
+}
+
 export function showFlashMessage(text) {
     if (navigator.vibrate) navigator.vibrate(50); 
     let msg = document.createElement('div'); 

@@ -1086,31 +1086,14 @@ export async function fetchTransactionsForDate() {
     try {
         let txQuery = query(collection(db, 'transactions'), where('dateStr', '==', targetDateStr));
 
-        txListenerUnsubscribe = onSnapshot(
-            txQuery,
-            { includeMetadataChanges: true },
-            (txSnapshot) => {
-            AppState.transactions = []; AppState.trashTransactions = [];
-
-            txSnapshot.forEach(doc => {
-                let tx = doc.data(); tx.docId = doc.id; 
-                tx.isPending = doc.metadata.hasPendingWrites;
-                if (!tx.isDeleted) {
-                    AppState.transactions.push(tx);
-                } else if (tx.agentId === AppState.currentUser.uid) {
-                    AppState.trashTransactions.push(tx); 
-                }
-            });
-            
+        const handleRender = () => {
             AppState.transactions.sort((a, b) => a.id - b.id);
             AppState.trashTransactions.sort((a, b) => a.id - b.id);
 
-            // 1. Check which tab is currently visible
             const activeDeskTab = document.getElementById('tab-desk').classList.contains('active');
             const activeReportTab = document.getElementById('tab-report').classList.contains('active');
             const activeFloorTab = document.getElementById('tab-floor').classList.contains('active');
 
-            // 2. Render only the active tab; flag the others as "dirty"
             if (activeReportTab) renderPersonalReport();
             else AppState.needsRender.report = true;
 
@@ -1122,12 +1105,67 @@ export async function fetchTransactionsForDate() {
 
             const financialLabel = document.getElementById('financial-date-label');
             if (financialLabel) financialLabel.innerHTML = `${dateLabel}`;
-        });
+        };
+
+        txListenerUnsubscribe = onSnapshot(
+            txQuery,
+            { includeMetadataChanges: true },
+            (txSnapshot) => {
+                AppState.transactions = []; AppState.trashTransactions = [];
+
+                txSnapshot.forEach(doc => {
+                    let tx = doc.data(); tx.docId = doc.id; 
+                    tx.isPending = doc.metadata.hasPendingWrites;
+                    if (!tx.isDeleted) {
+                        AppState.transactions.push(tx);
+                    } else if (tx.agentId === AppState.currentUser.uid) {
+                        AppState.trashTransactions.push(tx); 
+                    }
+                });
+
+                // --- OFFLINE MODE: MERGE LOCAL TRANSACTIONS ---
+                let offlineTxs = JSON.parse(localStorage.getItem('amolnama_offline_txs') || '[]');
+                if (typeof window.renderOfflineBanner === 'function') window.renderOfflineBanner(offlineTxs.length);
+                
+                if (offlineTxs.length > 0) {
+                    offlineTxs.forEach(tx => {
+                        if (tx.dateStr === targetDateStr) {
+                            if (!tx.isDeleted) {
+                                AppState.transactions.push(tx);
+                            } else if (tx.agentId === AppState.currentUser.uid) {
+                                AppState.trashTransactions.push(tx);
+                            }
+                        }
+                    });
+                }
+                
+                handleRender();
+            },
+            (error) => {
+                console.warn("Offline Mode Active: Fetching transactions from local storage", error);
+                
+                // FALLBACK FOR QUOTA EXCEEDED / NO INTERNET
+                AppState.transactions = []; AppState.trashTransactions = [];
+                let offlineTxs = JSON.parse(localStorage.getItem('amolnama_offline_txs') || '[]');
+                if (typeof window.renderOfflineBanner === 'function') window.renderOfflineBanner(offlineTxs.length);
+                
+                if (offlineTxs.length > 0) {
+                    offlineTxs.forEach(tx => {
+                        if (tx.dateStr === targetDateStr) {
+                            if (!tx.isDeleted) {
+                                AppState.transactions.push(tx);
+                            } else if (tx.agentId === AppState.currentUser.uid) {
+                                AppState.trashTransactions.push(tx);
+                            }
+                        }
+                    });
+                }
+                
+                handleRender();
+            }
+        );
     } catch (e) { 
-        console.error(e); 
-        if (typeof window.showAppAlert === 'function') {
-            window.showAppAlert("Sync Error", "Could not connect to the live ledger.");
-        }
+        console.error("Critical Sync Error:", e); 
     }
 }
 
