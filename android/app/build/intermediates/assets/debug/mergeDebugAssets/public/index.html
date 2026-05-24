@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Amolnama</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#7c3aed">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
+    <meta property="og:title" content="Amolnama POS">
+    <meta property="og:description" content="Your daily ledger, simplified.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="icon-512.png">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script type="module" crossorigin src="./assets/index-DMdL_UKy.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/firebase-vendor-aINCpLWa.js">
+  <link rel="stylesheet" crossorigin href="./assets/index-BskDsgNM.css">
+</head>
+<body>
+
+    <div id="offline-banner" style="display: none; position: fixed; top: 0; left: 0; width: 100%; background-color: #ef4444; color: white; text-align: center; padding-top: calc(6px + env(safe-area-inset-top)); padding-bottom: 6px; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.5px; z-index: 100000; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4); text-transform: uppercase;">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m2 2 20 20"/><path d="M8.53 8.53a9 9 0 0 1 11.23 3.86"/><path d="M4.68 4.68a13 13 0 0 0-2.6 1.74"/><path d="M2.08 9.5A13 13 0 0 1 4.5 7.1"/></svg>
+            OFFLINE - Changes Queued Locally
+        </div>
+    </div>
+
+    <div id="splash-screen" class="modal-overlay active" style="background-color: var(--bg-color); z-index: 10000; flex-direction: column; align-items: center; justify-content: center;">
+        <div class="spinner"></div>
+    </div>
+
+    <div id="modal-auth" class="modal-overlay">
+        <div class="modal-content auth-fullscreen">
+            <div style="margin-bottom: 40px; text-align: center;">
+                <h1 style="font-size: 2.5rem; font-weight: 800; color: var(--accent-color); letter-spacing: -1px; margin-bottom: 8px;">Amolnama</h1>
+                <p style="color: var(--text-secondary); font-size: 1.1rem;">Your daily ledger, simplified.</p>
+            </div>
+            
+            <button class="save-ers-btn" style="background-color: var(--surface-color); color: var(--text-primary); border: 1px solid var(--hairline); border-radius: 12px; margin-bottom: 12px; padding: 14px 20px; display: flex; justify-content: center; align-items: center; gap: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); font-weight: 600; font-size: 1.1rem; width: 100%; transition: transform 0.1s;" onclick="signInWithGoogle()">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google Logo" width="24" height="24">
+                Continue with Google
+            </button>
+            
+            <button id="install-app-btn" class="save-ers-btn" style="display: none; color: #ffffff; border: none; border-radius: 12px; margin-bottom: 12px; padding: 14px 20px; justify-content: center; align-items: center; gap: 12px; font-weight: 600; font-size: 1.1rem; width: 100%; transition: transform 0.1s;" onclick="installPWA()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                Install Amolnama App
+            </button>
+
+            <div id="auth-error" style="color: #ef4444; margin-top: 8px; font-size: 0.9rem; text-align: center; min-height: 20px;"></div>
+        </div>
+    </div>
+
+    <header style="cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;" onclick="openProfileHub()">
+        <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
+            <div style="position: relative; display: inline-flex;">
+                <img id="header-user-photo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666666'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E" alt="Profile" style="width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--hairline); object-fit: cover; background-color: var(--bg-color);">
+                <div id="rank-badge" style="display: none; position: absolute; bottom: -4px; right: -4px; width: 20px; height: 20px; border-radius: 50%; font-size: 0.75rem; font-weight: 900; align-items: center; justify-content: center; border: 2px solid var(--bg-color); box-shadow: 0 2px 4px rgba(0,0,0,0.15); z-index: 10;"></div>
+            </div>
+            <div class="header-title" id="header-title" style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">ERS</div>
+            <div style="background: var(--bg-color); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </div>
+        </div>
+    </header>
+
+    <main id="tab-ers" class="tab-content active">
+        <div class="ers-container">
+            <div class="ers-display-wrapper">
+                <div class="ers-currency">Tk</div>
+                <div class="ers-display" id="ers-display">0</div>
+            </div>
+            <div class="keypad">
+                <button class="keypad-btn" onclick="ersKeyPress('1')">1</button>
+                <button class="keypad-btn" onclick="ersKeyPress('2')">2</button>
+                <button class="keypad-btn" onclick="ersKeyPress('3')">3</button>
+                <button class="keypad-btn" onclick="ersKeyPress('4')">4</button>
+                <button class="keypad-btn" onclick="ersKeyPress('5')">5</button>
+                <button class="keypad-btn" onclick="ersKeyPress('6')">6</button>
+                <button class="keypad-btn" onclick="ersKeyPress('7')">7</button>
+                <button class="keypad-btn" onclick="ersKeyPress('8')">8</button>
+                <button class="keypad-btn" onclick="ersKeyPress('9')">9</button>
+                <button class="keypad-btn" onclick="ersKeyPress('00')">00</button>
+                <button class="keypad-btn" onclick="ersKeyPress('0')">0</button>
+                <button class="keypad-btn backspace-btn" onclick="ersBackspace()">⌫</button>
+            </div>
+            <div style="display: flex; gap: 12px; width: 100%; margin-bottom: 8px;">
+                <button class="save-ers-btn btn-cash" onclick="saveErs('Cash')">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+                    <span style="font-size: 1.1rem; letter-spacing: 1px;">CASH</span>
+                </button>
+                <button class="save-ers-btn btn-mfs" onclick="saveErs('MFS')">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/></svg>
+                    <span style="font-size: 1.1rem; letter-spacing: 1px;">MFS</span>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <main id="tab-store" class="tab-content">
+        <!-- 1. Sticky Store Controls -->
+        <div class="glass-panel" style="position: sticky; top: -16px; z-index: 50; border-bottom: 1px solid var(--hairline); padding: 16px 16px 4px 16px; margin: -16px -16px 16px -16px; box-shadow: 0 4px 16px rgba(0,0,0,0.05);">
+            <div class="toggle-container" style="margin-bottom: 16px; display: flex; justify-content: space-between; width: 100%;">
+                <span class="toggle-label" style="font-weight: 700; color: var(--text-secondary);">Payment Mode</span>
+                <div class="toggle-switch" onclick="toggleMFS()" style="margin: 0;">
+                    <div class="toggle-option sync-cash active">Cash</div>
+                    <div class="toggle-option sync-mfs">MFS</div>
+                </div>
+            </div>
+
+            <div class="no-scrollbar" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; scrollbar-width: none; -webkit-overflow-scrolling: touch;">
+                <button class="store-pill active" onclick="switchStoreCategory('cat-new-sim', this)">New SIMs</button>
+                <button class="store-pill" onclick="switchStoreCategory('cat-paid-rep', this)">Replacements</button>
+                <button class="store-pill" onclick="switchStoreCategory('cat-services', this)">Services</button>
+                <button class="store-pill" onclick="switchStoreCategory('cat-free', this)">Free Actions</button>
+            </div>
+        </div>
+
+        <!-- 2. Dynamic Product Containers -->
+        <div style="background: var(--surface-color); border: 1px solid var(--hairline); border-radius: 16px; margin-bottom: 40px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+            <div id="cat-new-sim" class="store-cat-group">
+                <div id="container-new-sim"></div>
+            </div>
+            <div id="cat-paid-rep" class="store-cat-group" style="display: none;">
+                <div id="container-paid-rep"></div>
+            </div>
+            <div id="cat-services" class="store-cat-group" style="display: none;">
+                <div id="container-services"></div>
+            </div>
+            <div id="cat-free" class="store-cat-group" style="display: none;">
+                <div id="container-foc"></div>
+                <div id="container-free-actions"></div>
+            </div>
+        </div>
+    </main>
+
+    <main id="tab-desk" class="tab-content">
+        
+                <div id="desk-peek-header" style="display: none; background: var(--info-bg); border: 1px solid var(--info-border); border-radius: 12px; padding: 12px; margin-bottom: 16px; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 8px; color: var(--info-text); font-weight: 700;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                <span id="desk-dashboard-title">Desk Name</span>
+            </div>
+            <button style="background: var(--surface-color); border: 1px solid var(--info-border); color: var(--info-text); padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer;" onclick="handleMyDrawerNav()">Return to My Drawer</button>
+        </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); display: flex; align-items: center; gap: 6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                Active Agents: <span id="desk-logged-agents" style="color: var(--text-primary);">None</span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button onclick="downloadReportAsPDF('tab-desk', 'Desk_Ledger')" style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; color: #ef4444; cursor: pointer;" title="Download PDF">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                </button>
+            </div>
+        </div>
+
+                <div id="live-dashboard-wrapper"></div>
+
+        <div id="desk-action-buttons">
+            <div class="section-header">DESK ACTIONS</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
+                <div style="background: var(--surface-color); border: 1px solid var(--hairline); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 12px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.03); transition: transform 0.1s;" onclick="openManagerCashModal()">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: var(--success-bg); color: var(--success-text); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    </div>
+                    <span style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); text-align: left;">Cash Actions</span>
+                </div>
+                <div style="background: var(--surface-color); border: 1px solid var(--hairline); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 12px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.03); transition: transform 0.1s;" onclick="openDeskTransfer()">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: var(--purple-bg); color: var(--purple-text); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><polyline points="8 14 12 18 16 14"/><line x1="12" x2="12" y1="6" y2="18"/></svg>
+                    </div>
+                    <span style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); text-align: left;">Desk Transfer</span>
+                </div>
+                <div style="background: var(--surface-color); border: 1px solid var(--hairline); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 12px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.03); transition: transform 0.1s;" onclick="openMainStockModal()">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: var(--info-bg); color: var(--info-text); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+                    </div>
+                    <span style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); text-align: left;">+ Main Stock</span>
+                </div>
+                <div style="background: var(--surface-color); border: 1px solid var(--hairline); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 12px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.03); transition: transform 0.1s;" onclick="openReturnStockModal()">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: var(--danger-bg); color: var(--danger-text); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 1 1-1.73l7-4a2 2 0 0 1 2 0l7 4A2 2 0 0 1 21 8v8a2 2 0 0 1-1 1.73l-7 4a2 2 0 0 1-2 0l-7-4A2 2 0 0 1 3 16Z"/><path d="m7.5 4.21 4.5 2.6 4.5-2.6"/><path d="m7.5 19.79 4.5-2.6 4.5 2.6"/><path d="M3.27 6.96 12 12l8.73-5.04"/><path d="M12 22V12"/></svg>
+                    </div>
+                    <span style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); text-align: left;">− Return Stock</span>
+                </div>
+            </div>
+
+                        <button class="btn-primary-full" style="background-color: var(--text-primary); color: var(--bg-color); margin-bottom: 24px; padding: 14px 16px; border-radius: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 1rem; font-weight: 700;" onclick="initiateCloseDesk()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> 
+                Close Desk
+            </button>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; margin: 0 -18px 12px -18px; position: sticky; top: 0; z-index: 10; background: var(--surface-soft); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border-bottom: 1px solid var(--hairline);">
+            <span style="font-size: 0.8rem; font-weight: 800; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.5px;">Desk Ledger</span>
+            <select id="desk-history-filter" class="settings-input" style="width: auto; padding: 6px 12px; font-size: 0.8rem; text-transform: none; font-weight: 600; margin: 0; background: var(--surface-color); color: var(--text-primary); border: 1px solid var(--hairline); border-radius: 999px; outline: none; appearance: auto; box-shadow: 0 2px 4px rgba(0,0,0,0.02);" onchange="renderDeskDashboard()">
+                <option value="all">All Activity</option>
+                <option value="ers">ERS Flexiload</option>
+                <option value="cash_ops">Cash Drops & Floats</option>
+                <option value="transfers">Stock Transfers</option>
+                <option value="new-sim">New SIMs</option>
+                <option value="paid-rep">Paid Replacements</option>
+                <option value="foc">Free of Cost</option>
+                <option value="service">Services</option>
+                <option value="free-action">Free Actions</option>
+            </select>
+        </div>
+
+        <div id="desk-history-log" style="display: flex; flex-direction: column; margin-bottom: 24px; padding: 0;">
+        </div>
+    </main>
+
+    <main id="tab-report" class="tab-content">
+        
+        <!-- Upgraded Profile Card -->
+        <div style="background: linear-gradient(145deg, var(--surface-color), var(--bg-color)); border: 1px solid var(--hairline); border-radius: 20px; padding: 20px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.02); position: relative; display: flex; align-items: center; gap: 16px;">
+            <img id="report-user-photo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666666'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E" alt="Profile" style="width: 60px; height: 60px; border-radius: 18px; border: 2px solid var(--surface-color); object-fit: cover; background-color: var(--hairline); box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+            
+            <div style="flex: 1; min-width: 0; padding-right: 48px;">
+                <h3 id="report-user-name" style="margin: 0 0 4px 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary); line-height: 1.2;">User Name</h3>
+                <div id="report-user-email" style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 10px; line-height: 1.4;">email@example.com</div>
+                <div style="display: inline-flex; align-items: center; gap: 6px; background: var(--success-bg); color: var(--success-text); padding: 4px 10px; border-radius: 8px; font-size: 0.85rem; font-weight: 700; border: 1px solid var(--success-border); white-space: nowrap;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    Revenue: <span id="report-total-all">0 Tk</span>
+                </div>
+            </div>
+
+            <div style="position: absolute; top: 20px; right: 20px; display: flex; gap: 8px;">
+                <button onclick="downloadReportAsPDF('tab-report', 'Center_Report')" style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 14px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #ef4444; cursor: pointer;" title="Download PDF">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- ADMIN ONLY: Manager Control Panel -->
+        
+        <div id="admin-report-toggle-wrapper" style="display: none;"></div>
+
+        <!-- Upgraded Sales Dashboard Grid -->
+        <div style="margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px;">
+                <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary); margin: 0;">Sales Dashboard</h3>
+                <div style="position: relative; display: inline-block;">
+                    <div id="financial-date-label" style="font-size: 0.8rem; color: var(--purple-text); font-weight: 700; background: var(--purple-bg); padding: 6px 12px; border-radius: 8px; border: 1px solid var(--purple-border); display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                        Today
+                    </div>
+                    <input type="date" id="report-date-picker" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;" onchange="fetchTransactionsForDate()">
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div style="background: var(--surface-color); border: 1px solid var(--hairline); border-radius: 16px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+                    <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 8px;">Cash Sales</div>
+                    <div id="tot-cash-sales" style="font-size: 1.4rem; font-weight: 800; color: var(--text-primary);">0 Tk</div>
+                </div>
+                <div style="background: var(--surface-color); border: 1px solid var(--hairline); border-radius: 16px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+                    <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 8px;">MFS Sales</div>
+                    <div id="tot-mfs" style="font-size: 1.4rem; font-weight: 800; color: var(--text-primary);">0 Tk</div>
+                </div>
+                <div style="grid-column: span 2; background: linear-gradient(to right, var(--info-bg), var(--surface-color)); border: 1px solid var(--info-border); border-radius: 16px; padding: 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+                    <div style="font-size: 0.85rem; font-weight: 800; color: var(--info-text); text-transform: uppercase;">ERS / Flexiload</div>
+                    <div id="tot-ers" style="font-size: 1.4rem; font-weight: 800; color: var(--info-text);">0 Tk</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+            <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary); margin: 0 0 12px 0;">Items & Services</h3>
+            <div id="inventory-list" style="background: var(--surface-color); border: 1px solid var(--hairline); border-radius: 16px; padding: 8px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+                <div class="report-row" style="color: var(--text-secondary); font-style: italic; border: none; padding: 8px 0;">No items yet</div>
+            </div>
+        </div>
+
+        <div id="floor-stock-section" style="display: none; margin-bottom: 24px;">
+            <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary); margin: 0 0 12px 0;">Consolidated Floor Stock</h3>
+            <div id="floor-stock-list" style="background: var(--surface-color); border: 1px solid var(--hairline); border-radius: 16px; padding: 8px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 style="font-size: 0.9rem; font-weight: 800; color: var(--text-secondary); margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">Activity Log</h3>
+            <select id="personal-history-filter" class="settings-input" style="width: auto; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; margin: 0; background: var(--surface-color); border-color: var(--hairline); border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);" onchange="renderPersonalReport()">
+                <option value="all">All Activity</option>
+                <option value="ers">ERS Flexiload</option>
+                <option value="cash_ops">Cash Drops & Floats</option>
+                <option value="transfers">Stock Transfers</option>
+                <option value="new-sim">New SIMs</option>
+                <option value="paid-rep">Paid Replacements</option>
+                <option value="foc">Free of Cost</option>
+                <option value="service">Services</option>
+                <option value="free-action">Free Actions</option>
+            </select>
+        </div>
+        
+        <div id="history-log" style="display: flex; flex-direction: column; margin-bottom: 16px; padding: 0;">
+            <div class="empty-state" style="border: none; background: transparent; box-shadow: none; padding-bottom: 12px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg><p>No transactions today</p></div>
+        </div>
+        
+        <button class="action-btn" style="width: 100%; margin-top: 16px; margin-bottom: 8px; background-color: transparent; color: var(--text-secondary); border: 1px dashed var(--hairline); border-radius: 12px; display: flex; justify-content: center; align-items: center; gap: 8px; padding: 12px; font-weight: 600; transition: background-color 0.1s;" onclick="openTrash()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg> View Trash
+        </button>
+    </main>
+
+    <main id="tab-floor" class="tab-content" style="background-color: var(--bg-color);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="color: var(--text-primary); margin: 0; font-size: 1.1rem;">Live Floor Map</h3>
+            <button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: auto; gap: 6px;" onclick="renderLiveFloorTab()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                Refresh
+            </button>
+        </div>
+        <div id="live-floor-container" style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="placeholder-text">Loading floor data...</div>
+        </div>
+    </main>
+
+    <div id="modal-nicknames" class="modal-overlay" style="z-index: 9600;">
+        <div class="modal-content">
+            <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
+                <h3 style="color: #0ea5e9;">Manage Nicknames</h3>
+                <button class="delete-btn" style="color: #64748b; font-size: 1.5rem; padding: 0;" onclick="closeModal('modal-nicknames')">✕</button>
+            </div>
+            <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 16px;">Assign short nicknames to agents for cleaner floor map displays.</p>
+            <div id="nickname-list-container" style="display: flex; flex-direction: column; gap: 12px; max-height: 60vh; overflow-y: auto; padding-bottom: 20px;">
+                </div>
+        </div>
+    </div>
+
+    <div id="modal-transfer" class="modal-overlay" style="z-index: 9500;">
+        <div class="modal-content">
+            <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
+                <h3 style="color: #8b5cf6;">Send Stock</h3>
+            </div>
+            <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 16px;">Transferring inventory to <strong id="transfer-target-name" style="color: #0f172a;">Desk Name</strong>.</p>
+            
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
+                <div style="margin-bottom: 16px;">
+                    <label class="admin-label">Select Item to Send</label>
+                    <select id="transfer-item-select" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;"></select>
+                </div>
+                <div>
+                    <label class="admin-label">Quantity</label>
+                    <input type="number" id="transfer-qty" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0">
+                </div>
+            </div>
+            <button class="btn-primary-full" style="background-color: #8b5cf6;" onclick="executeTransfer()">CONFIRM TRANSFER</button>
+            <button class="modal-close" style="color: #64748b;" onclick="closeModal('modal-transfer')">Cancel</button>
+        </div>
+    </div>
+
+    <div id="modal-admin-reallocate" class="modal-overlay">
+        <div class="bottom-sheet" style="max-height: 90vh; display: flex; flex-direction: column; padding: 0;">
+            <div style="background: var(--danger-bg); padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--danger-border); position: sticky; top: 0; z-index: 10; border-radius: 20px 20px 0 0;">
+                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--danger-text); display: flex; align-items: center; gap: 8px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                    Force Reallocate
+                </h3>
+                <button style="background: none; border: none; color: var(--danger-text); font-weight: 800; font-size: 1.25rem; cursor: pointer; padding: 0;" onclick="closeModal('modal-admin-reallocate')">✕</button>
+            </div>
+      
+            <div style="padding: 24px 20px; overflow-y: auto;">
+                <div style="background: var(--warning-bg); color: var(--warning-text); padding: 14px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; margin-bottom: 24px; border: 1px solid var(--warning-border); line-height: 1.5;">
+                    ⚠️ Warning: This tool bypasses session locks to move stock from absent agents. This action will be permanently logged under your Admin ID.
+                </div>
+
+                <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
+                    <div style="margin-bottom: 16px;">
+                        <label class="admin-label">Pull Stock FROM (Absent Agent):</label>
+                        <select id="force-transfer-from" class="settings-input" style="width: 100%; box-sizing: border-box;"></select>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label class="admin-label">Send Stock TO (Active Desk):</label>
+                        <select id="force-transfer-to" class="settings-input" style="width: 100%; box-sizing: border-box;"></select>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label class="admin-label">Select Item:</label>
+                        <select id="force-transfer-item" class="settings-input" style="width: 100%; box-sizing: border-box;"></select>
+                    </div>
+
+                    <div>
+                        <label class="admin-label">Quantity:</label>
+                        <input type="number" id="force-transfer-qty" class="settings-input" placeholder="0" style="width: 100%; box-sizing: border-box;">
+                    </div>
+                </div>
+
+                <button class="btn-primary-full" style="background: #b91c1c; box-shadow: 0 4px 16px rgba(185, 28, 28, 0.3);" onclick="executeForceTransfer()">EXECUTE TRANSFER</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-manager-cash" class="modal-overlay" style="z-index: 9500;">
+        <div class="modal-content">
+            <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
+                <h3 style="color: #10b981;">Drawer Cash Actions</h3>
+            </div>
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
+                <div style="margin-bottom: 16px;">
+                    <label class="admin-label">Action Type</label>
+                    <select id="mgr-cash-action" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box; font-size: 0.95rem;">
+                        <optgroup label="Cash Leaving Drawer (-)">
+                            <option value="drop_manager">Drop Cash TO Manager</option>
+                            <option value="expense">Expense / Donation</option>
+                        </optgroup>
+                        <optgroup label="Cash Entering Drawer (+)">
+                            <option value="handset_cash">Receive Handset Cash</option>
+                            <option value="receive_float">Receive Cash from Manager</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div>
+                    <label class="admin-label">Amount (Tk)</label>
+                    <input type="number" id="mgr-cash-amount" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0">
+                </div>
+            </div>
+            <button class="btn-primary-full" style="background-color: #10b981;" onclick="saveManagerCash()">SAVE ACTION</button>
+            <button class="modal-close" style="color: #64748b;" onclick="closeModal('modal-manager-cash')">Cancel</button>
+        </div>
+    </div>
+
+    <div id="modal-main-stock" class="modal-overlay" style="z-index: 9500;">
+        <div class="modal-content">
+            <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
+                <h3 style="color: #0ea5e9;">Receive Main Stock</h3>
+            </div>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px;">Log physical items brought from the main center inventory into your drawer.</p>
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
+                <div style="margin-bottom: 16px;">
+                    <label class="admin-label">Physical Item</label>
+                    <select id="main-stock-item" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;"></select>
+                </div>
+                <div>
+                    <label class="admin-label">Quantity Received</label>
+                    <input type="number" id="main-stock-qty" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0">
+                </div>
+            </div>
+            <button class="btn-primary-full" onclick="saveMainStock()">ADD TO DRAWER</button>
+            <button class="modal-close" style="color: #64748b;" onclick="closeModal('modal-main-stock')">Cancel</button>
+        </div>
+    </div>
+
+    <div id="modal-return-stock" class="modal-overlay" style="z-index: 9500;">
+        <div class="modal-content">
+            <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
+                <h3 style="color: #ef4444;">Return to Main Stock</h3>
+            </div>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px;">Log physical items returned to the vault, or correct a double-count from a transfer.</p>
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
+                <div style="margin-bottom: 16px;">
+                    <label class="admin-label">Physical Item</label>
+                    <select id="return-stock-item" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;"></select>
+                </div>
+                <div>
+                    <label class="admin-label">Quantity Returned</label>
+                    <input type="number" id="return-stock-qty" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0">
+                </div>
+            </div>
+            <button class="btn-primary-full" style="background-color: #ef4444;" onclick="saveReturnStock()">RETURN FROM DRAWER</button>
+            <button class="modal-close" style="color: #64748b;" onclick="closeModal('modal-return-stock')">Cancel</button>
+        </div>
+    </div>
+
+    <div id="modal-desk-transfer" class="modal-overlay" style="z-index: 9500;">
+        <div class="modal-content">
+            <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
+                <h3 style="color: #8b5cf6;">Transfer Stock</h3>
+            </div>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px;">Send physical items to, or pull items from, another active desk.</p>
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
+                
+                <div style="margin-bottom: 16px; display: flex; gap: 16px; align-items: center; border-bottom: 1px dashed var(--hairline); padding-bottom: 16px;">
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; font-weight: 700; color: var(--text-primary); cursor: pointer;">
+                        <input type="radio" name="transfer-direction" value="send" checked onchange="document.getElementById('desk-transfer-btn').innerText='SEND TO DESK'; document.getElementById('transfer-desk-label').innerText='Destination Desk'; document.getElementById('transfer-qty-label').innerText='Quantity to Send';">
+                        Push (Send to them)
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; font-weight: 700; color: var(--text-primary); cursor: pointer;">
+                        <input type="radio" name="transfer-direction" value="pull" onchange="document.getElementById('desk-transfer-btn').innerText='PULL TO MY DESK'; document.getElementById('transfer-desk-label').innerText='Source Desk'; document.getElementById('transfer-qty-label').innerText='Quantity to Pull';">
+                        Pull (Take from them)
+                    </label>
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                    <label id="transfer-desk-label" class="admin-label">Destination Desk</label>
+                    <select id="desk-transfer-target" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;"></select>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label class="admin-label">Physical Item</label>
+                    <select id="desk-transfer-item" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;"></select>
+                </div>
+                <div>
+                    <label id="transfer-qty-label" class="admin-label">Quantity to Send</label>
+                    <input type="number" id="desk-transfer-qty" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0">
+                </div>
+            </div>
+            <button id="desk-transfer-btn" class="btn-primary-full" style="background-color: #8b5cf6;" onclick="executeDeskTransfer()">SEND TO DESK</button>
+            <button class="modal-close" style="color: #64748b;" onclick="closeModal('modal-desk-transfer')">Cancel</button>
+        </div>
+    </div>
+
+    <!-- ADMIN ONLY: Historical Audit Modal -->
+    <div id="modal-historical" class="modal-overlay">
+        <div class="bottom-sheet" style="padding: 0;">
+            
+            <div style="background: var(--danger-bg); border-bottom: 1px solid var(--danger-border); padding: 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; border-radius: 20px 20px 0 0;">
+                <h3 style="margin: 0; color: var(--danger-text); display: flex; align-items: center; gap: 8px; font-size: 1.1rem; font-weight: 800; letter-spacing: 0.5px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    READ ONLY: VAULT RECORD
+                </h3>
+                <button onclick="closeModal('modal-historical')" style="background: var(--danger-border); color: var(--danger-text); border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: bold; cursor: pointer; padding: 0;">✕</button>
+            </div>
+            
+            <div id="historical-content" style="padding: 16px; padding-bottom: 40px; background: var(--bg-color);">
+                </div>
+            
+        </div>
+    </div>
+
+    <div id="modal-profile-hub" class="modal-overlay" style="z-index: 9700;">
+        <div class="bottom-sheet" style="padding: 0;">
+            
+            <div style="background: var(--surface-color); padding: 24px 20px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid var(--hairline); border-radius: 20px 20px 0 0;">
+                <img id="hub-user-photo" src="" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid var(--hairline); background: var(--bg-color);">
+                <div style="flex: 1; overflow: hidden;">
+                    <h3 id="hub-user-name" style="margin: 0 0 4px 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Name</h3>
+                    <div id="hub-user-email" style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">email</div>
+                    <span id="hub-user-role" style="font-size: 0.7rem; font-weight: 700; padding: 4px 8px; border-radius: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Role</span>
+                </div>
+                <button style="background: var(--bg-color); border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; font-weight: bold;" onclick="closeModal('modal-profile-hub')">✕</button>
+            </div>
+
+        <div id="hub-admin-section" style="display: none; padding: 12px 20px;">
+    <div style="font-size: 0.75rem; font-weight: 800; color: #b91c1c; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; padding-left: 4px;">Admin Controls</div>
+    <div class="list-menu-item" onclick="closeModal('modal-profile-hub'); openNicknameManager();">
+     <div class="list-item-content">
+      <span class="list-item-title">Manage Nicknames</span>
+      <span style="font-size: 0.8rem; color: var(--text-secondary);">Change how agents appear on the floor map</span>
+     </div>
+     <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+    </div>
+        <div class="list-menu-item" onclick="closeModal('modal-profile-hub'); openDevNotes();">
+                  <div class="list-item-content">
+                    <span class="list-item-title" style="color: #8b5cf6;">Improvement Queue</span>
+                  </div>
+                  <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </div>
+                
+                <div style="font-size: 0.75rem; font-weight: 800; color: #b91c1c; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; padding-left: 4px; margin-top: 12px;">System Setup</div>
+                <div class="list-menu-item" onclick="closeModal('modal-profile-hub'); openSettings();">
+                    <div class="list-item-content">
+                        <span class="list-item-title" style="color: #0ea5e9;">Master Catalog & Inventory Setup</span>
+                    </div>
+                    <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </div>
+                <div class="list-menu-item" onclick="closeModal('modal-profile-hub'); openAuditModal();">
+                    <div class="list-item-content">
+                        <span class="list-item-title" style="color: #f59e0b;">Historic Audit Logs</span>
+                    </div>
+                    <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </div>
+            </div>
+
+            <div style="padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); border-top: 1px solid var(--hairline);">
+                <button class="btn-primary-full" style="background-color: #ef4444; color: white; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);" onclick="logout()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                    SIGN OUT
+                </button>
+            </div>
+            
+        </div>
+    </div>
+
+    <style>
+        .bottom-sheet {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--surface-color);
+            border-radius: 20px 20px 0 0;
+            /* Pushes the content up so the last item isn't hidden behind the nav bar */
+            padding: 0 0 calc(76px + env(safe-area-inset-bottom)) 0;
+            max-height: 85vh;
+            overflow-y: auto;
+            transform: translateY(100%);
+            animation: slideUpSheet 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
+            width: 100%;
+            margin: 0;
+        }
+        @keyframes slideUpSheet {
+            to { transform: translateY(0); }
+        }
+    </style>
+
+    <div id="modal-settings" class="modal-overlay">
+        <div class="modal-content">
+            <div class="admin-header-bar">
+                <h3>Admin Dashboard</h3>
+                <button class="delete-btn" style="color: #64748b; font-size: 1.5rem;" onclick="closeModal('modal-settings')">✕</button>
+            </div>
+            
+            <div class="admin-toolbar" style="flex-wrap: wrap; gap: 8px;">
+                <input type="text" id="admin-search" class="search-bar" style="flex: 1; min-width: 150px; margin-bottom: 0;" placeholder="Search catalog..." oninput="filterAdminCatalog()">
+                <button class="btn-primary-full" style="width: auto; padding: 10px 16px; margin: 0;" onclick="toggleAddForm()">+ Add New Item</button>
+            </div>
+
+            <div class="admin-body">
+                
+                <div class="admin-group-title">Master Inventory</div>
+                <div class="admin-form-card">
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px;">Define the actual physical boxes/SIMs kept in the drawer. Menu buttons will deduct from these.</p>
+                    <div id="admin-inventory-groups" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;"></div>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="new-inv-group-name" class="settings-input" placeholder="e.g. Blank 4G SIM" style="flex: 1;">
+                        <button class="btn-outline" style="color: #8b5cf6;" onclick="addInventoryGroup()">Add SKU</button>
+                    </div>
+                </div>
+
+                <div id="admin-add-form" class="admin-form-card" style="display: none;">
+                    <h4 style="margin-bottom: 16px; color: #0ea5e9; font-size: 1.1rem;">Create New Menu Button</h4>
+                    <div style="margin-bottom: 12px;">
+                        <label class="admin-label" for="new-item-name">Menu Button Name</label>
+                        <input type="text" id="new-item-name" class="settings-input" placeholder="e.g. FOC Corporate">
+                    </div>
+                    <div class="admin-row-body" style="padding: 0; margin-bottom: 12px;">
+                        <div>
+                            <label class="admin-label" for="new-item-price">Price</label>
+                            <input type="number" id="new-item-price" class="settings-input" style="padding: 10px; width: 100%; box-sizing: border-box;" placeholder="0">
+                        </div>
+                        <div>
+                            <label class="admin-label">Category</label>
+                            <select id="new-item-category" class="settings-input" style="padding: 10px; width: 100%; box-sizing: border-box;">
+                                <option value="new-sim">New SIM</option>
+                                <option value="paid-rep">Paid Replacement</option>
+                                <option value="foc">Free of Cost</option>
+                                <option value="service">Service</option>
+                                <option value="free-action">Free Action</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 16px;">
+                        <label class="admin-label">Deducts from Physical Inventory:</label>
+                        <select id="new-item-track" class="settings-input" style="padding: 10px; width: 100%; box-sizing: border-box;"></select>
+                    </div>
+                    <button class="btn-primary-full" style="padding: 10px;" onclick="addNewItem()">Save New Item</button>
+                </div>
+
+                <div class="settings-list" id="settings-list-container"></div>
+                
+                <div class="admin-group-title">Active User Management</div>
+                <div class="admin-form-card">
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">Kick specific agents off their desks or erase their test data.</p>
+                    <div id="admin-user-management-list" style="display: flex; flex-direction: column; gap: 8px;">
+                        </div>
+                </div>
+
+                <div class="admin-group-title" style="color: #ef4444;">Danger Zone</div>
+                <div class="admin-form-card">
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">Use these to un-stick the app during testing.</p>
+                    <div style="display: grid; gap: 8px;">
+                        <button class="btn-outline" style="color: #10b981; background: transparent; border-color: #10b981;" onclick="healTodaysOpeningStock()">Heal Today's Missing Opening Stock</button>
+                        <button class="btn-outline" style="color: #ef4444; background: transparent; border-color: #ef4444;" onclick="openForceReallocate()">Emergency Reallocate Stock</button>
+                        <button class="btn-outline" style="color: #f59e0b; background: transparent;" onclick="fixPastManagerDrops()">Fix Past 0 Tk Manager Drops</button>
+                        <button class="btn-outline" style="color: #ef4444; background: transparent;" onclick="resetMyDeskLock()">Free My Profile (Reset Desk Lock)</button>
+                        <button class="btn-outline" style="color: #ef4444; background: transparent;" onclick="forceCloseAllDesks()">Force Close All Desks</button>
+                        <button class="btn-outline" style="color: #ef4444; background: transparent;" onclick="nukeTodaysLedger()">Delete Today's Entire Ledger</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="admin-bottom-bar">
+                <button class="btn-primary-full" onclick="saveSettings()">PUBLISH ALL CHANGES</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-quantity" class="modal-overlay">
+        <div class="bottom-sheet" style="padding: 24px;">
+            <div class="qty-header" id="qty-item-name">Item Name</div>
+            <div class="ers-display-wrapper" style="margin-bottom: 8px;">
+                <div class="ers-currency">Qty:</div>
+                <div class="ers-display" id="qty-display">1</div>
+            </div>
+            <div class="qty-calc" id="qty-calc-display">1 x 0 = 0 Tk</div>
+            <div class="keypad">
+                <button class="keypad-btn" onclick="qtyKeyPress('1')">1</button>
+                <button class="keypad-btn" onclick="qtyKeyPress('2')">2</button>
+                <button class="keypad-btn" onclick="qtyKeyPress('3')">3</button>
+                <button class="keypad-btn" onclick="qtyKeyPress('4')">4</button>
+                <button class="keypad-btn" onclick="qtyKeyPress('5')">5</button>
+                <button class="keypad-btn" onclick="qtyKeyPress('6')">6</button>
+                <button class="keypad-btn" onclick="qtyKeyPress('7')">7</button>
+                <button class="keypad-btn" onclick="qtyKeyPress('8')">8</button>
+                <button class="keypad-btn" onclick="qtyKeyPress('9')">9</button>
+                <button class="keypad-btn" style="visibility:hidden;" aria-hidden="true" disabled></button>
+                <button class="keypad-btn" onclick="qtyKeyPress('00')">00</button>
+                <button class="keypad-btn" onclick="qtyKeyPress('0')">0</button>
+                <button class="keypad-btn backspace-btn" onclick="qtyBackspace()">⌫</button>
+            </div>
+            <button class="save-ers-btn" onclick="saveQuantity()">SAVE</button>
+            <button class="modal-close" onclick="closeModal('modal-quantity')">Cancel</button>
+        </div>
+    </div>
+
+    <div id="modal-edit-tx" class="modal-overlay">
+        <div class="bottom-sheet" style="padding: 24px;">
+            <div class="qty-header" id="edit-tx-name">Item Name</div>
+            <div style="display:flex; gap:8px; margin-bottom:12px;">
+                <div style="flex:1;">
+                    <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: bold;">Qty</label>
+                    <input type="number" id="edit-tx-qty" class="settings-input" style="text-align:center;" oninput="autoCalcEditTotal()">
+                </div>
+                <div style="flex:2;">
+                    <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: bold;">Total Tk</label>
+                    <input type="number" id="edit-tx-amount" class="settings-input" inputmode="decimal" oninput="updateSplitTotal()">
+                </div>
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: bold;">Payment Method</label>
+                <select id="edit-tx-payment" class="settings-input" style="text-align:left;" onchange="toggleEditSplitFields()">
+                    <option value="Cash">Cash</option>
+                    <option value="MFS">MFS</option>
+                    <option value="Split">Split</option>
+                </select>
+            </div>
+            <div id="edit-split-fields" style="display:none; gap:8px; margin-bottom:24px;">
+                <div style="flex:1;">
+                    <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: bold;">Cash Portion</label>
+                    <input type="number" id="edit-tx-cash" class="settings-input" style="text-align:center;" oninput="updateSplitTotal()">
+                </div>
+                <div style="flex:1;">
+                    <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: bold;">MFS Portion</label>
+                    <input type="number" id="edit-tx-mfs" class="settings-input" style="text-align:center;" oninput="updateSplitTotal()">
+                </div>
+            </div>
+            <button class="save-ers-btn" onclick="saveTxEdit()">UPDATE</button>
+            <button class="modal-close" onclick="cancelTxEdit()">Cancel</button>
+        </div>
+    </div>
+
+    <div id="modal-trash" class="modal-overlay">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 class="modal-title" style="margin-bottom: 0;">Deleted Items</h3>
+                <button class="delete-btn" style="font-size: 0.9rem; padding: 6px 12px; border: 1px solid #ef4444; border-radius: 4px; cursor: pointer;" onclick="emptyTrash()">Empty All</button>
+            </div>
+            <div id="trash-log" style="max-height: 50vh; overflow-y: auto; margin-bottom: 16px;"></div>
+            <button class="modal-close" onclick="closeModal('modal-trash')">Close</button>
+        </div>
+    </div>
+
+    <div id="modal-desk-select" class="modal-overlay" style="z-index: 9000; background-color: var(--bg-color);">
+        <div class="modal-content" style="height: 100dvh; max-height: 100dvh; display: flex; flex-direction: column; justify-content: flex-start; border-radius: 0; padding: 24px; padding-top: calc(32px + env(safe-area-inset-top));">
+            <h2 style="font-size: 1.75rem; font-weight: 700; color: var(--text-primary); margin-bottom: 32px; letter-spacing: -0.5px;">Where are you working today?</h2>
+            <div id="desk-list-container" style="display: flex; flex-direction: column; gap: 0;">
+                <div class="spinner" style="align-self: center;"></div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        #modal-close-desk .modal-content::before { display: none !important; }
+    </style>
+
+    <div id="modal-close-desk" class="modal-overlay" style="z-index: 9500; background-color: var(--bg-color);">
+        <div class="modal-content" id="close-desk-content" style="height: 100dvh; max-height: 100dvh; border-radius: 0; padding: 0; display: flex; flex-direction: column; background-color: var(--bg-color);">
+        </div>
+    </div>
+
+    <div id="modal-app-alert" class="modal-overlay" style="z-index: 100000; align-items: center;">
+        <div class="modal-content" style="max-width: 320px; border-radius: 16px; padding: 24px; text-align: center; animation: alertPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+            <div id="app-alert-icon" style="margin-bottom: 16px; color: #ef4444; display: flex; justify-content: center;">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+            </div>
+            <h3 id="app-alert-title" style="margin-bottom: 8px; font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">Error</h3>
+            <p id="app-alert-message" style="font-size: 0.95rem; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.5;">Message goes here.</p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button id="app-alert-cancel" class="btn-outline" style="flex: 1; display: none;" onclick="closeModal('modal-app-alert')">Cancel</button>
+                <button id="app-alert-confirm" class="btn-primary-full" style="flex: 1; background: #ef4444;" onclick="executeAlertConfirm()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-audit" class="modal-overlay" style="z-index: 9600;">
+        <div class="modal-content">
+            <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
+                <h3 style="color: #f59e0b;">Historic Audit Logs</h3>
+                <button class="delete-btn" style="color: #64748b; font-size: 1.5rem; padding: 0;" onclick="closeModal('modal-audit')">✕</button>
+            </div>
+            <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 16px;">Review end-of-day handovers, shortages, and overages for any past date.</p>
+            
+            <div style="margin-bottom: 16px; display: flex; gap: 12px; align-items: center; background: transparent; padding: 12px; border-radius: 8px;">
+                <label style="font-weight: bold; color: var(--text-secondary); font-size: 0.9rem; margin: 0;">Select Date:</label>
+                <input type="date" id="audit-date" class="settings-input" style="padding: 8px; width: auto; margin: 0; border-color: var(--hairline);" onchange="fetchAuditLogs()">
+            </div>
+            
+            <div id="audit-results" style="max-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
+                <p class="placeholder-text">Select a date to view closed sessions.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dev Notes FAB removed to prevent UI blocking. Accessed via Profile Hub instead. -->
+
+    <div id="modal-dev-notes" class="modal-overlay" style="z-index: 9600;">
+    <div class="bottom-sheet" style="max-height: 90vh; display: flex; flex-direction: column; padding: 0;">
+      <div class="modal-header" style="background: var(--surface-color); border-bottom: 1px solid var(--hairline); padding: 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; border-radius: 20px 20px 0 0;">
+        <h3 style="color: #8b5cf6; margin: 0; font-size: 1.25rem; font-weight: 800;">Improvement Queue</h3>
+        <button class="close-btn" style="background: none; border: none; font-size: 1.5rem; color: var(--text-secondary); cursor: pointer; padding: 0; line-height: 1;" onclick="closeModal('modal-dev-notes')">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 20px; overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; background: var(--bg-color);">
+        <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+          <input type="text" id="dev-note-input" class="settings-input" style="flex: 1; padding: 12px; font-size: 0.95rem; border-color: var(--hairline);" placeholder="Feature, bug, or idea...">
+          <select id="dev-note-priority" class="settings-input" style="width: 100px; padding: 12px; font-size: 0.9rem; font-weight: 600; border-color: var(--hairline);">
+            <option value="High">High</option>
+            <option value="Normal" selected>Normal</option>
+            <option value="Low">Low</option>
+          </select>
+        </div>
+    <button id="dev-note-submit-btn" class="btn-primary-full" style="background-color: #8b5cf6; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);" onclick="addDevNote()">+ ADD TO QUEUE</button>
+
+    <div id="dev-notes-list-container" style="display: flex; flex-direction: column; gap: 10px;">
+                  </div>
+      </div>
+    </div>
+  </div>
+
+    <nav class="bottom-nav">
+        <button class="nav-item active" onclick="switchTab('ers', 'ERS')">
+            <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg>
+            ERS
+        </button>
+        <button class="nav-item" onclick="switchTab('store', 'Store')">
+            <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+            Store
+        </button>
+        <button id="nav-drawer-btn" class="nav-item" onclick="handleMyDrawerNav()">
+            <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            Drawer
+        </button>
+        <button class="nav-item" onclick="switchTab('floor', 'Live Floor Map')">
+            <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+            Floor
+        </button>
+        <button class="nav-item" onclick="switchTab('report', 'Center Report')">
+            <svg class="nav-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></svg>
+            Center
+        </button>
+    </nav>
+
+</body>
+</html>
