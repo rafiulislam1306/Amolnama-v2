@@ -970,15 +970,15 @@ header {
     display: block;
 }
 
-/* Store Grid & Card Overhaul */
+/* Store Grid & Card Overhaul -> Converted to List */
 #container-new-sim, 
 #container-paid-rep, 
 #container-cards, 
 #container-services, 
 #container-foc, 
 #container-free-actions {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    display: flex;
+    flex-direction: column;
     gap: 12px;
     padding: 12px;
     width: 100%;
@@ -987,15 +987,14 @@ header {
 
 .store-item-row {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     justify-content: space-between;
-    align-items: stretch;
-    gap: 10px;
-    min-height: 155px;
+    align-items: center;
+    gap: 12px;
     margin-bottom: 0;
-    padding: 14px;
+    padding: 12px 14px;
     border: 1px solid var(--hairline);
-    border-radius: 18px;
+    border-radius: 16px;
     background: linear-gradient(135deg, var(--surface-strong), var(--surface-soft));
     box-shadow: var(--shadow-soft);
     cursor: pointer;
@@ -1008,16 +1007,16 @@ header {
                 background-color 0.2s ease;
 }
 
-/* Category Colored Top Border Indicators */
-.store-item-row.is-new-sim { border-top: 3px solid #0ea5e9; }
-.store-item-row.is-paid-rep { border-top: 3px solid #8b5cf6; }
-.store-item-row.is-cards { border-top: 3px solid #ec4899; }
-.store-item-row.is-service { border-top: 3px solid #f59e0b; }
+/* Category Colored Left Border Indicators for List */
+.store-item-row.is-new-sim { border-left: 4px solid #0ea5e9; }
+.store-item-row.is-paid-rep { border-left: 4px solid #8b5cf6; }
+.store-item-row.is-cards { border-left: 4px solid #ec4899; }
+.store-item-row.is-service { border-left: 4px solid #f59e0b; }
 .store-item-row.is-foc, 
-.store-item-row.is-free-action { border-top: 3px solid #10b981; }
+.store-item-row.is-free-action { border-left: 4px solid #10b981; }
 
 .store-item-row:active {
-    transform: scale(0.94) translateY(2px);
+    transform: scale(0.96) translateY(1px);
     box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
 }
 
@@ -1029,12 +1028,11 @@ header {
 
 .store-item-main {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
     min-width: 0;
     flex: 1;
-    width: 100%;
 }
 
 .store-item-icon {
@@ -1071,7 +1069,7 @@ header {
     color: var(--text-primary);
     font-size: 0.95rem;
     font-weight: 800;
-    line-height: 1.3;
+    line-height: 1.2;
     word-break: break-word;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -1081,13 +1079,10 @@ header {
 
 .store-item-meta {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
-    width: 100%;
-    margin-top: auto;
-    border-top: 1px dashed var(--hairline);
-    padding-top: 8px;
-    box-sizing: border-box;
+    gap: 12px;
+    flex-shrink: 0;
 }
 
 .store-item-price {
