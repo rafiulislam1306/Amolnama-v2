@@ -142,18 +142,17 @@ export function renderAppUI() {
             if (isLocked) return;
 
             // --- REAL-TIME LIVE STOCK CALCULATION ---
-            let stockBadgeHTML = '';
+            let stockStatusHTML = '';
             let isOutOfStock = false;
             
             if (item.trackAs && AppState.globalInventoryGroups.includes(item.trackAs)) {
                 let stock = getAvailableStock(item.name);
                 if (stock <= 0) {
-                    stockBadgeHTML = `<span class="store-stock-badge out-stock">0 left</span>`;
                     isOutOfStock = true;
                 } else if (stock <= 5) {
-                    stockBadgeHTML = `<span class="store-stock-badge low-stock">${stock} left!</span>`;
+                    stockStatusHTML = `<span style="font-size: 0.72rem; color: #f59e0b; font-weight: 700; margin-top: 4px; display: block;">${stock} left!</span>`;
                 } else {
-                    stockBadgeHTML = `<span class="store-stock-badge in-stock">${stock} left</span>`;
+                    stockStatusHTML = `<span style="font-size: 0.72rem; color: #10b981; font-weight: 700; margin-top: 4px; display: block;">${stock} left</span>`;
                 }
             }
 
@@ -231,11 +230,12 @@ export function renderAppUI() {
                 : `<div class="store-item-action"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>`;
  
             let subText = isLocked 
-                ? `<span style="font-size: 0.72rem; color: #ef4444; font-weight: 700; margin-top: 4px;">🔒 Manager Only</span>` 
-                : (isOutOfStock ? `<span style="font-size: 0.72rem; color: #ef4444; font-weight: 700; margin-top: 4px;">⚠️ Out of Stock</span>` : ``);
+                ? `<span style="font-size: 0.72rem; color: #ef4444; font-weight: 700; margin-top: 4px; display: block;">🔒 Manager Only</span>` 
+                : (isOutOfStock 
+                    ? `<span style="font-size: 0.72rem; color: #ef4444; font-weight: 700; margin-top: 4px; display: block;">⚠️ Out of Stock</span>` 
+                    : stockStatusHTML);
 
             row.innerHTML = `
-                ${stockBadgeHTML}
                 <div class="store-item-main">
                     <div class="store-item-icon">${iconSVG}</div>
                     <div class="store-item-copy">

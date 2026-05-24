@@ -980,7 +980,7 @@ header {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    padding: 12px;
+    padding: 12px 0;
     width: 100%;
     box-sizing: border-box;
 }
