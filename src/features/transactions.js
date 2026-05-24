@@ -53,6 +53,12 @@ export function selectItem(itemName, price) {
     
     document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
     AppState.ui.currentItemName = itemName; AppState.ui.currentItemPrice = price; AppState.ui.currentQty = '1';
+    
+    const numInput = document.getElementById('qty-number-input');
+    const sliderInput = document.getElementById('qty-slider');
+    if (numInput) numInput.value = '1';
+    if (sliderInput) sliderInput.value = '1';
+    
     updateQtyDisplay(); 
     openModal('modal-quantity');
 }
@@ -64,17 +70,39 @@ function updateQtyDisplay() {
     document.getElementById('qty-calc-display').innerText = AppState.ui.currentItemPrice === 0 ? `Inventory Update (0 Tk)` : `${qtyInt} x ${fmt(AppState.ui.currentItemPrice)} = ${fmt(qtyInt * AppState.ui.currentItemPrice)} Tk`;
 }
 
-export function qtyKeyPress(num) { 
+export function stepQty(amount) {
     if (navigator.vibrate) navigator.vibrate(10);
-    if (AppState.ui.currentQty === '0') AppState.ui.currentQty = num; 
-    else if (AppState.ui.currentQty.length < 3) AppState.ui.currentQty += num; 
-    updateQtyDisplay(); 
+    let qtyInt = parseInt(AppState.ui.currentQty) || 1;
+    qtyInt = Math.min(100, Math.max(1, qtyInt + amount));
+    AppState.ui.currentQty = String(qtyInt);
+    
+    const numInput = document.getElementById('qty-number-input');
+    const sliderInput = document.getElementById('qty-slider');
+    if (numInput) numInput.value = qtyInt;
+    if (sliderInput) sliderInput.value = Math.min(50, qtyInt);
+    
+    updateQtyDisplay();
 }
 
-export function qtyBackspace() { 
-    if (navigator.vibrate) navigator.vibrate(15);
-    AppState.ui.currentQty = AppState.ui.currentQty.length > 1 ? AppState.ui.currentQty.slice(0, -1) : '0'; 
-    updateQtyDisplay(); 
+export function onQtySliderChange(val) {
+    let qtyInt = parseInt(val) || 1;
+    AppState.ui.currentQty = String(qtyInt);
+    
+    const numInput = document.getElementById('qty-number-input');
+    if (numInput) numInput.value = qtyInt;
+    
+    updateQtyDisplay();
+}
+
+export function onQtyInputChange(val) {
+    let qtyInt = parseInt(val) || 1;
+    qtyInt = Math.min(100, Math.max(1, qtyInt));
+    AppState.ui.currentQty = String(qtyInt);
+    
+    const sliderInput = document.getElementById('qty-slider');
+    if (sliderInput) sliderInput.value = Math.min(50, qtyInt);
+    
+    updateQtyDisplay();
 }
 
 export function saveQuantity() {

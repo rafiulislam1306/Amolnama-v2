@@ -18,8 +18,7 @@ const INITIAL_STATE = {
     
     transactions: [],
     trashTransactions: [],
-    
-    devNotesQueue: [],
+
     
     isMfs: false,
     needsRender: { desk: true, report: true, floor: true },

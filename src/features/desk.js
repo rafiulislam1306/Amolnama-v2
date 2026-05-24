@@ -269,7 +269,7 @@ export function handleDeskSelect(deskId, deskName, status, sessionId) {
     }, "Confirm");
 }
 
-async function executeHandleDeskSelect(deskId, deskName, status, sessionId) {
+export async function executeHandleDeskSelect(deskId, deskName, status, sessionId) {
     let activeSessionId = (sessionId === 'null' || sessionId === 'undefined' || !sessionId) ? null : sessionId;
 
     try {
@@ -688,11 +688,6 @@ export function openMyDeskDashboard() {
 }
 
 export function peekAtDesk(targetDeskId, targetDeskName) {
-    if (AppState.currentUserRole !== 'admin' && AppState.currentUserRole !== 'manager') {
-        showAppAlert("Access Denied", "Only Center Managers and Admins have clearance to view active remote desk ledgers.");
-        return;
-    }
-
     if (targetDeskId === AppState.currentDeskId) {
         openMyDeskDashboard(); 
     } else {

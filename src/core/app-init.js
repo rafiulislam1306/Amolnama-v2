@@ -4,7 +4,7 @@ import { db } from '../config/firebase.js';
 import { AppState } from './state.js';
 import { getStrictDate } from '../utils/helpers.js';
 import { defaultInventoryGroups, defaultCatalog } from './constants.js';
-import { performLazyAutoClose, loadFloorMap } from '../features/desk.js';
+import { performLazyAutoClose, loadFloorMap, executeHandleDeskSelect } from '../features/desk.js';
 import { fetchTransactionsForDate } from '../features/reports.js';
 import { setupBottomSheetDrag, showAppAlert } from '../utils/ui-helpers.js';
 
@@ -27,9 +27,6 @@ export async function initUserData(onComplete) {
             userData = userDocSnap.data();
             AppState.currentUserRole = userData.role || 'user';
             AppState.userNickname = userData.nickname || '';
-            if (userData.devNotesQueue) {
-                AppState.devNotesQueue = userData.devNotesQueue;
-            }
         } else {
             AppState.currentUserRole = 'user'; 
         }
@@ -130,7 +127,18 @@ export async function initUserData(onComplete) {
                 await loadFloorMap();
             }
         } else {
-            await loadFloorMap();
+            // Standard agent without active desk assigned today -> Auto-assign and open personal drawer
+            const personalDeskId = 'personal_' + AppState.currentUser.uid;
+            const myFirstName = AppState.userNickname || (AppState.userDisplayName ? AppState.userDisplayName.split(' ')[0] : 'Agent');
+            const myDrawerName = `${myFirstName}'s Drawer`;
+            
+            try {
+                // Instantly open/join the personal drawer in the background!
+                await executeHandleDeskSelect(personalDeskId, myDrawerName, 'closed', null);
+            } catch(autoErr) {
+                console.error("Auto drawer assignment failed, falling back to map:", autoErr);
+                await loadFloorMap();
+            }
         }
     } catch(e) {
         console.error("App Initialization Error:", e);

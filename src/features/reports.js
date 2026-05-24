@@ -28,66 +28,38 @@ export async function renderPersonalReport() {
         floorInvStats[item] = { open: 0, inOut: 0, sold: 0, rem: 0 };
     });
 
-    let vaultButtonsHTML = ''; 
-
     try {
-            const sessSnap = await getDocs(query(collection(db, 'sessions'), where('dateStr', '==', targetDateStr)));
-            
-            let deskFirstSessions = {};
+        const sessSnap = await getDocs(query(collection(db, 'sessions'), where('dateStr', '==', targetDateStr)));
+        
+        let deskFirstSessions = {};
 
-            for (const docSnap of sessSnap.docs) {
-                let s = docSnap.data();
-                
-                // Group sessions by desk to find the true morning start
+        for (const docSnap of sessSnap.docs) {
+            let s = docSnap.data();
+            
+            // Group sessions by desk to find the true morning start
             // FIX: Use Infinity so pending writes (missing timestamps) don't overwrite valid morning sessions
             let t = (s.openedAt && typeof s.openedAt.toMillis === 'function') ? s.openedAt.toMillis() : Infinity;
             if (!deskFirstSessions[s.deskId] || t < deskFirstSessions[s.deskId].time) {
                 deskFirstSessions[s.deskId] = { time: t, data: s };
             }
-                
-                if (s.status === 'closed' || s.status === 'pending' || s.status === 'rolled_over' || s.status === 'closed_by_system') {
-                    let agentName = s.openedBy ? s.openedBy.split(' ')[0] : 'Agent';
-                    
-                    if (agentName === 'System' && s.deskId.startsWith('personal_')) {
-                        try {
-                            const deskSnap = await getDoc(doc(db, 'desks', s.deskId));
-                            if (deskSnap.exists() && deskSnap.data().name) {
-                                agentName = deskSnap.data().name.replace("'s Drawer", "");
-                            }
-                        } catch(e) {}
-                    }
-                    
-                    let statusLabel = s.status === 'pending' ? 'Pending' : ((s.status === 'rolled_over' || s.status === 'closed_by_system') ? 'Rolled Over' : 'Sealed');
-                    let badgeColor = s.status === 'pending' ? 'var(--warning-text)' : ((s.status === 'rolled_over' || s.status === 'closed_by_system') ? 'var(--info-text)' : 'var(--success-text)');
-                    let bgCol = s.status === 'pending' ? 'var(--warning-bg)' : ((s.status === 'rolled_over' || s.status === 'closed_by_system') ? 'var(--info-bg)' : 'var(--success-bg)');
-                    
-                    vaultButtonsHTML += `
-                        <button class="btn-outline" style="flex-shrink: 0; border: 1px solid var(--hairline); color: ${badgeColor}; background: var(--surface-strong); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); font-size: 0.85rem; font-weight: 700; padding: 10px 16px; border-radius: 14px; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-soft); transition: transform 0.2s var(--spring-physics);" onclick="openHistoricalSession('${docSnap.id}')" onpointerdown="this.style.transform='scale(0.95)'" onpointerup="this.style.transform='scale(1)'" onpointerleave="this.style.transform='scale(1)'">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                            ${agentName} <span style="font-size: 0.72rem; opacity: 0.8; font-weight: 500;">(${statusLabel})</span>
-                        </button>
-                    `;
+        }
+
+        // Apply the true morning opening balances once per desk
+        Object.values(deskFirstSessions).forEach(firstSess => {
+            let s = firstSess.data;
+            floorOpeningCash += parseFloat(s.openingBalances?.cash) || 0;
+            let inv = s.openingBalances?.inventory || {};
+            for (let [item, qty] of Object.entries(inv)) {
+                if (floorInvStats[item]) {
+                    floorInvStats[item].open += qty;
+                    floorInvStats[item].rem += qty;
                 }
             }
+        });
 
-            // Apply the true morning opening balances once per desk
-            Object.values(deskFirstSessions).forEach(firstSess => {
-                let s = firstSess.data;
-                floorOpeningCash += parseFloat(s.openingBalances?.cash) || 0;
-                let inv = s.openingBalances?.inventory || {};
-                for (let [item, qty] of Object.entries(inv)) {
-                    if (floorInvStats[item]) {
-                        floorInvStats[item].open += qty;
-                        floorInvStats[item].rem += qty;
-                    }
-                }
-            });
-
-        } catch(e) { 
-            console.error("Could not fetch floor sessions", e);
-            if (typeof window.showFlashMessage === 'function') window.showFlashMessage("Offline: Center Vault unavailable");
-            vaultButtonsHTML = '<span style="color: #ef4444; font-size: 0.85rem; padding: 4px;">⚠️ Cannot load vault while offline</span>';
-        }
+    } catch(e) { 
+        console.error("Could not fetch floor sessions", e);
+    }
 
     [...AppState.transactions].reverse().forEach(tx => {
         if (tx.isDeleted) return;
@@ -366,18 +338,6 @@ export async function renderPersonalReport() {
         
         if (!hasLiveStock) liveStockHTML += '<div style="color: var(--text-secondary); font-style: italic; padding: 12px 4px;">No physical stock recorded today</div>';
         
-        if (vaultButtonsHTML !== '') {
-            liveStockHTML += `
-                <div style="margin-top: 20px; font-size: 0.95rem; font-weight: 800; color: #b91c1c; margin-bottom: 12px; padding: 0 4px; border-bottom: 2px solid #fecaca; padding-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                    Closed Shift Vault
-                </div>
-                <div style="display: flex; gap: 10px; overflow-x: auto; padding: 4px 4px 16px 4px; scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch;">
-                    ${vaultButtonsHTML}
-                </div>
-            `;
-        }
-        
         if (document.getElementById('floor-stock-list')) {
             document.getElementById('floor-stock-list').innerHTML = liveStockHTML;
         }
@@ -451,91 +411,6 @@ export async function fallbackCopy(text) {
     }
 }
 
-export function shareReport() {
-    let dateStr = formatToGBDate(document.getElementById('report-date-picker').value);
-    let totalRevenue = document.getElementById('report-total-all') ? document.getElementById('report-total-all').innerText : "0 Tk";
-    let totalMfs = document.getElementById('tot-mfs').innerText;
-    let totalCash = document.getElementById('tot-cash-sales').innerText;
-    let totalErs = document.getElementById('tot-ers').innerText;
-    
-    let reportText = `=== *CENTER REPORT* ===\nDate: ${dateStr}\n\n`;
-    reportText += `[ *SALES SUMMARY* ]\n`;
-    reportText += `   Total Revenue:  ${totalRevenue}\n`;
-    reportText += `   Cash Collected: ${totalCash}\n`;
-    reportText += `   MFS Collected:  ${totalMfs}\n`;
-    reportText += `   ERS Disbursed:  ${totalErs}\n\n`;
-
-    if (navigator.share) navigator.share({ title: 'Amolnama Report', text: reportText }).catch(e => console.log(e));
-    else fallbackCopy(reportText);
-}
-
-export function shareDeskReport() {
-    let dateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
-    let deskTitleNode = document.getElementById('desk-dashboard-title');
-    let deskTitle = (deskTitleNode && deskTitleNode.innerText !== 'Desk Name') ? deskTitleNode.innerText : 'My Active Desk';
-    let activeAgents = document.getElementById('desk-logged-agents') ? document.getElementById('desk-logged-agents').innerText : 'None';
-
-    let opening = document.getElementById('desk-tot-opening') ? document.getElementById('desk-tot-opening').innerText : '0 Tk';
-    let cashSales = document.getElementById('desk-tot-cash-sales') ? document.getElementById('desk-tot-cash-sales').innerText : '0 Tk';
-    let mgrDrop = document.getElementById('desk-tot-manager') ? document.getElementById('desk-tot-manager').innerText : '0 Tk';
-    let expected = document.getElementById('desk-tot-expected-cash') ? document.getElementById('desk-tot-expected-cash').innerText : '0 Tk';
-
-    let deskTx = AppState.transactions.filter(t => t.deskId === AppState.currentDeskId && t.dateStr === dateStr);
-    let deskMfs = 0; let itemsSold = {}; let invStats = {};
-
-    getPhysicalItems().forEach(item => {
-        let o = AppState.currentOpeningInv[item] || 0;
-        invStats[item] = { open: o, in: 0, out: 0, sold: 0, rem: o };
-    });
-
-    deskTx.forEach(tx => {
-        if(tx.isDeleted) return;
-        deskMfs += (tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0));
-
-        if (tx.type !== 'adjustment' && tx.type !== 'transfer_out' && tx.type !== 'transfer_in' && tx.name !== 'ERS Flexiload' && tx.name !== 'Physical Cash') {
-            itemsSold[tx.name] = (itemsSold[tx.name] || 0) + Math.abs(tx.qty);
-        }
-
-        if (AppState.globalInventoryGroups.includes(tx.trackAs)) {
-            let trackAs = tx.trackAs; let q = Math.abs(tx.qty);
-            if (tx.type === 'transfer_in' || tx.type === 'adjustment') { invStats[trackAs].in += q; invStats[trackAs].rem += q; }
-            else if (tx.type === 'transfer_out') { invStats[trackAs].out += q; invStats[trackAs].rem -= q; }
-            else { invStats[trackAs].sold += q; invStats[trackAs].rem -= q; }
-        }
-    });
-
-    let reportText = `=== *DESK REPORT* ===\nDate: ${dateStr}\nDesk: ${deskTitle}\nAgents: ${activeAgents}\n\n`;
-    reportText += `[ *CASH FORMULA* ]\n`;
-    reportText += `   Opening Cash: ${opening}\n`;
-    reportText += `   Cash Sales:   +${cashSales}\n`;
-    reportText += `   Mgr Drops:    ${mgrDrop}\n`;
-    reportText += `   ----------------------\n`;
-    reportText += `   Expected:     ${expected}\n\n`;
-    reportText += `[ *DIGITAL SALES* ]\n`;
-    reportText += `   Total MFS:    ${deskMfs} Tk\n\n`;
-
-    reportText += `[ *PHYSICAL INVENTORY* ]\n`;
-    let hasInv = false;
-    for (const [item, data] of Object.entries(invStats)) {
-        if (data.open === 0 && data.in === 0 && data.sold === 0 && data.out === 0) continue;
-        hasInv = true;
-        reportText += `- *${item}*\n`;
-        reportText += `   Start: ${data.open} | In: +${data.in} | Out: -${data.out}\n`;
-        reportText += `   Sold: ${data.sold} | Exp. Left: ${data.rem}\n\n`;
-    }
-    if (!hasInv) reportText += "   None\n\n";
-
-    reportText += `[ *ITEMS SOLD* ]\n`;
-    let hasItems = false;
-    for (const [name, qty] of Object.entries(itemsSold)) {
-        hasItems = true; reportText += `   ${qty}x ${name}\n`;
-    }
-    if (!hasItems) reportText += "   No items sold\n";
-
-    if (navigator.share) navigator.share({ title: 'Desk Report', text: reportText }).catch(e => console.log(e));
-    else fallbackCopy(reportText);
-}
-
 // === NEW: INVOICE PDF GENERATOR (CONTINUOUS FIXED-WIDTH LAYOUT) ===
 export function downloadReportAsPDF(mode, prefix) {
     showAppAlert("Download PDF", "Generate and download the official PDF ledger?", true, () => {
@@ -549,206 +424,241 @@ async function executeDownloadReportAsPDF(mode, prefix) {
         return;
     }
     
-    showFlashMessage("📄 Generating Official Ledger PDF...");
-
-    // 1. Gather Context Data
-    let dateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
-    let rawTime = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    let fileTimeStr = rawTime.replace(/ /g, '').replace(/:/g, '-'); 
-    
-    let deskName = "Center Ledger";
-    let agents = AppState.userNickname || AppState.userDisplayName;
-
-    let opening = "0", cashSales = "0", mgrDrops = "0", expected = "0";
-    let mfsTotal = "0", ersTotal = "0";
-
-    if (mode === 'tab-desk') {
-        let rawDeskName = document.getElementById('desk-dashboard-title')?.innerText || 'My Active Desk';
-        deskName = rawDeskName.replace(/\(My Drawer\)/i, '').trim();
-        agents = document.getElementById('desk-logged-agents')?.innerText || 'None';        
-        opening = document.getElementById('desk-tot-opening')?.innerText?.replace(' Tk', '') || "0";
-        cashSales = document.getElementById('desk-tot-cash-sales')?.innerText?.replace('+ ', '')?.replace(' Tk', '') || "0";
-        mgrDrops = document.getElementById('desk-tot-manager')?.innerText?.replace(' Tk', '') || "0";
-        expected = document.getElementById('desk-tot-expected-cash')?.innerText?.replace(' Tk', '') || "0";
-        
-        const mfsCard = document.evaluate("//div[contains(text(), 'Total MFS')]/following-sibling::div", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-        const ersCard = document.evaluate("//div[contains(text(), 'ERS Sent')]/following-sibling::div", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-        mfsTotal = mfsCard ? mfsCard.innerText.replace(' Tk', '') : "0";
-        ersTotal = ersCard ? ersCard.innerText.replace(' Tk', '') : "0";
-    } else {
-        deskName = "Consolidated Center Ledger";
-        
-        opening = document.getElementById('center-tot-opening')?.innerText || "0";
-        mgrDrops = document.getElementById('center-tot-drops')?.innerText || "0";
-        expected = document.getElementById('center-tot-expected')?.innerText || "0";
-        
-        cashSales = document.getElementById('tot-cash-sales')?.innerText?.replace(' Tk', '') || "0";
-        mfsTotal = document.getElementById('tot-mfs')?.innerText?.replace(' Tk', '') || "0";
-        ersTotal = document.getElementById('tot-ers')?.innerText?.replace(' Tk', '') || "0";
-    }
-
-    let safeDeskName = deskName.replace(/'/g, '').replace(/ /g, '_');
-    let safeDateStr = dateStr.replace(/\//g, '-');
-    let finalFileName = `${safeDeskName}_Ledger_${safeDateStr}_${fileTimeStr}.pdf`;
-
-    // 2. Build Inventory Table Rows
-    let inventoryRowsText = '';
-    let stockRows = document.querySelectorAll(mode === 'tab-desk' ? '#live-dashboard-wrapper > div:nth-child(3) > div:nth-child(2) > div > div:not(:first-child)' : '#floor-stock-list > div:not(:first-child)');
-    
-    if (stockRows && stockRows.length > 0) {
-        stockRows.forEach((row, index) => {
-            let cols = row.children;
-            if(cols.length === 5) {
-                let bg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-                inventoryRowsText += `
-                    <tr style="background-color: ${bg}; border-bottom: 1px solid #e2e8f0;">
-                        <td style="padding: 10px; font-weight: 600; color: #334155;">${cols[0].innerText}</td>
-                        <td style="padding: 10px; text-align: center; color: #64748b;">${cols[1].innerText}</td>
-                        <td style="padding: 10px; text-align: center; font-weight: bold; color: ${cols[2].innerText.includes('+') ? '#10b981' : (cols[2].innerText.includes('-') ? '#ef4444' : '#64748b')};">${cols[2].innerText}</td>
-                        <td style="padding: 10px; text-align: center; color: #f59e0b;">${cols[3].innerText}</td>
-                        <td style="padding: 10px; text-align: center; font-weight: bold; color: #0ea5e9;">${cols[4].innerText}</td>
-                    </tr>`;
-            }
-        });
-    } else {
-        inventoryRowsText = `<tr><td colspan="5" style="padding: 16px; text-align: center; color: #94a3b8; font-style: italic;">No physical stock recorded today.</td></tr>`;
-    }
-
-    // 3. Build Items Sold Table Rows
-    let itemsRowsText = '';
-    let soldRows = document.querySelectorAll(mode === 'tab-desk' ? '#live-dashboard-wrapper > div:nth-child(4) > div:not(:first-child)' : '#inventory-list > div');
-    let hasItems = false;
-    
-    if (soldRows && soldRows.length > 0) {
-        soldRows.forEach((row, index) => {
-            let name = row.children[0]?.innerText;
-            let qty = row.children[1]?.innerText;
-            if (name && qty && name !== 'No items sold yet' && name !== 'No items or services sold yet') {
-                hasItems = true;
-                let bg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-                itemsRowsText += `
-                    <tr style="background-color: ${bg}; border-bottom: 1px solid #e2e8f0;">
-                        <td style="padding: 10px 16px; color: #334155; font-weight: 500;">${name}</td>
-                        <td style="padding: 10px 16px; text-align: right; color: #0f172a; font-weight: bold;">${qty}</td>
-                    </tr>`;
-            }
-        });
-    }
-    if (!hasItems) itemsRowsText = `<tr><td colspan="2" style="padding: 16px; text-align: center; color: #94a3b8; font-style: italic;">No items or services sold.</td></tr>`;
-
-    // 4. Construct Modern HTML Template (Mobile Width: 480px)
-    const invoiceContent = `
-        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #0f172a; padding: 20px; width: 480px; box-sizing: border-box; background-color: #ffffff;">
-            
-            <div style="border-bottom: 3px solid #0ea5e9; padding-bottom: 16px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px;">
-                <div>
-                    <h1 style="margin: 0; color: #0ea5e9; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">AMOLNAMA</h1>
-                    <h2 style="margin: 4px 0 0 0; color: #475569; font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;">Daily Ledger Report</h2>
-                </div>
-                <div style="font-size: 13px; color: #64748b; line-height: 1.6;">
-                    <strong>Date:</strong> ${dateStr} &nbsp;|&nbsp; <strong>Time:</strong> ${rawTime}<br>
-                    <strong>Desk:</strong> <span style="color: #0f172a; font-weight: bold;">${deskName}</span><br>
-                    <strong>Agent:</strong> ${agents}
-                </div>
-            </div>
-
-            <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px;">
-                
-                <div style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
-                    <div style="background-color: #f8fafc; padding: 10px 16px; font-weight: bold; color: #334155; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-transform: uppercase;">Cash Reconciliation</div>
-                    <div style="padding: 16px; font-size: 14px;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                            <span style="color: #64748b;">Opening Cash:</span>
-                            <strong>${opening} Tk</strong>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                            <span style="color: #64748b;">(+) Cash Sales:</span>
-                            <strong style="color: #10b981;">${cashSales} Tk</strong>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed #cbd5e1;">
-                            <span style="color: #64748b;">(+/-) Manager Actions:</span>
-                            <strong style="color: ${mgrDrops.includes('-') ? '#ef4444' : '#0f172a'};">${mgrDrops} Tk</strong>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; font-size: 16px;">
-                            <span style="font-weight: bold; color: #0f172a;">Expected Drawer:</span>
-                            <strong style="color: #0ea5e9;">${expected} Tk</strong>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="display: flex; gap: 12px;">
-                    <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 4px;">
-                        <span style="color: #64748b; font-size: 12px; font-weight: bold; text-transform: uppercase;">Total MFS</span>
-                        <strong style="font-size: 18px; color: #8b5cf6;">${mfsTotal} Tk</strong>
-                    </div>
-                    <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 4px;">
-                        <span style="color: #64748b; font-size: 12px; font-weight: bold; text-transform: uppercase;">ERS Sent</span>
-                        <strong style="font-size: 18px; color: #f59e0b;">${ersTotal} Tk</strong>
-                    </div>
-                </div>
-            </div>
-
-            <div style="margin-bottom: 24px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
-                <div style="background-color: #f1f5f9; padding: 10px 16px; font-weight: bold; color: #0f172a; border-bottom: 2px solid #cbd5e1; font-size: 13px; text-transform: uppercase;">Physical Stock</div>
-                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                    <thead>
-                        <tr style="color: #475569; border-bottom: 1px solid #cbd5e1; background: #f8fafc;">
-                            <th style="padding: 10px; text-align: left;">Item</th>
-                            <th style="padding: 10px; text-align: center;">Start</th>
-                            <th style="padding: 10px; text-align: center;">In/Out</th>
-                            <th style="padding: 10px; text-align: center;">Sold</th>
-                            <th style="padding: 10px; text-align: center;">Exp.</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${inventoryRowsText}
-                    </tbody>
-                </table>
-            </div>
-
-            <div style="margin-bottom: 24px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
-                <div style="background-color: #f1f5f9; padding: 10px 16px; font-weight: bold; color: #0f172a; border-bottom: 2px solid #cbd5e1; font-size: 13px; text-transform: uppercase;">Items Sold</div>
-                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                    <thead>
-                        <tr style="color: #475569; border-bottom: 1px solid #cbd5e1; background: #f8fafc;">
-                            <th style="padding: 10px 16px; text-align: left;">Product/Service Name</th>
-                            <th style="padding: 10px 16px; text-align: right;">Qty</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${itemsRowsText}
-                    </tbody>
-                </table>
-            </div>
-
-            <div style="text-align: center; color: #94a3b8; font-size: 11px; padding-top: 16px; border-top: 1px solid #e2e8f0; margin-top: 24px;">
-                Generated securely by Amolnama POS System
-            </div>
-        </div>
+    // Inject dynamic glass overlay loader spinner
+    const loader = document.createElement('div');
+    loader.id = 'pdf-generation-loader';
+    loader.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(15, 23, 42, 0.45);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 99999;
+        color: #ffffff;
+        font-family: 'Outfit', 'Inter', sans-serif;
     `;
+    loader.innerHTML = `
+        <div style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 24px; padding: 40px; display: flex; flex-direction: column; align-items: center; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); max-width: 90%; width: 340px; text-align: center;">
+            <div class="pdf-spinner" style="width: 50px; height: 50px; border: 4px solid rgba(255, 255, 255, 0.1); border-left-color: #0ea5e9; border-radius: 50%; animation: pdf-spin 1s linear infinite; margin-bottom: 20px;"></div>
+            <h3 style="margin: 0 0 8px 0; font-size: 1.25rem; font-weight: 700; color: #ffffff;">Generating Ledger</h3>
+            <p style="margin: 0; font-size: 0.9rem; color: rgba(255, 255, 255, 0.7); line-height: 1.4;">📄 Preparing continuous PDF ledger... Please wait.</p>
+        </div>
+        <style>
+            @keyframes pdf-spin {
+                to { transform: rotate(360deg); }
+            }
+        </style>
+    `;
+    document.body.appendChild(loader);
 
-    // 5. Measure exact dynamic height to prevent page breaks
-    const heightMeasurer = document.createElement('div');
-    heightMeasurer.style.cssText = "position: absolute; visibility: hidden; width: 480px; height: auto; overflow: visible; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;";
-    heightMeasurer.innerHTML = invoiceContent;
-    document.body.appendChild(heightMeasurer);
-    const pxHeight = heightMeasurer.scrollHeight;
-    
-    // Calculate precise width/height in inches (assuming 96 DPI)
-    const inWidth = 480 / 96; 
-    const inHeight = Math.max(8, (pxHeight / 96) + 0.2); 
-    document.body.removeChild(heightMeasurer);
-
-    // 6. Generate PDF natively
-    const opt = {
-        margin:       0, // Forced zero margin to snap edge-to-edge
-        filename:     finalFileName,
-        image:        { type: 'jpeg', quality: 1.0 },
-        html2canvas:  { scale: 2, useCORS: true, windowWidth: 480, width: 480, windowHeight: pxHeight, scrollY: 0 },
-        jsPDF:        { unit: 'in', format: [inWidth, inHeight], orientation: 'portrait' }
-    };
+    // Yield main thread to allow loader UI/spinner to draw and animate
+    await new Promise(resolve => setTimeout(resolve, 250));
 
     try {
+        // 1. Gather Context Data
+        let dateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
+        let rawTime = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        let fileTimeStr = rawTime.replace(/ /g, '').replace(/:/g, '-'); 
+        
+        let deskName = "Center Ledger";
+        let agents = AppState.userNickname || AppState.userDisplayName;
+
+        let opening = "0", cashSales = "0", mgrDrops = "0", expected = "0";
+        let mfsTotal = "0", ersTotal = "0";
+
+        if (mode === 'tab-desk') {
+            let rawDeskName = document.getElementById('desk-dashboard-title')?.innerText || 'My Active Desk';
+            deskName = rawDeskName.replace(/\(My Drawer\)/i, '').trim();
+            agents = document.getElementById('desk-logged-agents')?.innerText || 'None';        
+            opening = document.getElementById('desk-tot-opening')?.innerText?.replace(' Tk', '') || "0";
+            cashSales = document.getElementById('desk-tot-cash-sales')?.innerText?.replace('+ ', '')?.replace(' Tk', '') || "0";
+            mgrDrops = document.getElementById('desk-tot-manager')?.innerText?.replace(' Tk', '') || "0";
+            expected = document.getElementById('desk-tot-expected-cash')?.innerText?.replace(' Tk', '') || "0";
+            
+            const mfsCard = document.evaluate("//div[contains(text(), 'Total MFS')]/following-sibling::div", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+            const ersCard = document.evaluate("//div[contains(text(), 'ERS Sent')]/following-sibling::div", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+            mfsTotal = mfsCard ? mfsCard.innerText.replace(' Tk', '') : "0";
+            ersTotal = ersCard ? ersCard.innerText.replace(' Tk', '') : "0";
+        } else {
+            deskName = "Consolidated Center Ledger";
+            
+            opening = document.getElementById('center-tot-opening')?.innerText || "0";
+            mgrDrops = document.getElementById('center-tot-drops')?.innerText || "0";
+            expected = document.getElementById('center-tot-expected')?.innerText || "0";
+            
+            cashSales = document.getElementById('tot-cash-sales')?.innerText?.replace(' Tk', '') || "0";
+            mfsTotal = document.getElementById('tot-mfs')?.innerText?.replace(' Tk', '') || "0";
+            ersTotal = document.getElementById('tot-ers')?.innerText?.replace(' Tk', '') || "0";
+        }
+
+        let safeDeskName = deskName.replace(/'/g, '').replace(/ /g, '_');
+        let safeDateStr = dateStr.replace(/\//g, '-');
+        let finalFileName = `${safeDeskName}_Ledger_${safeDateStr}_${fileTimeStr}.pdf`;
+
+        // 2. Build Inventory Table Rows
+        let inventoryRowsText = '';
+        let stockRows = document.querySelectorAll(mode === 'tab-desk' ? '#live-dashboard-wrapper > div:nth-child(3) > div:nth-child(2) > div > div:not(:first-child)' : '#floor-stock-list > div:not(:first-child)');
+        
+        if (stockRows && stockRows.length > 0) {
+            stockRows.forEach((row, index) => {
+                let cols = row.children;
+                if(cols.length === 5) {
+                    let bg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+                    inventoryRowsText += `
+                        <tr style="background-color: ${bg}; border-bottom: 1px solid #e2e8f0;">
+                            <td style="padding: 10px; font-weight: 600; color: #334155;">${cols[0].innerText}</td>
+                            <td style="padding: 10px; text-align: center; color: #64748b;">${cols[1].innerText}</td>
+                            <td style="padding: 10px; text-align: center; font-weight: bold; color: ${cols[2].innerText.includes('+') ? '#10b981' : (cols[2].innerText.includes('-') ? '#ef4444' : '#64748b')};">${cols[2].innerText}</td>
+                            <td style="padding: 10px; text-align: center; color: #f59e0b;">${cols[3].innerText}</td>
+                            <td style="padding: 10px; text-align: center; font-weight: bold; color: #0ea5e9;">${cols[4].innerText}</td>
+                        </tr>`;
+                }
+            });
+        } else {
+            inventoryRowsText = `<tr><td colspan="5" style="padding: 16px; text-align: center; color: #94a3b8; font-style: italic;">No physical stock recorded today.</td></tr>`;
+        }
+
+        // 3. Build Items Sold Table Rows
+        let itemsRowsText = '';
+        let soldRows = document.querySelectorAll(mode === 'tab-desk' ? '#live-dashboard-wrapper > div:nth-child(4) > div:not(:first-child)' : '#inventory-list > div');
+        let hasItems = false;
+        
+        if (soldRows && soldRows.length > 0) {
+            soldRows.forEach((row, index) => {
+                let name = row.children[0]?.innerText;
+                let qty = row.children[1]?.innerText;
+                if (name && qty && name !== 'No items sold yet' && name !== 'No items or services sold yet') {
+                    hasItems = true;
+                    let bg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+                    itemsRowsText += `
+                        <tr style="background-color: ${bg}; border-bottom: 1px solid #e2e8f0;">
+                            <td style="padding: 10px 16px; color: #334155; font-weight: 500;">${name}</td>
+                            <td style="padding: 10px 16px; text-align: right; color: #0f172a; font-weight: bold;">${qty}</td>
+                        </tr>`;
+                }
+            });
+        }
+        if (!hasItems) itemsRowsText = `<tr><td colspan="2" style="padding: 16px; text-align: center; color: #94a3b8; font-style: italic;">No items or services sold.</td></tr>`;
+
+        // 4. Construct Modern HTML Template (Mobile Width: 480px)
+        const invoiceContent = `
+            <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #0f172a; padding: 20px; width: 480px; box-sizing: border-box; background-color: #ffffff;">
+                
+                <div style="border-bottom: 3px solid #0ea5e9; padding-bottom: 16px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px;">
+                    <div>
+                        <h1 style="margin: 0; color: #0ea5e9; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">AMOLNAMA</h1>
+                        <h2 style="margin: 4px 0 0 0; color: #475569; font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;">Daily Ledger Report</h2>
+                    </div>
+                    <div style="font-size: 13px; color: #64748b; line-height: 1.6;">
+                        <strong>Date:</strong> ${dateStr} &nbsp;|&nbsp; <strong>Time:</strong> ${rawTime}<br>
+                        <strong>Desk:</strong> <span style="color: #0f172a; font-weight: bold;">${deskName}</span><br>
+                        <strong>Agent:</strong> ${agents}
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px;">
+                    
+                    <div style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+                        <div style="background-color: #f8fafc; padding: 10px 16px; font-weight: bold; color: #334155; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-transform: uppercase;">Cash Reconciliation</div>
+                        <div style="padding: 16px; font-size: 14px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="color: #64748b;">Opening Cash:</span>
+                                <strong>${opening} Tk</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="color: #64748b;">(+) Cash Sales:</span>
+                                <strong style="color: #10b981;">${cashSales} Tk</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed #cbd5e1;">
+                                <span style="color: #64748b;">(+/-) Manager Actions:</span>
+                                <strong style="color: ${mgrDrops.includes('-') ? '#ef4444' : '#0f172a'};">${mgrDrops} Tk</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 16px;">
+                                <span style="font-weight: bold; color: #0f172a;">Expected Drawer:</span>
+                                <strong style="color: #0ea5e9;">${expected} Tk</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 12px;">
+                        <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 4px;">
+                            <span style="color: #64748b; font-size: 12px; font-weight: bold; text-transform: uppercase;">Total MFS</span>
+                            <strong style="font-size: 18px; color: #8b5cf6;">${mfsTotal} Tk</strong>
+                        </div>
+                        <div style="flex: 1; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 4px;">
+                            <span style="color: #64748b; font-size: 12px; font-weight: bold; text-transform: uppercase;">ERS Sent</span>
+                            <strong style="font-size: 18px; color: #f59e0b;">${ersTotal} Tk</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 24px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+                    <div style="background-color: #f1f5f9; padding: 10px 16px; font-weight: bold; color: #0f172a; border-bottom: 2px solid #cbd5e1; font-size: 13px; text-transform: uppercase;">Physical Stock</div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <thead>
+                            <tr style="color: #475569; border-bottom: 1px solid #cbd5e1; background: #f8fafc;">
+                                <th style="padding: 10px; text-align: left;">Item</th>
+                                <th style="padding: 10px; text-align: center;">Start</th>
+                                <th style="padding: 10px; text-align: center;">In/Out</th>
+                                <th style="padding: 10px; text-align: center;">Sold</th>
+                                <th style="padding: 10px; text-align: center;">Exp.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${inventoryRowsText}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="margin-bottom: 24px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+                    <div style="background-color: #f1f5f9; padding: 10px 16px; font-weight: bold; color: #0f172a; border-bottom: 2px solid #cbd5e1; font-size: 13px; text-transform: uppercase;">Items Sold</div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <thead>
+                            <tr style="color: #475569; border-bottom: 1px solid #cbd5e1; background: #f8fafc;">
+                                <th style="padding: 10px 16px; text-align: left;">Product/Service Name</th>
+                                <th style="padding: 10px 16px; text-align: right;">Qty</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${itemsRowsText}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="text-align: center; color: #94a3b8; font-size: 11px; padding-top: 16px; border-top: 1px solid #e2e8f0; margin-top: 24px;">
+                    Generated securely by Amolnama POS System
+                </div>
+            </div>
+        `;
+
+        // 5. Measure exact dynamic height to prevent page breaks
+        const heightMeasurer = document.createElement('div');
+        heightMeasurer.style.cssText = "position: absolute; visibility: hidden; width: 480px; height: auto; overflow: visible; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;";
+        heightMeasurer.innerHTML = invoiceContent;
+        document.body.appendChild(heightMeasurer);
+        const pxHeight = heightMeasurer.scrollHeight;
+        
+        // Calculate precise width/height in inches (assuming 96 DPI)
+        const inWidth = 480 / 96; 
+        const inHeight = Math.max(8, (pxHeight / 96) + 0.2); 
+        document.body.removeChild(heightMeasurer);
+
+        // 6. Generate PDF natively
+        const opt = {
+            margin:       0, // Forced zero margin to snap edge-to-edge
+            filename:     finalFileName,
+            image:        { type: 'jpeg', quality: 1.0 },
+            html2canvas:  { scale: 1.5, useCORS: true, windowWidth: 480, width: 480, windowHeight: pxHeight, scrollY: 0 },
+            jsPDF:        { unit: 'in', format: [inWidth, inHeight], orientation: 'portrait' }
+        };
+
         const pdfBlob = await html2pdf().set(opt).from(invoiceContent).output('blob');
         
         // Universal direct download method
@@ -768,6 +678,10 @@ async function executeDownloadReportAsPDF(mode, prefix) {
     } catch (error) {
         console.error("PDF Generation Error:", error);
         showAppAlert("Error", "Failed to generate the PDF ledger.");
+    } finally {
+        // Clear the overlay spinner loader
+        const spinner = document.getElementById('pdf-generation-loader');
+        if (spinner) spinner.remove();
     }
 }
 
@@ -1212,7 +1126,7 @@ export async function fetchTransactionsForDate() {
     } catch (e) { 
         console.error(e); 
         if (typeof window.showAppAlert === 'function') {
-            window.showAppAlert("Sync Error", "Could not connect to the live ledger. Check your internet connection or refresh the page.");
+            window.showAppAlert("Sync Error", "Could not connect to the live ledger.");
         }
     }
 }

@@ -6,15 +6,14 @@ import { showAppAlert, executeAlertConfirm, showFlashMessage, openModal, closeMo
 import { initPWA, installPWA } from './features/pwa.js';
 import { initAuth, signInWithGoogle, logout, openProfileHub } from './features/auth.js';
 import { AppState } from './core/state.js';
-import { ersKeyPress, ersBackspace, saveErs, selectItem, qtyKeyPress, qtyBackspace, saveQuantity, openEditTx, saveTxEdit, toggleEditSplitFields, updateSplitTotal, cancelTxEdit, autoCalcEditTotal, deleteTransaction, openTrash, restoreTx, permanentlyDeleteTx, emptyTrash, showAuditTrail } from './features/transactions.js';
+import { ersKeyPress, ersBackspace, saveErs, selectItem, stepQty, onQtySliderChange, onQtyInputChange, saveQuantity, openEditTx, saveTxEdit, toggleEditSplitFields, updateSplitTotal, cancelTxEdit, autoCalcEditTotal, deleteTransaction, openTrash, restoreTx, permanentlyDeleteTx, emptyTrash, showAuditTrail } from './features/transactions.js';
 import { getPhysicalItems, getInventoryChange, passStockFirewall, switchStoreCategory } from './features/inventory.js';
-import { loadFloorMap, handleDeskSelect, renderLiveFloorTab, openMyDeskDashboard, peekAtDesk, handleMyDrawerNav, initiateCloseDesk, submitClosingReport } from './features/desk.js';
+import { loadFloorMap, handleDeskSelect, executeHandleDeskSelect, renderLiveFloorTab, openMyDeskDashboard, peekAtDesk, handleMyDrawerNav, initiateCloseDesk, submitClosingReport } from './features/desk.js';
 import { openManagerCashModal, saveManagerCash, openMainStockModal, saveMainStock, openReturnStockModal, saveReturnStock, openDeskTransfer, executeDeskTransfer, openTransferModal, executeTransfer } from './features/transfers.js';
-import { filterAdminCatalog, toggleAddForm, addInventoryGroup, removeInventoryGroup, openSettings, removeRow, addNewItem, saveSettings, openNicknameManager, saveAdminNickname, kickAgent, nukeAgent, resetMyDeskLock, forceCloseAllDesks, nukeTodaysLedger, fixPastManagerDrops, openAuditModal, fetchAuditLogs, openForceReallocate, executeForceTransfer, healTodaysOpeningStock, runLedgerDiagnostic } from './features/admin.js';
-import { openDevNotes, addDevNote, editDevNote, cancelInlineEdit, saveInlineEdit, toggleDevNote, deleteDevNote } from './features/devNotes.js';
+import { filterAdminCatalog, toggleAddForm, addInventoryGroup, removeInventoryGroup, openSettings, removeRow, addNewItem, saveSettings, openNicknameManager, saveAdminNickname, kickAgent, nukeAgent, resetMyDeskLock, forceCloseAllDesks, nukeTodaysLedger, fixPastManagerDrops, openAuditModal, fetchAuditLogs, healTodaysOpeningStock, runLedgerDiagnostic } from './features/admin.js';
 import { renderAppUI, filterStoreCatalog, clearStoreSearch } from './features/catalog.js';
 import { initUserData } from './core/app-init.js';
-import { renderPersonalReport, shareReport, shareDeskReport, renderDeskDashboard, fetchTransactionsForDate, getTxListenerUnsubscribe, setTxListenerUnsubscribe, openHistoricalSession, downloadReportAsPDF } from './features/reports.js';
+import { renderPersonalReport, renderDeskDashboard, fetchTransactionsForDate, getTxListenerUnsubscribe, setTxListenerUnsubscribe, downloadReportAsPDF } from './features/reports.js';
 
 // ==========================================
 //    TEMPORARY REFACTORING BRIDGE
@@ -33,8 +32,7 @@ Object.defineProperties(window, {
     globalInventoryGroups: { get: () => AppState.globalInventoryGroups, set: (v) => AppState.globalInventoryGroups = v },
     transactions: { get: () => AppState.transactions, set: (v) => AppState.transactions = v },
     trashTransactions: { get: () => AppState.trashTransactions, set: (v) => AppState.trashTransactions = v },
-    isMfs: { get: () => AppState.isMfs, set: (v) => AppState.isMfs = v },
-    devNotesQueue: { get: () => AppState.devNotesQueue, set: (v) => AppState.devNotesQueue = v }
+    isMfs: { get: () => AppState.isMfs, set: (v) => AppState.isMfs = v }
 });
 
 initPWA();
@@ -46,9 +44,9 @@ window.Amolnama = {
     signInWithGoogle, logout, openProfileHub, executeAlertConfirm, showTooltip,
     openModal, closeModal, showAppAlert, showFlashMessage, switchTab,
     handleMyDrawerNav, ersKeyPress, ersBackspace, saveErs, selectItem,
-    qtyKeyPress, qtyBackspace, saveQuantity, toggleMFS, getPhysicalItems,
+    stepQty, onQtySliderChange, onQtyInputChange, saveQuantity, toggleMFS, getPhysicalItems,
     getInventoryChange, passStockFirewall, switchStoreCategory, loadFloorMap,
-    handleDeskSelect, renderPersonalReport, shareReport, shareDeskReport,
+    handleDeskSelect, executeHandleDeskSelect, renderPersonalReport,
     renderDeskDashboard, openManagerCashModal, saveManagerCash, openMainStockModal,
     saveMainStock, openReturnStockModal, saveReturnStock, openDeskTransfer,
     executeDeskTransfer, openTransferModal, executeTransfer, filterAdminCatalog,
@@ -56,13 +54,11 @@ window.Amolnama = {
     removeRow, addNewItem, saveSettings, openNicknameManager, saveAdminNickname,
     kickAgent, nukeAgent, resetMyDeskLock, forceCloseAllDesks, nukeTodaysLedger,
     fixPastManagerDrops, openAuditModal, fetchAuditLogs,
-    openForceReallocate, executeForceTransfer, openDevNotes, addDevNote,
-    editDevNote, cancelInlineEdit, saveInlineEdit, toggleDevNote, deleteDevNote,
     renderLiveFloorTab, openMyDeskDashboard, peekAtDesk, initiateCloseDesk,
     installPWA, submitClosingReport, renderAppUI, filterStoreCatalog, clearStoreSearch, fetchTransactionsForDate,
     openEditTx, saveTxEdit, toggleEditSplitFields, updateSplitTotal, cancelTxEdit,
     autoCalcEditTotal, deleteTransaction, openTrash, restoreTx, permanentlyDeleteTx,
-    emptyTrash, showAuditTrail, openHistoricalSession, healTodaysOpeningStock,
+    emptyTrash, showAuditTrail, healTodaysOpeningStock,
     runLedgerDiagnostic, downloadReportAsPDF, initCustomDropdowns
 };
 
