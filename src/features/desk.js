@@ -391,7 +391,19 @@ export async function renderLiveFloorTab() {
         const activeSessionsSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'open')));
         if (activeSessionsSnap.empty) { container.innerHTML = '<p class="placeholder-text">No desks open.</p>'; return; }
 
-        let docsArray = [...activeSessionsSnap.docs];
+        let uniqueDesks = new Map();
+        activeSessionsSnap.docs.forEach(doc => {
+            const data = doc.data();
+            if (uniqueDesks.has(data.deskId)) {
+                if (data.openedAt > uniqueDesks.get(data.deskId).data().openedAt) {
+                    uniqueDesks.set(data.deskId, doc);
+                }
+            } else {
+                uniqueDesks.set(data.deskId, doc);
+            }
+        });
+        
+        let docsArray = Array.from(uniqueDesks.values());
         docsArray.sort((a, b) => a.data().deskId.localeCompare(b.data().deskId, undefined, { numeric: true }));
         
         let myIndex = docsArray.findIndex(doc => doc.id === AppState.currentSessionId);
@@ -419,28 +431,43 @@ export async function renderLiveFloorTab() {
             'wahid': 'AHOkNTiM1RV7urXvY3P5hXtUH8J2'
         };
 
-        let salesData = {};
-        eligibleUsers.forEach(uid => salesData[uid] = 0);
+        const today = new Date();
+        const currentMonthYear = `/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+        const todayStr = getStrictDate();
 
-        try {
-            const today = new Date();
-            const currentMonthYear = `/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+        // 1. Fetch ALL past transactions of the month ONCE and cache them in memory
+        if (!window.MonthlyRankingCache) {
+            window.MonthlyRankingCache = {};
+            eligibleUsers.forEach(uid => window.MonthlyRankingCache[uid] = 0);
             
-            const txRef = collection(db, 'transactions');
-            const qRank = query(txRef, where('agentId', 'in', eligibleUsers));
-            const rankSnap = await getDocs(qRank);
-            
-            rankSnap.forEach(docSnap => {
-                const data = docSnap.data();
-                if (data.agentId && salesData[data.agentId] !== undefined) {
-                    if (data.dateStr && data.dateStr.endsWith(currentMonthYear) && !data.isDeleted) {
-                        salesData[data.agentId] += (Number(data.amount) || 0);
+            try {
+                const txRef = collection(db, 'transactions');
+                const qRank = query(txRef, where('agentId', 'in', eligibleUsers));
+                const rankSnap = await getDocs(qRank);
+                
+                rankSnap.forEach(docSnap => {
+                    const data = docSnap.data();
+                    if (data.agentId && window.MonthlyRankingCache[data.agentId] !== undefined) {
+                        // Only cache PREVIOUS days of the current month (we'll add today's live data dynamically)
+                        if (data.dateStr && data.dateStr.endsWith(currentMonthYear) && data.dateStr !== todayStr && !data.isDeleted) {
+                            window.MonthlyRankingCache[data.agentId] += (Number(data.amount) || 0);
+                        }
                     }
-                }
-            });
-        } catch (rankErr) {
-            console.error("Error fetching ranking data in Floor tab:", rankErr);
+                });
+            } catch (rankErr) {
+                console.error("Error fetching ranking data (or quota exceeded):", rankErr);
+            }
         }
+
+        // 2. Add Today's live sales dynamically from AppState memory (ZERO read cost)
+        let salesData = { ...window.MonthlyRankingCache };
+        AppState.transactions.forEach(tx => {
+            if (eligibleUsers.includes(tx.agentId) && !tx.isDeleted && tx.dateStr === todayStr) {
+                if (salesData[tx.agentId] !== undefined) {
+                    salesData[tx.agentId] += (Number(tx.amount) || 0);
+                }
+            }
+        });
 
         const sortedUsers = Object.keys(salesData).sort((a, b) => salesData[b] - salesData[a]);
 
@@ -449,14 +476,14 @@ export async function renderLiveFloorTab() {
             const session = docSnap.data(); const sid = docSnap.id;
             const isMyDesk = sid === AppState.currentSessionId;
             
-            const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', sid), where('isDeleted', '==', false)));
+            // 3. ZERO READ COST: Filter transactions for this desk from local memory array
+            const sessionTxs = AppState.transactions.filter(tx => tx.sessionId === sid && !tx.isDeleted);
 
             let liveCash = parseFloat(session.openingBalances.cash) || 0;
             let liveInv = { ...(session.openingBalances.inventory || {}) };
             let liveServicesCount = 0;
 
-            txSnap.forEach(txDoc => {
-                let tx = txDoc.data();
+            sessionTxs.forEach(tx => {
                 let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
                 liveCash += safeCashAmt;
                 
