@@ -148,6 +148,7 @@ export function setupBottomSheetDrag() {
             if (sheet.scrollTop > 0) return;
             
             startY = e.touches[0].clientY;
+            currentY = startY; // Reset currentY to prevent stale delta calculations
             isDragging = true;
             
             // Remove CSS animation transitions so the sheet sticks to the thumb perfectly 1:1
