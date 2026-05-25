@@ -545,8 +545,7 @@ export async function renderLiveFloorTab() {
             // Filter out inactive desks (no sales/product/service transactions today, 0 remaining physical stock, and 0 live cash)
             let totalStockQty = Object.values(liveInv).reduce((sum, qty) => sum + Math.max(0, qty || 0), 0);
             let hasSalesActivity = false;
-            txSnap.forEach(txDoc => {
-                let tx = txDoc.data();
+            sessionTxs.forEach(tx => {
                 if (tx.type === 'Item' || tx.type === 'ERS' || tx.type === 'sale') {
                     hasSalesActivity = true;
                 }
