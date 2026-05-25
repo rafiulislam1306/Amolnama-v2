@@ -452,65 +452,6 @@ export async function renderLiveFloorTab() {
             docsArray.unshift(myDoc);
         }
 
-        // --- DYNAMIC FLOOR RANKING CALCULATOR ---
-        const eligibleUsers = [
-            'zmi9OdIBlQQJZo3rszWYQ9sXMVq1', // Rafi
-            'sXeeJMdRycegcf4eAsyDZ53WIrD2', // Shovon
-            'lWuUuOSm38UIm4hsVit8GthtFvK2', // Asha
-            'YqZQ7hH3TUfrNKNhNOCegZrHZs82', // Rakiba
-            'RH6ZFn5Z1XQKNDE24ZYcsZMhvbg1', // Sumon
-            'AHOkNTiM1RV7urXvY3P5hXtUH8J2'  // Wahid
-        ];
-
-        const nameToUidMap = {
-            'rafi': 'zmi9OdIBlQQJZo3rszWYQ9sXMVq1',
-            'shovon': 'sXeeJMdRycegcf4eAsyDZ53WIrD2',
-            'asha': 'lWuUuOSm38UIm4hsVit8GthtFvK2',
-            'rakiba': 'YqZQ7hH3TUfrNKNhNOCegZrHZs82',
-            'sumon': 'RH6ZFn5Z1XQKNDE24ZYcsZMhvbg1',
-            'wahid': 'AHOkNTiM1RV7urXvY3P5hXtUH8J2'
-        };
-
-        const today = new Date();
-        const currentMonthYear = `/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
-        const todayStr = getStrictDate();
-
-        // 1. Fetch ALL past transactions of the month ONCE and cache them in memory
-        if (!window.MonthlyRankingCache) {
-            window.MonthlyRankingCache = {};
-            eligibleUsers.forEach(uid => window.MonthlyRankingCache[uid] = 0);
-            
-            try {
-                const txRef = collection(db, 'transactions');
-                const qRank = query(txRef, where('agentId', 'in', eligibleUsers));
-                const rankSnap = await getDocs(qRank);
-                
-                rankSnap.forEach(docSnap => {
-                    const data = docSnap.data();
-                    if (data.agentId && window.MonthlyRankingCache[data.agentId] !== undefined) {
-                        // Only cache PREVIOUS days of the current month (we'll add today's live data dynamically)
-                        if (data.dateStr && data.dateStr.endsWith(currentMonthYear) && data.dateStr !== todayStr && !data.isDeleted) {
-                            window.MonthlyRankingCache[data.agentId] += (Number(data.amount) || 0);
-                        }
-                    }
-                });
-            } catch (rankErr) {
-                console.error("Error fetching ranking data (or quota exceeded):", rankErr);
-            }
-        }
-
-        // 2. Add Today's live sales dynamically from AppState memory (ZERO read cost)
-        let salesData = { ...window.MonthlyRankingCache };
-        AppState.transactions.forEach(tx => {
-            if (eligibleUsers.includes(tx.agentId) && !tx.isDeleted && tx.dateStr === todayStr) {
-                if (salesData[tx.agentId] !== undefined) {
-                    salesData[tx.agentId] += (Number(tx.amount) || 0);
-                }
-            }
-        });
-
-        const sortedUsers = Object.keys(salesData).sort((a, b) => salesData[b] - salesData[a]);
-
         let floorHTML = '';
         for (const docSnap of docsArray) {
             const session = docSnap.data(); const sid = docSnap.id;
