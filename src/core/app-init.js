@@ -17,7 +17,9 @@ export function updateCurrencyUI() {
 export async function initUserData(onComplete) {
     if(!AppState.currentUser) return;
     try {
-        // 1. Fetch user data first to establish roles
+        const userDocRef = doc(db, 'users', AppState.currentUser.uid);
+        const todayStr = getStrictDate();
+
         let userData = {};
         try {
             const userDocSnap = await getDoc(userDocRef);
