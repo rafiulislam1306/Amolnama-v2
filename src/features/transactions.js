@@ -228,16 +228,41 @@ export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt 
 }
 
 window.syncOfflineTransactions = async function() {
+    let offlineSessions = JSON.parse(localStorage.getItem('amolnama_offline_sessions') || '[]');
     let offlineTxs = JSON.parse(localStorage.getItem('amolnama_offline_txs') || '[]');
-    if (offlineTxs.length === 0) return;
+    
+    if (offlineSessions.length === 0 && offlineTxs.length === 0) return;
 
     if (typeof window.showAppAlert === 'function') {
-        window.showAppAlert("Syncing", "Attempting to sync " + offlineTxs.length + " transactions...");
+        window.showAppAlert("Syncing", `Attempting to sync ${offlineTxs.length} transactions...`);
     }
 
     let successCount = 0;
     let failedCount = 0;
 
+    // 1. Sync Sessions First
+    for (let i = offlineSessions.length - 1; i >= 0; i--) {
+        const sess = offlineSessions[i];
+        try {
+            const dataToSync = { ...sess.data, openedAt: serverTimestamp() };
+            await setDoc(doc(db, 'sessions', sess.id), dataToSync);
+            offlineSessions.splice(i, 1);
+            localStorage.setItem('amolnama_offline_sessions', JSON.stringify(offlineSessions));
+        } catch (e) {
+            console.error("Failed to sync session:", e);
+            failedCount++;
+            break; // Stop on quota error
+        }
+    }
+
+    if (failedCount > 0) {
+        if (typeof window.showAppAlert === 'function') {
+            window.showAppAlert("Sync Paused", "Stopped because the database is still locked or offline.");
+        }
+        return;
+    }
+
+    // 2. Sync Transactions
     for (let i = offlineTxs.length - 1; i >= 0; i--) {
         const tx = offlineTxs[i];
         

@@ -371,12 +371,52 @@ export async function executeHandleDeskSelect(deskId, deskName, status, sessionI
         if (window.renderDeskDashboard) window.renderDeskDashboard(deskId);
 
     } catch(e) { 
-        console.error("Failed to join desk:", e); 
-        if (typeof window.showAppAlert === 'function') {
-            window.showAppAlert("Connection Error", "Failed to join the workspace safely. Please check your connection and try again.");
-        }
-        // Ensure modal closes so they aren't stuck on a loading spinner if it fails
+        console.warn("Network error joining desk, entering Offline Mode fallback:", e); 
+        
+        // 1. Generate an offline session mimicking a Firebase ID
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let offlineSessionId = 'off_';
+        for(let i=0; i<16; i++) offlineSessionId += chars.charAt(Math.floor(Math.random() * chars.length));
+
+        AppState.currentDeskId = deskId;
+        AppState.currentDeskName = deskName;
+        AppState.currentSessionId = offlineSessionId;
+        AppState.currentOpeningCash = 0;
+        AppState.currentOpeningInv = {};
+
+        const sessionPayload = {
+            deskId: deskId, 
+            dateStr: getStrictDate(), 
+            openedBy: AppState.userNickname || AppState.userDisplayName, 
+            openedByUid: AppState.currentUser.uid, 
+            status: 'open', 
+            openingBalances: { cash: 0, inventory: {} },
+            deskName: deskName,
+            isOfflineGenerated: true
+        };
+
+        // 2. Cache it locally so it survives reloads
+        localStorage.setItem('amolnama_cache_desk_' + deskId, JSON.stringify({
+            status: 'open', currentSessionId: offlineSessionId, name: deskName
+        }));
+        localStorage.setItem('amolnama_cache_session_' + offlineSessionId, JSON.stringify(sessionPayload));
+
+        // 3. Queue it for sync
+        let offlineSessions = JSON.parse(localStorage.getItem('amolnama_offline_sessions') || '[]');
+        offlineSessions.push({ id: offlineSessionId, data: sessionPayload });
+        localStorage.setItem('amolnama_offline_sessions', JSON.stringify(offlineSessions));
+
         document.getElementById('modal-desk-select').classList.remove('active');
+        document.getElementById('header-title').innerText = `${deskName}`;
+        
+        if(window.fetchTransactionsForDate) await window.fetchTransactionsForDate();
+        
+        if (typeof window.showAppAlert === 'function') {
+            window.showAppAlert("Offline Workspace", "You have joined this workspace offline. Sales will be saved to your device and can be synced later.");
+        }
+        
+        if (window.switchTab) window.switchTab('desk', deskName);
+        if (window.renderDeskDashboard) window.renderDeskDashboard(deskId);
     }
 }
 
@@ -697,7 +737,28 @@ export async function renderLiveFloorTab() {
         } else {
             container.innerHTML = floorHTML;
         }
-    } catch (e) { container.innerHTML = '<p class="placeholder-text" style="color: #ef4444;">Offline: Could not load.</p>'; }
+    } catch (e) { 
+        const personalDeskId = 'personal_' + AppState.currentUser.uid;
+        const myFirstName = AppState.userNickname || (AppState.userDisplayName ? AppState.userDisplayName.split(' ')[0] : 'Agent');
+        const myDrawerName = `${myFirstName}'s Drawer`;
+        const safeDrawerName = myDrawerName.replace(/'/g, "\\'");
+
+        container.innerHTML = `
+            <div style="padding: 40px 20px; text-align: center;">
+                <div style="font-size: 3rem; margin-bottom: 16px; opacity: 0.8;">📶</div>
+                <h3 style="color: #ef4444; margin-bottom: 8px;">Floor Map Offline</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 24px; font-size: 0.95rem;">Cannot sync with other agents on the floor due to connection issues.</p>
+                
+                <div style="padding: 20px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; text-align: left; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                    <h4 style="margin: 0 0 8px 0; font-size: 1.1rem; color: var(--text-primary);">My Workspace</h4>
+                    <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 0.85rem; line-height: 1.4;">You can still open your personal drawer to record sales offline. Sales will be saved locally.</p>
+                    <button class="btn-primary-full" style="width: 100%; border-radius: 12px; font-weight: 800; padding: 14px;" onpointerdown="this.style.transform='scale(0.96)'" onpointerup="this.style.transform='scale(1)'" onclick="handleDeskSelect('${personalDeskId}', '${safeDrawerName}', 'closed', 'null')">
+                        Open My Drawer
+                    </button>
+                </div>
+            </div>
+        `;
+    }
 }
 
 export function openMyDeskDashboard() {
