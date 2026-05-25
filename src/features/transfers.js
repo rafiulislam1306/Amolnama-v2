@@ -237,62 +237,23 @@ export async function executeDeskTransfer() {
     let timeStr = new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
     let dateStr = getStrictDate();
 
-    let directionEl = document.querySelector('input[name="transfer-direction"]:checked');
-    let direction = directionEl ? directionEl.value : 'send';
-
     let senderTx, receiverTx;
 
-    if (direction === 'send') {
-        if (!passStockFirewall(itemName, qty)) return;
-        senderTx = { id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, timestamp: serverTimestamp() };
-        receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${AppState.currentDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, isRemoteTransfer: true, timestamp: serverTimestamp() };
+    if (!passStockFirewall(itemName, qty)) return;
+    senderTx = { id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, timestamp: serverTimestamp() };
+    receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${AppState.currentDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, isRemoteTransfer: true, timestamp: serverTimestamp() };
+    
+    try {
+        const batch = writeBatch(db);
+        batch.set(doc(collection(db, 'transactions')), senderTx);
+        batch.set(doc(collection(db, 'transactions')), receiverTx);
         
-        try {
-            const batch = writeBatch(db);
-            batch.set(doc(collection(db, 'transactions')), senderTx);
-            batch.set(doc(collection(db, 'transactions')), receiverTx);
-            
-            await batch.commit();
-            closeModal('modal-desk-transfer');
-            showFlashMessage(navigator.onLine ? `Sent ${qty}x ${itemName} to ${targetDeskName}!` : "Offline: Transfer queued");
-        } catch(e) {
-            showAppAlert("Transfer Failed", "Could not securely move the stock. No items were transferred.");
-            console.error(e);
-        }
-    } else {
-        try {
-            let tSessSnap = await getDoc(doc(db, 'sessions', targetSessionId));
-            let theirInv = tSessSnap.exists() ? (tSessSnap.data().openingBalances?.inventory || {}) : {};
-            let theirStock = theirInv[itemName] || 0;
-            
-            const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', targetSessionId), where('isDeleted', '==', false), where('trackAs', '==', itemName)));
-            txSnap.forEach(tDoc => { 
-                let t = tDoc.data();
-                if (t.type === 'transfer_in') theirStock += Math.abs(t.qty);
-                else if (t.type === 'transfer_out') theirStock -= Math.abs(t.qty);
-                else if (t.type === 'adjustment') theirStock += Math.abs(t.qty);
-                else theirStock -= Math.abs(t.qty);
-            });
-            
-            if (theirStock < qty) {
-                showAppAlert("Pull Failed", `${targetDeskName} only has ${theirStock}x ${itemName} available.`);
-                return;
-            }
-            
-            senderTx = { id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Pulled by ${AppState.currentDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, isRemoteTransfer: true, timestamp: serverTimestamp() };
-            receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Pulled from ${targetDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, timestamp: serverTimestamp() };
-            
-            const batch = writeBatch(db);
-            batch.set(doc(collection(db, 'transactions')), senderTx);
-            batch.set(doc(collection(db, 'transactions')), receiverTx);
-            
-            await batch.commit();
-            closeModal('modal-desk-transfer');
-            showFlashMessage(navigator.onLine ? `Pulled ${qty}x ${itemName} from ${targetDeskName}!` : "Offline: Transfer queued");
-        } catch(e) {
-            showAppAlert("Pull Failed", "Could not complete the pull request. Check your connection.");
-            console.error(e);
-        }
+        await batch.commit();
+        closeModal('modal-desk-transfer');
+        showFlashMessage(navigator.onLine ? `Sent ${qty}x ${itemName} to ${targetDeskName}!` : "Offline: Transfer queued");
+    } catch(e) {
+        showAppAlert("Transfer Failed", "Could not securely move the stock. No items were transferred.");
+        console.error(e);
     }
 }
 

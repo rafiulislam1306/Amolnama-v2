@@ -440,19 +440,10 @@
             <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
                 <h3 style="color: #8b5cf6;">Transfer Stock</h3>
             </div>
-            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px;">Send physical items to, or pull items from, another active desk.</p>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px;">Send physical items to another active desk.</p>
             <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
-                
-                <div style="margin-bottom: 16px; display: flex; gap: 16px; align-items: center; border-bottom: 1px dashed var(--border-color); padding-bottom: 16px;">
-                    <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; font-weight: 700; color: var(--text-primary); cursor: pointer;">
-                        <input type="radio" name="transfer-direction" value="send" checked onchange="document.getElementById('desk-transfer-btn').innerText='SEND TO DESK'; document.getElementById('transfer-desk-label').innerText='Destination Desk'; document.getElementById('transfer-qty-label').innerText='Quantity to Send';">
-                        Push (Send to them)
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; font-weight: 700; color: var(--text-primary); cursor: pointer;">
-                        <input type="radio" name="transfer-direction" value="pull" onchange="document.getElementById('desk-transfer-btn').innerText='PULL TO MY DESK'; document.getElementById('transfer-desk-label').innerText='Source Desk'; document.getElementById('transfer-qty-label').innerText='Quantity to Pull';">
-                        Pull (Take from them)
-                    </label>
-                </div>
+
+                <input type="hidden" name="transfer-direction" value="send">
 
                 <div style="margin-bottom: 16px;">
                     <label id="transfer-desk-label" class="admin-label">Destination Desk</label>
