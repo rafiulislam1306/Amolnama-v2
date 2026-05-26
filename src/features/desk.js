@@ -566,8 +566,6 @@ export async function renderLiveFloorTab() {
             let rankBadgeHTML = '';
 
             let safeDeskName = displayDeskName.replace(/'/g, "\\'");
-            let actionBtn = '';
-            
             let actionBtn = isMyDesk 
                 ? `<button class="btn-primary-full" style="width: 100%; margin-top: 8px; border-radius: 14px;" onpointerdown="this.style.transform='scale(0.96)'" onpointerup="this.style.transform='scale(1)'" onclick="openMyDeskDashboard()">Open My Drawer</button>`
                 : `<button class="btn-outline" style="width: 100%; color: var(--purple-text); border-color: var(--purple-border); padding: 14px; margin-top: 8px; border-radius: 14px; font-weight: 700;" onpointerdown="this.style.transform='scale(0.95)'" onpointerup="this.style.transform='scale(1)'" onclick="peekAtDesk('${session.deskId}', '${safeDeskName}')">View Details</button>`;
