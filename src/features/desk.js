@@ -554,31 +554,11 @@ export async function renderLiveFloorTab() {
                 displayDeskName = "My Drawer";
             }
 
-            // --- CALIBRATE INDIVIDUAL DESK RANK ---
-            let agentUid = session.openedByUid;
-            if ((!agentUid || agentUid === 'system') && session.openedBy) {
-                const cleanName = session.openedBy.trim().split(/\s+/)[0].toLowerCase();
-                agentUid = nameToUidMap[cleanName];
-            }
-            
-            const salesAmount = salesData[agentUid] || 0;
-            const rankIndex = agentUid ? sortedUsers.indexOf(agentUid) : -1;
-            const rank = (rankIndex !== -1 && salesAmount > 0) ? rankIndex + 1 : null;
+            let cardStyle = isMyDesk 
+                ? `margin-bottom: 0; padding: 20px; background: var(--info-bg); border: 2px solid var(--info-border); border-radius: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.06); position: relative; transition: all 0.3s var(--spring-physics);`
+                : `margin-bottom: 0; padding: 20px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.03); position: relative; transition: all 0.3s var(--spring-physics);`;
 
-            let cardStyle = '';
             let badge = '';
-            if (rank === 1) {
-                cardStyle = `margin-bottom: 0; padding: 20px; background: radial-gradient(circle at top right, rgba(254, 243, 199, 0.45), var(--surface-color) 75%); border: 2px solid #fbbf24; border-radius: 20px; box-shadow: 0 12px 36px rgba(245, 158, 11, 0.22); position: relative; transition: all 0.3s var(--spring-physics);`;
-            } else if (rank === 2) {
-                cardStyle = `margin-bottom: 0; padding: 20px; background: radial-gradient(circle at top right, rgba(241, 245, 249, 0.45), var(--surface-color) 75%); border: 2px solid #cbd5e1; border-radius: 20px; box-shadow: 0 12px 36px rgba(148, 163, 184, 0.15); position: relative; transition: all 0.3s var(--spring-physics);`;
-            } else if (rank === 3) {
-                cardStyle = `margin-bottom: 0; padding: 20px; background: radial-gradient(circle at top right, rgba(255, 237, 213, 0.45), var(--surface-color) 75%); border: 2px solid #fdba74; border-radius: 20px; box-shadow: 0 12px 36px rgba(249, 115, 22, 0.15); position: relative; transition: all 0.3s var(--spring-physics);`;
-            } else {
-                cardStyle = isMyDesk 
-                    ? `margin-bottom: 0; padding: 20px; background: var(--info-bg); border: 2px solid var(--info-border); border-radius: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.06); position: relative; transition: all 0.3s var(--spring-physics);`
-                    : `margin-bottom: 0; padding: 20px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.03); position: relative; transition: all 0.3s var(--spring-physics);`;
-            }
-
             if (isMyDesk) {
                 badge = `<div style="position: absolute; top: 0; right: 0; background: var(--info-text); color: var(--surface-color); font-size: 0.65rem; font-weight: 800; padding: 6px 16px; border-bottom-left-radius: 16px; border-top-right-radius: 18px; text-transform: uppercase; letter-spacing: 1px; z-index: 5;">My Drawer</div>`;
             }
