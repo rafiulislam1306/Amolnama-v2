@@ -564,40 +564,6 @@ export async function renderLiveFloorTab() {
             }
 
             let rankBadgeHTML = '';
-            if (rank !== null) {
-                let badgeStyle = '';
-                let badgeText = '';
-                if (rank === 1) {
-                    badgeStyle = 'background: linear-gradient(135deg, #fef3c7, #fcd34d); border: 1.5px solid #d97706; color: #78350f; box-shadow: 0 4px 10px rgba(217, 119, 6, 0.15);';
-                    badgeText = '👑 #1';
-                } else if (rank === 2) {
-                    badgeStyle = 'background: linear-gradient(135deg, #f1f5f9, #cbd5e1); border: 1.5px solid #64748b; color: #1e293b; box-shadow: 0 4px 10px rgba(100, 116, 139, 0.15);';
-                    badgeText = '🥈 #2';
-                } else if (rank === 3) {
-                    badgeStyle = 'background: linear-gradient(135deg, #ffedd5, #fdba74); border: 1.5px solid #c2410c; color: #7c2d12; box-shadow: 0 4px 10px rgba(194, 65, 12, 0.15);';
-                    badgeText = '🥉 #3';
-                } else {
-                    badgeStyle = 'background: var(--surface-color); border: 1.5px solid var(--border-color); color: var(--text-secondary);';
-                    badgeText = `🎖️ #${rank}`;
-                }
-                
-                let formattedSales = salesAmount >= 1000 ? (salesAmount / 1000).toFixed(1) + 'k' : salesAmount;
-                
-                const trendIcon = `
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.8; margin-top: 1px; display: inline-block; vertical-align: middle;">
-                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
-                        <polyline points="17 6 23 6 23 12"/>
-                    </svg>
-                `;
-                
-                rankBadgeHTML = `
-                    <span style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 10px; font-size: 0.72rem; font-weight: 800; ${badgeStyle}" title="Monthly Sales: ${salesAmount} Tk">
-                        <span>${badgeText}</span>
-                        <span style="opacity: 0.4;">|</span>
-                        <span style="font-family: 'Outfit', sans-serif; font-weight: 900;">${trendIcon} ${formattedSales} Tk</span>
-                    </span>
-                `;
-            }
 
             let safeDeskName = displayDeskName.replace(/'/g, "\\'");
             let actionBtn = '';
