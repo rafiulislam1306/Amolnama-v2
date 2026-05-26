@@ -198,7 +198,20 @@ export async function openDeskTransfer() {
         const activeSessionsSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'open')));
         let optionsHTML = '';
         
-        for (const docSnap of activeSessionsSnap.docs) {
+        // Deduplicate sessions (prevent sending to ghost sessions)
+        let uniqueDesks = new Map();
+        activeSessionsSnap.docs.forEach(doc => {
+            const data = doc.data();
+            if (uniqueDesks.has(data.deskId)) {
+                if (data.openedAt > uniqueDesks.get(data.deskId).data().openedAt) {
+                    uniqueDesks.set(data.deskId, doc);
+                }
+            } else {
+                uniqueDesks.set(data.deskId, doc);
+            }
+        });
+        
+        for (const docSnap of uniqueDesks.values()) {
             let deskData = docSnap.data();
             if(deskData.deskId !== AppState.currentDeskId) {
                 let displayName = deskData.deskId.replace('_', ' ').toUpperCase();
