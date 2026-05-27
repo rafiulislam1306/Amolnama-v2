@@ -63,7 +63,7 @@ export async function performLazyAutoClose() {
                             }
                             if (t === 0 && s.dateStr) {
                                 let pts = s.dateStr.split('/');
-                                if (pts.length === 3) t = new Date(`${pts[2]}-${pts[1]}-${pts[0]}`).getTime();
+                                if (pts.length === 3) t = new Date(`${pts[2]}-${pts[1]}-${pts[0]}T00:00:00`).getTime();
                             }
                             
                             if (t > maxTime) {

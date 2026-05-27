@@ -94,6 +94,12 @@ export function renderAppUI() {
             if (indexA !== -1 && indexB !== -1) return indexA - indexB;
             if (indexA !== -1) return -1;
             if (indexB !== -1) return 1;
+            
+            // Fallback to Admin-defined drag-and-drop order before alphabetical
+            if (a.order !== undefined && b.order !== undefined) return a.order - b.order;
+            if (a.order !== undefined) return -1;
+            if (b.order !== undefined) return 1;
+
             // Safely fallback to empty strings if name is missing to prevent fatal crash
             return (a.name || '').localeCompare(b.name || '');
         }).forEach(item => {
@@ -132,11 +138,11 @@ export function renderAppUI() {
             if (!container) return; // Skip if category HTML container doesn't exist
             
             // STRICT RULE: Death TOF and Govt. FOC are ONLY visible to center_manager
-            if ((item.name === 'Death TOF' || item.name === 'Govt. FOC') && AppState.currentUserRole !== 'center_manager') {
+            if ((item.name === 'Death TOF' || item.name === 'Govt. FOC') && !['center_manager'].includes(AppState.currentUserRole)) {
                 return; // Hide entirely
             }
 
-            let isLocked = item.managerOnly && !['manager', 'center_manager', 'admin', 'owner'].includes(AppState.currentUserRole);
+            let isLocked = item.managerOnly && !['center_manager'].includes(AppState.currentUserRole);
             
             // Completely hide other restricted items from standard floor agents
             if (isLocked) return;

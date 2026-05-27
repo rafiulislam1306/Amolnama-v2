@@ -22,7 +22,8 @@ export function ersKeyPress(num) {
     if (AppState.ui.currentErsAmount === '0') { 
         if (num !== '00' && num !== '0') AppState.ui.currentErsAmount = num; 
     } else { 
-        if ((AppState.ui.currentErsAmount + num).length <= 5) AppState.ui.currentErsAmount += num; 
+        // Bumped limit to 6 digits to allow up to 999,999 Tk flexiloads safely
+        if ((AppState.ui.currentErsAmount + num).length <= 6) AppState.ui.currentErsAmount += num; 
     }
     updateErsDisplay();
 }
@@ -331,10 +332,10 @@ export function openEditTx(id) {
     
     let paymentSelect = document.getElementById('edit-tx-payment');
     let splitFields = document.getElementById('edit-split-fields');
-    if (tx.cashAmt > 0 && tx.mfsAmt > 0) {
+    if (tx.payment === 'Split' || (tx.cashAmt > 0 && tx.mfsAmt > 0)) {
         paymentSelect.value = 'Split'; splitFields.style.display = 'flex';
-        document.getElementById('edit-tx-cash').value = tx.cashAmt;
-        document.getElementById('edit-tx-mfs').value = tx.mfsAmt;
+        document.getElementById('edit-tx-cash').value = tx.cashAmt || 0;
+        document.getElementById('edit-tx-mfs').value = tx.mfsAmt || 0;
     } else { paymentSelect.value = tx.payment; splitFields.style.display = 'none'; }
     openModal('modal-edit-tx');
     
