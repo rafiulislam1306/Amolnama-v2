@@ -4,7 +4,7 @@ import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
 import { generateReceiptNo, getStrictDate } from '../utils/helpers.js';
 import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/ui-helpers.js';
-import { passStockFirewall, getPhysicalItems } from './inventory.js';
+import { passStockFirewall, getPhysicalItems, getInventoryChange } from './inventory.js';
 
 export function openManagerCashModal() {
     if(!AppState.currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
@@ -213,7 +213,35 @@ export async function openDeskTransfer() {
         
         for (const docSnap of uniqueDesks.values()) {
             let deskData = docSnap.data();
+            let sid = docSnap.id;
+
             if(deskData.deskId !== AppState.currentDeskId) {
+                // --- FLOOR MAP HEALTH CHECK ---
+                const sessionTxs = AppState.transactions.filter(tx => tx.sessionId === sid && !tx.isDeleted);
+                let liveCash = parseFloat(deskData.openingBalances?.cash) || 0;
+                let liveInv = { ...(deskData.openingBalances?.inventory || {}) };
+                let hasSalesActivity = false;
+
+                sessionTxs.forEach(tx => {
+                    let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
+                    liveCash += safeCashAmt;
+                    
+                    let change = getInventoryChange(tx);
+                    if (change !== 0) {
+                        liveInv[tx.trackAs] = (liveInv[tx.trackAs] || 0) + change;
+                    }
+                    
+                    if (tx.type === 'Item' || tx.type === 'ERS' || tx.type === 'sale') {
+                        hasSalesActivity = true;
+                    }
+                });
+
+                let totalStockQty = Object.values(liveInv).reduce((sum, qty) => sum + Math.max(0, qty || 0), 0);
+
+                // Skip ghost desks: No sales, zero stock, zero cash
+                if (!hasSalesActivity && totalStockQty === 0 && liveCash === 0) continue;
+                // ------------------------------
+
                 let displayName = deskData.deskId.replace('_', ' ').toUpperCase();
                 
                 try {
