@@ -79,11 +79,6 @@ export async function initUserData(onComplete) {
         }
         if(document.getElementById('tab-ers').classList.contains('active')) document.getElementById('header-title').innerText = AppState.userNickname || AppState.userDisplayName;
 
-        const devNoteFab = document.getElementById('dev-note-fab');
-        if (devNoteFab) {
-            devNoteFab.style.display = AppState.currentUserRole === 'admin' ? 'flex' : 'none';
-        }
-
         // --- MANAGER ROLE UI RESTRICTIONS ---
         const navBtns = document.querySelectorAll('.nav-item');
         if (['manager', 'owner'].includes(AppState.currentUserRole)) {

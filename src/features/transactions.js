@@ -47,8 +47,8 @@ export function saveErs(paymentMethod) {
 
 export function selectItem(itemName, price) {
     let catItem = Object.values(AppState.globalCatalog).find(c => c.name === itemName);
-    if (catItem?.managerOnly && !['manager', 'center_manager', 'owner'].includes(AppState.currentUserRole)) {
-        showAppAlert("Access Denied", "🔒 Only Center Managers and Owners can process this service.");
+    if (catItem?.managerOnly && AppState.currentUserRole !== 'center_manager') {
+        showAppAlert("Access Denied", "🔒 Only a Center Manager can process this service.");
         return;
     }
     
@@ -130,9 +130,9 @@ export function instantSaveItem(itemName, price) {
   isSaving = true;
 
   let catItem = Object.values(AppState.globalCatalog).find(c => c.name === itemName);
-  if (catItem?.managerOnly && !['manager', 'center_manager', 'owner'].includes(AppState.currentUserRole)) {
+  if (catItem?.managerOnly && AppState.currentUserRole !== 'center_manager') {
       isSaving = false;
-      showAppAlert("Access Denied", "🔒 Only Center Managers and Owners can process this service.");
+      showAppAlert("Access Denied", "🔒 Only a Center Manager can process this service.");
       return;
   }
 
@@ -454,7 +454,7 @@ export function deleteTransaction(docId, localId) {
     if (tx && !isTransactionModifiable(tx, 'delete')) return;
 
     showAppAlert("Delete Item", "Are you sure you want to move this transaction to the trash?", true, async () => {
-        let nowStr = new Date().toISOString();
+        let nowStr = new Date().toString();
         let agentStr = AppState.userNickname || AppState.userDisplayName;
 
         // Optimistic local update
@@ -509,7 +509,7 @@ export function renderTrash() {
 
 export async function restoreTx(docId, localId) {
     if(!AppState.currentUser) return;
-    let nowStr = new Date().toISOString();
+    let nowStr = new Date().toString();
     let agentStr = AppState.userNickname || AppState.userDisplayName;
 
     if(docId) {
