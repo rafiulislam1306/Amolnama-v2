@@ -228,21 +228,20 @@ export async function renderPersonalReport() {
                 <div style="display: flex; flex-direction: column; gap: 14px; border-top: 1px dashed var(--border-color); padding-top: 18px;">
                     <!-- Opening Cash -->
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 0.88rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px;">Opening Cash</span>
-                        <span id="center-tot-opening" style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary); font-family: monospace;">${fmt(floorOpeningCash)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); font-family: inherit;">Tk</span></span>
+                        <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px;">Opening Cash</span>
+                        <span id="center-tot-opening" style="font-size: 1.4rem; font-weight: 800; color: var(--text-primary);">${fmt(floorOpeningCash)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Tk</span></span>
                     </div>
                     
                     <!-- Cash Sales -->
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 0.88rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px;">Cash Sales</span>
-                        <span style="font-size: 1.05rem; font-weight: 800; color: #10b981; font-family: monospace;">+${fmt(myCash)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); font-family: inherit;">Tk</span></span>
+                        <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px;">Cash Sales</span>
+                        <span style="font-size: 1.4rem; font-weight: 800; color: #10b981;">+${fmt(myCash)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Tk</span></span>
                     </div>
                     
                     <!-- +/- Cash Actions -->
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 0.88rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px;">+/- Cash Actions</span>
-                        <span id="center-tot-drops" style="font-size: 1.05rem; font-weight: 800; color: ${floorManagerDrops >= 0 ? '#10b981' : '#ef4444'}; font-family: monospace;">
-                            ${floorManagerDrops >= 0 ? '+' : ''}${fmt(floorManagerDrops)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); font-family: inherit;">Tk</span>
+                        <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px;">+/- Cash Actions</span>
+                        <span id="center-tot-drops" style="font-size: 1.4rem; font-weight: 800; color: ${floorManagerDrops >= 0 ? '#10b981' : '#ef4444'};">                            ${floorManagerDrops >= 0 ? '+' : ''}${fmt(floorManagerDrops)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Tk</span>
                         </span>
                     </div>
 
@@ -250,8 +249,8 @@ export async function renderPersonalReport() {
 
                     <!-- Expected Cash Highlight Box -->
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(245, 158, 11, 0.05); border-left: 4px solid #f59e0b; border-radius: 10px;">
-                        <span style="font-weight: 900; color: #f59e0b; font-size: 0.88rem; text-transform: uppercase; letter-spacing: 0.8px; white-space: nowrap; flex-shrink: 0;">Expected Cash</span>
-                        <span id="center-tot-expected" style="font-weight: 900; color: #f59e0b; font-size: 1.4rem; font-family: monospace; white-space: nowrap; display: inline-flex; align-items: baseline; gap: 4px;">${fmt(expectedCenterCash)} <span style="font-size: 0.9rem; font-weight: 800; font-family: inherit;">Tk</span></span>
+                        <span style="font-weight: 900; color: #f59e0b; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.8px; white-space: nowrap; flex-shrink: 0;">Expected Cash</span>
+                        <span id="center-tot-expected" style="font-weight: 900; color: #f59e0b; font-size: 1.4rem; white-space: nowrap; display: inline-flex; align-items: baseline; gap: 4px;">${fmt(expectedCenterCash)} <span style="font-size: 0.9rem; font-weight: 800;">Tk</span></span>
                     </div>
                 </div>
             </div>
