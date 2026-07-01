@@ -435,7 +435,11 @@ export async function renderLiveFloorTab() {
         activeSessionsSnap.docs.forEach(doc => {
             const data = doc.data();
             if (uniqueDesks.has(data.deskId)) {
-                if (data.openedAt > uniqueDesks.get(data.deskId).data().openedAt) {
+                const existingOpenedAt = uniqueDesks.get(data.deskId).data().openedAt;
+                const newOpenedAt = data.openedAt;
+                const existingTime = (existingOpenedAt && typeof existingOpenedAt.toMillis === 'function') ? existingOpenedAt.toMillis() : (existingOpenedAt?.seconds ? existingOpenedAt.seconds * 1000 : 0);
+                const newTime = (newOpenedAt && typeof newOpenedAt.toMillis === 'function') ? newOpenedAt.toMillis() : (newOpenedAt?.seconds ? newOpenedAt.seconds * 1000 : 0);
+                if (newTime > existingTime) {
                     uniqueDesks.set(data.deskId, doc);
                 }
             } else {

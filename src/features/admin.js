@@ -580,3 +580,65 @@ export async function runLedgerDiagnostic() {
         showAppAlert("Diagnostic Failed", e.message);
     }
 }
+
+export async function healDeskTransfers() {
+    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
+    if (!navigator.onLine) { showAppAlert("Offline", "You must be online to heal the database."); return; }
+
+    showAppAlert("Heal Transfers", "This will search today's transactions and re-align any desk-to-desk transfers that were sent to outdated or ghost sessions. Proceed?", true, async () => {
+        const todayStr = getStrictDate();
+        showFlashMessage("Scanning transfers...");
+        
+        try {
+            // 1. Fetch all of today's sessions
+            const sessSnap = await getDocs(query(collection(db, 'sessions'), where('dateStr', '==', todayStr)));
+            
+            // 2. Identify the active (latest opened) session ID for each desk
+            let activeSessionMap = new Map(); // deskId -> { sessionId, openedAt }
+            sessSnap.docs.forEach(docSnap => {
+                const s = docSnap.data();
+                if (s.status === 'open') {
+                    const newTime = (s.openedAt && typeof s.openedAt.toMillis === 'function') ? s.openedAt.toMillis() : (s.openedAt?.seconds ? s.openedAt.seconds * 1000 : 0);
+                    const existing = activeSessionMap.get(s.deskId);
+                    if (!existing || newTime > existing.time) {
+                        activeSessionMap.set(s.deskId, { id: docSnap.id, time: newTime });
+                    }
+                }
+            });
+
+            // 3. Fetch all of today's remote transfer_in transactions
+            const txSnap = await getDocs(query(
+                collection(db, 'transactions'), 
+                where('dateStr', '==', todayStr), 
+                where('type', '==', 'transfer_in'),
+                where('isRemoteTransfer', '==', true)
+            ));
+
+            let fixedCount = 0;
+            const batch = writeBatch(db);
+
+            txSnap.docs.forEach(docSnap => {
+                const tx = docSnap.data();
+                const activeSession = activeSessionMap.get(tx.deskId);
+                if (activeSession && tx.sessionId !== activeSession.id) {
+                    batch.update(doc(db, 'transactions', docSnap.id), {
+                        sessionId: activeSession.id
+                    });
+                    fixedCount++;
+                }
+            });
+
+            if (fixedCount > 0) {
+                await batch.commit();
+                showFlashMessage(`Healed ${fixedCount} transfer(s)!`);
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                showAppAlert("No Errors Found", "All of today's desk transfers are correctly linked to active sessions.", false, null, "Great");
+            }
+            
+        } catch (e) {
+            console.error(e);
+            showAppAlert("Error", "Could not complete healing process. Check console.");
+        }
+    }, "Heal Transfers");
+}

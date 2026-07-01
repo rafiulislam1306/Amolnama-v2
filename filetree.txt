@@ -25,7 +25,6 @@ Amolnama-v2/
 │   │   ├── auth.js
 │   │   ├── catalog.js
 │   │   ├── desk.js
-│   │   ├── devNotes.js
 │   │   ├── inventory.js
 │   │   ├── pwa.js
 │   │   ├── reports.js
