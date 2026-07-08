@@ -60,7 +60,6 @@ Amolnama uses a **strict Feature-Based Modular Architecture**. No business logic
 | `reports.js` | Fetches ledger from Firestore (`onSnapshot`), renders Drawer dashboard and personal report |
 | `transfers.js` | Cash actions (manager drop, float), main stock in/out, desk-to-desk transfers |
 | `admin.js` | Admin panel — catalog editor, nickname manager, user management, danger zone, audit logs, CSV export |
-| `devNotes.js` | Improvement queue — add, edit, toggle, delete notes; syncs to Firestore under user doc |
 | `pwa.js` | Service worker registration, PWA install prompt, update notification |
 
 ---
@@ -185,17 +184,6 @@ Use this section to identify exactly which function controls a feature — so yo
 - `fixPastManagerDrops()` — data repair tool for legacy 0 Tk drops
 - `openAuditModal()`, `fetchAuditLogs()` — historical EOD audit viewer
 - `openForceReallocate()`, `executeForceTransfer()` — admin emergency stock reallocation
-
----
-
-### `src/features/devNotes.js`
-- `openDevNotes()` — opens improvement queue modal
-- `renderDevNotes()` — renders sorted note list
-- `addDevNote()` — adds new note and syncs to Firestore
-- `editDevNote(id)`, `cancelInlineEdit()`, `saveInlineEdit(id)` — inline edit flow
-- `toggleDevNote(id)` — marks note pending/resolved
-- `deleteDevNote(id)` — removes note permanently
-- `syncDevNotes()` — saves `AppState.devNotesQueue` to Firestore user doc
 
 ---
 
@@ -424,12 +412,11 @@ Ask the user to paste files in this order:
 9. `src/features/desk.js`
 10. `src/features/reports.js`
 11. `src/features/admin.js`
-12. `src/features/devNotes.js`
-13. `src/features/pwa.js`
-14. `src/utils/ui-helpers.js`
-15. `src/utils/helpers.js`
-16. `index.html`
-17. `src/main.js`
+12. `src/features/pwa.js`
+13. `src/utils/ui-helpers.js`
+14. `src/utils/helpers.js`
+15. `index.html`
+16. `src/main.js`
 
 After reviewing all files, produce a report with:
 - 🔴 Critical bugs (will crash or produce wrong data)

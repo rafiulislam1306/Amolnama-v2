@@ -326,7 +326,7 @@ export async function renderPersonalReport() {
 
             liveStockHTML += `
                 <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; align-items: center; padding: 12px 4px; border-bottom: 1px dashed var(--border-color); font-size: 0.85rem;">
-                    <div style="font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; cursor: pointer;" onclick="showTooltip(this, '${item}')">${item}</div>
+                    <div style="font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; cursor: pointer;" onclick="showTooltip(this, '${item.replace(/'/g, "\\'")}')">${item}</div>
                     <div style="text-align: center; color: var(--text-secondary); font-weight: 600;">${d.open}</div>
                     <div style="text-align: center; color: ${inOutColor}; font-weight: 700;">${inOutStr}</div>
                     <div style="text-align: center; color: #f59e0b; font-weight: 700;">${d.sold}</div>
@@ -710,7 +710,7 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
         let inOutStr = d.inOut > 0 ? `+${d.inOut}` : (d.inOut < 0 ? `${d.inOut}` : `0`);
         invRows += `
             <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-color); font-size: 0.85rem;">
-                <div style="font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; cursor: pointer;" onclick="showTooltip(this, '${item}')">${item}</div>
+                <div style="font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; cursor: pointer;" onclick="showTooltip(this, '${item.replace(/'/g, "\\'")}')">${item}</div>
                 <div style="text-align: center; color: var(--text-secondary); font-weight: 500;">${d.open}</div>
                 <div style="text-align: center; color: ${inOutColor}; font-weight: 600;">${inOutStr}</div>
                 <div style="text-align: center; color: var(--text-primary); font-weight: 500;">${d.sold}</div>

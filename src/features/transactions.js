@@ -6,6 +6,9 @@ import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/
 import { AppState } from '../core/state.js';
 import { passStockFirewall } from './inventory.js';
 
+const fmt = (num) => Number(num || 0).toLocaleString('en-IN');
+let isSaving = false;
+
 // ==========================================
 //    ERS KEYPAD LOGIC
 // ==========================================
@@ -107,23 +110,36 @@ export function onQtyInputChange(val) {
 }
 
 export function saveQuantity() {
+    if (isSaving) return; // Drop accidental double-taps
+    isSaving = true;
+
     let qtyInt = parseInt(AppState.ui.currentQty) || 0;
-    if (qtyInt <= 0) { showAppAlert("Invalid Input", "Please enter a quantity of 1 or more."); return; }
+    if (qtyInt <= 0) {
+        isSaving = false;
+        showAppAlert("Invalid Input", "Please enter a quantity of 1 or more.");
+        return;
+    }
     
     // Prevent sales while viewing historical dates
     const datePicker = document.getElementById('report-date-picker');
     if (datePicker && datePicker.value && formatToGBDate(datePicker.value) !== getStrictDate()) {
+        isSaving = false;
         showAppAlert("Action Blocked", "You cannot process new transactions while viewing a past date. Please return to 'Today'.");
         return;
     }
 
-    if (!passStockFirewall(AppState.ui.currentItemName, qtyInt)) return;
+    if (!passStockFirewall(AppState.ui.currentItemName, qtyInt)) {
+        isSaving = false;
+        return;
+    }
 
     addTransactionToCloud('Item', AppState.ui.currentItemName, qtyInt * AppState.ui.currentItemPrice, qtyInt, (AppState.ui.currentItemPrice > 0 && AppState.isMfs) ? "MFS" : "Cash");
-    closeModal('modal-quantity');
-}
 
-let isSaving = false;
+    setTimeout(() => {
+        closeModal('modal-quantity');
+        isSaving = false; // Release lock after modal slide animations finish
+    }, 300);
+}
 
 export function instantSaveItem(itemName, price) {
   if (isSaving) return; // Drop accidental double-taps
