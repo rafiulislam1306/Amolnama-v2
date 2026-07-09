@@ -316,6 +316,10 @@ window.syncOfflineTransactions = async function() {
 // ==========================================
 
 export function isTransactionModifiable(tx, action) {
+    if (AppState.currentUserRole === 'admin' && action === 'delete') {
+        return true;
+    }
+
     if (tx.type === 'transfer_out' || tx.type === 'transfer_in') {
         let msg = action === 'delete' 
             ? "Remote transfers cannot be deleted via the Trash bin to prevent stock duplication. Please issue a reverse transfer from the Desk Actions menu instead." 
