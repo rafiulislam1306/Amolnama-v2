@@ -19,8 +19,15 @@ export function openManagerCashModal() {
     const handsetWrapper = document.getElementById('handset-model-wrapper');
     if (handsetWrapper) handsetWrapper.style.display = 'none';
     
-    const notesWrapper = document.getElementById('mgr-cash-notes-wrapper');
-    if (notesWrapper) notesWrapper.style.display = 'block';
+    // Reset payment fields
+    const paySelect = document.getElementById('mgr-cash-payment');
+    if (paySelect) paySelect.value = 'Cash';
+    const payWrapper = document.getElementById('mgr-cash-payment-wrapper');
+    if (payWrapper) payWrapper.style.display = 'none';
+    const splitFields = document.getElementById('mgr-cash-split-fields');
+    if (splitFields) splitFields.style.display = 'none';
+    document.getElementById('mgr-cash-split-cash').value = '';
+    document.getElementById('mgr-cash-split-mfs').value = '';
     
     const actionSelect = document.getElementById('mgr-cash-action');
     if (actionSelect) {
@@ -29,9 +36,16 @@ export function openManagerCashModal() {
         if (!actionSelect.dataset.listenerBound) {
             actionSelect.addEventListener('change', (e) => {
                 const wrapper = document.getElementById('handset-model-wrapper');
+                const pWrapper = document.getElementById('mgr-cash-payment-wrapper');
                 const nWrapper = document.getElementById('mgr-cash-notes-wrapper');
                 if (wrapper) {
                     wrapper.style.display = e.target.value === 'handset_cash' ? 'block' : 'none';
+                }
+                if (pWrapper) {
+                    pWrapper.style.display = e.target.value === 'handset_cash' ? 'block' : 'none';
+                    if (e.target.value !== 'handset_cash') {
+                        document.getElementById('mgr-cash-split-fields').style.display = 'none';
+                    }
                 }
                 if (nWrapper) {
                     nWrapper.style.display = e.target.value === 'handset_cash' ? 'none' : 'block';
@@ -53,16 +67,44 @@ export async function saveManagerCash() {
     if (amount <= 0) { showAppAlert("Invalid Input", "Enter a valid amount."); return; }
     
     let action = document.getElementById('mgr-cash-action').value; 
-    let isCashIn = action === 'receive_float' || action === 'handset_cash';
-    let finalValue = isCashIn ? amount : -amount;
-    
-    let txName = 'Cash Adjustment';
-    let paymentLabel = '';
-    
-    if (action === 'drop_manager') { txName = 'Manager Drop'; paymentLabel = 'Dropped to Manager'; }
-    else if (action === 'expense') { txName = 'Expense / Donation'; paymentLabel = 'Cash Out'; }
-    else if (action === 'handset_cash') { txName = 'Handset Cash'; paymentLabel = 'Cash In (Holding)'; }
-    else if (action === 'receive_float') { txName = 'Manager Float'; paymentLabel = 'Cash In (Float)'; }
+    let finalCash = 0;
+    let finalMfs = 0;
+    let method = 'Cash';
+
+    if (action === 'drop_manager') { 
+        txName = 'Manager Drop'; 
+        paymentLabel = 'Dropped to Manager'; 
+        finalCash = -amount;
+    } else if (action === 'expense') { 
+        txName = 'Expense / Donation'; 
+        paymentLabel = 'Cash Out'; 
+        finalCash = -amount;
+    } else if (action === 'receive_float') { 
+        txName = 'Manager Float'; 
+        paymentLabel = 'Cash In (Float)'; 
+        finalCash = amount;
+    } else if (action === 'handset_cash') { 
+        txName = 'Handset Cash'; 
+        method = document.getElementById('mgr-cash-payment').value;
+        
+        if (method === 'Split') {
+            let cashVal = parseFloat(document.getElementById('mgr-cash-split-cash').value) || 0;
+            let mfsVal = parseFloat(document.getElementById('mgr-cash-split-mfs').value) || 0;
+            if (Math.abs((cashVal + mfsVal) - amount) > 0.01) {
+                showAppAlert("Invalid Split", "Cash and MFS amounts must sum up to the total amount.");
+                return;
+            }
+            finalCash = cashVal;
+            finalMfs = mfsVal;
+            paymentLabel = 'Split';
+        } else if (method === 'MFS') {
+            finalMfs = amount;
+            paymentLabel = 'MFS';
+        } else {
+            finalCash = amount;
+            paymentLabel = 'Cash';
+        }
+    }
 
     let notes = '';
     if (action !== 'handset_cash') {
@@ -76,7 +118,7 @@ export async function saveManagerCash() {
 
     const tx = {
         id: Date.now(), receiptNo: generateReceiptNo(), type: 'adjustment', name: txName, trackAs: 'Physical Cash', amount: amount, qty: 1,
-        payment: paymentLabel, cashAmt: finalValue, mfsAmt: 0, isDeleted: false,
+        payment: paymentLabel, cashAmt: finalCash, mfsAmt: finalMfs, isDeleted: false,
         time: new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'}),
         dateStr: getStrictDate(), deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName,
         timestamp: serverTimestamp()
@@ -352,4 +394,32 @@ export function executeTransfer() {
             console.error(e);
         }
     }, "Force Transfer");
+}
+
+export function toggleMgrCashPaymentFields() {
+    const payVal = document.getElementById('mgr-cash-payment').value;
+    const splitFields = document.getElementById('mgr-cash-split-fields');
+    if (splitFields) {
+        splitFields.style.display = payVal === 'Split' ? 'flex' : 'none';
+    }
+    if (payVal === 'Split') {
+        const totalAmt = parseFloat(document.getElementById('mgr-cash-amount').value) || 0;
+        document.getElementById('mgr-cash-split-cash').value = totalAmt;
+        document.getElementById('mgr-cash-split-mfs').value = 0;
+    }
+}
+
+export function validateMgrCashSplit() {
+    const totalAmt = parseFloat(document.getElementById('mgr-cash-amount').value) || 0;
+    let cashAmt = parseFloat(document.getElementById('mgr-cash-split-cash').value) || 0;
+    let mfsAmt = parseFloat(document.getElementById('mgr-cash-split-mfs').value) || 0;
+
+    const activeEl = document.activeElement;
+    if (activeEl && activeEl.id === 'mgr-cash-split-cash') {
+        mfsAmt = Math.max(0, totalAmt - cashAmt);
+        document.getElementById('mgr-cash-split-mfs').value = mfsAmt;
+    } else if (activeEl && activeEl.id === 'mgr-cash-split-mfs') {
+        cashAmt = Math.max(0, totalAmt - mfsAmt);
+        document.getElementById('mgr-cash-split-cash').value = cashAmt;
+    }
 }

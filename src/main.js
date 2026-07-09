@@ -9,7 +9,7 @@ import { AppState } from './core/state.js';
 import { ersKeyPress, ersBackspace, saveErs, selectItem, stepQty, onQtySliderChange, onQtyInputChange, saveQuantity, openEditTx, saveTxEdit, toggleEditSplitFields, updateSplitTotal, cancelTxEdit, autoCalcEditTotal, deleteTransaction, openTrash, restoreTx, permanentlyDeleteTx, emptyTrash, showAuditTrail } from './features/transactions.js';
 import { getPhysicalItems, getInventoryChange, passStockFirewall, switchStoreCategory } from './features/inventory.js';
 import { loadFloorMap, handleDeskSelect, executeHandleDeskSelect, renderLiveFloorTab, openMyDeskDashboard, peekAtDesk, handleMyDrawerNav, initiateCloseDesk, submitClosingReport } from './features/desk.js';
-import { openManagerCashModal, saveManagerCash, openMainStockModal, saveMainStock, openReturnStockModal, saveReturnStock, openDeskTransfer, executeDeskTransfer, openTransferModal, executeTransfer } from './features/transfers.js';
+import { openManagerCashModal, saveManagerCash, openMainStockModal, saveMainStock, openReturnStockModal, saveReturnStock, openDeskTransfer, executeDeskTransfer, openTransferModal, executeTransfer, toggleMgrCashPaymentFields, validateMgrCashSplit } from './features/transfers.js';
 import { filterAdminCatalog, toggleAddForm, addInventoryGroup, removeInventoryGroup, openSettings, removeRow, addNewItem, saveSettings, openNicknameManager, saveAdminNickname, saveUserConfig, kickAgent, nukeAgent, resetMyDeskLock, forceCloseAllDesks, nukeTodaysLedger, fixPastManagerDrops, openAuditModal, fetchAuditLogs, healTodaysOpeningStock, runLedgerDiagnostic, healDeskTransfers, executeAdminDrawerTransfer } from './features/admin.js';
 import { renderAppUI, filterStoreCatalog, clearStoreSearch } from './features/catalog.js';
 import { initUserData } from './core/app-init.js';
@@ -47,7 +47,7 @@ window.Amolnama = {
     stepQty, onQtySliderChange, onQtyInputChange, saveQuantity, toggleMFS, getPhysicalItems,
     getInventoryChange, passStockFirewall, switchStoreCategory, loadFloorMap,
     handleDeskSelect, executeHandleDeskSelect, renderPersonalReport,
-    renderDeskDashboard, openManagerCashModal, saveManagerCash, openMainStockModal,
+    renderDeskDashboard, openManagerCashModal, saveManagerCash, openMainStockModal, toggleMgrCashPaymentFields, validateMgrCashSplit,
     saveMainStock, openReturnStockModal, saveReturnStock, openDeskTransfer,
     executeDeskTransfer, openTransferModal, executeTransfer, filterAdminCatalog,
     toggleAddForm, addInventoryGroup, removeInventoryGroup, openSettings,

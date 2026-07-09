@@ -383,6 +383,24 @@
                     <label class="admin-label">Handset Model</label>
                     <input type="text" id="mgr-cash-handset-model" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. Redmi Note 13 Pro">
                 </div>
+                <div id="mgr-cash-payment-wrapper" style="display: none; margin-top: 16px;">
+                    <label class="admin-label">Payment Method</label>
+                    <select id="mgr-cash-payment" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" onchange="toggleMgrCashPaymentFields()">
+                        <option value="Cash">Cash</option>
+                        <option value="MFS">MFS</option>
+                        <option value="Split">Split Payment</option>
+                    </select>
+                </div>
+                <div id="mgr-cash-split-fields" style="display: none; gap: 12px; margin-top: 16px;">
+                    <div style="flex: 1;">
+                        <label class="admin-label">Cash Amount</label>
+                        <input type="number" id="mgr-cash-split-cash" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0" oninput="validateMgrCashSplit()">
+                    </div>
+                    <div style="flex: 1;">
+                        <label class="admin-label">MFS Amount</label>
+                        <input type="number" id="mgr-cash-split-mfs" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0" oninput="validateMgrCashSplit()">
+                    </div>
+                </div>
                 <div id="mgr-cash-notes-wrapper" style="margin-top: 16px;">
                     <label class="admin-label">Notes</label>
                     <input type="text" id="mgr-cash-notes" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. Refill morning float or Charity donation">
