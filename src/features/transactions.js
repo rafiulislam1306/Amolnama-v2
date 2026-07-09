@@ -1,5 +1,5 @@
 // src/features/transactions.js
-import { collection, doc, addDoc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { collection, doc, addDoc, updateDoc, deleteDoc, serverTimestamp, getDocs, query, where, writeBatch } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { generateReceiptNo, getStrictDate, formatToGBDate } from '../utils/helpers.js';
 import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/ui-helpers.js';
@@ -469,7 +469,7 @@ export function deleteTransaction(docId, localId) {
     let tx = AppState.transactions.find(t => t.docId === docId || t.id === localId);
     if (tx && !isTransactionModifiable(tx, 'delete')) return;
 
-    showAppAlert("Delete Item", "Are you sure you want to move this transaction to the trash?", true, async () => {
+    showAppAlert("Delete Item", tx && tx.transferGroupId ? "This is a transfer. Deleting it will delete both sending and receiving sides. Proceed?" : "Are you sure you want to move this transaction to the trash?", true, async () => {
         let nowStr = new Date().toString();
         let agentStr = AppState.userNickname || AppState.userDisplayName;
 
@@ -479,7 +479,18 @@ export function deleteTransaction(docId, localId) {
 
         if(docId) {
             try {
-                await updateDoc(doc(db, 'transactions', docId), { isDeleted: true, deletedBy: agentStr, deletedByUid: AppState.currentUser.uid, deletedAt: nowStr });
+                if (tx && tx.transferGroupId) {
+                    const groupSnap = await getDocs(query(collection(db, 'transactions'), where('transferGroupId', '==', tx.transferGroupId)));
+                    const batch = writeBatch(db);
+                    groupSnap.forEach(tDoc => {
+                        batch.update(doc(db, 'transactions', tDoc.id), { isDeleted: true, deletedBy: agentStr, deletedByUid: AppState.currentUser.uid, deletedAt: nowStr });
+                        let localTx = AppState.transactions.find(t => t.docId === tDoc.id);
+                        if (localTx) localTx.isDeleted = true;
+                    });
+                    await batch.commit();
+                } else {
+                    await updateDoc(doc(db, 'transactions', docId), { isDeleted: true, deletedBy: agentStr, deletedByUid: AppState.currentUser.uid, deletedAt: nowStr });
+                }
                 showFlashMessage(navigator.onLine ? "Moved to Trash!" : "Offline: Trash queued");
             } catch(e) {
                 if (tx) tx.isDeleted = false; // Rollback on failure
@@ -531,11 +542,29 @@ export async function restoreTx(docId, localId) {
     if(docId) {
         try {
             let tx = AppState.trashTransactions.find(t => t.docId === docId);
-            if (tx && !passStockFirewall(tx.name, tx.qty)) return;
-            
             if (tx) {
-                await updateDoc(doc(db, 'transactions', docId), { isDeleted: false, isRestored: true, restoredBy: agentStr, restoredByUid: AppState.currentUser.uid, restoredAt: nowStr });
-                showFlashMessage(navigator.onLine ? `${tx.name} Restored!` : "Offline: Restore queued");
+                if (tx.transferGroupId) {
+                    const groupSnap = await getDocs(query(collection(db, 'transactions'), where('transferGroupId', '==', tx.transferGroupId)));
+                    
+                    // Verify firewall for the sender's side (since restoring transfer consumes stock from sender)
+                    for (const tDoc of groupSnap.docs) {
+                        const tData = tDoc.data();
+                        if (tData.type === 'transfer_out' && !passStockFirewall(tData.name, tData.qty)) return;
+                    }
+
+                    const batch = writeBatch(db);
+                    groupSnap.forEach(tDoc => {
+                        batch.update(doc(db, 'transactions', tDoc.id), { isDeleted: false, isRestored: true, restoredBy: agentStr, restoredByUid: AppState.currentUser.uid, restoredAt: nowStr });
+                        let localTx = AppState.trashTransactions.find(t => t.docId === tDoc.id);
+                        if (localTx) localTx.isDeleted = false;
+                    });
+                    await batch.commit();
+                    showFlashMessage(navigator.onLine ? "Transfer Restored!" : "Offline: Restore queued");
+                } else {
+                    if (!passStockFirewall(tx.name, tx.qty)) return;
+                    await updateDoc(doc(db, 'transactions', docId), { isDeleted: false, isRestored: true, restoredBy: agentStr, restoredByUid: AppState.currentUser.uid, restoredAt: nowStr });
+                    showFlashMessage(navigator.onLine ? `${tx.name} Restored!` : "Offline: Restore queued");
+                }
                 setTimeout(() => { renderTrash(); if(AppState.trashTransactions.length === 0) closeModal('modal-trash'); }, 500);
             }
         } catch(e) {
@@ -546,10 +575,20 @@ export async function restoreTx(docId, localId) {
 }
 
 export function permanentlyDeleteTx(docId, localId) {
-    showAppAlert("Permanent Delete", "This transaction will be permanently erased. This cannot be undone.", true, async () => {
+    let tx = AppState.trashTransactions.find(t => t.docId === docId || t.id === localId);
+    showAppAlert("Permanent Delete", tx && tx.transferGroupId ? "This is a transfer. Permanently deleting it will erase both sides forever. Proceed?" : "This transaction will be permanently erased. This cannot be undone.", true, async () => {
         if(docId) {
             try {
-                await deleteDoc(doc(db, 'transactions', docId));
+                if (tx && tx.transferGroupId) {
+                    const groupSnap = await getDocs(query(collection(db, 'transactions'), where('transferGroupId', '==', tx.transferGroupId)));
+                    const batch = writeBatch(db);
+                    groupSnap.forEach(tDoc => {
+                        batch.delete(doc(db, 'transactions', tDoc.id));
+                    });
+                    await batch.commit();
+                } else {
+                    await deleteDoc(doc(db, 'transactions', docId));
+                }
                 showFlashMessage(navigator.onLine ? "Permanently Deleted!" : "Offline: Delete queued");
             } catch(e) {
                 showAppAlert("Delete Failed", "Could not permanently delete.");

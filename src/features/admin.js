@@ -67,6 +67,7 @@ export function openSettings() {
     
     renderInventoryGroupsAdmin();
     renderUserManagementAdmin(); 
+    populateAdminTransferSection();
 
     const categories = [
         { id: 'new-sim', title: 'New SIMs', color: '#10b981' },
@@ -715,4 +716,161 @@ export async function healDeskTransfers() {
             showAppAlert("Error", "Could not complete healing process. Check console.");
         }
     }, "Heal Transfers");
+}
+
+export async function populateAdminTransferSection() {
+    const srcSelect = document.getElementById('admin-transfer-source');
+    const destSelect = document.getElementById('admin-transfer-dest');
+    const itemSelect = document.getElementById('admin-transfer-item');
+    if (!srcSelect || !destSelect || !itemSelect) return;
+
+    srcSelect.innerHTML = '<option value="">Loading...</option>';
+    destSelect.innerHTML = '<option value="">Loading...</option>';
+    itemSelect.innerHTML = '';
+
+    // Populate items
+    getPhysicalItems().forEach(itemName => {
+        let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
+        itemSelect.appendChild(opt);
+    });
+
+    try {
+        const activeSessionsSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'open')));
+        let optionsHTML = '<option value="">-- Select Drawer --</option>';
+        
+        let uniqueDesks = new Map();
+        activeSessionsSnap.docs.forEach(doc => {
+            const data = doc.data();
+            if (data.dateStr !== getStrictDate()) return;
+            if (uniqueDesks.has(data.deskId)) {
+                const existingOpenedAt = uniqueDesks.get(data.deskId).data().openedAt;
+                const newOpenedAt = data.openedAt;
+                const existingTime = (existingOpenedAt && typeof existingOpenedAt.toMillis === 'function') ? existingOpenedAt.toMillis() : (existingOpenedAt?.seconds ? existingOpenedAt.seconds * 1000 : 0);
+                const newTime = (newOpenedAt && typeof newOpenedAt.toMillis === 'function') ? newOpenedAt.toMillis() : (newOpenedAt?.seconds ? newOpenedAt.seconds * 1000 : 0);
+                if (newTime > existingTime) {
+                    uniqueDesks.set(data.deskId, doc);
+                }
+            } else {
+                uniqueDesks.set(data.deskId, doc);
+            }
+        });
+
+        for (const docSnap of uniqueDesks.values()) {
+            let deskData = docSnap.data();
+            let sid = docSnap.id;
+            let displayName = deskData.deskId.replace('_', ' ').toUpperCase();
+            
+            try {
+                const deskSnap = await getDoc(doc(db, 'desks', deskData.deskId));
+                if (deskSnap.exists() && deskSnap.data().name) {
+                    displayName = deskSnap.data().name;
+                }
+            } catch(e) { console.error(e); }
+
+            optionsHTML += `<option value="${deskData.deskId}|${docSnap.id}|${deskData.openedByUid || ''}|${(deskData.openedBy || '').replace(/\|/g, '')}">${displayName}</option>`;
+        }
+
+        srcSelect.innerHTML = optionsHTML;
+        destSelect.innerHTML = optionsHTML;
+    } catch (e) {
+        console.error("Error populating admin transfers:", e);
+        srcSelect.innerHTML = '<option value="">Error loading</option>';
+        destSelect.innerHTML = '<option value="">Error loading</option>';
+    }
+}
+
+export async function getDeskSessionStock(deskId, sessionId, itemName) {
+    let catItem = Object.values(AppState.globalCatalog).find(c => c.name === itemName);
+    let trackAs = catItem ? (catItem.trackAs === '' ? '' : (catItem.trackAs || itemName)) : itemName;
+
+    if (!AppState.globalInventoryGroups.includes(trackAs)) return Infinity;
+
+    try {
+        const sessionSnap = await getDoc(doc(db, 'sessions', sessionId));
+        if (!sessionSnap.exists()) return 0;
+        const sessionData = sessionSnap.data();
+        let stock = sessionData.openingBalances?.inventory?.[trackAs] || 0;
+
+        // Fetch all transactions for this session
+        const txSnap = await getDocs(query(
+            collection(db, 'transactions'), 
+            where('sessionId', '==', sessionId), 
+            where('isDeleted', '==', false)
+        ));
+
+        txSnap.forEach(docSnap => {
+            const tx = docSnap.data();
+            if (tx.trackAs === trackAs) {
+                stock += getInventoryChange(tx);
+            }
+        });
+        return stock;
+    } catch (e) {
+        console.error("Error checking desk session stock:", e);
+        return 0;
+    }
+}
+
+export async function executeAdminDrawerTransfer() {
+    let srcSelect = document.getElementById('admin-transfer-source');
+    let destSelect = document.getElementById('admin-transfer-dest');
+    let itemSelect = document.getElementById('admin-transfer-item');
+    let qtyInput = document.getElementById('admin-transfer-qty');
+
+    if (!srcSelect || !destSelect || !itemSelect || !qtyInput) return;
+
+    let srcVal = srcSelect.value;
+    let destVal = destSelect.value;
+    let itemName = itemSelect.value;
+    let qty = parseInt(qtyInput.value) || 0;
+
+    if (!srcVal) { showAppAlert("Error", "Please select source drawer."); return; }
+    if (!destVal) { showAppAlert("Error", "Please select destination drawer."); return; }
+    if (srcVal === destVal) { showAppAlert("Error", "Source and destination drawers cannot be the same."); return; }
+    if (qty <= 0) { showAppAlert("Error", "Please enter a valid quantity."); return; }
+    if (!itemName) { showAppAlert("Error", "Please select an item."); return; }
+
+    let [srcDeskId, srcSessionId, srcAgentId, srcAgentName] = srcVal.split('|');
+    let [destDeskId, destSessionId, destAgentId, destAgentName] = destVal.split('|');
+    let srcDeskName = srcSelect.options[srcSelect.selectedIndex].text;
+    let destDeskName = destSelect.options[destSelect.selectedIndex].text;
+
+    showFlashMessage("Verifying source stock...");
+    let available = await getDeskSessionStock(srcDeskId, srcSessionId, itemName);
+    if (available < qty) {
+        showAppAlert("Insufficient Stock", `Source drawer (${srcDeskName}) only has ${available}x ${itemName} available. Transfer aborted.`);
+        return;
+    }
+
+    let timeStr = new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
+    let dateStr = getStrictDate();
+    let transferGroupId = 'tr_' + Date.now();
+
+    let senderTx = { id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${destDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: srcDeskId, sessionId: srcSessionId, agentId: srcAgentId || AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, transferGroupId: transferGroupId, timestamp: serverTimestamp() };
+    let receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${srcDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: destDeskId, sessionId: destSessionId, agentId: destAgentId || AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, isRemoteTransfer: true, transferGroupId: transferGroupId, timestamp: serverTimestamp() };
+
+    try {
+        const batch = writeBatch(db);
+        batch.set(doc(collection(db, 'transactions')), senderTx);
+        batch.set(doc(collection(db, 'transactions')), receiverTx);
+
+        await batch.commit();
+        qtyInput.value = '';
+        srcSelect.value = '';
+        destSelect.value = '';
+        showFlashMessage(`Transferred ${qty}x ${itemName} from ${srcDeskName} to ${destDeskName}!`);
+        
+        // Refresh UI if necessary
+        if (typeof window.renderDeskDashboard === 'function' && AppState.currentDeskId) {
+            window.renderDeskDashboard(AppState.currentDeskId);
+        }
+        if (document.getElementById('tab-floor').classList.contains('active') && window.renderLiveFloorTab) {
+            window.renderLiveFloorTab();
+        }
+        // Refresh selects
+        await populateAdminTransferSection();
+    } catch (e) {
+        console.error("Admin transfer failed:", e);
+        showAppAlert("Transfer Failed", "Could not complete transfer in database.");
+    }
 }
