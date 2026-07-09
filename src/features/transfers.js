@@ -70,6 +70,8 @@ export async function saveManagerCash() {
     let finalCash = 0;
     let finalMfs = 0;
     let method = 'Cash';
+    let txName = 'Cash Adjustment';
+    let paymentLabel = '';
 
     if (action === 'drop_manager') { 
         txName = 'Manager Drop'; 
