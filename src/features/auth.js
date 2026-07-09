@@ -52,24 +52,27 @@ export function openProfileHub() {
     document.getElementById('hub-user-email').innerText = AppState.currentUser.email || 'No Email Linked';
     
     let roleBadge = document.getElementById('hub-user-role');
-    let highLevelRoles = ['manager', 'center_manager', 'admin', 'owner'];
+    let userRole = AppState.currentUserRole;
     
-    if (highLevelRoles.includes(AppState.currentUserRole)) {
-        let displayRole = 'Center Manager';
-        if (AppState.currentUserRole === 'admin') displayRole = 'Center Admin';
-        if (AppState.currentUserRole === 'owner') displayRole = 'System Owner';
-        if (AppState.currentUserRole === 'manager') displayRole = 'Floor Manager';
-        
-        roleBadge.innerText = displayRole;
+    let displayRole = 'Floor Agent';
+    let isHighLevel = ['manager', 'center_manager', 'admin', 'owner'].includes(userRole);
+    
+    if (userRole === 'admin') displayRole = 'Center Admin';
+    else if (userRole === 'owner') displayRole = 'System Owner';
+    else if (userRole === 'center_manager') displayRole = 'Center Manager';
+    else if (userRole === 'manager') displayRole = 'Floor Manager';
+    
+    roleBadge.innerText = displayRole;
+    if (isHighLevel) {
         roleBadge.style.background = '#e0f2fe';
         roleBadge.style.color = '#0284c7';
-        document.getElementById('hub-admin-section').style.display = 'block';
     } else {
-        roleBadge.innerText = 'Floor Agent';
         roleBadge.style.background = '#f1f5f9';
         roleBadge.style.color = '#475569';
-        document.getElementById('hub-admin-section').style.display = 'none';
     }
+    
+    // STRICT RULE: Only Center Admin can manage and change systems
+    document.getElementById('hub-admin-section').style.display = userRole === 'admin' ? 'block' : 'none';
     
     openModal('modal-profile-hub');
 }

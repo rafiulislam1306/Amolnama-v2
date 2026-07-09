@@ -81,7 +81,7 @@ export async function initUserData(onComplete) {
 
         // --- MANAGER ROLE UI RESTRICTIONS ---
         const navBtns = document.querySelectorAll('.nav-item');
-        if (['manager', 'center_manager', 'owner'].includes(AppState.currentUserRole)) {
+        if (['manager', 'owner'].includes(AppState.currentUserRole)) {
             if (navBtns.length >= 2) {
                 navBtns[0].style.display = 'none'; // Hide ERS
                 navBtns[1].style.display = 'none'; // Hide Store
@@ -100,7 +100,7 @@ export async function initUserData(onComplete) {
         document.getElementById('report-date-picker').value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
         
         // --- ROUTING LOGIC ---
-        if (['manager', 'center_manager', 'owner'].includes(AppState.currentUserRole)) {
+        if (['manager', 'owner'].includes(AppState.currentUserRole)) {
             // Managers and Owners bypass desk selection and go straight to Floor Map
             document.getElementById('modal-desk-select').classList.remove('active');
             AppState.currentDeskId = null; 

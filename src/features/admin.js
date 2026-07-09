@@ -58,7 +58,7 @@ function populateTrackAsDropdowns() {
 }
 
 export function openSettings() {
-    if (!['admin', 'owner'].includes(AppState.currentUserRole)) { 
+    if (AppState.currentUserRole !== 'admin') { 
         showAppAlert("Access Denied", "Admin clearance required."); 
         return; 
     }
@@ -199,45 +199,113 @@ export async function saveSettings() {
 //  NICKNAME & USER MANAGEMENT
 // ==========================================
 export async function openNicknameManager() {
-  if (!['admin', 'owner'].includes(AppState.currentUserRole)) { 
-    showAppAlert("Access Denied", "Only admins/owners can manage nicknames."); 
+  if (AppState.currentUserRole !== 'admin') { 
+    showAppAlert("Access Denied", "Only Center Admins can manage users and roles."); 
     return; 
   }
   openModal('modal-nicknames');
   const container = document.getElementById('nickname-list-container');
-    container.innerHTML = '<div class="spinner" style="margin: 0 auto; border-top-color: #0ea5e9;"></div>';
+  container.innerHTML = '<div class="spinner" style="margin: 0 auto; border-top-color: #0ea5e9;"></div>';
     
-    try {
-        const usersSnap = await getDocs(collection(db, 'users'));
-        let html = '';
-        usersSnap.forEach(docSnap => {
-            const u = docSnap.data();
-            const uid = docSnap.id;
-            const userEmail = u.email || 'No email linked';
-            const currentNick = u.nickname || '';
-            
-            html += `
-                <div class="admin-form-card" style="padding: 12px; margin-bottom: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <div style="flex: 1; min-width: 150px;">
-                        <div style="font-size: 0.85rem; font-weight: 600; color: #0ea5e9; margin-bottom: 4px;">${userEmail}</div>
-                        <input type="text" id="nick_${uid}" class="settings-input" style="padding: 8px;" placeholder="Set nickname..." value="${currentNick}">
-                    </div>
-                    <button class="btn-outline" style="height: auto; padding: 8px 16px; border-color: #10b981; color: #10b981; margin-top: auto;" onclick="saveAdminNickname('${uid}', 'nick_${uid}')">Save</button>
-                </div>
-            `;
-        });
-        container.innerHTML = html || `
-            <div class="empty-state" style="padding: 24px 12px; opacity: 0.8;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 44px; height: 44px; margin-bottom: 8px; color: var(--text-secondary);"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                <p style="font-size: 0.95rem; font-weight: 700; color: var(--text-secondary);">No staff or users registered yet</p>
-            </div>
-        `;
-    } catch(e) {
-        container.innerHTML = '<p style="color: #ef4444; font-size: 0.9rem; font-weight: 600; text-align: center; padding: 20px;">Error loading users.</p>';
+  try {
+      const usersSnap = await getDocs(collection(db, 'users'));
+      let html = '';
+      
+      usersSnap.forEach(docSnap => {
+          const u = docSnap.data();
+          const uid = docSnap.id;
+          const userEmail = u.email || 'No email linked';
+          const currentNick = u.nickname || '';
+          const currentRole = u.role || 'user';
+          
+          let roleSelectHTML = `
+              <select id="role_${uid}" class="settings-input" style="padding: 8px; width: 100%; box-sizing: border-box; font-size: 0.85rem; height: 38px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--surface-color); color: var(--text-primary);">
+                  <option value="user" ${currentRole === 'user' ? 'selected' : ''}>Floor Agent</option>
+                  <option value="manager" ${currentRole === 'manager' ? 'selected' : ''}>Floor Manager (Observer)</option>
+                  <option value="center_manager" ${currentRole === 'center_manager' ? 'selected' : ''}>Center Manager</option>
+                  <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>Center Admin</option>
+                  <option value="owner" ${currentRole === 'owner' ? 'selected' : ''}>System Owner (Observer)</option>
+              </select>
+          `;
+          
+          html += `
+              <div class="admin-form-card" style="padding: 16px; margin-bottom: 0; display: flex; flex-direction: column; gap: 12px; border: 1px solid var(--border-color); background: var(--surface-color);">
+                  <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                      <div style="font-size: 0.9rem; font-weight: 700; color: #0ea5e9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%;">${userEmail}</div>
+                      <div style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">UID: ${uid.substring(0,6)}...</div>
+                  </div>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end;">
+                      <div>
+                          <label class="admin-label" style="font-size: 0.75rem; margin-bottom: 4px; display: block;">Nickname</label>
+                          <input type="text" id="nick_${uid}" class="settings-input" style="padding: 8px; width: 100%; box-sizing: border-box; font-size: 0.85rem; height: 38px;" placeholder="Set nickname..." value="${currentNick}">
+                      </div>
+                      <div>
+                          <label class="admin-label" style="font-size: 0.75rem; margin-bottom: 4px; display: block;">Role</label>
+                          ${roleSelectHTML}
+                      </div>
+                  </div>
+                  <div style="display: flex; justify-content: flex-end;">
+                      <button class="btn-outline" style="height: auto; padding: 8px 16px; border-color: #10b981; color: #10b981;" onclick="saveUserConfig('${uid}', 'nick_${uid}', 'role_${uid}')">Save User</button>
+                  </div>
+              </div>
+          `;
+      });
+      container.innerHTML = html || `
+          <div class="empty-state" style="padding: 24px 12px; opacity: 0.8;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 44px; height: 44px; margin-bottom: 8px; color: var(--text-secondary);"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              <p style="font-size: 0.95rem; font-weight: 700; color: var(--text-secondary);">No staff or users registered yet</p>
+          </div>
+      `;
+  } catch(e) {
+      container.innerHTML = '<p style="color: #ef4444; font-size: 0.9rem; font-weight: 600; text-align: center; padding: 20px;">Error loading users.</p>';
+  }
+}
+
+export async function saveUserConfig(uid, nickInputId, roleSelectId) {
+    if (AppState.currentUserRole !== 'admin') {
+        showAppAlert("Access Denied", "Only Center Admins can manage users and roles.");
+        return;
     }
+    const newNick = document.getElementById(nickInputId).value.trim();
+    const newRole = document.getElementById(roleSelectId).value;
+    try {
+        await updateDoc(doc(db, 'users', uid), { nickname: newNick, role: newRole });
+        showFlashMessage("User updated successfully!");
+        
+        if (uid === AppState.currentUser.uid) {
+            AppState.userNickname = newNick;
+            AppState.currentUserRole = newRole;
+            const rName = document.getElementById('report-user-name');
+            if (rName) rName.innerText = AppState.userNickname || AppState.userDisplayName;
+            
+            let roleBadge = document.getElementById('hub-user-role');
+            if (roleBadge) {
+                let displayRole = 'Floor Agent';
+                if (newRole === 'manager') displayRole = 'Floor Manager';
+                if (newRole === 'center_manager') displayRole = 'Center Manager';
+                if (newRole === 'admin') displayRole = 'Center Admin';
+                if (newRole === 'owner') displayRole = 'System Owner';
+                
+                roleBadge.innerText = displayRole;
+                roleBadge.style.background = newRole === 'user' ? '#f1f5f9' : '#e0f2fe';
+                roleBadge.style.color = newRole === 'user' ? '#475569' : '#0284c7';
+            }
+
+            const hubAdmin = document.getElementById('hub-admin-section');
+            if (hubAdmin) {
+                hubAdmin.style.display = newRole === 'admin' ? 'block' : 'none';
+            }
+        }
+        
+        if (AppState.currentDeskId && window.renderDeskDashboard) window.renderDeskDashboard(AppState.currentDeskId);
+        if (document.getElementById('tab-floor').classList.contains('active') && window.renderLiveFloorTab) window.renderLiveFloorTab();
+        renderUserManagementAdmin();
+        openNicknameManager(); // refresh list UI
+    } catch(e) { showAppAlert("Error", "Error saving user settings."); }
 }
 
 export async function saveAdminNickname(uid, inputId) {
+    // Keep legacy helper for compatibility, delegates to config
     const newNick = document.getElementById(inputId).value.trim();
     try {
         await updateDoc(doc(db, 'users', uid), { nickname: newNick });
@@ -247,15 +315,10 @@ export async function saveAdminNickname(uid, inputId) {
             AppState.userNickname = newNick;
             const rName = document.getElementById('report-user-name');
             if (rName) rName.innerText = AppState.userNickname || AppState.userDisplayName;
-            if(!AppState.currentDeskId && document.getElementById('tab-ers').classList.contains('active')) {
-                document.getElementById('header-title').innerText = AppState.userNickname || AppState.userDisplayName;
-            }
         }
-        
         if (AppState.currentDeskId && window.renderDeskDashboard) window.renderDeskDashboard(AppState.currentDeskId);
         if (document.getElementById('tab-floor').classList.contains('active') && window.renderLiveFloorTab) window.renderLiveFloorTab();
         renderUserManagementAdmin();
-        
     } catch(e) { showAppAlert("Error", "Error saving nickname."); }
 }
 
@@ -299,7 +362,7 @@ export async function renderUserManagementAdmin() {
 }
 
 export function kickAgent(uid) {
-    if (!['admin', 'owner'].includes(AppState.currentUserRole)) { showAppAlert("Access Denied", "Admin clearance required."); return; }
+    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
     showAppAlert("Kick Agent", "Kick this agent from their desk? Their sales data will remain intact.", true, async () => {
         try {
             await setDoc(doc(db, 'users', uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
@@ -310,7 +373,7 @@ export function kickAgent(uid) {
 }
 
 export function nukeAgent(uid, agentName) {
-    if (!['admin', 'owner'].includes(AppState.currentUserRole)) { showAppAlert("Access Denied", "Admin clearance required."); return; }
+    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
     showAppAlert("Burn Notice", `WARNING: You are about to kick ${agentName} AND permanently delete EVERY transaction they made today. Proceed?`, true, async () => {
         try {
             await setDoc(doc(db, 'users', uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
@@ -333,7 +396,7 @@ export function resetMyDeskLock() {
 }
 
 export function forceCloseAllDesks() {
-    if (!['admin', 'owner'].includes(AppState.currentUserRole)) { showAppAlert("Access Denied", "Admin clearance required."); return; }
+    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
     showAppAlert("Force Close All", "FORCE CLOSE ALL DESKS? This will instantly log out every agent on the floor.", true, async () => {
         try {
             const snap = await getDocs(collection(db, 'desks'));
@@ -346,7 +409,7 @@ export function forceCloseAllDesks() {
 }
 
 export function nukeTodaysLedger() {
-    if (!['admin', 'owner'].includes(AppState.currentUserRole)) { showAppAlert("Access Denied", "Admin clearance required."); return; }
+    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
     showAppAlert("Delete Ledger", "PERMANENTLY DELETE TODAY'S LEDGER? This cannot be undone!", true, async () => {
         try {
             const targetDateStr = getStrictDate();
@@ -358,7 +421,7 @@ export function nukeTodaysLedger() {
 }
 
 export function fixPastManagerDrops() {
-    if (!['admin', 'owner'].includes(AppState.currentUserRole)) { showAppAlert("Access Denied", "Admin clearance required."); return; }
+    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
     showAppAlert("Fix Drops", "Fix past 0 Tk Manager Drops in the database?", true, async () => {
         try {
             const q = query(collection(db, 'transactions'), where('type', '==', 'adjustment'));
@@ -442,7 +505,7 @@ export async function fetchAuditLogs() {
 }
 
 export async function healTodaysOpeningStock() {
-    if (!['admin', 'owner'].includes(AppState.currentUserRole)) { showAppAlert("Access Denied", "Admin clearance required."); return; }
+    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
     if (!navigator.onLine) { showAppAlert("Offline", "You must be online to heal the database."); return; }
 
     showAppAlert("Sync Today's Stock", "This will securely recalculate today's starting stock from your last open day (e.g., Thursday) WITHOUT deleting any live transactions. Proceed?", true, async () => {
@@ -529,7 +592,7 @@ export async function healTodaysOpeningStock() {
 }
 
 export async function runLedgerDiagnostic() {
-    if (!['admin', 'owner'].includes(AppState.currentUserRole)) { showAppAlert("Access Denied", "Admin clearance required."); return; }
+    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
     if (!AppState.currentDeskId || AppState.currentDeskId === 'sandbox') {
         showAppAlert("Error", "Please join a live desk first to run its diagnostic.");
         return;
@@ -586,7 +649,7 @@ export async function runLedgerDiagnostic() {
 }
 
 export async function healDeskTransfers() {
-    if (!['admin', 'owner'].includes(AppState.currentUserRole)) { showAppAlert("Access Denied", "Admin clearance required."); return; }
+    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
     if (!navigator.onLine) { showAppAlert("Offline", "You must be online to heal the database."); return; }
 
     showAppAlert("Heal Transfers", "This will search today's transactions and re-align any desk-to-desk transfers that were sent to outdated or ghost sessions. Proceed?", true, async () => {

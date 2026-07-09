@@ -10,7 +10,7 @@ import { ersKeyPress, ersBackspace, saveErs, selectItem, stepQty, onQtySliderCha
 import { getPhysicalItems, getInventoryChange, passStockFirewall, switchStoreCategory } from './features/inventory.js';
 import { loadFloorMap, handleDeskSelect, executeHandleDeskSelect, renderLiveFloorTab, openMyDeskDashboard, peekAtDesk, handleMyDrawerNav, initiateCloseDesk, submitClosingReport } from './features/desk.js';
 import { openManagerCashModal, saveManagerCash, openMainStockModal, saveMainStock, openReturnStockModal, saveReturnStock, openDeskTransfer, executeDeskTransfer, openTransferModal, executeTransfer } from './features/transfers.js';
-import { filterAdminCatalog, toggleAddForm, addInventoryGroup, removeInventoryGroup, openSettings, removeRow, addNewItem, saveSettings, openNicknameManager, saveAdminNickname, kickAgent, nukeAgent, resetMyDeskLock, forceCloseAllDesks, nukeTodaysLedger, fixPastManagerDrops, openAuditModal, fetchAuditLogs, healTodaysOpeningStock, runLedgerDiagnostic, healDeskTransfers } from './features/admin.js';
+import { filterAdminCatalog, toggleAddForm, addInventoryGroup, removeInventoryGroup, openSettings, removeRow, addNewItem, saveSettings, openNicknameManager, saveAdminNickname, saveUserConfig, kickAgent, nukeAgent, resetMyDeskLock, forceCloseAllDesks, nukeTodaysLedger, fixPastManagerDrops, openAuditModal, fetchAuditLogs, healTodaysOpeningStock, runLedgerDiagnostic, healDeskTransfers } from './features/admin.js';
 import { renderAppUI, filterStoreCatalog, clearStoreSearch } from './features/catalog.js';
 import { initUserData } from './core/app-init.js';
 import { renderPersonalReport, renderDeskDashboard, fetchTransactionsForDate, getTxListenerUnsubscribe, setTxListenerUnsubscribe, downloadReportAsPDF } from './features/reports.js';
@@ -51,7 +51,7 @@ window.Amolnama = {
     saveMainStock, openReturnStockModal, saveReturnStock, openDeskTransfer,
     executeDeskTransfer, openTransferModal, executeTransfer, filterAdminCatalog,
     toggleAddForm, addInventoryGroup, removeInventoryGroup, openSettings,
-    removeRow, addNewItem, saveSettings, openNicknameManager, saveAdminNickname,
+    removeRow, addNewItem, saveSettings, openNicknameManager, saveAdminNickname, saveUserConfig,
     kickAgent, nukeAgent, resetMyDeskLock, forceCloseAllDesks, nukeTodaysLedger,
     fixPastManagerDrops, openAuditModal, fetchAuditLogs,
     renderLiveFloorTab, openMyDeskDashboard, peekAtDesk, initiateCloseDesk,
