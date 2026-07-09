@@ -953,7 +953,7 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
         }
         
         let actionBtns = '';
-        if (targetDeskId === AppState.currentDeskId || AppState.currentUserRole === 'admin' || AppState.currentUserRole === 'manager') {
+        if (targetDeskId === AppState.currentDeskId || ['admin', 'owner', 'manager', 'center_manager'].includes(AppState.currentUserRole)) {
             actionBtns = `
                 <div class="tx-actions" style="display: none; width: 100%; padding-top: 12px; margin-top: 12px; border-top: 1px dashed var(--border-color); justify-content: flex-end; gap: 8px;">
                     <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: var(--accent-color); border-color: var(--accent-color); gap: 6px;" onclick="event.stopPropagation(); openEditTx(${tx.id})">

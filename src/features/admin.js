@@ -58,6 +58,10 @@ function populateTrackAsDropdowns() {
 }
 
 export function openSettings() {
+    if (!['admin', 'owner'].includes(AppState.currentUserRole)) { 
+        showAppAlert("Access Denied", "Admin clearance required."); 
+        return; 
+    }
     let container = document.getElementById('settings-list-container');
     container.innerHTML = ''; document.getElementById('admin-search').value = ''; document.getElementById('admin-add-form').style.display = 'none';
     
@@ -185,7 +189,7 @@ export async function saveSettings() {
         }
     });
     try {
-        if (AppState.currentUserRole === 'admin') await setDoc(doc(db, 'global', 'settings'), { catalog: AppState.globalCatalog, inventoryGroups: AppState.globalInventoryGroups }, { merge: true });
+        if (['admin', 'owner'].includes(AppState.currentUserRole)) await setDoc(doc(db, 'global', 'settings'), { catalog: AppState.globalCatalog, inventoryGroups: AppState.globalInventoryGroups }, { merge: true });
         if (typeof window.renderAppUI === 'function') window.renderAppUI(); 
         closeModal('modal-settings'); showFlashMessage("Settings Saved & Synced!");
     } catch(e) { showAppAlert("Error", "Error saving settings."); }
@@ -195,8 +199,8 @@ export async function saveSettings() {
 //  NICKNAME & USER MANAGEMENT
 // ==========================================
 export async function openNicknameManager() {
-  if (AppState.currentUserRole !== 'admin') { 
-    showAppAlert("Access Denied", "Only admins can manage nicknames."); 
+  if (!['admin', 'owner'].includes(AppState.currentUserRole)) { 
+    showAppAlert("Access Denied", "Only admins/owners can manage nicknames."); 
     return; 
   }
   openModal('modal-nicknames');
@@ -295,7 +299,7 @@ export async function renderUserManagementAdmin() {
 }
 
 export function kickAgent(uid) {
-    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
+    if (!['admin', 'owner'].includes(AppState.currentUserRole)) { showAppAlert("Access Denied", "Admin clearance required."); return; }
     showAppAlert("Kick Agent", "Kick this agent from their desk? Their sales data will remain intact.", true, async () => {
         try {
             await setDoc(doc(db, 'users', uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
@@ -306,7 +310,7 @@ export function kickAgent(uid) {
 }
 
 export function nukeAgent(uid, agentName) {
-    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
+    if (!['admin', 'owner'].includes(AppState.currentUserRole)) { showAppAlert("Access Denied", "Admin clearance required."); return; }
     showAppAlert("Burn Notice", `WARNING: You are about to kick ${agentName} AND permanently delete EVERY transaction they made today. Proceed?`, true, async () => {
         try {
             await setDoc(doc(db, 'users', uid), { assignedDeskId: null, assignedDate: null }, { merge: true });
@@ -329,7 +333,7 @@ export function resetMyDeskLock() {
 }
 
 export function forceCloseAllDesks() {
-    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
+    if (!['admin', 'owner'].includes(AppState.currentUserRole)) { showAppAlert("Access Denied", "Admin clearance required."); return; }
     showAppAlert("Force Close All", "FORCE CLOSE ALL DESKS? This will instantly log out every agent on the floor.", true, async () => {
         try {
             const snap = await getDocs(collection(db, 'desks'));
@@ -342,7 +346,7 @@ export function forceCloseAllDesks() {
 }
 
 export function nukeTodaysLedger() {
-    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
+    if (!['admin', 'owner'].includes(AppState.currentUserRole)) { showAppAlert("Access Denied", "Admin clearance required."); return; }
     showAppAlert("Delete Ledger", "PERMANENTLY DELETE TODAY'S LEDGER? This cannot be undone!", true, async () => {
         try {
             const targetDateStr = getStrictDate();
@@ -354,7 +358,7 @@ export function nukeTodaysLedger() {
 }
 
 export function fixPastManagerDrops() {
-    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
+    if (!['admin', 'owner'].includes(AppState.currentUserRole)) { showAppAlert("Access Denied", "Admin clearance required."); return; }
     showAppAlert("Fix Drops", "Fix past 0 Tk Manager Drops in the database?", true, async () => {
         try {
             const q = query(collection(db, 'transactions'), where('type', '==', 'adjustment'));
@@ -438,7 +442,7 @@ export async function fetchAuditLogs() {
 }
 
 export async function healTodaysOpeningStock() {
-    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
+    if (!['admin', 'owner'].includes(AppState.currentUserRole)) { showAppAlert("Access Denied", "Admin clearance required."); return; }
     if (!navigator.onLine) { showAppAlert("Offline", "You must be online to heal the database."); return; }
 
     showAppAlert("Sync Today's Stock", "This will securely recalculate today's starting stock from your last open day (e.g., Thursday) WITHOUT deleting any live transactions. Proceed?", true, async () => {
@@ -525,7 +529,7 @@ export async function healTodaysOpeningStock() {
 }
 
 export async function runLedgerDiagnostic() {
-    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
+    if (!['admin', 'owner'].includes(AppState.currentUserRole)) { showAppAlert("Access Denied", "Admin clearance required."); return; }
     if (!AppState.currentDeskId || AppState.currentDeskId === 'sandbox') {
         showAppAlert("Error", "Please join a live desk first to run its diagnostic.");
         return;
@@ -582,7 +586,7 @@ export async function runLedgerDiagnostic() {
 }
 
 export async function healDeskTransfers() {
-    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
+    if (!['admin', 'owner'].includes(AppState.currentUserRole)) { showAppAlert("Access Denied", "Admin clearance required."); return; }
     if (!navigator.onLine) { showAppAlert("Offline", "You must be online to heal the database."); return; }
 
     showAppAlert("Heal Transfers", "This will search today's transactions and re-align any desk-to-desk transfers that were sent to outdated or ghost sessions. Proceed?", true, async () => {

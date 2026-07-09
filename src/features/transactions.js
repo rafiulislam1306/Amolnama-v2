@@ -50,8 +50,8 @@ export function saveErs(paymentMethod) {
 
 export function selectItem(itemName, price) {
     let catItem = Object.values(AppState.globalCatalog).find(c => c.name === itemName);
-    if (catItem?.managerOnly && AppState.currentUserRole !== 'center_manager') {
-        showAppAlert("Access Denied", "🔒 Only a Center Manager can process this service.");
+    if (catItem?.managerOnly && !['center_manager', 'manager', 'admin', 'owner'].includes(AppState.currentUserRole)) {
+        showAppAlert("Access Denied", "🔒 Manager clearance is required to process this service.");
         return;
     }
     
@@ -146,9 +146,9 @@ export function instantSaveItem(itemName, price) {
   isSaving = true;
 
   let catItem = Object.values(AppState.globalCatalog).find(c => c.name === itemName);
-  if (catItem?.managerOnly && AppState.currentUserRole !== 'center_manager') {
+  if (catItem?.managerOnly && !['center_manager', 'manager', 'admin', 'owner'].includes(AppState.currentUserRole)) {
       isSaving = false;
-      showAppAlert("Access Denied", "🔒 Only a Center Manager can process this service.");
+      showAppAlert("Access Denied", "🔒 Manager clearance is required to process this service.");
       return;
   }
 
