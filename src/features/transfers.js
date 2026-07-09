@@ -219,6 +219,9 @@ export async function openDeskTransfer() {
             let deskData = docSnap.data();
             let sid = docSnap.id;
 
+            // Filter out old sessions from past dates that were left open and not yet rolled over
+            if (deskData.dateStr !== getStrictDate()) continue;
+
             if(deskData.deskId !== AppState.currentDeskId) {
                 // --- FLOOR MAP HEALTH CHECK ---
                 const sessionTxs = AppState.transactions.filter(tx => tx.sessionId === sid && !tx.isDeleted);
@@ -255,7 +258,7 @@ export async function openDeskTransfer() {
                     }
                 } catch(e) { console.error(e); }
                 
-                optionsHTML += `<option value="${deskData.deskId}|${docSnap.id}">${displayName}</option>`;
+                optionsHTML += `<option value="${deskData.deskId}|${docSnap.id}|${deskData.openedByUid || ''}|${(deskData.openedBy || '').replace(/\|/g, '')}">${displayName}</option>`;
             }
         }
         
@@ -278,7 +281,7 @@ export async function executeDeskTransfer() {
     if (!targetVal) { showAppAlert("Error", "Please select a desk."); return; }
     
     let targetDeskName = targetSelect.options[targetSelect.selectedIndex].text;
-    let [targetDeskId, targetSessionId] = targetVal.split('|');
+    let [targetDeskId, targetSessionId, targetAgentId, targetAgentName] = targetVal.split('|');
     let timeStr = new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
     let dateStr = getStrictDate();
 
@@ -286,7 +289,7 @@ export async function executeDeskTransfer() {
 
     if (!passStockFirewall(itemName, qty)) return;
     senderTx = { id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, timestamp: serverTimestamp() };
-    receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${AppState.currentDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, isRemoteTransfer: true, timestamp: serverTimestamp() };
+    receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${AppState.currentDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: targetAgentId || AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, isRemoteTransfer: true, timestamp: serverTimestamp() };
     
     try {
         const batch = writeBatch(db);

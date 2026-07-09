@@ -661,14 +661,14 @@ export async function healDeskTransfers() {
             const sessSnap = await getDocs(query(collection(db, 'sessions'), where('dateStr', '==', todayStr)));
             
             // 2. Identify the active (latest opened) session ID for each desk
-            let activeSessionMap = new Map(); // deskId -> { sessionId, openedAt }
+            let activeSessionMap = new Map(); // deskId -> { id, time, openedByUid }
             sessSnap.docs.forEach(docSnap => {
                 const s = docSnap.data();
                 if (s.status === 'open') {
                     const newTime = (s.openedAt && typeof s.openedAt.toMillis === 'function') ? s.openedAt.toMillis() : (s.openedAt?.seconds ? s.openedAt.seconds * 1000 : 0);
                     const existing = activeSessionMap.get(s.deskId);
                     if (!existing || newTime > existing.time) {
-                        activeSessionMap.set(s.deskId, { id: docSnap.id, time: newTime });
+                        activeSessionMap.set(s.deskId, { id: docSnap.id, time: newTime, openedByUid: s.openedByUid });
                     }
                 }
             });
@@ -687,11 +687,18 @@ export async function healDeskTransfers() {
             txSnap.docs.forEach(docSnap => {
                 const tx = docSnap.data();
                 const activeSession = activeSessionMap.get(tx.deskId);
-                if (activeSession && tx.sessionId !== activeSession.id) {
-                    batch.update(doc(db, 'transactions', docSnap.id), {
-                        sessionId: activeSession.id
-                    });
-                    fixedCount++;
+                if (activeSession) {
+                    let updates = {};
+                    if (tx.sessionId !== activeSession.id) {
+                        updates.sessionId = activeSession.id;
+                    }
+                    if (activeSession.openedByUid && activeSession.openedByUid !== 'system' && tx.agentId !== activeSession.openedByUid) {
+                        updates.agentId = activeSession.openedByUid;
+                    }
+                    if (Object.keys(updates).length > 0) {
+                        batch.update(doc(db, 'transactions', docSnap.id), updates);
+                        fixedCount++;
+                    }
                 }
             });
 

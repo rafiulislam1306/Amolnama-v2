@@ -431,9 +431,11 @@ export async function renderLiveFloorTab() {
         const activeSessionsSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'open')));
         if (activeSessionsSnap.empty) { container.innerHTML = '<p class="placeholder-text">No desks open.</p>'; return; }
 
+        const todayStr = getStrictDate();
         let uniqueDesks = new Map();
         activeSessionsSnap.docs.forEach(doc => {
             const data = doc.data();
+            if (data.dateStr !== todayStr) return;
             if (uniqueDesks.has(data.deskId)) {
                 const existingOpenedAt = uniqueDesks.get(data.deskId).data().openedAt;
                 const newOpenedAt = data.openedAt;
