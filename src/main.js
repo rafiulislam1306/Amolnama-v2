@@ -247,14 +247,10 @@ document.addEventListener('keydown', (event) => {
 document.addEventListener('DOMContentLoaded', setupBottomSheetDrag);
 initNetworkStatus();
 
-// Initialize Custom Dropdowns once the UI has loaded
-initCustomDropdowns();
-
 // ==========================================
 //   TEMPORARY ONE-TIME DATABASE RECOVERY SCRIPT
 // ==========================================
 import { getDocs, query, collection, where, doc, updateDoc, writeBatch } from 'firebase/firestore';
-import { getInventoryChange } from './features/inventory.js';
 
 async function runRecovery() {
     try {
