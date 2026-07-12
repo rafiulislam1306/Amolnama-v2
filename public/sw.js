@@ -11,6 +11,7 @@ const CORE_ASSETS = [
   withBase('/icons.svg'),
   withBase('/icon-192.png'),
   withBase('/icon-512.png')
+  // __INJECTED_ASSETS__
 ];
 
 self.addEventListener('install', event => {

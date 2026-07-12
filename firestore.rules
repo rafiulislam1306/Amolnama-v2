@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+  
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to get the user's role from the users collection
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function isAdminOrOwner() {
+      return isAuthenticated() && 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         (getUserData().role == 'admin' || getUserData().role == 'owner'));
+    }
+
+    // USERS COLLECTION
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      // Allow creation of own profile or admin modification
+      allow create: if isAuthenticated() && (request.auth.uid == userId || isAdminOrOwner());
+      allow update: if isAuthenticated() && (
+        isAdminOrOwner() || 
+        (request.auth.uid == userId && 
+         // Prevent non-admins from upgrading their own role
+         (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role'])))
+      );
+      allow delete: if isAdminOrOwner();
+    }
+
+    // DESKS COLLECTION
+    match /desks/{deskId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdminOrOwner() || (isAuthenticated() && deskId.startsWith('personal_'));
+      allow update: if isAuthenticated(); // Floor agents need to open/close desks
+      allow delete: if isAdminOrOwner();
+    }
+
+    // SESSIONS COLLECTION
+    match /sessions/{sessionId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdminOrOwner();
+    }
+
+    // TRANSACTIONS COLLECTION
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      // Only the agent who created it, or managers/admins can update
+      allow update: if isAuthenticated() && (
+        isAdminOrOwner() || 
+        resource.data.agentId == request.auth.uid
+      );
+      allow delete: if isAdminOrOwner();
+    }
+
+    // GLOBAL SETTINGS & SYSTEM STATUS
+    match /global/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdminOrOwner() || (docId == 'system_status' && isAuthenticated());
+    }
+  }
+}
