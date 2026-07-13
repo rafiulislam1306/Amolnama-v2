@@ -293,14 +293,27 @@ export async function openDeskTransfer() {
                 if (!hasSalesActivity && totalStockQty === 0 && liveCash === 0) continue;
                 // ------------------------------
 
-                let displayName = deskData.deskId.replace('_', ' ').toUpperCase();
+                let displayName = deskData.deskName || deskData.deskId.replace('_', ' ').toUpperCase();
                 
-                try {
-                    const deskSnap = await getDoc(doc(db, 'desks', deskData.deskId));
-                    if (deskSnap.exists() && deskSnap.data().name) {
-                        displayName = deskSnap.data().name;
-                    }
-                } catch(e) { console.error(e); }
+                if (deskData.deskId.startsWith('personal_')) {
+                    const uid = deskData.deskId.replace('personal_', '');
+                    try {
+                        const userSnap = await getDoc(doc(db, 'users', uid));
+                        if (userSnap.exists() && userSnap.data().nickname) {
+                            displayName = `${userSnap.data().nickname}'s Drawer`;
+                        } else if (userSnap.exists() && userSnap.data().displayName) {
+                            const firstName = userSnap.data().displayName.split(' ')[0];
+                            displayName = `${firstName}'s Drawer`;
+                        }
+                    } catch(e) { console.error(e); }
+                } else {
+                    try {
+                        const deskSnap = await getDoc(doc(db, 'desks', deskData.deskId));
+                        if (deskSnap.exists() && deskSnap.data().name) {
+                            displayName = deskSnap.data().name;
+                        }
+                    } catch(e) { console.error(e); }
+                }
                 
                 optionsHTML += `<option value="${deskData.deskId}|${docSnap.id}|${deskData.openedByUid || ''}|${(deskData.openedBy || '').replace(/\|/g, '')}">${displayName}</option>`;
             }
