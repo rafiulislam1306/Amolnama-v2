@@ -74,5 +74,23 @@ export function openProfileHub() {
     // STRICT RULE: Only Center Admin can manage and change systems
     document.getElementById('hub-admin-section').style.display = userRole === 'admin' ? 'block' : 'none';
     
+    // Populate Diagnostic Info
+    document.getElementById('hub-active-desk').innerText = AppState.currentDeskName || 'None';
+    document.getElementById('hub-active-session').innerText = AppState.currentSessionId || 'None';
+    
+    let dbStatusEl = document.getElementById('hub-db-status');
+    if (navigator.onLine) {
+        if (AppState.currentSessionId && AppState.currentSessionId.startsWith('off_')) {
+            dbStatusEl.innerText = 'Offline Fallback';
+            dbStatusEl.style.color = '#f59e0b';
+        } else {
+            dbStatusEl.innerText = 'Online';
+            dbStatusEl.style.color = '#10b981';
+        }
+    } else {
+        dbStatusEl.innerText = 'Offline (Device)';
+        dbStatusEl.style.color = '#ef4444';
+    }
+    
     openModal('modal-profile-hub');
 }

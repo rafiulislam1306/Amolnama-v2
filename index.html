@@ -521,6 +521,22 @@
                     <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                 </div>
             </div>
+            
+            <!-- Diagnostic Info Section -->
+            <div style="padding: 16px 20px; font-size: 0.8rem; background: var(--bg-color); border-top: 1px solid var(--border-color); color: var(--text-secondary);">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                    <span>Active Workspace:</span>
+                    <span id="hub-active-desk" style="font-weight: 700; color: var(--text-primary);">None</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                    <span>Session ID:</span>
+                    <span id="hub-active-session" style="font-family: monospace; font-weight: 700; color: var(--text-primary);">None</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Database Status:</span>
+                    <span id="hub-db-status" style="font-weight: 700; color: #10b981;">Online</span>
+                </div>
+            </div>
 
             <div style="padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border-color);">
                 <button class="btn-primary-full" style="background-color: #ef4444; color: white; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);" onclick="logout()">
