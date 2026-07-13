@@ -38,7 +38,7 @@ service cloud.firestore {
     // DESKS COLLECTION
     match /desks/{deskId} {
       allow read: if isAuthenticated();
-      allow create: if isAdminOrOwner() || (isAuthenticated() && deskId.startsWith('personal_'));
+      allow create: if isAdminOrOwner() || (isAuthenticated() && deskId.matches('^personal_.*'));
       allow update: if isAuthenticated(); // Floor agents need to open/close desks
       allow delete: if isAdminOrOwner();
     }
