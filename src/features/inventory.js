@@ -2,12 +2,22 @@
 import { AppState } from '../core/state.js';
 import { showAppAlert } from '../utils/ui-helpers.js';
 
+export function isTrackingGroup(groupName) {
+    if (!groupName) return false;
+    let catItem = Object.values(AppState.globalCatalog).find(c => c.name === groupName || c.display === groupName);
+    if (catItem && catItem.trackAs && catItem.trackAs !== groupName) {
+        return false; // It maps to a different tracking group (e.g. eSIM Prepaid maps to eSIM Kit)
+    }
+    return true;
+}
+
 export function getPhysicalItems() { 
-    return AppState.globalInventoryGroups; 
+    return AppState.globalInventoryGroups.filter(isTrackingGroup); 
 }
 
 export function getInventoryChange(tx) {
-    if (!tx.trackAs || !AppState.globalInventoryGroups.includes(tx.trackAs)) return 0;
+    let trackAs = getNormalizedTrackAs(tx.trackAs || tx.name);
+    if (!trackAs || !AppState.globalInventoryGroups.includes(trackAs)) return 0;
     if (tx.name === 'Physical Cash' || tx.name === 'ERS Flexiload') return 0;
     
     let q = Math.abs(parseInt(tx.qty) || 0); 
