@@ -26,10 +26,16 @@ export async function initUserData(onComplete) {
             if (userDocSnap.exists()) {
                 userData = userDocSnap.data();
                 localStorage.setItem('amolnama_cache_user_' + AppState.currentUser.uid, JSON.stringify(userData));
+                AppState.currentUserRole = userData.role || 'user';
+                AppState.userNickname = userData.nickname || '';
+                // Only update email and name on login (avoid writing the role field to prevent security rules rejections)
+                await setDoc(userDocRef, { email: AppState.currentUser.email || null, displayName: AppState.userDisplayName || 'User' }, { merge: true });
+            } else {
+                AppState.currentUserRole = 'user';
+                AppState.userNickname = '';
+                // Write role: 'user' on initial profile creation
+                await setDoc(userDocRef, { email: AppState.currentUser.email || null, displayName: AppState.userDisplayName || 'User', role: 'user' }, { merge: true });
             }
-            AppState.currentUserRole = userData.role || 'user';
-            AppState.userNickname = userData.nickname || '';
-            await setDoc(userDocRef, { email: AppState.currentUser.email || null, displayName: AppState.userDisplayName || 'User', role: AppState.currentUserRole }, { merge: true });
         } catch (err) {
             console.warn("Offline Mode: Loading user data from cache", err);
             userData = JSON.parse(localStorage.getItem('amolnama_cache_user_' + AppState.currentUser.uid) || '{}');
