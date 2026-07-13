@@ -276,6 +276,7 @@ window.syncOfflineTransactions = async function() {
         if (typeof window.showAppAlert === 'function') {
             window.showAppAlert("Sync Paused", "Stopped because the database is still locked or offline.");
         }
+        if (window.updateNetworkStatus) window.updateNetworkStatus();
         return;
     }
 
@@ -299,6 +300,8 @@ window.syncOfflineTransactions = async function() {
             break; // Stop immediately if we hit a quota error or true offline state
         }
     }
+
+    if (window.updateNetworkStatus) window.updateNetworkStatus();
 
     if (failedCount > 0) {
         if (typeof window.showAppAlert === 'function') {

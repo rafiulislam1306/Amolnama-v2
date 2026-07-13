@@ -85,6 +85,9 @@ initAuth(
                 document.getElementById('splash-screen').classList.remove('active'); 
                 isInitialLoad = false; 
             }
+            if (navigator.onLine && window.syncOfflineTransactions) {
+                window.syncOfflineTransactions();
+            }
         });
     },
     () => {

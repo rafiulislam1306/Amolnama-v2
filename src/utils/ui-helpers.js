@@ -35,38 +35,9 @@ export function executeAlertConfirm() {
     if (alertConfirmCallback) alertConfirmCallback();
 }
 
+// Exposed globally for compatibility with transaction saves
 window.renderOfflineBanner = function(count) {
-    let banner = document.getElementById('offline-sync-banner');
-    if (!banner) {
-        banner = document.createElement('div');
-        banner.id = 'offline-sync-banner';
-        banner.style.cssText = `
-            position: fixed; top: 0; left: 0; right: 0; z-index: 100000;
-            background: #f59e0b; color: #fff; padding: 10px 16px;
-            font-weight: 600; font-size: 0.85rem; text-align: center;
-            display: flex; justify-content: space-between; align-items: center;
-            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
-            padding-top: calc(10px + env(safe-area-inset-top));
-        `;
-        document.body.appendChild(banner);
-    }
-
-    const appContainer = document.querySelector('.app-container');
-
-    if (count > 0) {
-        banner.innerHTML = `
-            <span>⚠️ Offline Mode: ${count} pending sales</span>
-            <button onclick="if(window.syncOfflineTransactions) window.syncOfflineTransactions()" 
-                    style="background: #fff; color: #f59e0b; border: none; padding: 4px 10px; border-radius: 4px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 0.75rem;">
-                SYNC NOW
-            </button>
-        `;
-        banner.style.display = 'flex';
-        if (appContainer) appContainer.style.marginTop = '45px';
-    } else {
-        banner.style.display = 'none';
-        if (appContainer) appContainer.style.marginTop = '0';
-    }
+    if (window.updateNetworkStatus) window.updateNetworkStatus();
 }
 
 export function showFlashMessage(text) {
@@ -145,22 +116,77 @@ export function showTooltip(element, text) {
 // ==========================================
 export function initNetworkStatus() {
     function updateNetworkStatus() {
-        const banner = document.getElementById('offline-banner');
-        if (!banner) return;
-        
+        const offlineTxs = JSON.parse(localStorage.getItem('amolnama_offline_txs') || '[]');
+        const offlineSessions = JSON.parse(localStorage.getItem('amolnama_offline_sessions') || '[]');
+        const count = offlineTxs.length + offlineSessions.length;
+
+        // Hide static index.html red banner since we are using our unified dynamic banner
+        const staticRedBanner = document.getElementById('offline-banner');
+        if (staticRedBanner) staticRedBanner.style.display = 'none';
+
+        let banner = document.getElementById('offline-sync-banner');
+        if (!banner) {
+            banner = document.createElement('div');
+            banner.id = 'offline-sync-banner';
+            banner.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; z-index: 100000;
+                color: #fff; padding: 10px 16px;
+                font-weight: 600; font-size: 0.85rem; text-align: center;
+                display: flex; justify-content: space-between; align-items: center;
+                transition: all 0.3s ease;
+                padding-top: calc(10px + env(safe-area-inset-top));
+            `;
+            document.body.appendChild(banner);
+        }
+
+        const appContainer = document.querySelector('.app-container');
+
         if (!navigator.onLine) {
-            banner.style.display = 'block';
-        } else {
-            // Only show the back online message if the banner was actually visible
-            if (banner.style.display === 'block') {
-                showFlashMessage("Back Online! Syncing...");
+            banner.style.background = count > 0 ? '#f59e0b' : '#ef4444';
+            banner.style.boxShadow = count > 0 ? '0 4px 12px rgba(245, 158, 11, 0.3)' : '0 4px 12px rgba(239, 68, 68, 0.3)';
+            
+            banner.innerHTML = count > 0 
+                ? `<span>⚠️ Offline: ${count} pending sales queued</span> <span style="font-size: 0.72rem; opacity: 0.9; font-weight: 700;">Reconnect to sync</span>`
+                : `<div style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m2 2 20 20"/><path d="M8.53 8.53a9 9 0 0 1 11.23 3.86"/><path d="M4.68 4.68a13 13 0 0 0-2.6 1.74"/><path d="M2.08 9.5A13 13 0 0 1 4.5 7.1"/></svg>
+                    OFFLINE - Changes Queued Locally
+                   </div>`;
+            
+            banner.style.display = 'flex';
+            if (appContainer) appContainer.style.marginTop = '45px';
+        } else if (count > 0) {
+            banner.style.background = '#0ea5e9';
+            banner.style.boxShadow = '0 4px 12px rgba(14, 165, 233, 0.3)';
+            banner.innerHTML = `
+                <span style="display: flex; align-items: center; gap: 6px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="animation: spin 1s linear infinite;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                    Syncing Queue: ${count} pending sales...
+                </span>
+                <button onclick="if(window.syncOfflineTransactions) window.syncOfflineTransactions()" 
+                        style="background: #fff; color: #0ea5e9; border: none; padding: 4px 10px; border-radius: 4px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 0.75rem;">
+                    SYNC NOW
+                </button>
+            `;
+            banner.style.display = 'flex';
+            if (appContainer) appContainer.style.marginTop = '45px';
+
+            // Auto-trigger sync on reconnection
+            if (window.syncOfflineTransactions) {
+                window.syncOfflineTransactions();
             }
+        } else {
             banner.style.display = 'none';
+            if (appContainer) appContainer.style.marginTop = '0';
         }
     }
 
+    window.updateNetworkStatus = updateNetworkStatus;
+
     // Listen for network changes in real-time
-    window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('online', () => {
+        showFlashMessage("Back Online! Syncing...");
+        updateNetworkStatus();
+    });
     window.addEventListener('offline', updateNetworkStatus);
 
     // Run a check immediately when the app loads
