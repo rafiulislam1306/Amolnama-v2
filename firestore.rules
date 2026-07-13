@@ -21,8 +21,11 @@ service cloud.firestore {
     // USERS COLLECTION
     match /users/{userId} {
       allow read: if isAuthenticated();
-      // Allow creation of own profile or admin modification
-      allow create: if isAuthenticated() && (request.auth.uid == userId || isAdminOrOwner());
+      // Allow creation of own profile (restricted to 'user' role) or admin modification
+      allow create: if isAuthenticated() && (
+        isAdminOrOwner() || 
+        (request.auth.uid == userId && (!('role' in request.resource.data) || request.resource.data.role == 'user'))
+      );
       allow update: if isAuthenticated() && (
         isAdminOrOwner() || 
         (request.auth.uid == userId && 
