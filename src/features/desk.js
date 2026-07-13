@@ -4,7 +4,7 @@ import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
 import { getStrictDate } from '../utils/helpers.js';
 import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/ui-helpers.js';
-import { getInventoryChange, getPhysicalItems } from './inventory.js';
+import { getInventoryChange, getPhysicalItems, getNormalizedTrackAs } from './inventory.js';
 import { priorityInventorySortOrder } from '../core/constants.js';
 
 // ==========================================
@@ -495,7 +495,13 @@ export async function renderLiveFloorTab() {
             const sessionTxs = AppState.transactions.filter(tx => tx.sessionId === sid && !tx.isDeleted);
 
             let liveCash = parseFloat(session.openingBalances.cash) || 0;
-            let liveInv = { ...(session.openingBalances.inventory || {}) };
+            let liveInv = {};
+            if (session.openingBalances?.inventory) {
+                Object.entries(session.openingBalances.inventory).forEach(([k, v]) => {
+                    let normKey = getNormalizedTrackAs(k);
+                    liveInv[normKey] = (liveInv[normKey] || 0) + v;
+                });
+            }
             let liveServicesCount = 0;
 
             sessionTxs.forEach(tx => {
@@ -504,7 +510,8 @@ export async function renderLiveFloorTab() {
                 
                 let change = getInventoryChange(tx);
                 if (change !== 0) {
-                    liveInv[tx.trackAs] = (liveInv[tx.trackAs] || 0) + change;
+                    let normKey = getNormalizedTrackAs(tx.trackAs);
+                    liveInv[normKey] = (liveInv[normKey] || 0) + change;
                 } else {
                     let txCategory = tx.cat;
                     if (!txCategory) {
@@ -721,7 +728,13 @@ export async function initiateCloseDesk() {
     const sessionData = sessionSnap.data();
     let expectedCash = parseFloat(sessionData.openingBalances.cash) || 0;
     let expectedMfs = 0;
-    let expectedInv = { ...(sessionData.openingBalances.inventory || {}) };
+    let expectedInv = {};
+    if (sessionData.openingBalances?.inventory) {
+        Object.entries(sessionData.openingBalances.inventory).forEach(([k, v]) => {
+            let normKey = getNormalizedTrackAs(k);
+            expectedInv[normKey] = (expectedInv[normKey] || 0) + v;
+        });
+    }
 
     const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', AppState.currentSessionId), where('isDeleted', '==', false)));
 
@@ -733,7 +746,8 @@ export async function initiateCloseDesk() {
         
         let change = getInventoryChange(tx);
         if (change !== 0) {
-            expectedInv[tx.trackAs] = (expectedInv[tx.trackAs] || 0) + change;
+            let normKey = getNormalizedTrackAs(tx.trackAs);
+            expectedInv[normKey] = (expectedInv[normKey] || 0) + change;
         }
     });
 

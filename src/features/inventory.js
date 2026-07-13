@@ -19,6 +19,15 @@ export function getInventoryChange(tx) {
     return -q; 
 }
 
+export function getNormalizedTrackAs(name) {
+    if (!name) return '';
+    let catItem = Object.values(AppState.globalCatalog).find(c => c.name === name || c.display === name);
+    if (catItem) {
+        return catItem.trackAs === '' ? '' : (catItem.trackAs || catItem.name);
+    }
+    return name;
+}
+
 export function getAvailableStock(itemName) {
     let catItem = Object.values(AppState.globalCatalog).find(c => c.name === itemName);
     let trackAs = catItem ? (catItem.trackAs === '' ? '' : (catItem.trackAs || itemName)) : itemName;
@@ -34,7 +43,8 @@ export function getAvailableStock(itemName) {
     AppState.transactions.forEach(tx => {
         // FIX: Use sessionId to perfectly match the current active shift's dashboard!
         if (tx.sessionId === AppState.currentSessionId && !tx.isDeleted) {
-            if (tx.trackAs === trackAs || tx.trackAs === itemName) {
+            let txNorm = getNormalizedTrackAs(tx.trackAs);
+            if (txNorm === trackAs) {
                 stock += getInventoryChange(tx); 
             }
         }

@@ -4,7 +4,7 @@ import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
 import { getStrictDate, formatToGBDate } from '../utils/helpers.js';
 import { showAppAlert, showFlashMessage, openModal } from '../utils/ui-helpers.js';
-import { getPhysicalItems } from './inventory.js';
+import { getPhysicalItems, getNormalizedTrackAs } from './inventory.js';
 import { priorityItemSortOrder, priorityInventorySortOrder } from '../core/constants.js';
 
 const userCurrency = 'Tk';
@@ -50,9 +50,10 @@ export async function renderPersonalReport() {
             floorOpeningCash += parseFloat(s.openingBalances?.cash) || 0;
             let inv = s.openingBalances?.inventory || {};
             for (let [item, qty] of Object.entries(inv)) {
-                if (floorInvStats[item]) {
-                    floorInvStats[item].open += qty;
-                    floorInvStats[item].rem += qty;
+                let normKey = getNormalizedTrackAs(item);
+                if (floorInvStats[normKey]) {
+                    floorInvStats[normKey].open += qty;
+                    floorInvStats[normKey].rem += qty;
                 }
             }
         });
@@ -81,8 +82,9 @@ export async function renderPersonalReport() {
             }
         }
 
-        if (AppState.globalInventoryGroups.includes(tx.trackAs)) {
-            let trackAs = tx.trackAs;
+        let normTrackAs = getNormalizedTrackAs(tx.trackAs);
+        if (AppState.globalInventoryGroups.includes(normTrackAs)) {
+            let trackAs = normTrackAs;
             let q = Math.abs(tx.qty);
             
             if (tx.type === 'transfer_in') { floorInvStats[trackAs].inOut += q; floorInvStats[trackAs].rem += q; }
@@ -360,7 +362,10 @@ export function buildLifecycleText(txList, openingInv) {
     let hasItems = false;
     
     getPhysicalItems().forEach(item => {
-        let openQty = openingInv[item] || 0;
+        let openQty = 0;
+        Object.entries(openingInv).forEach(([k, v]) => {
+            if (getNormalizedTrackAs(k) === item) openQty += v;
+        });
         if (openQty > 0) {
             stats[item] = { open: openQty, in: 0, out: 0, sold: 0, rem: openQty, rev: 0 };
             hasItems = true;
@@ -369,7 +374,7 @@ export function buildLifecycleText(txList, openingInv) {
 
     txList.forEach(tx => {
         if (tx.isDeleted || tx.name === 'Physical Cash' || tx.name === 'ERS Flexiload') return;
-        let trackAs = tx.trackAs;
+        let trackAs = getNormalizedTrackAs(tx.trackAs);
         if (!AppState.globalInventoryGroups.includes(trackAs)) return;
 
         if (!stats[trackAs]) stats[trackAs] = { open: 0, in: 0, out: 0, sold: 0, rem: 0, rev: 0 };
@@ -888,7 +893,10 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
     let invStats = {};
           
     getPhysicalItems().forEach(item => {
-        let o = activeOpeningInv[item] || 0;
+        let o = 0;
+        Object.entries(activeOpeningInv).forEach(([k, v]) => {
+            if (getNormalizedTrackAs(k) === item) o += v;
+        });
         invStats[item] = { open: o, inOut: 0, sold: 0, rem: o };
     });
 
@@ -915,8 +923,9 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
             }
         }
 
-        if (AppState.globalInventoryGroups.includes(tx.trackAs)) {
-            let trackAs = tx.trackAs;
+        let normTrackAs = getNormalizedTrackAs(tx.trackAs);
+        if (AppState.globalInventoryGroups.includes(normTrackAs)) {
+            let trackAs = normTrackAs;
             let q = Math.abs(tx.qty);
             if (tx.type === 'transfer_in') { invStats[trackAs].inOut += q; invStats[trackAs].rem += q; }
             else if (tx.type === 'transfer_out') { invStats[trackAs].inOut -= q; invStats[trackAs].rem -= q; }
@@ -1208,7 +1217,10 @@ export async function openHistoricalSession(sessionId) {
         let invStats = {};
         
         getPhysicalItems().forEach(item => {
-            let o = activeOpeningInv[item] || 0;
+            let o = 0;
+            Object.entries(activeOpeningInv).forEach(([k, v]) => {
+                if (getNormalizedTrackAs(k) === item) o += v;
+            });
             invStats[item] = { open: o, inOut: 0, sold: 0, rem: o };
         });
 
@@ -1239,8 +1251,9 @@ export async function openHistoricalSession(sessionId) {
                 }
             }
 
-            if (AppState.globalInventoryGroups.includes(tx.trackAs)) {
-                let trackAs = tx.trackAs;
+            let normTrackAs = getNormalizedTrackAs(tx.trackAs);
+            if (AppState.globalInventoryGroups.includes(normTrackAs)) {
+                let trackAs = normTrackAs;
                 let q = Math.abs(tx.qty);
                 if (tx.type === 'transfer_in') { invStats[trackAs].inOut += q; invStats[trackAs].rem += q; }
                 else if (tx.type === 'transfer_out') { invStats[trackAs].inOut -= q; invStats[trackAs].rem -= q; }
