@@ -3,12 +3,12 @@ import { getAuth } from "firebase/auth";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyA4YyIOi1xSddHCeLMdBN5mwrjQbJPn_Iw",
-    authDomain: "amolnama-cc2bf.firebaseapp.com",
-    projectId: "amolnama-cc2bf",
-    storageBucket: "amolnama-cc2bf.firebasestorage.app",
-    messagingSenderId: "283254200113",
-    appId: "1:283254200113:web:248a3bff50f167568ec210"
+    apiKey: "AIzaSyDKLwCjHapOYpfonjYpg9MELLp3EmHvwN4",
+    authDomain: "amolnama-new.firebaseapp.com",
+    projectId: "amolnama-new",
+    storageBucket: "amolnama-new.firebasestorage.app",
+    messagingSenderId: "136752837265",
+    appId: "1:136752837265:web:f679fe6044ac0ebf0cc530"
 };
 
 const app = initializeApp(firebaseConfig);
