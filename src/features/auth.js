@@ -81,7 +81,8 @@ export function openProfileHub() {
     let dbStatusEl = document.getElementById('hub-db-status');
     if (navigator.onLine) {
         if (AppState.currentSessionId && AppState.currentSessionId.startsWith('off_')) {
-            dbStatusEl.innerText = 'Offline Fallback';
+            const errMsg = AppState.lastError ? ` (${AppState.lastError})` : '';
+            dbStatusEl.innerText = 'Offline Fallback' + errMsg;
             dbStatusEl.style.color = '#f59e0b';
         } else {
             dbStatusEl.innerText = 'Online';

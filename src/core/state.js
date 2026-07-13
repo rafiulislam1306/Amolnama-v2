@@ -6,6 +6,7 @@ const INITIAL_STATE = {
     userDisplayName: 'ERS',
     userNickname: '',
     currentUserRole: 'user',
+    lastError: null,
     
     currentDeskId: null,
     currentSessionId: null,

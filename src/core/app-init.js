@@ -38,6 +38,7 @@ export async function initUserData(onComplete) {
             }
         } catch (err) {
             console.warn("Offline Mode: Loading user data from cache", err);
+            AppState.lastError = "User Init: " + (err.message || String(err));
             userData = JSON.parse(localStorage.getItem('amolnama_cache_user_' + AppState.currentUser.uid) || '{}');
             AppState.currentUserRole = userData.role || 'user';
             AppState.userNickname = userData.nickname || '';

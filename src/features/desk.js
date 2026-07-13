@@ -398,6 +398,7 @@ export async function executeHandleDeskSelect(deskId, deskName, status, sessionI
 
     } catch(e) { 
         console.error("Network/Permission error joining desk, entering Offline Mode fallback:", e); 
+        AppState.lastError = "Desk Join: " + (e.message || String(e));
         showAppAlert("Offline Fallback", "Could not connect workspace to the database. Switched to Offline Mode. Error: " + (e.message || e), false, null, "OK");
         
         // 1. Generate an offline session mimicking a Firebase ID
