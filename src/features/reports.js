@@ -320,7 +320,6 @@ export async function renderPersonalReport() {
         });
 
         for (const [item, d] of sortedFloorInv) {
-            if (d.open === 0 && d.inOut === 0 && d.sold === 0 && d.rem === 0) continue;
             hasLiveStock = true;
             
             let inOutColor = d.inOut > 0 ? '#10b981' : (d.inOut < 0 ? '#ef4444' : 'var(--text-secondary)');
