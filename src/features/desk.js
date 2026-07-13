@@ -283,7 +283,7 @@ export async function executeHandleDeskSelect(deskId, deskName, status, sessionI
                     openedByUid: AppState.currentUser.uid,
                     deskName: deskName 
                 });
-                await setDoc(doc(db, 'desks', deskId), { status: 'open' }, { merge: true });
+                await setDoc(doc(db, 'desks', deskId), { status: 'open', name: deskName }, { merge: true });
             } else {
                 activeSessionId = null;
             }
@@ -336,7 +336,7 @@ export async function executeHandleDeskSelect(deskId, deskName, status, sessionI
                         deskName: deskName
                     });
                 }
-                await setDoc(doc(db, 'desks', deskId), { status: 'open', currentSessionId: activeSessionId }, { merge: true });
+                await setDoc(doc(db, 'desks', deskId), { status: 'open', currentSessionId: activeSessionId, name: deskName }, { merge: true });
             } else {
                 let carryOverInv = {};
                 let carryOverCash = 0;
@@ -364,7 +364,7 @@ export async function executeHandleDeskSelect(deskId, deskName, status, sessionI
                     deskName: deskName
                 });
 
-                await setDoc(doc(db, 'desks', deskId), { status: 'open', currentSessionId: activeSessionId }, { merge: true });
+                await setDoc(doc(db, 'desks', deskId), { status: 'open', currentSessionId: activeSessionId, name: deskName }, { merge: true });
             }
         }
 
