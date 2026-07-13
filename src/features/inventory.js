@@ -25,12 +25,18 @@ export function getAvailableStock(itemName) {
     
     if (!AppState.globalInventoryGroups.includes(trackAs)) return Infinity; 
 
+    // Sum opening balances for both trackAs and itemName (handles transfers/stock set up under either name)
     let stock = AppState.currentOpeningInv[trackAs] || 0; 
+    if (itemName !== trackAs && AppState.currentOpeningInv[itemName]) {
+        stock += AppState.currentOpeningInv[itemName];
+    }
 
     AppState.transactions.forEach(tx => {
         // FIX: Use sessionId to perfectly match the current active shift's dashboard!
-        if (tx.sessionId === AppState.currentSessionId && !tx.isDeleted && tx.trackAs === trackAs) {
-            stock += getInventoryChange(tx); 
+        if (tx.sessionId === AppState.currentSessionId && !tx.isDeleted) {
+            if (tx.trackAs === trackAs || tx.trackAs === itemName) {
+                stock += getInventoryChange(tx); 
+            }
         }
     });
     return stock;
