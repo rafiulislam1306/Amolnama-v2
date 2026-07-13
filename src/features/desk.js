@@ -290,15 +290,26 @@ export async function executeHandleDeskSelect(deskId, deskName, status, sessionI
         }
 
         if (!activeSessionId) {
-            let carryOverInv = {};
-            let carryOverCash = 0;
-
+            const todayStr = getStrictDate();
             const pastSnap = await getDocs(query(collection(db, 'sessions'), where('deskId', '==', deskId)));
+            
+            let todaySession = null;
+            let todaySessionId = null;
+            
             let lastSession = null;
             let lastSessionId = null;
             let maxTime = 0;
+            
             pastSnap.forEach(docSnap => {
                 let s = docSnap.data();
+                if (s.dateStr === todayStr) {
+                    if (!todaySession) {
+                        todaySession = s;
+                        todaySessionId = docSnap.id;
+                    }
+                    return;
+                }
+                
                 let t = 0;
                 if (s.openedAt) {
                     if (typeof s.openedAt.toMillis === 'function') t = s.openedAt.toMillis();
@@ -315,31 +326,46 @@ export async function executeHandleDeskSelect(deskId, deskName, status, sessionI
                 }
             });
 
-            if (lastSession) {
-                carryOverInv = { ...(lastSession.openingBalances?.inventory || {}) };
-                const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', lastSessionId), where('isDeleted', '==', false)));
-                txSnap.forEach(tDoc => {
-                    let tx = tDoc.data();
-                    let change = getInventoryChange(tx);
-                    if (change !== 0) carryOverInv[tx.trackAs] = (carryOverInv[tx.trackAs] || 0) + change;
+            if (todaySessionId) {
+                activeSessionId = todaySessionId;
+                if (todaySession.status !== 'open') {
+                    await updateDoc(doc(db, 'sessions', activeSessionId), {
+                        status: 'open',
+                        openedBy: AppState.userNickname || AppState.userDisplayName,
+                        openedByUid: AppState.currentUser.uid,
+                        deskName: deskName
+                    });
+                }
+                await setDoc(doc(db, 'desks', deskId), { status: 'open', currentSessionId: activeSessionId }, { merge: true });
+            } else {
+                let carryOverInv = {};
+                let carryOverCash = 0;
+
+                if (lastSession) {
+                    carryOverInv = { ...(lastSession.openingBalances?.inventory || {}) };
+                    const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', lastSessionId), where('isDeleted', '==', false)));
+                    txSnap.forEach(tDoc => {
+                        let tx = tDoc.data();
+                        let change = getInventoryChange(tx);
+                        if (change !== 0) carryOverInv[tx.trackAs] = (carryOverInv[tx.trackAs] || 0) + change;
+                    });
+                }
+
+                const newSessionRef = doc(collection(db, 'sessions'));
+                activeSessionId = newSessionRef.id;
+                await setDoc(newSessionRef, {
+                    deskId: deskId, 
+                    dateStr: todayStr, 
+                    openedBy: AppState.userNickname || AppState.userDisplayName, 
+                    openedByUid: AppState.currentUser.uid, 
+                    openedAt: serverTimestamp(),
+                    status: 'open', 
+                    openingBalances: { cash: carryOverCash, inventory: carryOverInv },
+                    deskName: deskName
                 });
+
+                await setDoc(doc(db, 'desks', deskId), { status: 'open', currentSessionId: activeSessionId }, { merge: true });
             }
-
-            const todayStr = getStrictDate();
-            const newSessionRef = doc(collection(db, 'sessions'));
-            activeSessionId = newSessionRef.id;
-            await setDoc(newSessionRef, {
-                deskId: deskId, 
-                dateStr: todayStr, 
-                openedBy: AppState.userNickname || AppState.userDisplayName, 
-                openedByUid: AppState.currentUser.uid, 
-                openedAt: serverTimestamp(),
-                status: 'open', 
-                openingBalances: { cash: carryOverCash, inventory: carryOverInv },
-                deskName: deskName
-            });
-
-            await setDoc(doc(db, 'desks', deskId), { status: 'open', currentSessionId: activeSessionId }, { merge: true });
         }
 
         const todayStr = getStrictDate();
