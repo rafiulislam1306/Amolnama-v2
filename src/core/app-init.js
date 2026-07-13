@@ -128,7 +128,7 @@ export async function initUserData(onComplete) {
 
                 if (deskData && deskData.status === 'open') {
                     AppState.currentSessionId = deskData.currentSessionId;
-                    AppState.currentDeskName = deskData.name;
+                    AppState.currentDeskName = (deskData.name && deskData.name !== 'undefined') ? deskData.name : (AppState.currentDeskId.startsWith('personal_') ? (AppState.userNickname || AppState.userDisplayName.split(' ')[0]) + "'s Drawer" : 'Floor Desk');
                     document.getElementById('header-title').innerText = `${AppState.currentDeskName}`;
                     
                     const sessionSnap = await getDoc(doc(db, 'sessions', AppState.currentSessionId));
@@ -152,7 +152,7 @@ export async function initUserData(onComplete) {
                 let deskData = JSON.parse(localStorage.getItem('amolnama_cache_desk_' + AppState.currentDeskId) || 'null');
                 if (deskData && deskData.status === 'open') {
                     AppState.currentSessionId = deskData.currentSessionId;
-                    AppState.currentDeskName = deskData.name;
+                    AppState.currentDeskName = (deskData.name && deskData.name !== 'undefined') ? deskData.name : (AppState.currentDeskId.startsWith('personal_') ? (AppState.userNickname || AppState.userDisplayName.split(' ')[0]) + "'s Drawer" : 'Floor Desk');
                     document.getElementById('header-title').innerText = `${AppState.currentDeskName}`;
                     let sData = JSON.parse(localStorage.getItem('amolnama_cache_session_' + AppState.currentSessionId) || 'null');
                     if (sData && sData.openingBalances) {

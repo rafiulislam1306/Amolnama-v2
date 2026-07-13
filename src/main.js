@@ -122,7 +122,8 @@ function switchTab(tabId, title) {
         else if (tabId === 'report') navBtns[4].classList.add('active');
     }
     
-    document.getElementById('header-title').innerText = tabId === 'ers' ? (AppState.currentDeskName || AppState.userNickname || AppState.userDisplayName) : title;
+    const activeDeskName = (AppState.currentDeskName && AppState.currentDeskName !== 'undefined') ? AppState.currentDeskName : '';
+    document.getElementById('header-title').innerText = tabId === 'ers' ? (activeDeskName || AppState.userNickname || AppState.userDisplayName) : title;
     
     // Only redraw the DOM if the dirty flag is true (meaning new data arrived while tab was hidden)
     if (tabId === 'floor') {
