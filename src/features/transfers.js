@@ -6,6 +6,8 @@ import { generateReceiptNo, getStrictDate } from '../utils/helpers.js';
 import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/ui-helpers.js';
 import { passStockFirewall, getPhysicalItems, getInventoryChange } from './inventory.js';
 
+let isSaving = false;
+
 export function openManagerCashModal() {
     if(!AppState.currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
     document.getElementById('mgr-cash-amount').value = '';
@@ -63,8 +65,15 @@ export function openManagerCashModal() {
 }
 
 export async function saveManagerCash() {
+    if (isSaving) return;
+    isSaving = true;
+
     let amount = parseFloat(document.getElementById('mgr-cash-amount').value) || 0;
-    if (amount <= 0) { showAppAlert("Invalid Input", "Enter a valid amount."); return; }
+    if (amount <= 0) { 
+        isSaving = false;
+        showAppAlert("Invalid Input", "Enter a valid amount."); 
+        return; 
+    }
     
     let action = document.getElementById('mgr-cash-action').value; 
     let finalCash = 0;
@@ -93,6 +102,7 @@ export async function saveManagerCash() {
             let cashVal = parseFloat(document.getElementById('mgr-cash-split-cash').value) || 0;
             let mfsVal = parseFloat(document.getElementById('mgr-cash-split-mfs').value) || 0;
             if (Math.abs((cashVal + mfsVal) - amount) > 0.01) {
+                isSaving = false;
                 showAppAlert("Invalid Split", "Cash and MFS amounts must sum up to the total amount.");
                 return;
             }
@@ -136,6 +146,8 @@ export async function saveManagerCash() {
     } catch(e) {
         showAppAlert("Save Failed", "Could not complete cash action. Please try again.");
         console.error(e);
+    } finally {
+        isSaving = false;
     }
 }
 
@@ -156,8 +168,15 @@ export function openMainStockModal() {
 }
 
 export async function saveMainStock() {
+    if (isSaving) return;
+    isSaving = true;
+
     let qty = parseInt(document.getElementById('main-stock-qty').value) || 0;
-    if (qty <= 0) { showAppAlert("Invalid Input", "Enter a valid quantity."); return; }
+    if (qty <= 0) { 
+        isSaving = false;
+        showAppAlert("Invalid Input", "Enter a valid quantity."); 
+        return; 
+    }
     let itemName = document.getElementById('main-stock-item').value;
 
     const tx = {
@@ -175,6 +194,8 @@ export async function saveMainStock() {
     } catch(e) {
         showAppAlert("Save Failed", "Could not add stock from main inventory.");
         console.error(e);
+    } finally {
+        isSaving = false;
     }
 }
 
@@ -195,11 +216,21 @@ export function openReturnStockModal() {
 }
 
 export async function saveReturnStock() {
+    if (isSaving) return;
+    isSaving = true;
+
     let qty = parseInt(document.getElementById('return-stock-qty').value) || 0;
-    if (qty <= 0) { showAppAlert("Invalid Input", "Enter a valid quantity."); return; }
+    if (qty <= 0) { 
+        isSaving = false;
+        showAppAlert("Invalid Input", "Enter a valid quantity."); 
+        return; 
+    }
     let itemName = document.getElementById('return-stock-item').value;
 
-    if (!passStockFirewall(itemName, qty)) return;
+    if (!passStockFirewall(itemName, qty)) {
+        isSaving = false;
+        return;
+    }
 
     const tx = {
         id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty,
@@ -216,6 +247,8 @@ export async function saveReturnStock() {
     } catch(e) {
         showAppAlert("Save Failed", "Could not return stock to main inventory.");
         console.error(e);
+    } finally {
+        isSaving = false;
     }
 }
 
@@ -329,13 +362,24 @@ export async function executeDeskTransfer() {
         return;
     }
 
+    if (isSaving) return;
+    isSaving = true;
+
     let qty = parseInt(document.getElementById('desk-transfer-qty').value) || 0;
-    if (qty <= 0) { showAppAlert("Invalid Input", "Enter valid quantity."); return; }
+    if (qty <= 0) { 
+        isSaving = false;
+        showAppAlert("Invalid Input", "Enter valid quantity."); 
+        return; 
+    }
     let itemName = document.getElementById('desk-transfer-item').value;
 
     let targetSelect = document.getElementById('desk-transfer-target');
     let targetVal = targetSelect.value;
-    if (!targetVal) { showAppAlert("Error", "Please select a desk."); return; }
+    if (!targetVal) { 
+        isSaving = false;
+        showAppAlert("Error", "Please select a desk."); 
+        return; 
+    }
     
     let targetDeskName = targetSelect.options[targetSelect.selectedIndex].text;
     let [targetDeskId, targetSessionId, targetAgentId, targetAgentName] = targetVal.split('|');
@@ -344,7 +388,10 @@ export async function executeDeskTransfer() {
 
     let senderTx, receiverTx;
 
-    if (!passStockFirewall(itemName, qty)) return;
+    if (!passStockFirewall(itemName, qty)) {
+        isSaving = false;
+        return;
+    }
     let transferGroupId = 'tr_' + Date.now();
     senderTx = { id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, transferGroupId: transferGroupId, timestamp: serverTimestamp() };
     receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${AppState.currentDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: targetAgentId || AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, isRemoteTransfer: true, transferGroupId: transferGroupId, timestamp: serverTimestamp() };
@@ -360,6 +407,8 @@ export async function executeDeskTransfer() {
     } catch(e) {
         showAppAlert("Transfer Failed", "Could not securely move the stock. No items were transferred.");
         console.error(e);
+    } finally {
+        isSaving = false;
     }
 }
 
@@ -396,6 +445,8 @@ export function executeTransfer() {
     const receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${senderName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetTransferDeskId, sessionId: targetTransferSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, isRemoteTransfer: true, timestamp: serverTimestamp() };
 
     showAppAlert("Confirm Force Transfer", `You are about to force-transfer ${qty}x ${itemName} to ${targetTransferDeskName}. This bypasses standard stock limits. Proceed?`, true, async () => {
+        if (isSaving) return;
+        isSaving = true;
         try {
             const batch = writeBatch(db);
             batch.set(doc(collection(db, 'transactions')), senderTx);
@@ -407,6 +458,8 @@ export function executeTransfer() {
         } catch(e) {
             showAppAlert("Transfer Failed", "Could not complete admin transfer.");
             console.error(e);
+        } finally {
+            isSaving = false;
         }
     }, "Force Transfer");
 }

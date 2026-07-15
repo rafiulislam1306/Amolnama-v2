@@ -6,6 +6,8 @@ import { getStrictDate, formatToGBDate, generateReceiptNo } from '../utils/helpe
 import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/ui-helpers.js';
 import { getPhysicalItems, getInventoryChange } from './inventory.js';
 
+let isSaving = false;
+
 // ==========================================
 //   ADMIN CATALOG & INVENTORY SETTINGS
 // ==========================================
@@ -328,16 +330,35 @@ export async function renderUserManagementAdmin() {
     if (!container) return;
     container.innerHTML = '<div class="spinner" style="width: 24px; height: 24px; border-width: 3px; margin: 0 auto; border-top-color: #f59e0b;"></div>';
 
+    const agentSelect = document.getElementById('admin-delete-data-agent');
+
     try {
         const usersSnap = await getDocs(collection(db, 'users'));
-        let html = ''; let activeCount = 0;
-
+        const users = [];
         usersSnap.forEach(docSnap => {
-            const u = docSnap.data(); const uid = docSnap.id;
+            users.push({ id: docSnap.id, ...docSnap.data() });
+        });
+
+        // Sort agents alphabetically for a better UX
+        users.sort((a, b) => {
+            const nameA = (a.nickname || a.displayName || a.email?.split('@')[0] || '').toLowerCase();
+            const nameB = (b.nickname || b.displayName || b.email?.split('@')[0] || '').toLowerCase();
+            return nameA.localeCompare(nameB);
+        });
+
+        let html = ''; 
+        let activeCount = 0;
+        let agentSelectHTML = '<option value="">-- Select Agent --</option>';
+
+        users.forEach(u => {
+            const uid = u.id;
+            const displayName = u.nickname || u.displayName || u.email?.split('@')[0] || 'Unknown';
+            
+            agentSelectHTML += `<option value="${uid}">${displayName} (${u.email || 'No email'})</option>`;
+
             if (u.assignedDeskId) {
                 activeCount++;
                 const deskName = u.assignedDeskId.replace('_', ' ').toUpperCase();
-                const displayName = u.nickname || u.displayName || u.email?.split('@')[0] || 'Unknown';
 
                 html += `
                     <div style="background: #ffffff; border: 1px solid #fcd34d; padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
@@ -353,6 +374,11 @@ export async function renderUserManagementAdmin() {
                 `;
             }
         });
+
+        if (agentSelect) {
+            agentSelect.innerHTML = agentSelectHTML;
+        }
+
         container.innerHTML = activeCount > 0 ? html : `
             <div class="empty-state" style="padding: 24px 12px; opacity: 0.8;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 44px; height: 44px; margin-bottom: 8px; color: var(--text-secondary);"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
@@ -385,6 +411,62 @@ export function nukeAgent(uid, agentName) {
             renderUserManagementAdmin();
         } catch(e) { showAppAlert("Error", "Error executing Burn Notice."); }
     }, "Nuke Data");
+}
+
+export function deleteAgentDateData() {
+    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
+
+    const agentSelect = document.getElementById('admin-delete-data-agent');
+    const dateInput = document.getElementById('admin-delete-data-date');
+    
+    if (!agentSelect || !agentSelect.value) {
+        showAppAlert("Invalid Input", "Please select an agent.");
+        return;
+    }
+    if (!dateInput || !dateInput.value) {
+        showAppAlert("Invalid Input", "Please select a date.");
+        return;
+    }
+
+    const uid = agentSelect.value;
+    const agentName = agentSelect.options[agentSelect.selectedIndex].text.split(' (')[0];
+    const rawDate = dateInput.value;
+    const dateStr = formatToGBDate(rawDate);
+
+    showAppAlert(
+        "Confirm Delete Data", 
+        `Are you sure you want to permanently delete all transactions for ${agentName} on ${dateStr}? This cannot be undone!`, 
+        true, 
+        async () => {
+            if (isSaving) return;
+            isSaving = true;
+            try {
+                const txSnap = await getDocs(query(
+                    collection(db, 'transactions'), 
+                    where('agentId', '==', uid), 
+                    where('dateStr', '==', dateStr)
+                ));
+
+                if (txSnap.empty) {
+                    showAppAlert("No Data Found", `No transactions found for ${agentName} on ${dateStr}.`);
+                    return;
+                }
+
+                await Promise.all(txSnap.docs.map(t => deleteDoc(doc(db, 'transactions', t.id))));
+                showFlashMessage(`Deleted ${txSnap.size} transaction(s) for ${agentName} on ${dateStr}!`);
+                
+                // Reset fields
+                dateInput.value = '';
+                agentSelect.value = '';
+            } catch(e) { 
+                showAppAlert("Error", "Error executing delete request."); 
+                console.error(e);
+            } finally {
+                isSaving = false;
+            }
+        }, 
+        "Delete Data"
+    );
 }
 
 export function resetMyDeskLock() {

@@ -8,6 +8,7 @@ import { passStockFirewall } from './inventory.js';
 
 const fmt = (num) => Number(num || 0).toLocaleString('en-IN');
 let isSaving = false;
+let isSyncing = false;
 
 // ==========================================
 //    ERS KEYPAD LOGIC
@@ -38,10 +39,22 @@ export function ersBackspace() {
 }
 
 export function saveErs(paymentMethod) {
+    if (isSaving) return;
+    isSaving = true;
+
     const amount = parseInt(AppState.ui.currentErsAmount);
-    if (amount <= 0) { showAppAlert("Invalid Input", "Please enter a valid amount."); return; }
+    if (amount <= 0) { 
+        isSaving = false;
+        showAppAlert("Invalid Input", "Please enter a valid amount."); 
+        return; 
+    }
     addTransactionToCloud('ERS', 'ERS Flexiload', amount, 1, paymentMethod);
-    AppState.ui.currentErsAmount = '0'; updateErsDisplay();
+    AppState.ui.currentErsAmount = '0'; 
+    updateErsDisplay();
+    
+    setTimeout(() => {
+        isSaving = false;
+    }, 500);
 }
 
 // ==========================================
@@ -245,72 +258,114 @@ export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt 
 }
 
 window.syncOfflineTransactions = async function() {
-    let offlineSessions = JSON.parse(localStorage.getItem('amolnama_offline_sessions') || '[]');
-    let offlineTxs = JSON.parse(localStorage.getItem('amolnama_offline_txs') || '[]');
+    if (isSyncing) return;
     
-    if (offlineSessions.length === 0 && offlineTxs.length === 0) return;
-
-    if (typeof window.showAppAlert === 'function') {
-        window.showAppAlert("Syncing", `Attempting to sync ${offlineTxs.length} transactions...`);
-    }
-
-    let successCount = 0;
-    let failedCount = 0;
-
-    // 1. Sync Sessions First
-    for (let i = offlineSessions.length - 1; i >= 0; i--) {
-        const sess = offlineSessions[i];
-        try {
-            const dataToSync = { ...sess.data, openedAt: serverTimestamp() };
-            await setDoc(doc(db, 'sessions', sess.id), dataToSync);
-            offlineSessions.splice(i, 1);
-            localStorage.setItem('amolnama_offline_sessions', JSON.stringify(offlineSessions));
-        } catch (e) {
-            console.error("Failed to sync session:", e);
-            failedCount++;
-            break; // Stop on quota error
-        }
-    }
-
-    if (failedCount > 0) {
-        if (typeof window.showAppAlert === 'function') {
-            window.showAppAlert("Sync Paused", "Stopped because the database is still locked or offline.");
-        }
-        if (window.updateNetworkStatus) window.updateNetworkStatus();
+    // Multi-tab concurrency guard using localStorage
+    const syncLockKey = 'amolnama_sync_lock';
+    const syncLockTime = parseInt(localStorage.getItem(syncLockKey) || '0');
+    const now = Date.now();
+    if (syncLockTime && (now - syncLockTime < 15000)) {
+        // Already syncing in another tab (lock valid for 15s)
         return;
     }
+    
+    isSyncing = true;
+    localStorage.setItem(syncLockKey, String(Date.now()));
+    
+    // Periodically update the lock during long syncs
+    const lockUpdater = setInterval(() => {
+        localStorage.setItem(syncLockKey, String(Date.now()));
+    }, 5000);
 
-    // 2. Sync Transactions
-    for (let i = offlineTxs.length - 1; i >= 0; i--) {
-        const tx = offlineTxs[i];
+    try {
+        let offlineSessions = JSON.parse(localStorage.getItem('amolnama_offline_sessions') || '[]');
+        let offlineTxs = JSON.parse(localStorage.getItem('amolnama_offline_txs') || '[]');
         
-        // Re-inject a fresh serverTimestamp since we stripped it when saving locally
-        tx.timestamp = serverTimestamp();
+        if (offlineSessions.length === 0 && offlineTxs.length === 0) return;
 
-        try {
-            await addDoc(collection(db, 'transactions'), tx);
-            // If successful, remove it from the array
-            offlineTxs.splice(i, 1);
-            successCount++;
-            localStorage.setItem('amolnama_offline_txs', JSON.stringify(offlineTxs));
-            if (typeof window.renderOfflineBanner === 'function') window.renderOfflineBanner(offlineTxs.length);
-        } catch (e) {
-            console.error("Failed to sync transaction during bulk sync:", e);
-            failedCount++;
-            break; // Stop immediately if we hit a quota error or true offline state
-        }
-    }
-
-    if (window.updateNetworkStatus) window.updateNetworkStatus();
-
-    if (failedCount > 0) {
         if (typeof window.showAppAlert === 'function') {
-            window.showAppAlert("Sync Paused", `Synced ${successCount}. Stopped because the database is still locked or offline. Remaining: ${offlineTxs.length}`);
+            window.showAppAlert("Syncing", `Attempting to sync ${offlineTxs.length} transactions...`);
         }
-    } else {
-        if (typeof window.showAppAlert === 'function') {
-            window.showAppAlert("Sync Complete", "All offline transactions have been securely pushed to the database!");
+
+        let successCount = 0;
+        let failedCount = 0;
+
+        // 1. Sync Sessions First
+        for (let i = offlineSessions.length - 1; i >= 0; i--) {
+            const sess = offlineSessions[i];
+            try {
+                const dataToSync = { ...sess.data, openedAt: serverTimestamp() };
+                await setDoc(doc(db, 'sessions', sess.id), dataToSync);
+                
+                // Re-read latest offlineSessions in case another operation/tab modified it
+                offlineSessions = JSON.parse(localStorage.getItem('amolnama_offline_sessions') || '[]');
+                const idx = offlineSessions.findIndex(s => s.id === sess.id);
+                if (idx > -1) {
+                    offlineSessions.splice(idx, 1);
+                    localStorage.setItem('amolnama_offline_sessions', JSON.stringify(offlineSessions));
+                }
+            } catch (e) {
+                console.error("Failed to sync session:", e);
+                failedCount++;
+                break; // Stop on quota error
+            }
         }
+
+        if (failedCount > 0) {
+            if (typeof window.showAppAlert === 'function') {
+                window.showAppAlert("Sync Paused", "Stopped because the database is still locked or offline.");
+            }
+            if (window.updateNetworkStatus) window.updateNetworkStatus();
+            return;
+        }
+
+        // 2. Sync Transactions
+        for (let i = offlineTxs.length - 1; i >= 0; i--) {
+            // Re-read current list to ensure index safety and prevent array mutation conflicts
+            offlineTxs = JSON.parse(localStorage.getItem('amolnama_offline_txs') || '[]');
+            if (i >= offlineTxs.length) {
+                i = offlineTxs.length - 1;
+                if (i < 0) break;
+            }
+            const tx = offlineTxs[i];
+            
+            // Re-inject a fresh serverTimestamp since we stripped it when saving locally
+            tx.timestamp = serverTimestamp();
+
+            try {
+                await addDoc(collection(db, 'transactions'), tx);
+                
+                // Success: remove it by matching unique transaction ID
+                offlineTxs = JSON.parse(localStorage.getItem('amolnama_offline_txs') || '[]');
+                const idx = offlineTxs.findIndex(t => t.id === tx.id);
+                if (idx > -1) {
+                    offlineTxs.splice(idx, 1);
+                    localStorage.setItem('amolnama_offline_txs', JSON.stringify(offlineTxs));
+                }
+                successCount++;
+                if (typeof window.renderOfflineBanner === 'function') window.renderOfflineBanner(offlineTxs.length);
+            } catch (e) {
+                console.error("Failed to sync transaction during bulk sync:", e);
+                failedCount++;
+                break; // Stop immediately if we hit a quota error or true offline state
+            }
+        }
+
+        if (window.updateNetworkStatus) window.updateNetworkStatus();
+
+        if (failedCount > 0) {
+            if (typeof window.showAppAlert === 'function') {
+                window.showAppAlert("Sync Paused", `Synced ${successCount}. Stopped because the database is still locked or offline. Remaining: ${offlineTxs.length}`);
+            }
+        } else {
+            if (typeof window.showAppAlert === 'function') {
+                window.showAppAlert("Sync Complete", "All offline transactions have been securely pushed to the database!");
+            }
+        }
+    } finally {
+        clearInterval(lockUpdater);
+        localStorage.removeItem(syncLockKey);
+        isSyncing = false;
     }
 }
 
@@ -477,6 +532,9 @@ export function deleteTransaction(docId, localId) {
     if (tx && !isTransactionModifiable(tx, 'delete')) return;
 
     showAppAlert("Delete Item", tx && tx.transferGroupId ? "This is a transfer. Deleting it will delete both sending and receiving sides. Proceed?" : "Are you sure you want to move this transaction to the trash?", true, async () => {
+        if (isSaving) return;
+        isSaving = true;
+
         let nowStr = new Date().toString();
         let agentStr = AppState.userNickname || AppState.userDisplayName;
 
@@ -504,7 +562,11 @@ export function deleteTransaction(docId, localId) {
                 if (typeof window.renderDeskDashboard === 'function') window.renderDeskDashboard(AppState.currentDeskId);
                 showAppAlert("Delete Failed", "Could not move to trash.");
                 console.error(e);
+            } finally {
+                isSaving = false;
             }
+        } else {
+            isSaving = false;
         }
     }, "Move to Trash");
 }
@@ -543,6 +605,9 @@ export function renderTrash() {
 
 export async function restoreTx(docId, localId) {
     if(!AppState.currentUser) return;
+    if (isSaving) return;
+    isSaving = true;
+
     let nowStr = new Date().toString();
     let agentStr = AppState.userNickname || AppState.userDisplayName;
 
@@ -556,7 +621,10 @@ export async function restoreTx(docId, localId) {
                     // Verify firewall for the sender's side (since restoring transfer consumes stock from sender)
                     for (const tDoc of groupSnap.docs) {
                         const tData = tDoc.data();
-                        if (tData.type === 'transfer_out' && !passStockFirewall(tData.name, tData.qty)) return;
+                        if (tData.type === 'transfer_out' && !passStockFirewall(tData.name, tData.qty)) {
+                            isSaving = false;
+                            return;
+                        }
                     }
 
                     const batch = writeBatch(db);
@@ -568,7 +636,10 @@ export async function restoreTx(docId, localId) {
                     await batch.commit();
                     showFlashMessage(navigator.onLine ? "Transfer Restored!" : "Offline: Restore queued");
                 } else {
-                    if (!passStockFirewall(tx.name, tx.qty)) return;
+                    if (!passStockFirewall(tx.name, tx.qty)) {
+                        isSaving = false;
+                        return;
+                    }
                     await updateDoc(doc(db, 'transactions', docId), { isDeleted: false, isRestored: true, restoredBy: agentStr, restoredByUid: AppState.currentUser.uid, restoredAt: nowStr });
                     showFlashMessage(navigator.onLine ? `${tx.name} Restored!` : "Offline: Restore queued");
                 }
@@ -577,13 +648,19 @@ export async function restoreTx(docId, localId) {
         } catch(e) {
             showAppAlert("Restore Failed", "Could not restore. Please check your connection.");
             console.error("Restore error:", e);
+        } finally {
+            isSaving = false;
         }
+    } else {
+        isSaving = false;
     }
 }
 
 export function permanentlyDeleteTx(docId, localId) {
     let tx = AppState.trashTransactions.find(t => t.docId === docId || t.id === localId);
     showAppAlert("Permanent Delete", tx && tx.transferGroupId ? "This is a transfer. Permanently deleting it will erase both sides forever. Proceed?" : "This transaction will be permanently erased. This cannot be undone.", true, async () => {
+        if (isSaving) return;
+        isSaving = true;
         if(docId) {
             try {
                 if (tx && tx.transferGroupId) {
@@ -600,7 +677,11 @@ export function permanentlyDeleteTx(docId, localId) {
             } catch(e) {
                 showAppAlert("Delete Failed", "Could not permanently delete.");
                 console.error(e);
+            } finally {
+                isSaving = false;
             }
+        } else {
+            isSaving = false;
         }
     }, "Delete Forever");
 }
@@ -608,6 +689,8 @@ export function permanentlyDeleteTx(docId, localId) {
 export async function emptyTrash() {
     if(AppState.trashTransactions.length === 0) return;
     showAppAlert("Empty Trash", "Are you sure you want to permanently delete ALL items in the trash?", true, async () => {
+        if (isSaving) return;
+        isSaving = true;
         
         const idsToDelete = AppState.trashTransactions.map(t => t.docId).filter(id => id);
         
@@ -622,6 +705,8 @@ export async function emptyTrash() {
         } catch(e) {
             showAppAlert("Error", "Failed to empty trash completely. Check connection.");
             console.error("Error emptying trash:", e);
+        } finally {
+            isSaving = false;
         }
     }, "Empty Trash");
 }
