@@ -77,10 +77,16 @@ export function openProfileHub() {
     // Populate Diagnostic Info
     document.getElementById('hub-active-desk').innerText = AppState.currentDeskName || 'None';
     document.getElementById('hub-active-session').innerText = AppState.currentSessionId || 'None';
-    
     let dbStatusEl = document.getElementById('hub-db-status');
     if (navigator.onLine) {
-        if (AppState.currentSessionId && AppState.currentSessionId.startsWith('off_')) {
+        let isOfflineSession = false;
+        if (AppState.currentSessionId) {
+            const cachedSession = JSON.parse(localStorage.getItem('amolnama_cache_session_' + AppState.currentSessionId) || 'null');
+            if (cachedSession && cachedSession.isOfflineGenerated) {
+                isOfflineSession = true;
+            }
+        }
+        if (isOfflineSession) {
             const errMsg = AppState.lastError ? ` (${AppState.lastError})` : '';
             dbStatusEl.innerText = 'Offline Fallback' + errMsg;
             dbStatusEl.style.color = '#f59e0b';

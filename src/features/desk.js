@@ -116,21 +116,20 @@ export async function performLazyAutoClose() {
                 }
 
                 // 4. Create the new Saturday session or Repair an existing blank one
-                const todayQuery = await getDocs(query(collection(db, 'sessions'), where('deskId', '==', deskId), where('dateStr', '==', todayStr)));
-                let newSessionId;
+                const deterministicId = `sess_${deskId}_${todayStr.replace(/\//g, '_')}`;
+                const sessionDocRef = doc(db, 'sessions', deterministicId);
+                let newSessionId = deterministicId;
                 let newStatus = (lastSession && lastSession.status === 'open') ? 'open' : 'closed';
 
-                if (!todayQuery.empty) {
+                const sessionSnap = await getDoc(sessionDocRef);
+                if (sessionSnap.exists()) {
                     // REPAIR: Update the blank session already created today
-                    newSessionId = todayQuery.docs[0].id;
-                    await updateDoc(doc(db, 'sessions', newSessionId), {
+                    await updateDoc(sessionDocRef, {
                         openingBalances: { cash: carryOverCash, inventory: carryOverInv }
                     });
                 } else {
                     // NEW: Create brand new session
-                    const newSessionRef = doc(collection(db, 'sessions'));
-                    newSessionId = newSessionRef.id;
-                    await setDoc(newSessionRef, {
+                    await setDoc(sessionDocRef, {
                         deskId: deskId, dateStr: todayStr, 
                         openedBy: 'System Auto-Rollover', openedByUid: 'system', openedAt: serverTimestamp(),
                         status: newStatus, openingBalances: { cash: carryOverCash, inventory: carryOverInv }
@@ -291,45 +290,15 @@ export async function executeHandleDeskSelect(deskId, deskName, status, sessionI
 
         if (!activeSessionId) {
             const todayStr = getStrictDate();
-            const pastSnap = await getDocs(query(collection(db, 'sessions'), where('deskId', '==', deskId)));
+            const deterministicId = `sess_${deskId}_${todayStr.replace(/\//g, '_')}`;
+            const sessionDocRef = doc(db, 'sessions', deterministicId);
+            const sessionSnap = await getDoc(sessionDocRef);
             
-            let todaySession = null;
-            let todaySessionId = null;
-            
-            let lastSession = null;
-            let lastSessionId = null;
-            let maxTime = 0;
-            
-            pastSnap.forEach(docSnap => {
-                let s = docSnap.data();
-                if (s.dateStr === todayStr) {
-                    if (!todaySession) {
-                        todaySession = s;
-                        todaySessionId = docSnap.id;
-                    }
-                    return;
-                }
-                
-                let t = 0;
-                if (s.openedAt) {
-                    if (typeof s.openedAt.toMillis === 'function') t = s.openedAt.toMillis();
-                    else if (s.openedAt.seconds) t = s.openedAt.seconds * 1000;
-                }
-                if (t === 0 && s.dateStr) {
-                    let pts = s.dateStr.split('/');
-                    if (pts.length === 3) t = new Date(`${pts[2]}-${pts[1]}-${pts[0]}T00:00:00`).getTime();
-                }
-                if (t > maxTime) {
-                    maxTime = t;
-                    lastSession = s;
-                    lastSessionId = docSnap.id;
-                }
-            });
-
-            if (todaySessionId) {
-                activeSessionId = todaySessionId;
+            if (sessionSnap.exists()) {
+                activeSessionId = deterministicId;
+                const todaySession = sessionSnap.data();
                 if (todaySession.status !== 'open') {
-                    await updateDoc(doc(db, 'sessions', activeSessionId), {
+                    await updateDoc(sessionDocRef, {
                         status: 'open',
                         openedBy: AppState.userNickname || AppState.userDisplayName,
                         openedByUid: AppState.currentUser.uid,
@@ -338,6 +307,32 @@ export async function executeHandleDeskSelect(deskId, deskName, status, sessionI
                 }
                 await setDoc(doc(db, 'desks', deskId), { status: 'open', currentSessionId: activeSessionId, name: deskName }, { merge: true });
             } else {
+                // Fetch past sessions to calculate carry-over
+                const pastSnap = await getDocs(query(collection(db, 'sessions'), where('deskId', '==', deskId)));
+                let lastSession = null;
+                let lastSessionId = null;
+                let maxTime = 0;
+                
+                pastSnap.forEach(docSnap => {
+                    let s = docSnap.data();
+                    if (s.dateStr === todayStr) return; // skip today's session if any exist under other IDs (defense)
+                    
+                    let t = 0;
+                    if (s.openedAt) {
+                        if (typeof s.openedAt.toMillis === 'function') t = s.openedAt.toMillis();
+                        else if (s.openedAt.seconds) t = s.openedAt.seconds * 1000;
+                    }
+                    if (t === 0 && s.dateStr) {
+                        let pts = s.dateStr.split('/');
+                        if (pts.length === 3) t = new Date(`${pts[2]}-${pts[1]}-${pts[0]}T00:00:00`).getTime();
+                    }
+                    if (t > maxTime) {
+                        maxTime = t;
+                        lastSession = s;
+                        lastSessionId = docSnap.id;
+                    }
+                });
+
                 let carryOverInv = {};
                 let carryOverCash = 0;
 
@@ -351,9 +346,8 @@ export async function executeHandleDeskSelect(deskId, deskName, status, sessionI
                     });
                 }
 
-                const newSessionRef = doc(collection(db, 'sessions'));
-                activeSessionId = newSessionRef.id;
-                await setDoc(newSessionRef, {
+                activeSessionId = deterministicId;
+                await setDoc(sessionDocRef, {
                     deskId: deskId, 
                     dateStr: todayStr, 
                     openedBy: AppState.userNickname || AppState.userDisplayName, 
@@ -401,10 +395,9 @@ export async function executeHandleDeskSelect(deskId, deskName, status, sessionI
         AppState.lastError = "Desk Join: " + (e.message || String(e));
         showAppAlert("Offline Fallback", "Could not connect workspace to the database. Switched to Offline Mode. Error: " + (e.message || e), false, null, "OK");
         
-        // 1. Generate an offline session mimicking a Firebase ID
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        let offlineSessionId = 'off_';
-        for(let i=0; i<16; i++) offlineSessionId += chars.charAt(Math.floor(Math.random() * chars.length));
+        // 1. Generate a deterministic offline session ID matching the online scheme
+        const todayStr = getStrictDate();
+        let offlineSessionId = `sess_${deskId}_${todayStr.replace(/\//g, '_')}`;
 
         AppState.currentDeskId = deskId;
         AppState.currentDeskName = deskName;

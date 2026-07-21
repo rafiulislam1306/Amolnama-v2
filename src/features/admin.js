@@ -800,6 +800,134 @@ export async function healDeskTransfers() {
     }, "Heal Transfers");
 }
 
+export async function healDuplicateSessions() {
+    if (AppState.currentUserRole !== 'admin') { showAppAlert("Access Denied", "Admin clearance required."); return; }
+    if (!navigator.onLine) { showAppAlert("Offline", "You must be online to heal the database."); return; }
+
+    showAppAlert("Heal Duplicate Sessions", "This will merge transactions and clean up duplicate session documents in today's ledger. Proceed?", true, async () => {
+        const todayStr = getStrictDate();
+        showFlashMessage("Scanning for duplicates...");
+
+        try {
+            // 1. Fetch all of today's sessions
+            const sessSnap = await getDocs(query(collection(db, 'sessions'), where('dateStr', '==', todayStr)));
+            
+            // Group by deskId
+            const deskSessionsMap = new Map(); // deskId -> array of docSnaps
+            sessSnap.docs.forEach(docSnap => {
+                const s = docSnap.data();
+                if (!deskSessionsMap.has(s.deskId)) {
+                    deskSessionsMap.set(s.deskId, []);
+                }
+                deskSessionsMap.get(s.deskId).push(docSnap);
+            });
+
+            let desksWithDuplicates = [];
+            for (const [deskId, sessions] of deskSessionsMap.entries()) {
+                if (sessions.length > 1) {
+                    desksWithDuplicates.push({ deskId, sessions });
+                }
+            }
+
+            if (desksWithDuplicates.length === 0) {
+                showAppAlert("No Duplicates Found", "All desks have at most one session for today.", false, null, "Great");
+                return;
+            }
+
+            // 2. Fetch all of today's transactions to count references
+            const txSnap = await getDocs(query(collection(db, 'transactions'), where('dateStr', '==', todayStr)));
+            const txCountMap = {};
+            txSnap.docs.forEach(docSnap => {
+                const tx = docSnap.data();
+                if (tx.sessionId) {
+                    txCountMap[tx.sessionId] = (txCountMap[tx.sessionId] || 0) + 1;
+                }
+            });
+
+            let mergedTxCount = 0;
+            let deletedSessionCount = 0;
+            const batch = writeBatch(db);
+
+            for (const { deskId, sessions } of desksWithDuplicates) {
+                // Sort sessions:
+                // - Deterministic ID format (starts with "sess_") first
+                // - Transaction count descending
+                // - Status is "open" first
+                // - Earliest openedAt first
+                sessions.sort((a, b) => {
+                    const aDet = a.id.startsWith('sess_');
+                    const bDet = b.id.startsWith('sess_');
+                    if (aDet && !bDet) return -1;
+                    if (!aDet && bDet) return 1;
+
+                    const aCount = txCountMap[a.id] || 0;
+                    const bCount = txCountMap[b.id] || 0;
+                    if (aCount !== bCount) return bCount - aCount;
+
+                    const aOpen = a.data().status === 'open' ? 1 : 0;
+                    const bOpen = b.data().status === 'open' ? 1 : 0;
+                    if (aOpen !== bOpen) return bOpen - aOpen;
+
+                    const aTime = (a.data().openedAt && typeof a.data().openedAt.toMillis === 'function') ? a.data().openedAt.toMillis() : (a.data().openedAt?.seconds ? a.data().openedAt.seconds * 1000 : 0);
+                    const bTime = (b.data().openedAt && typeof b.data().openedAt.toMillis === 'function') ? b.data().openedAt.toMillis() : (b.data().openedAt?.seconds ? b.data().openedAt.seconds * 1000 : 0);
+                    return aTime - bTime;
+                });
+
+                const primarySession = sessions[0];
+                const secondarySessions = sessions.slice(1);
+
+                // Move transactions from secondary sessions to primary
+                txSnap.docs.forEach(docSnap => {
+                    const tx = docSnap.data();
+                    if (secondarySessions.some(s => s.id === tx.sessionId)) {
+                        batch.update(doc(db, 'transactions', docSnap.id), { sessionId: primarySession.id });
+                        mergedTxCount++;
+                    }
+                });
+
+                // Merge opening balances if primary doesn't have them but a secondary does
+                const pData = primarySession.data();
+                let mergedOpeningBalances = pData.openingBalances || { cash: 0, inventory: {} };
+                let balancesUpdated = false;
+
+                secondarySessions.forEach(secSnap => {
+                    const secData = secSnap.data();
+                    if (secData.openingBalances) {
+                        // If primary inventory is empty but secondary has inventory, copy it
+                        if ((!mergedOpeningBalances.inventory || Object.keys(mergedOpeningBalances.inventory).length === 0) && secData.openingBalances.inventory && Object.keys(secData.openingBalances.inventory).length > 0) {
+                            mergedOpeningBalances.inventory = secData.openingBalances.inventory;
+                            balancesUpdated = true;
+                        }
+                        // If primary cash is 0 but secondary has cash, copy it
+                        if ((!mergedOpeningBalances.cash || parseFloat(mergedOpeningBalances.cash) === 0) && secData.openingBalances.cash && parseFloat(secData.openingBalances.cash) > 0) {
+                            mergedOpeningBalances.cash = secData.openingBalances.cash;
+                            balancesUpdated = true;
+                        }
+                    }
+                    // Delete the secondary session
+                    batch.delete(doc(db, 'sessions', secSnap.id));
+                    deletedSessionCount++;
+                });
+
+                if (balancesUpdated) {
+                    batch.update(doc(db, 'sessions', primarySession.id), { openingBalances: mergedOpeningBalances });
+                }
+
+                // Update the desk pointer to point to the primary session
+                batch.update(doc(db, 'desks', deskId), { currentSessionId: primarySession.id }, { merge: true });
+            }
+
+            await batch.commit();
+            showFlashMessage(`Healed duplicate sessions: merged ${mergedTxCount} txs, deleted ${deletedSessionCount} duplicate sessions.`);
+            setTimeout(() => window.location.reload(), 1500);
+
+        } catch (e) {
+            console.error(e);
+            showAppAlert("Error", "Could not complete healing process. Check console.");
+        }
+    }, "Heal Duplicate Sessions");
+}
+
 export async function populateAdminTransferSection() {
     const srcSelect = document.getElementById('admin-transfer-source');
     const destSelect = document.getElementById('admin-transfer-dest');
