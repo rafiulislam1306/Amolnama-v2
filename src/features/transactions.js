@@ -68,6 +68,16 @@ export function selectItem(itemName, price) {
         return;
     }
     
+    if (itemName === 'Recycle SIM') {
+        document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
+        if (typeof window.triggerStoreRecycleSale === 'function') {
+            window.triggerStoreRecycleSale();
+        } else if (typeof window.Amolnama?.triggerStoreRecycleSale === 'function') {
+            window.Amolnama.triggerStoreRecycleSale();
+        }
+        return;
+    }
+    
     document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
     AppState.ui.currentItemName = itemName; AppState.ui.currentItemPrice = price; AppState.ui.currentQty = '1';
     
@@ -162,6 +172,17 @@ export function instantSaveItem(itemName, price) {
   if (catItem?.managerOnly && AppState.currentUserRole !== 'center_manager') {
       isSaving = false;
       showAppAlert("Access Denied", "🔒 Center Manager clearance is required to process this service.");
+      return;
+  }
+
+  if (itemName === 'Recycle SIM') {
+      isSaving = false;
+      document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
+      if (typeof window.triggerStoreRecycleSale === 'function') {
+          window.triggerStoreRecycleSale();
+      } else if (typeof window.Amolnama?.triggerStoreRecycleSale === 'function') {
+          window.Amolnama.triggerStoreRecycleSale();
+      }
       return;
   }
 

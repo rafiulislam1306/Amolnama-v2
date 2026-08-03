@@ -68,6 +68,12 @@ service cloud.firestore {
       allow delete: if isAdminOrOwner();
     }
 
+    // RECYCLE SIMS COLLECTION
+    match /recycle_sims/{recycleSimId} {
+      allow read, create, update: if isAuthenticated();
+      allow delete: if isAdminOrOwner();
+    }
+
     // GLOBAL SETTINGS & SYSTEM STATUS
     match /global/{docId} {
       allow read: if isAuthenticated();

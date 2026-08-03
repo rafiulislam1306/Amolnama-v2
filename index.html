@@ -496,6 +496,20 @@
                 <button style="background: var(--bg-color); border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; font-weight: bold;" onclick="closeModal('modal-profile-hub')">✕</button>
             </div>
 
+            <!-- Recycle SIM Tracker Link (Available to all agents) -->
+            <div style="padding: 12px 20px; border-bottom: 1px solid var(--border-color);">
+                <div class="list-menu-item" onclick="closeModal('modal-profile-hub'); openRecycleTracker();" style="border: none; padding: 12px 8px; border-radius: 12px; background: rgba(51, 144, 236, 0.08);">
+                    <div class="list-item-content">
+                        <span class="list-item-title" style="color: var(--accent-color); display: flex; align-items: center; gap: 8px; font-weight: 800;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                            Recycle SIM Tracker
+                        </span>
+                        <span style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600;">Monitor, call customers, and track applications</span>
+                    </div>
+                    <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </div>
+            </div>
+
         <div id="hub-admin-section" style="display: none; padding: 12px 20px;">
     <div style="font-size: 0.75rem; font-weight: 800; color: #b91c1c; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; padding-left: 4px;">Admin Controls</div>
     <div class="list-menu-item" onclick="closeModal('modal-profile-hub'); openNicknameManager();">
@@ -803,9 +817,146 @@
         </div>
     </div>
 
+    <!-- RECYCLE SIM TRACKER MODALS -->
+    <div id="modal-recycle-tracker" class="modal-overlay" style="z-index: 9600; background-color: var(--bg-color);">
+        <div class="modal-content" style="height: 100dvh; max-height: 100dvh; border-radius: 0; padding: 0; display: flex; flex-direction: column; background-color: var(--bg-color);">
+            <!-- Header -->
+            <div class="admin-header-bar" style="border-bottom: 1px solid var(--border-color); flex-shrink: 0; padding: 16px;">
+                <h3 style="color: var(--accent-color); margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                    Recycle SIM Tracker
+                </h3>
+                <button class="delete-btn" style="color: var(--text-secondary); font-size: 1.5rem; padding: 4px;" onclick="closeModal('modal-recycle-tracker')">✕</button>
+            </div>
+
+            <!-- Toolbar (Search and Add button) -->
+            <div class="admin-toolbar" style="flex-wrap: wrap; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; width: 100%; background: var(--surface-color);">
+                <input type="text" id="recycle-search" class="search-bar" style="flex: 1; min-width: 150px; margin: 0;" placeholder="Search numbers..." oninput="Amolnama.filterRecycleList()">
+                <button class="btn-primary-full" style="width: auto; padding: 10px 16px; margin: 0;" onclick="Amolnama.openAddRecycleModal()">+ Add SIM</button>
+            </div>
+
+            <!-- Status Tabs -->
+            <div style="background: var(--surface-color); border-bottom: 1px solid var(--border-color); padding: 8px 16px; flex-shrink: 0; width: 100%; overflow-x: auto; display: flex; gap: 8px; scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch;">
+                <button class="store-pill active" id="recycle-pill-all" onclick="Amolnama.filterRecycleByStatus('all', this)">All</button>
+                <button class="store-pill" onclick="Amolnama.filterRecycleByStatus('applied', this)">Applied</button>
+                <button class="store-pill" onclick="Amolnama.filterRecycleByStatus('arrived', this)">Arrived</button>
+                <button class="store-pill" onclick="Amolnama.filterRecycleByStatus('scheduled', this)">Scheduled</button>
+                <button class="store-pill" onclick="Amolnama.filterRecycleByStatus('completed', this)">Completed</button>
+                <button class="store-pill" onclick="Amolnama.filterRecycleByStatus('cancelled', this)">Cancelled</button>
+            </div>
+
+            <!-- Status Summary Cards -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 12px 16px; background: var(--surface-soft); border-bottom: 1px solid var(--border-color); flex-shrink: 0;">
+                <div style="background: var(--surface-strong); border: 1px solid var(--border-color); padding: 10px; border-radius: 12px; text-align: center;">
+                    <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Pending</div>
+                    <div id="recycle-summary-pending" style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">0</div>
+                </div>
+                <div style="background: var(--surface-strong); border: 1px solid var(--border-color); padding: 10px; border-radius: 12px; text-align: center;">
+                    <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Arrived</div>
+                    <div id="recycle-summary-arrived" style="font-size: 1.25rem; font-weight: 800; color: #10b981;">0</div>
+                </div>
+                <div style="background: var(--surface-strong); border: 1px solid var(--border-color); padding: 10px; border-radius: 12px; text-align: center;">
+                    <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Scheduled</div>
+                    <div id="recycle-summary-scheduled" style="font-size: 1.25rem; font-weight: 800; color: #7c3aed;">0</div>
+                </div>
+            </div>
+
+            <!-- Main Body (List) -->
+            <div class="admin-body" id="recycle-list-container" style="padding: 16px; overflow-y: auto; flex: 1; background: var(--bg-color);">
+                <div class="placeholder-text">Syncing recycle database...</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-add-recycle-sim" class="modal-overlay" style="z-index: 9700;">
+        <div class="bottom-sheet" style="padding: 24px;">
+            <div class="qty-header" style="color: var(--accent-color);">Add Recycle SIM</div>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px; text-align: center;">Record a new customer application for a recycle SIM.</p>
+            
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px;">
+                <div>
+                    <label class="admin-label">Recycled SIM Number *</label>
+                    <input type="text" id="add-recycle-number" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. 017XXXXXXXX" inputmode="tel">
+                </div>
+                <div>
+                    <label class="admin-label">Alternative Contact Number *</label>
+                    <input type="text" id="add-recycle-alt" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. 01XXXXXXXXX" inputmode="tel">
+                </div>
+                <div>
+                    <label class="admin-label">Initial Notes (Optional)</label>
+                    <input type="text" id="add-recycle-notes" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. Customer wants GP premium package">
+                </div>
+            </div>
+
+            <button class="btn-primary-full" onclick="Amolnama.submitRecycleApplication()">SUBMIT APPLICATION</button>
+            <button class="modal-close" style="color: var(--text-secondary);" onclick="closeModal('modal-add-recycle-sim')">Cancel</button>
+        </div>
+    </div>
+
+    <div id="modal-recycle-status-update" class="modal-overlay" style="z-index: 9700;">
+        <div class="bottom-sheet" style="padding: 24px;">
+            <div class="qty-header" id="status-update-title" style="color: var(--accent-color);">Update SIM Status</div>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px; text-align: center;" id="status-update-number">017XXXXXXXX</p>
+            
+            <input type="hidden" id="status-update-id">
+
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px;">
+                <div>
+                    <label class="admin-label">Select Status</label>
+                    <select id="status-update-select" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" onchange="Amolnama.onRecycleStatusChangeSelect()">
+                        <option value="applied">Applied (Pending 30-35 days)</option>
+                        <option value="arrived">Arrived at Center</option>
+                        <option value="scheduled">Scheduled / Follow-up</option>
+                        <option value="completed">Completed (SIM Handed Over)</option>
+                        <option value="cancelled">Cancelled (Don't Want / Failed)</option>
+                    </select>
+                </div>
+                <div id="status-update-date-wrapper" style="display: none;">
+                    <label class="admin-label">Follow-up / Pickup Date</label>
+                    <input type="date" id="status-update-date" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;">
+                </div>
+                <div>
+                    <label class="admin-label">Add Note / Comment</label>
+                    <input type="text" id="status-update-note" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. SIM arrived, customer called.">
+                </div>
+            </div>
+
+            <button class="btn-primary-full" onclick="Amolnama.saveRecycleStatusUpdate()">SAVE CHANGES</button>
+            <button class="modal-close" style="color: var(--text-secondary);" onclick="closeModal('modal-recycle-status-update')">Cancel</button>
+        </div>
+    </div>
+
+    <div id="modal-select-recycle-sim" class="modal-overlay" style="z-index: 9700;">
+        <div class="bottom-sheet" style="padding: 24px;">
+            <div class="qty-header" style="color: var(--accent-color);">Recycle SIM Sale</div>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px; text-align: center;">Select which arrived recycled SIM you are selling, or choose untracked sale.</p>
+            
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px;">
+                <div>
+                    <label class="admin-label">Arrived Recycled Numbers</label>
+                    <select id="recycle-select-sale-number" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" onchange="Amolnama.onSelectRecycleSaleNumberChange()">
+                        <!-- Dynamically filled with options -->
+                    </select>
+                </div>
+                <div id="recycle-sale-untracked-number-wrapper" style="display: none;">
+                    <label class="admin-label">Recycled SIM Number (Manual Input)</label>
+                    <input type="text" id="recycle-sale-untracked-number" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. 017XXXXXXXX" inputmode="tel">
+                </div>
+                <div>
+                    <label class="admin-label">Payment Method</label>
+                    <select id="recycle-sale-payment" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;">
+                        <option value="Cash">Cash</option>
+                        <option value="MFS">MFS</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="btn-primary-full" onclick="Amolnama.confirmRecycleSimSale()">CONFIRM & LOG SALE</button>
+            <button class="modal-close" style="color: var(--text-secondary);" onclick="closeModal('modal-select-recycle-sim')">Cancel</button>
+        </div>
+    </div>
+
     <!-- Dev Notes FAB removed to prevent UI blocking. Accessed via Profile Hub instead. -->
-
-
 
     <nav class="bottom-nav">
         <button class="nav-item active" onclick="switchTab('ers', 'ERS')">
