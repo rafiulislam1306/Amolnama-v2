@@ -217,6 +217,7 @@ export function renderAppUI() {
                     return;
                 }
                 if (!isLongPress && !isCancelled) {
+                    if (e.cancelable) e.preventDefault();
                     instantSaveItem(item.name, safePrice);
                 }
             };

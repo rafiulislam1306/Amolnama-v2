@@ -177,9 +177,9 @@ export function saveQuantity() {
 }
 
 export function instantSaveItem(itemName, price) {
-  console.log("DEBUG: instantSaveItem called for:", itemName, "price:", price);
+  console.warn("DEBUG: instantSaveItem called for:", itemName, "price:", price);
   if (isSaving) {
-      console.log("DEBUG: instantSaveItem returned because isSaving is true");
+      console.warn("DEBUG: instantSaveItem returned because isSaving is true");
       return;
   }
   isSaving = true;
@@ -234,9 +234,9 @@ export function instantSaveItem(itemName, price) {
 //    CORE TRANSACTION SAVER
 // ==========================================
 export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt = 0, mfsAmt = 0, onboarding = null) {
-    console.log("DEBUG: addTransactionToCloud called. type:", type, "name:", name, "amount:", amount, "payment:", payment, "onboarding:", onboarding);
+    console.warn("DEBUG: addTransactionToCloud called. type:", type, "name:", name, "amount:", amount, "payment:", payment, "onboarding:", onboarding);
     if(!AppState.currentUser) {
-        console.log("DEBUG: currentUser is null, returning");
+        console.warn("DEBUG: currentUser is null, returning");
         return;
     }
     
@@ -249,10 +249,10 @@ export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt 
     const isGPOnboarding = isSimOrMnpSale(name) && !name.toLowerCase().includes('skitto');
     const isSkittoOnboarding = isSimOrMnpSale(name) && name.toLowerCase().includes('skitto');
 
-    console.log("DEBUG: isGPOnboarding:", isGPOnboarding, "isSkittoOnboarding:", isSkittoOnboarding);
+    console.warn("DEBUG: isGPOnboarding:", isGPOnboarding, "isSkittoOnboarding:", isSkittoOnboarding);
 
     if (type === 'Item' && (isGPOnboarding || isSkittoOnboarding) && onboarding === null) {
-        console.log("DEBUG: Intercepting for onboarding prompt");
+        console.warn("DEBUG: Intercepting for onboarding prompt");
         promptSimOnboarding(name, (firstCall, appReg) => {
             if (firstCall !== null) {
                 addTransactionToCloud(type, name, amount, qty, payment, cashAmt, mfsAmt, { firstCall, appReg });
