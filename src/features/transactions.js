@@ -78,8 +78,9 @@ export function selectItem(itemName, price) {
         return;
     }
     
-    const onboardingSimList = ['No. 1 Plan', 'Prime', 'Djuice', 'Power Prime', 'eSIM Prepaid', 'eSIM Postpaid', 'My SIM - Regular', 'My SIM - eSIM', 'Skitto', 'eSIM Skitto', 'MNP'];
-    if (onboardingSimList.includes(itemName)) {
+    const cleanName = itemName.trim().toLowerCase();
+    const onboardingSimList = ['no. 1 plan', 'prime', 'djuice', 'power prime', 'esim prepaid', 'esim postpaid', 'my sim - regular', 'my sim - esim', 'skitto', 'esim skitto', 'mnp'];
+    if (onboardingSimList.includes(cleanName)) {
         document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
         addTransactionToCloud('Item', itemName, price, 1, (price > 0 && AppState.isMfs) ? "MFS" : "Cash");
         return;
@@ -193,8 +194,9 @@ export function instantSaveItem(itemName, price) {
       return;
   }
 
-  const onboardingSimList = ['No. 1 Plan', 'Prime', 'Djuice', 'Power Prime', 'eSIM Prepaid', 'eSIM Postpaid', 'My SIM - Regular', 'My SIM - eSIM', 'Skitto', 'eSIM Skitto', 'MNP'];
-  if (onboardingSimList.includes(itemName)) {
+  const cleanName = itemName.trim().toLowerCase();
+  const onboardingSimList = ['no. 1 plan', 'prime', 'djuice', 'power prime', 'esim prepaid', 'esim postpaid', 'my sim - regular', 'my sim - esim', 'skitto', 'esim skitto', 'mnp'];
+  if (onboardingSimList.includes(cleanName)) {
       isSaving = false;
       document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
       addTransactionToCloud('Item', itemName, price, 1, (price > 0 && AppState.isMfs) ? "MFS" : "Cash");
@@ -234,10 +236,11 @@ export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt 
         return;
     }
 
-    const onboardingSimsGP = ['No. 1 Plan', 'Prime', 'Djuice', 'Power Prime', 'Recycle SIM', 'eSIM Prepaid', 'eSIM Postpaid', 'My SIM - Regular', 'My SIM - eSIM', 'MNP'];
-    const onboardingSimsSkitto = ['Skitto', 'eSIM Skitto'];
-    const isGPOnboarding = onboardingSimsGP.includes(name);
-    const isSkittoOnboarding = onboardingSimsSkitto.includes(name);
+    const cleanName = name.trim().toLowerCase();
+    const onboardingSimsGP = ['no. 1 plan', 'prime', 'djuice', 'power prime', 'recycle sim', 'esim prepaid', 'esim postpaid', 'my sim - regular', 'my sim - esim', 'mnp'];
+    const onboardingSimsSkitto = ['skitto', 'esim skitto'];
+    const isGPOnboarding = onboardingSimsGP.includes(cleanName);
+    const isSkittoOnboarding = onboardingSimsSkitto.includes(cleanName);
 
     if (type === 'Item' && (isGPOnboarding || isSkittoOnboarding) && onboarding === null) {
         promptSimOnboarding(name, (firstCall, appReg) => {
