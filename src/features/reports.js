@@ -10,6 +10,23 @@ import { priorityItemSortOrder, priorityInventorySortOrder } from '../core/const
 const userCurrency = 'Tk';
 const fmt = (num) => Number(num || 0).toLocaleString('en-IN');
 
+function getOnboardingBadge(tx) {
+    if (!tx.onboarding) return '';
+    
+    const fc = tx.onboarding.firstCall ? '✅ FC' : '❌ FC';
+    const listB = ['Skitto', 'eSIM Skitto'];
+    const isSkitto = listB.includes(tx.name);
+    const appLabel = isSkitto ? 'Skitto' : 'MyGP';
+    const app = tx.onboarding.appReg ? `✅ ${appLabel}` : `❌ ${appLabel}`;
+    
+    return `
+        <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: 2px;">
+            <span style="font-size: 0.65rem; font-weight: 700; background: ${tx.onboarding.firstCall ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)'}; color: ${tx.onboarding.firstCall ? '#10b981' : '#ef4444'}; padding: 2px 6px; border-radius: 4px; border: 1px solid ${tx.onboarding.firstCall ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)'};" title="First Call Status">${fc}</span>
+            <span style="font-size: 0.65rem; font-weight: 700; background: ${tx.onboarding.appReg ? 'rgba(51,144,236,0.08)' : 'rgba(239,68,68,0.08)'}; color: ${tx.onboarding.appReg ? '#3390ec' : '#ef4444'}; padding: 2px 6px; border-radius: 4px; border: 1px solid ${tx.onboarding.appReg ? 'rgba(51,144,236,0.15)' : 'rgba(239,68,68,0.15)'};" title="App Registration Status">${app}</span>
+        </div>
+    `;
+}
+
 export async function renderPersonalReport() {
     let filterVal = document.getElementById('personal-history-filter') ? document.getElementById('personal-history-filter').value : 'all';
     
@@ -191,6 +208,8 @@ export async function renderPersonalReport() {
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                                 <span style="margin-top: 1px;">${(tx.agentName || 'Unknown').split(' ')[0]}</span>
                             </div>
+                            
+                            ${getOnboardingBadge(tx)}
                             
                             ${badges}
                         </div>
@@ -1030,6 +1049,8 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
                                 <span style="margin-top: 1px;">${(tx.agentName || 'Unknown').split(' ')[0]}</span>
                             </div>
                             
+                            ${getOnboardingBadge(tx)}
+                            
                             ${badges}
                         </div>
                     </div>
@@ -1326,6 +1347,8 @@ export async function openHistoricalSession(sessionId) {
                                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                                     <span style="margin-top: 1px;">${(tx.agentName || 'Unknown').split(' ')[0]}</span>
                                 </div>
+                                
+                                ${getOnboardingBadge(tx)}
                                 
                                 ${badges}
                             </div>

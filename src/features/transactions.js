@@ -186,6 +186,14 @@ export function instantSaveItem(itemName, price) {
       return;
   }
 
+  const onboardingSimList = ['No. 1 Plan', 'Prime', 'Djuice', 'Power Prime', 'eSIM Prepaid', 'eSIM Postpaid', 'My SIM - Regular', 'My SIM - eSIM', 'Skitto', 'eSIM Skitto', 'MNP'];
+  if (onboardingSimList.includes(itemName)) {
+      isSaving = false;
+      document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
+      selectItem(itemName, price);
+      return;
+  }
+
   // Prevent sales while viewing historical dates
   const datePicker = document.getElementById('report-date-picker');
   if (datePicker && datePicker.value && formatToGBDate(datePicker.value) !== getStrictDate()) {
@@ -766,6 +774,17 @@ export function showAuditTrail(txId) {
         });
     }
     
+    if (tx.onboarding) {
+        const fc = tx.onboarding.firstCall ? 'Completed' : 'Not Done';
+        const listB = ['Skitto', 'eSIM Skitto'];
+        const appLabel = listB.includes(tx.name) ? 'Skitto App' : 'MyGP';
+        const app = tx.onboarding.appReg ? 'Completed' : 'Not Done';
+        
+        msg += `--- ONBOARDING STATUS ---\n`;
+        msg += `First Call: ${fc}\n`;
+        msg += `${appLabel} Registration: ${app}\n\n`;
+    }
+
     if (tx.isRestored) {
         let rd = tx.restoredAt ? new Date(tx.restoredAt).toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'}) : 'Unknown';
         msg += `--- RESTORED ---\nRestored by ${tx.restoredBy || 'Unknown'} at ${rd}\n\n`;
