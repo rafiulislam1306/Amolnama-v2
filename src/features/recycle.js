@@ -208,6 +208,9 @@ export function renderRecycleList() {
                             📞 Alt: <span style="color: var(--text-primary); font-weight: 700; font-family: monospace;">${sim.alternativeNumber}</span>
                         </div>
                         ${dateMsg}
+                        <div style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; display: flex; align-items: center; gap: 4px; margin-top: 3px;">
+                            👤 By: <span style="color: var(--text-primary); font-weight: 700;">${sim.appliedBy || 'System'}</span>
+                        </div>
                         ${detailNotes}
                     </div>
 
