@@ -810,11 +810,8 @@ export function showAuditTrail(txId) {
 let currentOnboardingCallback = null;
 
 export function promptSimOnboarding(simName, onConfirm) {
-    const listA = ['No. 1 Plan', 'Prime', 'Djuice', 'Power Prime', 'Recycle SIM', 'eSIM Prepaid', 'eSIM Postpaid', 'My SIM - Regular', 'My SIM - eSIM', 'MNP'];
-    const listB = ['Skitto', 'eSIM Skitto'];
-    
-    const isGP = listA.includes(simName);
-    const isSkitto = listB.includes(simName);
+    const isGP = isSimOrMnpSale(simName) && !simName.toLowerCase().includes('skitto');
+    const isSkitto = isSimOrMnpSale(simName) && simName.toLowerCase().includes('skitto');
     
     if (!isGP && !isSkitto) {
         onConfirm(null, null);
