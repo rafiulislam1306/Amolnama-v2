@@ -210,12 +210,28 @@ export function instantSaveItem(itemName, price) {
 // ==========================================
 //    CORE TRANSACTION SAVER
 // ==========================================
-export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt = 0, mfsAmt = 0) {
+export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt = 0, mfsAmt = 0, onboarding = null) {
     if(!AppState.currentUser) return;
     
     // Prevent transactions if the desk hasn't been opened
     if (!AppState.currentSessionId) {
         showAppAlert("Desk Closed", "You must open your desk and verify your float before making transactions.");
+        return;
+    }
+
+    const onboardingSimsGP = ['No. 1 Plan', 'Prime', 'Djuice', 'Power Prime', 'Recycle SIM', 'eSIM Prepaid', 'eSIM Postpaid', 'My SIM - Regular', 'My SIM - eSIM', 'MNP'];
+    const onboardingSimsSkitto = ['Skitto', 'eSIM Skitto'];
+    const isGPOnboarding = onboardingSimsGP.includes(name);
+    const isSkittoOnboarding = onboardingSimsSkitto.includes(name);
+
+    if (type === 'Item' && (isGPOnboarding || isSkittoOnboarding) && onboarding === null) {
+        promptSimOnboarding(name, (firstCall, appReg) => {
+            if (firstCall !== null) {
+                addTransactionToCloud(type, name, amount, qty, payment, cashAmt, mfsAmt, { firstCall, appReg });
+            } else {
+                showFlashMessage("Sale aborted.");
+            }
+        });
         return;
     }
 
@@ -234,6 +250,10 @@ export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt 
         deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName,
         timestamp: serverTimestamp()
     };
+
+    if (onboarding) {
+        tx.onboarding = onboarding;
+    }
 
     // --- OPTIMISTIC UI INJECTION ---
     // Push to local state immediately with a pending flag so the UI shows it instantly
@@ -757,4 +777,89 @@ export function showAuditTrail(txId) {
     }
     
     showAppAlert("Transaction Audit Trail", msg);
+}
+
+let currentOnboardingCallback = null;
+
+export function promptSimOnboarding(simName, onConfirm) {
+    const listA = ['No. 1 Plan', 'Prime', 'Djuice', 'Power Prime', 'Recycle SIM', 'eSIM Prepaid', 'eSIM Postpaid', 'My SIM - Regular', 'My SIM - eSIM', 'MNP'];
+    const listB = ['Skitto', 'eSIM Skitto'];
+    
+    const isGP = listA.includes(simName);
+    const isSkitto = listB.includes(simName);
+    
+    if (!isGP && !isSkitto) {
+        onConfirm(null, null);
+        return;
+    }
+    
+    // Configure modal texts
+    document.getElementById('onboarding-sim-title').innerText = `${simName} Onboarding`;
+    
+    const appLabel = document.getElementById('onboarding-app-label');
+    if (isSkitto) {
+        appLabel.innerText = "Skitto App Registration Done";
+    } else {
+        appLabel.innerText = "MyGP Registration Done";
+    }
+    
+    // Reset inputs to unchecked
+    document.getElementById('onboarding-chk-call').checked = false;
+    document.getElementById('onboarding-chk-app').checked = false;
+    
+    // Visually reset active classes and styles
+    const rowCall = document.getElementById('onboarding-row-call');
+    const rowApp = document.getElementById('onboarding-row-app');
+    
+    if (rowCall) {
+        rowCall.style.borderColor = 'var(--border-color)';
+        rowCall.style.backgroundColor = 'var(--surface-color)';
+    }
+    if (rowApp) {
+        rowApp.style.borderColor = 'var(--border-color)';
+        rowApp.style.backgroundColor = 'var(--surface-color)';
+    }
+    
+    currentOnboardingCallback = onConfirm;
+    
+    openModal('modal-sim-onboarding');
+}
+
+export function confirmSimOnboarding() {
+    const firstCall = document.getElementById('onboarding-chk-call').checked;
+    const appReg = document.getElementById('onboarding-chk-app').checked;
+    
+    closeModal('modal-sim-onboarding');
+    
+    if (currentOnboardingCallback) {
+        currentOnboardingCallback(firstCall, appReg);
+        currentOnboardingCallback = null;
+    }
+}
+
+export function cancelSimOnboarding() {
+    closeModal('modal-sim-onboarding');
+    
+    if (currentOnboardingCallback) {
+        currentOnboardingCallback(null, null);
+        currentOnboardingCallback = null;
+    }
+}
+
+export function toggleOnboardingRow(checkboxId, rowEl, activeColor) {
+    const chk = document.getElementById(checkboxId);
+    if (chk) {
+        chk.checked = !chk.checked;
+        rowEl.style.borderColor = chk.checked ? activeColor : 'var(--border-color)';
+        rowEl.style.backgroundColor = chk.checked ? `${activeColor}0c` : 'var(--surface-color)';
+    }
+}
+
+export function syncOnboardingCheck(checkboxId, rowId, activeColor) {
+    const chk = document.getElementById(checkboxId);
+    const rowEl = document.getElementById(rowId);
+    if (chk && rowEl) {
+        rowEl.style.borderColor = chk.checked ? activeColor : 'var(--border-color)';
+        rowEl.style.backgroundColor = chk.checked ? `${activeColor}0c` : 'var(--surface-color)';
+    }
 }

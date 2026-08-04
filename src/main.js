@@ -6,7 +6,7 @@ import { showAppAlert, executeAlertConfirm, showFlashMessage, openModal, closeMo
 import { initPWA, installPWA } from './features/pwa.js';
 import { initAuth, signInWithGoogle, logout, openProfileHub } from './features/auth.js';
 import { AppState } from './core/state.js';
-import { ersKeyPress, ersBackspace, saveErs, selectItem, stepQty, onQtySliderChange, onQtyInputChange, saveQuantity, openEditTx, saveTxEdit, toggleEditSplitFields, updateSplitTotal, cancelTxEdit, autoCalcEditTotal, deleteTransaction, openTrash, restoreTx, permanentlyDeleteTx, emptyTrash, showAuditTrail } from './features/transactions.js';
+import { ersKeyPress, ersBackspace, saveErs, selectItem, stepQty, onQtySliderChange, onQtyInputChange, saveQuantity, openEditTx, saveTxEdit, toggleEditSplitFields, updateSplitTotal, cancelTxEdit, autoCalcEditTotal, deleteTransaction, openTrash, restoreTx, permanentlyDeleteTx, emptyTrash, showAuditTrail, promptSimOnboarding, confirmSimOnboarding, cancelSimOnboarding, toggleOnboardingRow, syncOnboardingCheck } from './features/transactions.js';
 import { getPhysicalItems, getInventoryChange, passStockFirewall, switchStoreCategory } from './features/inventory.js';
 import { loadFloorMap, handleDeskSelect, executeHandleDeskSelect, renderLiveFloorTab, openMyDeskDashboard, peekAtDesk, handleMyDrawerNav, initiateCloseDesk, submitClosingReport } from './features/desk.js';
 import { openManagerCashModal, saveManagerCash, openMainStockModal, saveMainStock, openReturnStockModal, saveReturnStock, openDeskTransfer, executeDeskTransfer, openTransferModal, executeTransfer, toggleMgrCashPaymentFields, validateMgrCashSplit } from './features/transfers.js';
@@ -61,7 +61,8 @@ window.Amolnama = {
     autoCalcEditTotal, deleteTransaction, openTrash, restoreTx, permanentlyDeleteTx,
     emptyTrash, showAuditTrail, healTodaysOpeningStock,
     runLedgerDiagnostic, downloadReportAsPDF, initCustomDropdowns, healDeskTransfers, executeAdminDrawerTransfer, deleteAgentDateData, healDuplicateSessions,
-    openRecycleTracker, filterRecycleList, filterRecycleByStatus, openAddRecycleModal, submitRecycleApplication, openUpdateRecycleStatusModal, onRecycleStatusChangeSelect, saveRecycleStatusUpdate, deleteRecycleSimEntry, triggerStoreRecycleSale, populateStoreRecycleSaleOptions, onSelectRecycleSaleNumberChange, confirmRecycleSimSale
+    openRecycleTracker, filterRecycleList, filterRecycleByStatus, openAddRecycleModal, submitRecycleApplication, openUpdateRecycleStatusModal, onRecycleStatusChangeSelect, saveRecycleStatusUpdate, deleteRecycleSimEntry, triggerStoreRecycleSale, populateStoreRecycleSaleOptions, onSelectRecycleSaleNumberChange, confirmRecycleSimSale,
+    promptSimOnboarding, confirmSimOnboarding, cancelSimOnboarding, toggleOnboardingRow, syncOnboardingCheck
 };
 
 // Dynamically bind all Amolnama functions to the global window object.

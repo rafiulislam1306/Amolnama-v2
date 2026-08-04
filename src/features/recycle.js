@@ -511,53 +511,90 @@ export async function confirmRecycleSimSale() {
         finalRecycleNumber = sim.recycledNumber;
     }
 
-    // 1. Log transaction in cloud
     const catalogItem = AppState.globalCatalog["sim_recycle"] || { name: 'Recycle SIM', price: 400 };
     const price = catalogItem.price || 400;
-
-    // Call existing transaction logic to add transaction
-    // Append the recycled number in details/notes
-    // We add an extra note with the recycle number
     const note = `Recycle SIM: ${finalRecycleNumber}`;
-    
-    // Setup transaction fields and trigger transaction
-    addTransactionToCloudWithRecycleDetails('Item', catalogItem.name, price, 1, payment, note);
 
-    // 2. Update status of the tracking SIM to Completed
-    if (simId) {
-        const sim = recycleSimsList.find(s => s.id === simId);
-        const timestamp = new Date().toISOString();
-        const agentName = AppState.userNickname || AppState.userDisplayName;
+    // Prompt onboarding before saving
+    if (typeof window.Amolnama?.promptSimOnboarding === 'function') {
+        window.Amolnama.promptSimOnboarding(catalogItem.name, async (firstCall, appReg) => {
+            if (firstCall === null) {
+                showFlashMessage("Sale aborted.");
+                return;
+            }
 
-        const historyItem = {
-            status: 'completed',
-            timestamp: timestamp,
-            by: agentName,
-            note: 'Completed via direct Store Checkout sale.'
-        };
+            // 1. Log transaction in cloud with onboarding
+            addTransactionToCloudWithRecycleDetails('Item', catalogItem.name, price, 1, payment, note, { firstCall, appReg });
 
-        const updateData = {
-            status: 'completed',
-            completedAt: serverTimestamp(),
-            updatedBy: agentName,
-            updatedById: AppState.currentUser?.uid || '',
-            updatedAt: serverTimestamp(),
-            history: [...(sim.history || []), historyItem]
-        };
+            // 2. Update status of the tracking SIM to Completed
+            if (simId) {
+                const sim = recycleSimsList.find(s => s.id === simId);
+                const timestamp = new Date().toISOString();
+                const agentName = AppState.userNickname || AppState.userDisplayName;
 
-        try {
-            await updateDoc(doc(db, 'recycle_sims', simId), updateData);
-        } catch (e) {
-            console.error("Error updating recycle status to completed:", e);
+                const historyItem = {
+                    status: 'completed',
+                    timestamp: timestamp,
+                    by: agentName,
+                    note: 'Completed via direct Store Checkout sale.'
+                };
+
+                const updateData = {
+                    status: 'completed',
+                    completedAt: serverTimestamp(),
+                    updatedBy: agentName,
+                    updatedById: AppState.currentUser?.uid || '',
+                    updatedAt: serverTimestamp(),
+                    history: [...(sim.history || []), historyItem]
+                };
+
+                try {
+                    await updateDoc(doc(db, 'recycle_sims', simId), updateData);
+                } catch (e) {
+                    console.error("Error updating recycle status to completed:", e);
+                }
+            }
+
+            closeModal('modal-select-recycle-sim');
+            showFlashMessage(`Logged Recycle SIM (${finalRecycleNumber}) Sale!`);
+        });
+    } else {
+        // Fallback
+        addTransactionToCloudWithRecycleDetails('Item', catalogItem.name, price, 1, payment, note, { firstCall: false, appReg: false });
+        if (simId) {
+            const sim = recycleSimsList.find(s => s.id === simId);
+            const timestamp = new Date().toISOString();
+            const agentName = AppState.userNickname || AppState.userDisplayName;
+
+            const historyItem = {
+                status: 'completed',
+                timestamp: timestamp,
+                by: agentName,
+                note: 'Completed via direct Store Checkout sale.'
+            };
+
+            const updateData = {
+                status: 'completed',
+                completedAt: serverTimestamp(),
+                updatedBy: agentName,
+                updatedById: AppState.currentUser?.uid || '',
+                updatedAt: serverTimestamp(),
+                history: [...(sim.history || []), historyItem]
+            };
+
+            try {
+                await updateDoc(doc(db, 'recycle_sims', simId), updateData);
+            } catch (e) {
+                console.error("Error updating recycle status to completed:", e);
+            }
         }
+        closeModal('modal-select-recycle-sim');
+        showFlashMessage(`Logged Recycle SIM (${finalRecycleNumber}) Sale!`);
     }
-
-    closeModal('modal-select-recycle-sim');
-    showFlashMessage(`Logged Recycle SIM (${finalRecycleNumber}) Sale!`);
 }
 
 // Special wrapper to ensure note field is populated with the recycle number
-function addTransactionToCloudWithRecycleDetails(type, name, amount, qty, payment, notesStr) {
+function addTransactionToCloudWithRecycleDetails(type, name, amount, qty, payment, notesStr, onboarding = null) {
     if(!AppState.currentUser) return;
     if (!AppState.currentSessionId) return;
 
@@ -590,6 +627,10 @@ function addTransactionToCloudWithRecycleDetails(type, name, amount, qty, paymen
         notes: notesStr, // Save the recycle number inside the transaction notes!
         timestamp: serverTimestamp()
     };
+
+    if (onboarding) {
+        tx.onboarding = onboarding;
+    }
 
     // Optimistic UI updates
     AppState.transactions.push({ ...tx, isPending: true });

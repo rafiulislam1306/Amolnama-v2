@@ -956,6 +956,45 @@
             <button class="modal-close" style="color: var(--text-secondary);" onclick="closeModal('modal-select-recycle-sim')">Cancel</button>
         </div>
     </div>
+    <div id="modal-sim-onboarding" class="modal-overlay" style="z-index: 9800;">
+        <div class="bottom-sheet" style="padding: 24px; max-width: 440px; margin: 0 auto; border-radius: 20px 20px 0 0;">
+            <div class="qty-header" id="onboarding-sim-title" style="color: var(--accent-color); font-size: 1.3rem; margin-bottom: 8px;">Onboarding Verification</div>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); text-align: center; margin-bottom: 24px; font-weight: 500;">Please verify if customer onboarding steps were successfully completed.</p>
+            
+            <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 28px;">
+                
+                <!-- Onboarding Step 1: First Call -->
+                <label id="onboarding-row-call" style="display: flex; align-items: center; justify-content: space-between; padding: 16px; border: 1.5px solid var(--border-color); border-radius: var(--radius-card); background: var(--surface-color); cursor: pointer; transition: all 0.2s ease-in-out; user-select: none;" onclick="Amolnama.toggleOnboardingRow('onboarding-chk-call', this, '#10b981')">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(16, 185, 129, 0.08); color: #10b981; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        </div>
+                        <span style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary);">First Call Done</span>
+                    </div>
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <input type="checkbox" id="onboarding-chk-call" style="width: 22px; height: 22px; cursor: pointer; accent-color: #10b981;" onclick="event.stopPropagation(); Amolnama.syncOnboardingCheck('onboarding-chk-call', 'onboarding-row-call', '#10b981')">
+                    </div>
+                </label>
+
+                <!-- Onboarding Step 2: App Registration -->
+                <label id="onboarding-row-app" style="display: flex; align-items: center; justify-content: space-between; padding: 16px; border: 1.5px solid var(--border-color); border-radius: var(--radius-card); background: var(--surface-color); cursor: pointer; transition: all 0.2s ease-in-out; user-select: none;" onclick="Amolnama.toggleOnboardingRow('onboarding-chk-app', this, '#3390ec')">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(51, 144, 236, 0.08); color: var(--accent-color); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
+                        </div>
+                        <span id="onboarding-app-label" style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary);">App Registration Done</span>
+                    </div>
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <input type="checkbox" id="onboarding-chk-app" style="width: 22px; height: 22px; cursor: pointer; accent-color: var(--accent-color);" onclick="event.stopPropagation(); Amolnama.syncOnboardingCheck('onboarding-chk-app', 'onboarding-row-app', '#3390ec')">
+                    </div>
+                </label>
+
+            </div>
+
+            <button class="btn-primary-full" style="background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3); margin-bottom: 8px;" onclick="Amolnama.confirmSimOnboarding()">CONFIRM & LOG SALE</button>
+            <button class="modal-close" style="color: var(--text-secondary);" onclick="Amolnama.cancelSimOnboarding()">Cancel / Abort Sale</button>
+        </div>
+    </div>
 
     <!-- Dev Notes FAB removed to prevent UI blocking. Accessed via Profile Hub instead. -->
 
