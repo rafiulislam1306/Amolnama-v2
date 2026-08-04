@@ -78,6 +78,13 @@ export function selectItem(itemName, price) {
         return;
     }
     
+    const onboardingSimList = ['No. 1 Plan', 'Prime', 'Djuice', 'Power Prime', 'eSIM Prepaid', 'eSIM Postpaid', 'My SIM - Regular', 'My SIM - eSIM', 'Skitto', 'eSIM Skitto', 'MNP'];
+    if (onboardingSimList.includes(itemName)) {
+        document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
+        addTransactionToCloud('Item', itemName, price, 1, (price > 0 && AppState.isMfs) ? "MFS" : "Cash");
+        return;
+    }
+    
     document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
     AppState.ui.currentItemName = itemName; AppState.ui.currentItemPrice = price; AppState.ui.currentQty = '1';
     
@@ -190,7 +197,7 @@ export function instantSaveItem(itemName, price) {
   if (onboardingSimList.includes(itemName)) {
       isSaving = false;
       document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
-      selectItem(itemName, price);
+      addTransactionToCloud('Item', itemName, price, 1, (price > 0 && AppState.isMfs) ? "MFS" : "Cash");
       return;
   }
 
@@ -817,9 +824,9 @@ export function promptSimOnboarding(simName, onConfirm) {
     
     const appLabel = document.getElementById('onboarding-app-label');
     if (isSkitto) {
-        appLabel.innerText = "Skitto App Registration Done";
+        appLabel.innerText = "Skitto App Registration";
     } else {
-        appLabel.innerText = "MyGP Registration Done";
+        appLabel.innerText = "MyGP Registration";
     }
     
     // Reset inputs to unchecked
