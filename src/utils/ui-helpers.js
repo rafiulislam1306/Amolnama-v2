@@ -74,10 +74,13 @@ export function showFlashMessage(text) {
 }
 
 export function openModal(modalId) { 
-    document.getElementById(modalId).classList.add('active'); 
+    console.warn("DEBUG: openModal called for:", modalId);
+    const modalEl = document.getElementById(modalId);
+    if (modalEl) modalEl.classList.add('active'); 
 }
 
 export function closeModal(modalId) { 
+    console.warn("DEBUG: closeModal called for:", modalId);
     const overlay = document.getElementById(modalId);
     if (!overlay) return;
     overlay.classList.remove('active');
