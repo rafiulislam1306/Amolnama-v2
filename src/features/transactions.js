@@ -57,9 +57,15 @@ export function saveErs(paymentMethod) {
     }, 500);
 }
 
-// ==========================================
-//    ITEM QUANTITY MODAL LOGIC
-// ==========================================
+function isSimOrMnpSale(nameStr) {
+    if (!nameStr) return false;
+    const clean = nameStr.trim().toLowerCase();
+    
+    if (clean.includes('replacement') || clean.includes('foc')) return false;
+    
+    const keywords = ['prime', 'djuice', 'no. 1', 'no.1', 'skitto', 'mnp', 'esim', 'my sim', 'recycle sim'];
+    return keywords.some(kw => clean.includes(kw));
+}
 
 export function selectItem(itemName, price) {
     let catItem = Object.values(AppState.globalCatalog).find(c => c.name === itemName);
@@ -78,9 +84,7 @@ export function selectItem(itemName, price) {
         return;
     }
     
-    const cleanName = itemName.trim().toLowerCase();
-    const onboardingSimList = ['no. 1 plan', 'prime', 'djuice', 'power prime', 'esim prepaid', 'esim postpaid', 'my sim - regular', 'my sim - esim', 'skitto', 'esim skitto', 'mnp'];
-    if (onboardingSimList.includes(cleanName)) {
+    if (isSimOrMnpSale(itemName)) {
         document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
         addTransactionToCloud('Item', itemName, price, 1, (price > 0 && AppState.isMfs) ? "MFS" : "Cash");
         return;
@@ -194,9 +198,7 @@ export function instantSaveItem(itemName, price) {
       return;
   }
 
-  const cleanName = itemName.trim().toLowerCase();
-  const onboardingSimList = ['no. 1 plan', 'prime', 'djuice', 'power prime', 'esim prepaid', 'esim postpaid', 'my sim - regular', 'my sim - esim', 'skitto', 'esim skitto', 'mnp'];
-  if (onboardingSimList.includes(cleanName)) {
+  if (isSimOrMnpSale(itemName)) {
       isSaving = false;
       document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
       addTransactionToCloud('Item', itemName, price, 1, (price > 0 && AppState.isMfs) ? "MFS" : "Cash");
@@ -236,11 +238,8 @@ export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt 
         return;
     }
 
-    const cleanName = name.trim().toLowerCase();
-    const onboardingSimsGP = ['no. 1 plan', 'prime', 'djuice', 'power prime', 'recycle sim', 'esim prepaid', 'esim postpaid', 'my sim - regular', 'my sim - esim', 'mnp'];
-    const onboardingSimsSkitto = ['skitto', 'esim skitto'];
-    const isGPOnboarding = onboardingSimsGP.includes(cleanName);
-    const isSkittoOnboarding = onboardingSimsSkitto.includes(cleanName);
+    const isGPOnboarding = isSimOrMnpSale(name) && !name.toLowerCase().includes('skitto');
+    const isSkittoOnboarding = isSimOrMnpSale(name) && name.toLowerCase().includes('skitto');
 
     if (type === 'Item' && (isGPOnboarding || isSkittoOnboarding) && onboarding === null) {
         promptSimOnboarding(name, (firstCall, appReg) => {
