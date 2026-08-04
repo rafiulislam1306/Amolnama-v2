@@ -870,8 +870,8 @@
 
     <div id="modal-add-recycle-sim" class="modal-overlay" style="z-index: 9700;">
         <div class="bottom-sheet" style="padding: 24px;">
-            <div class="qty-header" style="color: var(--accent-color);">Add Recycle SIM</div>
-            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px; text-align: center;">Record a new customer application for a recycle SIM.</p>
+            <div class="qty-header" style="color: var(--accent-color);">Add Recycle SIM Entry</div>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px; text-align: center;">Record a new customer entry for a recycle SIM.</p>
             
             <div class="admin-form-card" style="padding: 16px; margin-bottom: 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px;">
                 <div>
@@ -888,7 +888,7 @@
                 </div>
             </div>
 
-            <button class="btn-primary-full" onclick="Amolnama.submitRecycleApplication()">SUBMIT APPLICATION</button>
+            <button class="btn-primary-full" onclick="Amolnama.submitRecycleApplication()">SAVE ENTRY</button>
             <button class="modal-close" style="color: var(--text-secondary);" onclick="closeModal('modal-add-recycle-sim')">Cancel</button>
         </div>
     </div>
@@ -922,6 +922,7 @@
             </div>
 
             <button class="btn-primary-full" onclick="Amolnama.saveRecycleStatusUpdate()">SAVE CHANGES</button>
+            <button id="btn-delete-recycle-sim" class="action-btn" style="width: 100%; border-color: #fecaca; color: #ef4444; background: #fef2f2; margin-top: 12px; display: none;" onclick="Amolnama.deleteRecycleSimEntry()">DELETE ENTRY</button>
             <button class="modal-close" style="color: var(--text-secondary);" onclick="closeModal('modal-recycle-status-update')">Cancel</button>
         </div>
     </div>

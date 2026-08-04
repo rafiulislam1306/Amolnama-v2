@@ -1,5 +1,5 @@
 // src/features/recycle.js
-import { collection, doc, addDoc, updateDoc, onSnapshot, query, serverTimestamp } from "firebase/firestore";
+import { collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, serverTimestamp } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
 import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/ui-helpers.js';
@@ -280,17 +280,17 @@ export async function submitRecycleApplication() {
             status: 'applied',
             timestamp: new Date().toISOString(),
             by: AppState.userNickname || AppState.userDisplayName,
-            note: 'Application submitted successfully.'
+            note: 'Recycle SIM entry created.'
         }]
     };
 
     try {
         await addDoc(collection(db, 'recycle_sims'), docData);
         closeModal('modal-add-recycle-sim');
-        showFlashMessage("Recycle SIM application saved!");
+        showFlashMessage("Recycle SIM entry saved!");
     } catch (e) {
         console.error("Error creating recycle SIM record:", e);
-        showAppAlert("Database Error", "Failed to register application. Check connection.");
+        showAppAlert("Database Error", "Failed to save recycle entry. Check rules/connection.");
     }
 }
 
@@ -316,6 +316,12 @@ export function openUpdateRecycleStatusModal(id) {
     }
 
     onRecycleStatusChangeSelect();
+    
+    const deleteBtn = document.getElementById('btn-delete-recycle-sim');
+    if (deleteBtn) {
+        deleteBtn.style.display = ['admin', 'owner'].includes(AppState.currentUserRole) ? 'block' : 'none';
+    }
+
     openModal('modal-recycle-status-update');
 }
 
@@ -387,6 +393,34 @@ export async function saveRecycleStatusUpdate() {
         console.error("Error updating status:", e);
         showAppAlert("Save Failed", "Could not update status in cloud.");
     }
+}
+
+export async function deleteRecycleSimEntry() {
+    const id = document.getElementById('status-update-id').value;
+    const sim = recycleSimsList.find(s => s.id === id);
+    if (!sim) return;
+
+    if (!['admin', 'owner'].includes(AppState.currentUserRole)) {
+        showAppAlert("Access Denied", "🔒 Only an Admin or System Owner can delete recycle SIM entries.");
+        return;
+    }
+
+    showAppAlert(
+        "Delete Entry",
+        `Are you sure you want to permanently delete the entry for Recycle SIM ${sim.recycledNumber}? This cannot be undone.`,
+        true,
+        async () => {
+            try {
+                await deleteDoc(doc(db, 'recycle_sims', id));
+                closeModal('modal-recycle-status-update');
+                showFlashMessage("Recycle SIM entry deleted!");
+            } catch (e) {
+                console.error("Error deleting recycle SIM entry:", e);
+                showAppAlert("Delete Failed", "Could not delete entry from cloud.");
+            }
+        },
+        "Delete Entry"
+    );
 }
 
 // Store Checkout Trigger
