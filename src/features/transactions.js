@@ -177,7 +177,11 @@ export function saveQuantity() {
 }
 
 export function instantSaveItem(itemName, price) {
-  if (isSaving) return; // Drop accidental double-taps
+  console.log("DEBUG: instantSaveItem called for:", itemName, "price:", price);
+  if (isSaving) {
+      console.log("DEBUG: instantSaveItem returned because isSaving is true");
+      return;
+  }
   isSaving = true;
 
   let catItem = Object.values(AppState.globalCatalog).find(c => c.name === itemName);
@@ -230,7 +234,11 @@ export function instantSaveItem(itemName, price) {
 //    CORE TRANSACTION SAVER
 // ==========================================
 export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt = 0, mfsAmt = 0, onboarding = null) {
-    if(!AppState.currentUser) return;
+    console.log("DEBUG: addTransactionToCloud called. type:", type, "name:", name, "amount:", amount, "payment:", payment, "onboarding:", onboarding);
+    if(!AppState.currentUser) {
+        console.log("DEBUG: currentUser is null, returning");
+        return;
+    }
     
     // Prevent transactions if the desk hasn't been opened
     if (!AppState.currentSessionId) {
@@ -241,7 +249,10 @@ export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt 
     const isGPOnboarding = isSimOrMnpSale(name) && !name.toLowerCase().includes('skitto');
     const isSkittoOnboarding = isSimOrMnpSale(name) && name.toLowerCase().includes('skitto');
 
+    console.log("DEBUG: isGPOnboarding:", isGPOnboarding, "isSkittoOnboarding:", isSkittoOnboarding);
+
     if (type === 'Item' && (isGPOnboarding || isSkittoOnboarding) && onboarding === null) {
+        console.log("DEBUG: Intercepting for onboarding prompt");
         promptSimOnboarding(name, (firstCall, appReg) => {
             if (firstCall !== null) {
                 addTransactionToCloud(type, name, amount, qty, payment, cashAmt, mfsAmt, { firstCall, appReg });
