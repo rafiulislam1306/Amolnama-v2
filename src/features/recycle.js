@@ -451,7 +451,7 @@ export function populateStoreRecycleSaleOptions() {
 
     let html = '';
     eligibleSims.forEach(sim => {
-        html += `<option value="${sim.id}">${sim.recycledNumber} (Alt: ${sim.alternativeNumber})</option>`;
+        html += `<option value="${sim.id}">${sim.recycledNumber}</option>`;
     });
 
     // Add direct untracked option
