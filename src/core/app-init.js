@@ -7,6 +7,7 @@ import { defaultInventoryGroups, defaultCatalog } from './constants.js';
 import { performLazyAutoClose, loadFloorMap, executeHandleDeskSelect } from '../features/desk.js';
 import { fetchTransactionsForDate } from '../features/reports.js';
 import { setupBottomSheetDrag, showAppAlert } from '../utils/ui-helpers.js';
+import { initRecycleListener } from '../features/recycle.js';
 
 export function updateCurrencyUI() { 
     const userCurrency = 'Tk';
@@ -16,6 +17,14 @@ export function updateCurrencyUI() {
 }
 export async function initUserData(onComplete) {
     if(!AppState.currentUser) return;
+    
+    // Start background Recycle SIM listener immediately on login
+    try {
+        initRecycleListener();
+    } catch(recycleErr) {
+        console.warn("Failed to init background recycle listener:", recycleErr);
+    }
+
     try {
         const userDocRef = doc(db, 'users', AppState.currentUser.uid);
         const todayStr = getStrictDate();
