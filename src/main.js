@@ -181,7 +181,7 @@ function applyPersonalFilter(pill, value) {
 window.applyPersonalFilter = applyPersonalFilter;
 
 window.addEventListener('click', (event) => {
-    if (event.target.classList.contains('modal-overlay') && !['modal-auth', 'splash-screen', 'modal-desk-select', 'modal-nicknames', 'modal-app-alert', 'modal-close-desk', 'modal-edit-tx', 'modal-sim-onboarding'].includes(event.target.id)) {
+    if (event.target.classList.contains('modal-overlay') && !['modal-auth', 'splash-screen', 'modal-desk-select', 'modal-nicknames', 'modal-app-alert', 'modal-close-desk', 'modal-edit-tx', 'modal-sim-onboarding', 'modal-select-recycle-sim'].includes(event.target.id)) {
         closeModal(event.target.id);
     }
 });
