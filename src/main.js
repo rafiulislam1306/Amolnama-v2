@@ -15,6 +15,7 @@ import { renderAppUI, filterStoreCatalog, clearStoreSearch } from './features/ca
 import { initUserData } from './core/app-init.js';
 import { renderPersonalReport, renderDeskDashboard, fetchTransactionsForDate, getTxListenerUnsubscribe, setTxListenerUnsubscribe, downloadReportAsPDF } from './features/reports.js';
 import { openRecycleTracker, filterRecycleList, filterRecycleByStatus, openAddRecycleModal, submitRecycleApplication, openUpdateRecycleStatusModal, onRecycleStatusChangeSelect, saveRecycleStatusUpdate, deleteRecycleSimEntry, triggerStoreRecycleSale, populateStoreRecycleSaleOptions, onSelectRecycleSaleNumberChange, confirmRecycleSimSale } from './features/recycle.js';
+import { openCallRates, closeCallRates, filterRatesList } from './features/rates.js';
 
 // ==========================================
 //    TEMPORARY REFACTORING BRIDGE
@@ -62,7 +63,8 @@ window.Amolnama = {
     emptyTrash, showAuditTrail, healTodaysOpeningStock,
     runLedgerDiagnostic, downloadReportAsPDF, initCustomDropdowns, healDeskTransfers, executeAdminDrawerTransfer, deleteAgentDateData, healDuplicateSessions,
     openRecycleTracker, filterRecycleList, filterRecycleByStatus, openAddRecycleModal, submitRecycleApplication, openUpdateRecycleStatusModal, onRecycleStatusChangeSelect, saveRecycleStatusUpdate, deleteRecycleSimEntry, triggerStoreRecycleSale, populateStoreRecycleSaleOptions, onSelectRecycleSaleNumberChange, confirmRecycleSimSale,
-    promptSimOnboarding, confirmSimOnboarding, cancelSimOnboarding, toggleOnboardingRow, syncOnboardingCheck
+    promptSimOnboarding, confirmSimOnboarding, cancelSimOnboarding, toggleOnboardingRow, syncOnboardingCheck,
+    openCallRates, closeCallRates, filterRatesList
 };
 
 // Dynamically bind all Amolnama functions to the global window object.
