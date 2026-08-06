@@ -1368,3 +1368,170 @@ div:has(> .desk-filter-pill)::-webkit-scrollbar { display: none; }
     color: var(--text-secondary);
     opacity: 0.6;
 }
+
+/* ==========================================
+   CALL RATES DIRECTORY STYLES
+   ========================================== */
+.rates-card {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.rates-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1.5px solid var(--border-color);
+    padding-bottom: 12px;
+}
+
+.rates-card-title {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rates-badge-count {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 12px;
+    background: rgba(51, 144, 236, 0.08);
+    color: var(--accent-color);
+    border: 1px solid rgba(51, 144, 236, 0.15);
+}
+
+.rates-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.rate-row-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px dashed var(--border-color);
+}
+
+.rate-row-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.rate-type-badge {
+    font-size: 0.72rem;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 8px;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Call type badge colors */
+.rate-badge-anynet {
+    background: rgba(14, 165, 233, 0.08);
+    color: #0284c7;
+    border: 1px solid rgba(14, 165, 233, 0.15);
+}
+
+.rate-badge-fnf {
+    background: rgba(124, 58, 237, 0.08);
+    color: #7c3aed;
+    border: 1px solid rgba(124, 58, 237, 0.15);
+}
+
+.rate-badge-sms {
+    background: rgba(245, 158, 11, 0.08);
+    color: #d97706;
+    border: 1px solid rgba(245, 158, 11, 0.15);
+}
+
+.rate-badge-other {
+    background: rgba(100, 116, 139, 0.08);
+    color: #475569;
+    border: 1px solid rgba(100, 116, 139, 0.15);
+}
+
+.rate-info-pill {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.rate-info-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.rate-info-subtext {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.rate-price-pill {
+    text-align: right;
+}
+
+.rate-price-main {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--accent-color);
+}
+
+.rate-price-base {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    margin-top: 1px;
+}
+
+.rate-note-banner {
+    background: var(--surface-strong);
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    border-left: 4px solid #f59e0b;
+}
+
+/* Editor dynamic row spacing */
+.editor-rate-row {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 16px;
+    position: relative;
+    box-shadow: var(--shadow-soft);
+}
+
+.editor-rate-row-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    border-bottom: 1.5px solid var(--border-color);
+    padding-bottom: 8px;
+}
+
