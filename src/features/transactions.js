@@ -61,7 +61,7 @@ function isSimOrMnpSale(nameStr) {
     if (!nameStr) return false;
     const clean = nameStr.trim().toLowerCase();
     
-    if (clean.includes('replacement') || clean.includes('foc')) return false;
+    if (clean.includes('replacement') || clean.includes('foc') || clean.includes('reissue')) return false;
     
     const keywords = ['prime', 'djuice', 'no. 1', 'no.1', 'skitto', 'mnp', 'esim', 'my sim', 'recycle sim'];
     return keywords.some(kw => clean.includes(kw));
