@@ -806,8 +806,8 @@ export function renderRatesList() {
     
     activeRatesList.forEach(item => {
         const matchesSearch = !query || 
-            item.packageName.toLowerCase().includes(query) ||
-            item.callType.toLowerCase().includes(query) ||
+            (item.packageName && item.packageName.toLowerCase().includes(query)) ||
+            (item.callType && item.callType.toLowerCase().includes(query)) ||
             (item.note && item.note.toLowerCase().includes(query)) ||
             (item.pulseSeconds && String(item.pulseSeconds).toLowerCase().includes(query));
             
