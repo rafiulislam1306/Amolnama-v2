@@ -4,7 +4,7 @@ import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
 import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/ui-helpers.js';
 import { addTransactionToCloud } from './transactions.js';
-import { getStrictDate, generateReceiptNo } from '../utils/helpers.js';
+import { getStrictDate, generateReceiptNo, formatToGBDate } from '../utils/helpers.js';
 
 let recycleSimsList = [];
 let activeFilterStatus = 'all';
@@ -479,7 +479,7 @@ export async function confirmRecycleSimSale() {
     
     // Prevent sales while viewing historical dates
     const datePicker = document.getElementById('report-date-picker');
-    if (datePicker && datePicker.value && datePicker.value !== getStrictDate()) {
+    if (datePicker && datePicker.value && formatToGBDate(datePicker.value) !== getStrictDate()) {
         showAppAlert("Action Blocked", "You cannot process new transactions while viewing a past date. Please return to 'Today'.");
         return;
     }
