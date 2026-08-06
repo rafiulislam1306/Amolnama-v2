@@ -179,42 +179,50 @@ export function renderRecycleList() {
             dateMsg = `<span style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">Registered on ${formatTimestamp(sim.appliedAt)}</span>`;
         }
 
-        let detailNotes = sim.notes ? `<div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; font-style: italic;">💬 ${sim.notes}</div>` : '';
+        let detailNotes = sim.notes ? `<div class="rate-note-banner" style="margin-top: 4px; border-left-color: ${dotColor};">💬 ${sim.notes}</div>` : '';
         
         let callButton = '';
         if (sim.alternativeNumber) {
             callButton = `
-                <a href="tel:${sim.alternativeNumber}" onclick="event.stopPropagation();" style="width: 40px; height: 40px; border-radius: 50%; background: var(--success-bg); color: var(--success-text); display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid var(--success-border); box-shadow: 0 2px 6px var(--success-border);" title="Call Customer">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                <a href="tel:${sim.alternativeNumber}" onclick="event.stopPropagation();" class="recycle-call-action-btn" title="Call Customer">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                 </a>
             `;
         }
 
         html += `
-            <div class="history-item" style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-strong); border: 1px solid var(--border-color); border-radius: 18px; box-shadow: var(--shadow-soft); margin-bottom: 12px; cursor: pointer; transition: transform 0.2s ease, background-color 0.2s ease;" onclick="Amolnama.openUpdateRecycleStatusModal('${sim.id}')" onpointerdown="this.style.transform='scale(0.985)'" onpointerup="this.style.transform='scale(1)'" onpointerleave="this.style.transform='scale(1)'">
-                <div style="display: flex; width: 100%; align-items: center; gap: 14px;">
-                    <!-- Left: Status indicator dot -->
-                    <div style="width: 44px; height: 44px; border-radius: 12px; background: ${dotColor}0c; color: ${dotColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${dotColor}18;">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <div class="recycle-card" onclick="Amolnama.openUpdateRecycleStatusModal('${sim.id}')">
+                <!-- Card Header -->
+                <div class="recycle-card-header">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div class="hub-menu-icon-wrapper" style="width: 32px; height: 32px; border-radius: 8px; background: ${dotColor}0c; color: ${dotColor}; display: flex; align-items: center; justify-content: center;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
+                        </div>
+                        <span class="recycle-phone-num">${sim.recycledNumber}</span>
                     </div>
+                    ${statusBadge}
+                </div>
 
-                    <!-- Middle Content -->
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 4px;">
-                            <span style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary); font-family: monospace;">${sim.recycledNumber}</span>
-                            ${statusBadge}
-                        </div>
-                        <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; display: flex; align-items: center; gap: 4px; margin-bottom: 4px;">
-                            📞 Alt: <span style="color: var(--text-primary); font-weight: 700; font-family: monospace;">${sim.alternativeNumber}</span>
-                        </div>
+                <!-- Card Grid Info -->
+                <div class="recycle-card-grid">
+                    <div class="recycle-grid-item">
+                        <span class="recycle-grid-label">Alternative Contact</span>
+                        <span class="recycle-grid-val mono">${sim.alternativeNumber || 'N/A'}</span>
+                    </div>
+                    <div class="recycle-grid-item">
+                        <span class="recycle-grid-label">Registered Agent</span>
+                        <span class="recycle-grid-val">${sim.appliedBy || 'System'}</span>
+                    </div>
+                </div>
+
+                <!-- Notes Banner (If any) -->
+                ${detailNotes}
+
+                <!-- Card Footer (Countdown & Call Action) -->
+                <div class="recycle-card-footer">
+                    <div style="display: flex; align-items: center; gap: 6px;">
                         ${dateMsg}
-                        <div style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; display: flex; align-items: center; gap: 4px; margin-top: 3px;">
-                            👤 By: <span style="color: var(--text-primary); font-weight: 700;">${sim.appliedBy || 'System'}</span>
-                        </div>
-                        ${detailNotes}
                     </div>
-
-                    <!-- Right: Call Button -->
                     ${callButton}
                 </div>
             </div>
