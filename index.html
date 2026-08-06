@@ -484,91 +484,119 @@
 
 
     <div id="modal-profile-hub" class="modal-overlay" style="z-index: 9700;">
-        <div class="bottom-sheet" style="padding: 0;">
+        <div class="bottom-sheet" style="padding: 0; background-color: var(--bg-color);">
             
-            <div style="background: var(--surface-color); padding: 24px 20px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid var(--border-color); border-radius: 20px 20px 0 0;">
-                <img id="hub-user-photo" src="" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); background: var(--bg-color);">
-                <div style="flex: 1; overflow: hidden;">
-                    <h3 id="hub-user-name" style="margin: 0 0 4px 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Name</h3>
-                    <div id="hub-user-email" style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">email</div>
-                    <span id="hub-user-role" style="font-size: 0.7rem; font-weight: 700; padding: 4px 8px; border-radius: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Role</span>
+            <!-- Optimized Premium Header -->
+            <div class="hub-profile-header">
+                <img id="hub-user-photo" src="" class="hub-user-avatar">
+                <div style="flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 2px;">
+                    <h3 id="hub-user-name" style="margin: 0; font-size: 1.3rem; font-weight: 850; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.2px;">Name</h3>
+                    <div id="hub-user-email" style="color: var(--text-secondary); font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.9;">email</div>
+                    <span id="hub-user-role" class="hub-role-badge">Role</span>
                 </div>
-                <button style="background: var(--bg-color); border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; font-weight: bold;" onclick="closeModal('modal-profile-hub')">✕</button>
+                <button class="hub-close-btn" onclick="closeModal('modal-profile-hub')">✕</button>
             </div>
 
-            <!-- Recycle SIM Tracker Link (Available to all agents) -->
-            <div style="padding: 12px 20px; border-bottom: 1px solid var(--border-color);">
-                <div class="list-menu-item" onclick="closeModal('modal-profile-hub'); openRecycleTracker();" style="border: none; padding: 12px 8px; border-radius: 12px; background: rgba(51, 144, 236, 0.08);">
-                    <div class="list-item-content">
-                        <span class="list-item-title" style="color: var(--accent-color); display: flex; align-items: center; gap: 8px; font-weight: 800;">
+            <!-- Agent Operations Section -->
+            <div class="hub-menu-section" style="border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">
+                <!-- Recycle SIM Tracker -->
+                <div class="hub-menu-row" onclick="closeModal('modal-profile-hub'); openRecycleTracker();">
+                    <div style="display: flex; align-items: center; flex: 1;">
+                        <div class="hub-menu-icon-wrapper" style="background: rgba(16, 185, 129, 0.08); color: #10b981;">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-                            Recycle SIM Tracker
-                        </span>
-                        <span style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600;">Monitor, call customers, and track applications</span>
+                        </div>
+                        <div class="hub-menu-info">
+                            <span class="hub-menu-title" style="color: #10b981;">Recycle SIM Tracker</span>
+                            <span class="hub-menu-desc">Monitor, call customers, and track applications</span>
+                        </div>
                     </div>
-                    <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.4;"><path d="m9 18 6-6-6-6"/></svg>
                 </div>
-            </div>
 
-            <!-- Call & SMS Rates Directory Link (Available to all agents) -->
-            <div style="padding: 12px 20px; border-bottom: 1px solid var(--border-color);">
-                <div class="list-menu-item" onclick="closeModal('modal-profile-hub'); openCallRates();" style="border: none; padding: 12px 8px; border-radius: 12px; background: rgba(14, 165, 233, 0.08);">
-                    <div class="list-item-content">
-                        <span class="list-item-title" style="color: #0284c7; display: flex; align-items: center; gap: 8px; font-weight: 800;">
+                <!-- Call & SMS Rates -->
+                <div class="hub-menu-row" onclick="closeModal('modal-profile-hub'); openCallRates();">
+                    <div style="display: flex; align-items: center; flex: 1;">
+                        <div class="hub-menu-icon-wrapper" style="background: rgba(14, 165, 233, 0.08); color: #0284c7;">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                            Call & SMS Rates
-                        </span>
-                        <span style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600;">Check call rates, FnF, pulses, and notes for different packages</span>
+                        </div>
+                        <div class="hub-menu-info">
+                            <span class="hub-menu-title" style="color: #0284c7;">Call & SMS Rates</span>
+                            <span class="hub-menu-desc">Check call rates, FnF, pulses, and package notes</span>
+                        </div>
                     </div>
-                    <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.4;"><path d="m9 18 6-6-6-6"/></svg>
                 </div>
             </div>
 
-        <div id="hub-admin-section" style="display: none; padding: 12px 20px;">
-    <div style="font-size: 0.75rem; font-weight: 800; color: #b91c1c; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; padding-left: 4px;">Admin Controls</div>
-    <div class="list-menu-item" onclick="closeModal('modal-profile-hub'); openNicknameManager();">
-     <div class="list-item-content">
-      <span class="list-item-title">User & Role Management</span>
-      <span style="font-size: 0.8rem; color: var(--text-secondary);">Manage agent nicknames, roles, and access levels</span>
-     </div>
-     <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-    </div>
+            <!-- Admin Controls Section (Visible only to authorized roles) -->
+            <div id="hub-admin-section" style="display: none; flex-direction: column;">
+                <div class="hub-menu-section" style="padding-top: 12px;">
+                    <div style="font-size: 0.72rem; font-weight: 800; color: #ef4444; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; padding-left: 4px;">System Admin</div>
+                    
+                    <!-- User & Role Management -->
+                    <div class="hub-menu-row" onclick="closeModal('modal-profile-hub'); openNicknameManager();">
+                        <div style="display: flex; align-items: center; flex: 1;">
+                            <div class="hub-menu-icon-wrapper" style="background: rgba(139, 92, 246, 0.08); color: #8b5cf6;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            </div>
+                            <div class="hub-menu-info">
+                                <span class="hub-menu-title" style="color: #8b5cf6;">User & Role Management</span>
+                                <span class="hub-menu-desc">Manage agent nicknames, roles, and access levels</span>
+                            </div>
+                        </div>
+                        <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.4;"><path d="m9 18 6-6-6-6"/></svg>
+                    </div>
 
-                
-                <div style="font-size: 0.75rem; font-weight: 800; color: #b91c1c; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; padding-left: 4px; margin-top: 12px;">System Setup</div>
-                <div class="list-menu-item" onclick="closeModal('modal-profile-hub'); openSettings();">
-                    <div class="list-item-content">
-                        <span class="list-item-title" style="color: #0ea5e9;">Master Catalog & Inventory Setup</span>
+                    <!-- Catalog & Inventory Setup -->
+                    <div class="hub-menu-row" onclick="closeModal('modal-profile-hub'); openSettings();">
+                        <div style="display: flex; align-items: center; flex: 1;">
+                            <div class="hub-menu-icon-wrapper" style="background: rgba(14, 165, 233, 0.08); color: #0ea5e9;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                            </div>
+                            <div class="hub-menu-info">
+                                <span class="hub-menu-title" style="color: #0ea5e9;">Catalog & Inventory Setup</span>
+                                <span class="hub-menu-desc">Add/edit drawer products and master ledger items</span>
+                            </div>
+                        </div>
+                        <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.4;"><path d="m9 18 6-6-6-6"/></svg>
                     </div>
-                    <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-                </div>
-                <div class="list-menu-item" onclick="closeModal('modal-profile-hub'); openAuditModal();">
-                    <div class="list-item-content">
-                        <span class="list-item-title" style="color: #f59e0b;">Historic Audit Logs</span>
+
+                    <!-- Historic Audit Logs -->
+                    <div class="hub-menu-row" onclick="closeModal('modal-profile-hub'); openAuditModal();">
+                        <div style="display: flex; align-items: center; flex: 1;">
+                            <div class="hub-menu-icon-wrapper" style="background: rgba(245, 158, 11, 0.08); color: #f59e0b;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
+                            </div>
+                            <div class="hub-menu-info">
+                                <span class="hub-menu-title" style="color: #f59e0b;">Historic Audit Logs</span>
+                                <span class="hub-menu-desc">Review historic handovers and ledger shortage logs</span>
+                            </div>
+                        </div>
+                        <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.4;"><path d="m9 18 6-6-6-6"/></svg>
                     </div>
-                    <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                 </div>
             </div>
             
-            <!-- Diagnostic Info Section -->
-            <div style="padding: 16px 20px; font-size: 0.8rem; background: var(--bg-color); border-top: 1px solid var(--border-color); color: var(--text-secondary);">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-                    <span>Active Workspace:</span>
+            <!-- Encapsulated Stats & Diagnostics Box -->
+            <div class="hub-diagnostic-box">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 500; opacity: 0.85;">Active Workspace</span>
                     <span id="hub-active-desk" style="font-weight: 700; color: var(--text-primary);">None</span>
                 </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-                    <span>Session ID:</span>
-                    <span id="hub-active-session" style="font-family: monospace; font-weight: 700; color: var(--text-primary);">None</span>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 500; opacity: 0.85;">Session ID</span>
+                    <span id="hub-active-session" style="font-family: monospace; font-weight: 700; color: var(--text-primary); font-size: 0.75rem;">None</span>
                 </div>
-                <div style="display: flex; justify-content: space-between;">
-                    <span>Database Status:</span>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 500; opacity: 0.85;">Database Connection</span>
                     <span id="hub-db-status" style="font-weight: 700; color: #10b981;">Online</span>
                 </div>
             </div>
 
-            <div style="padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border-color);">
-                <button class="btn-primary-full" style="background-color: #ef4444; color: white; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);" onclick="logout()">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+            <!-- Sign Out Button wrapper -->
+            <div style="padding: 16px 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); display: flex; flex-direction: column;">
+                <button class="btn-primary-full" style="background-color: #ef4444; color: white; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2); font-weight: 700; border-radius: 16px; height: 48px;" onclick="logout()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
                     SIGN OUT
                 </button>
             </div>
