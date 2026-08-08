@@ -1008,43 +1008,79 @@
         </div>
     </div>
 
-    <!-- RESTORED ADD RECYCLE SIM MODAL -->
+    <!-- ADD RECYCLE SIM MODAL -->
     <div id="modal-add-recycle-sim" class="modal-overlay" style="z-index: 9700;">
-        <div class="bottom-sheet" style="padding: 24px;">
-            <div class="qty-header" style="color: var(--accent-color);">Add Recycle SIM Entry</div>
-            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px; text-align: center;">Record a new customer entry for a recycle SIM.</p>
+        <div class="bottom-sheet" style="padding: 24px; max-width: 480px; margin: 0 auto; border-radius: 24px 24px 0 0; background: var(--bg-color);">
+            <div class="admin-header-bar" style="border-bottom: 1px solid var(--border-color); padding: 0 0 14px 0; margin-bottom: 16px;">
+                <h3 style="color: var(--accent-color); margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 8px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    New Recycle SIM Entry
+                </h3>
+                <button class="hub-close-btn" onclick="closeModal('modal-add-recycle-sim')">✕</button>
+            </div>
             
-            <div class="admin-form-card" style="padding: 16px; margin-bottom: 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px;">
+            <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px;">
                 <div>
                     <label class="admin-label">Recycled SIM Number *</label>
-                    <input type="text" id="add-recycle-number" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. 017XXXXXXXX" inputmode="tel">
+                    <input type="text" id="add-recycle-number" class="pos-input" style="padding: 12px; border-radius: 12px;" placeholder="e.g. 017XXXXXXXX" inputmode="tel">
                 </div>
                 <div>
                     <label class="admin-label">Alternative Contact Number *</label>
-                    <input type="text" id="add-recycle-alt" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. 01XXXXXXXXX" inputmode="tel">
+                    <input type="text" id="add-recycle-alt" class="pos-input" style="padding: 12px; border-radius: 12px;" placeholder="e.g. 01XXXXXXXXX" inputmode="tel">
                 </div>
                 <div>
-                    <label class="admin-label">Initial Notes (Optional)</label>
-                    <input type="text" id="add-recycle-notes" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. Customer wants GP premium package">
+                    <label class="admin-label">Initial Status *</label>
+                    <select id="add-recycle-status" class="settings-input" style="padding: 12px; width: 100%; border-radius: 12px; box-sizing: border-box;" onchange="Amolnama.onAddRecycleStatusChange()">
+                        <option value="applied" selected>Applied (Pending 30-35 days)</option>
+                        <option value="arrived">Arrived at Center</option>
+                        <option value="scheduled">Scheduled / Follow-up</option>
+                        <option value="completed">Completed (SIM Handed Over)</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <div id="add-recycle-date-wrapper" style="display: none;">
+                    <label class="admin-label">Scheduled Pickup Date *</label>
+                    <input type="date" id="add-recycle-date" class="settings-input" style="padding: 12px; width: 100%; border-radius: 12px; box-sizing: border-box;">
+                </div>
+                <div>
+                    <label class="admin-label">Initial Note (Optional)</label>
+                    <input type="text" id="add-recycle-notes" class="pos-input" style="padding: 12px; border-radius: 12px;" placeholder="e.g. Customer wants GP premium package">
                 </div>
             </div>
 
-            <button class="btn-primary-full" onclick="Amolnama.submitRecycleApplication()">SAVE ENTRY</button>
-            <button class="modal-close" style="color: var(--text-secondary);" onclick="closeModal('modal-add-recycle-sim')">Cancel</button>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn-primary-full" style="height: 48px; border-radius: 14px; font-weight: 700;" onclick="Amolnama.submitRecycleApplication()">SAVE ENTRY</button>
+                <button class="modal-close" style="color: var(--text-secondary); margin-top: 4px;" onclick="closeModal('modal-add-recycle-sim')">Cancel</button>
+            </div>
         </div>
     </div>
 
+    <!-- UPDATE RECYCLE SIM STATUS MODAL -->
     <div id="modal-recycle-status-update" class="modal-overlay" style="z-index: 9700;">
-        <div class="bottom-sheet" style="padding: 24px;">
-            <div class="qty-header" id="status-update-title" style="color: var(--accent-color);">Update SIM Status</div>
-            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px; text-align: center;" id="status-update-number">017XXXXXXXX</p>
+        <div class="bottom-sheet" style="padding: 24px; max-width: 480px; margin: 0 auto; border-radius: 24px 24px 0 0; background: var(--bg-color);">
+            <div class="admin-header-bar" style="border-bottom: 1px solid var(--border-color); padding: 0 0 14px 0; margin-bottom: 16px;">
+                <h3 style="color: var(--accent-color); margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 8px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    Update SIM Status
+                </h3>
+                <button class="hub-close-btn" onclick="closeModal('modal-recycle-status-update')">✕</button>
+            </div>
             
             <input type="hidden" id="status-update-id">
 
-            <div class="admin-form-card" style="padding: 16px; margin-bottom: 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px;">
+            <!-- Target Phone Banner -->
+            <div class="recycle-contact-strip" style="margin-bottom: 16px; padding: 12px 16px;">
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <span class="recycle-grid-label">Recycled Phone Number</span>
+                    <span id="status-update-number" class="recycle-phone-alt" style="font-size: 1.15rem; color: var(--accent-color);">017XXXXXXXX</span>
+                </div>
+            </div>
+
+            <!-- Form Body Card -->
+            <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px;">
                 <div>
-                    <label class="admin-label">Select Status</label>
-                    <select id="status-update-select" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" onchange="Amolnama.onRecycleStatusChangeSelect()">
+                    <label class="admin-label">Select Status *</label>
+                    <select id="status-update-select" class="settings-input" style="padding: 12px; width: 100%; border-radius: 12px; box-sizing: border-box;" onchange="Amolnama.onRecycleStatusChangeSelect()">
                         <option value="applied">Applied (Pending 30-35 days)</option>
                         <option value="arrived">Arrived at Center</option>
                         <option value="scheduled">Scheduled / Follow-up</option>
@@ -1052,31 +1088,36 @@
                         <option value="cancelled">Cancelled (Don't Want / Failed)</option>
                     </select>
                 </div>
+                
                 <div id="status-update-date-wrapper" style="display: none;">
-                    <label class="admin-label">Follow-up / Pickup Date</label>
-                    <input type="date" id="status-update-date" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;">
+                    <label class="admin-label">Follow-up / Pickup Date *</label>
+                    <input type="date" id="status-update-date" class="settings-input" style="padding: 12px; width: 100%; border-radius: 12px; box-sizing: border-box;">
                 </div>
+
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div>
                         <label class="admin-label">Last Contacted By *</label>
-                        <select id="status-update-agent" class="settings-input" style="padding: 10px; width: 100%; box-sizing: border-box; font-size: 0.85rem;">
+                        <select id="status-update-agent" class="settings-input" style="padding: 12px; width: 100%; border-radius: 12px; box-sizing: border-box; font-size: 0.85rem;">
                             <!-- Dynamically filled with active agents -->
                         </select>
                     </div>
                     <div>
                         <label class="admin-label">Contacted Time *</label>
-                        <input type="datetime-local" id="status-update-contacted-at" class="settings-input" style="padding: 10px; width: 100%; box-sizing: border-box; font-size: 0.85rem;">
+                        <input type="datetime-local" id="status-update-contacted-at" class="settings-input" style="padding: 12px; width: 100%; border-radius: 12px; box-sizing: border-box; font-size: 0.85rem;">
                     </div>
                 </div>
+
                 <div>
-                    <label class="admin-label">Add Note / Comment</label>
-                    <input type="text" id="status-update-note" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. Customer called, asked to visit center.">
+                    <label class="admin-label">Add Note / Customer Feedback</label>
+                    <input type="text" id="status-update-note" class="pos-input" style="padding: 12px; border-radius: 12px;" placeholder="e.g. Customer called, will visit center on Monday.">
                 </div>
             </div>
 
-            <button class="btn-primary-full" onclick="Amolnama.saveRecycleStatusUpdate()">SAVE CHANGES</button>
-            <button id="btn-delete-recycle-sim" class="action-btn" style="width: 100%; border-color: #fecaca; color: #ef4444; background: #fef2f2; margin-top: 12px; display: none;" onclick="Amolnama.deleteRecycleSimEntry()">DELETE ENTRY</button>
-            <button class="modal-close" style="color: var(--text-secondary);" onclick="closeModal('modal-recycle-status-update')">Cancel</button>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn-primary-full" style="height: 48px; border-radius: 14px; font-weight: 700;" onclick="Amolnama.saveRecycleStatusUpdate()">SAVE CHANGES</button>
+                <button id="btn-delete-recycle-sim" class="action-btn" style="width: 100%; border-color: #fecaca; color: #ef4444; background: #fef2f2; border-radius: 14px; padding: 12px; font-weight: 700; display: none;" onclick="Amolnama.deleteRecycleSimEntry()">DELETE ENTRY</button>
+                <button class="modal-close" style="color: var(--text-secondary); margin-top: 4px;" onclick="closeModal('modal-recycle-status-update')">Cancel</button>
+            </div>
         </div>
     </div>
 

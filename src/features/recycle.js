@@ -307,7 +307,26 @@ export function openAddRecycleModal() {
     document.getElementById('add-recycle-number').value = '';
     document.getElementById('add-recycle-alt').value = '';
     document.getElementById('add-recycle-notes').value = '';
+    const statusSelect = document.getElementById('add-recycle-status');
+    if (statusSelect) {
+        statusSelect.value = 'applied';
+    }
+    const dateInput = document.getElementById('add-recycle-date');
+    if (dateInput) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        dateInput.value = tomorrow.toISOString().split('T')[0];
+    }
+    onAddRecycleStatusChange();
     openModal('modal-add-recycle-sim');
+}
+
+export function onAddRecycleStatusChange() {
+    const statusSelect = document.getElementById('add-recycle-status');
+    const dateWrapper = document.getElementById('add-recycle-date-wrapper');
+    if (statusSelect && dateWrapper) {
+        dateWrapper.style.display = statusSelect.value === 'scheduled' ? 'block' : 'none';
+    }
 }
 
 export async function submitRecycleApplication() {
@@ -318,9 +337,16 @@ export async function submitRecycleApplication() {
     const number = numberEl.value.trim();
     const alt = altEl.value.trim();
     const notes = notesEl.value.trim();
+    const initialStatus = document.getElementById('add-recycle-status')?.value || 'applied';
+    const followUpDate = document.getElementById('add-recycle-date')?.value || null;
 
     if (!number || !alt) {
         showAppAlert("Missing Input", "Both Recycled Number and Alternative Contact Number are required.");
+        return;
+    }
+
+    if (initialStatus === 'scheduled' && !followUpDate) {
+        showAppAlert("Missing Input", "Please select a scheduled pickup date.");
         return;
     }
 
@@ -339,7 +365,8 @@ export async function submitRecycleApplication() {
         recycledNumber: number,
         alternativeNumber: alt,
         notes: notes,
-        status: 'applied',
+        status: initialStatus,
+        followUpDate: initialStatus === 'scheduled' ? followUpDate : null,
         appliedBy: AppState.userNickname || AppState.userDisplayName,
         appliedById: AppState.currentUser?.uid || '',
         appliedAt: serverTimestamp(),
@@ -347,10 +374,10 @@ export async function submitRecycleApplication() {
         updatedById: AppState.currentUser?.uid || '',
         updatedAt: serverTimestamp(),
         history: [{
-            status: 'applied',
+            status: initialStatus,
             timestamp: new Date().toISOString(),
             by: AppState.userNickname || AppState.userDisplayName,
-            note: 'Recycle SIM entry created.'
+            note: notes ? `Entry created: ${notes}` : 'Recycle SIM entry created.'
         }]
     };
 
@@ -370,10 +397,10 @@ export function openUpdateRecycleStatusModal(id) {
     if (!sim) return;
 
     document.getElementById('status-update-id').value = id;
-    document.getElementById('status-update-title').innerText = "Update Status";
-    document.getElementById('status-update-number').innerText = `Recycle SIM: ${sim.recycledNumber} (Alt: ${sim.alternativeNumber})`;
+    const phoneEl = document.getElementById('status-update-number');
+    if (phoneEl) phoneEl.innerText = `${sim.recycledNumber} (Alt: ${sim.alternativeNumber})`;
     document.getElementById('status-update-select').value = sim.status;
-    document.getElementById('status-update-note').value = '';
+    document.getElementById('status-update-note').value = sim.notes || '';
     
     // Auto-populate agent dropdown and select current agent
     populateAgentSelect(AppState.userNickname || AppState.userDisplayName);
@@ -440,6 +467,7 @@ export async function saveRecycleStatusUpdate() {
         updatedBy: agentName,
         updatedById: AppState.currentUser?.uid || '',
         updatedAt: contactDate,
+        notes: note,
         history: [...(sim.history || []), historyItem]
     };
 

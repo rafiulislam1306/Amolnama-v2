@@ -14,7 +14,7 @@ import { filterAdminCatalog, toggleAddForm, addInventoryGroup, removeInventoryGr
 import { renderAppUI, filterStoreCatalog, clearStoreSearch } from './features/catalog.js';
 import { initUserData } from './core/app-init.js';
 import { renderPersonalReport, renderDeskDashboard, fetchTransactionsForDate, getTxListenerUnsubscribe, setTxListenerUnsubscribe, downloadReportAsPDF } from './features/reports.js';
-import { openRecycleTracker, filterRecycleList, filterRecycleByStatus, openAddRecycleModal, submitRecycleApplication, openUpdateRecycleStatusModal, onRecycleStatusChangeSelect, saveRecycleStatusUpdate, deleteRecycleSimEntry, triggerStoreRecycleSale, populateStoreRecycleSaleOptions, onSelectRecycleSaleNumberChange, confirmRecycleSimSale } from './features/recycle.js';
+import { openRecycleTracker, filterRecycleList, filterRecycleByStatus, openAddRecycleModal, submitRecycleApplication, openUpdateRecycleStatusModal, onRecycleStatusChangeSelect, onAddRecycleStatusChange, saveRecycleStatusUpdate, deleteRecycleSimEntry, triggerStoreRecycleSale, populateStoreRecycleSaleOptions, onSelectRecycleSaleNumberChange, confirmRecycleSimSale } from './features/recycle.js';
 import { openCallRates, closeCallRates, filterRatesList, openManageRates, closeManageRates, openPackageForm, closePackageForm, addRateRow, savePackageData, deletePackage, autoCalcRateTax } from './features/rates.js';
 
 // ==========================================
@@ -62,7 +62,7 @@ window.Amolnama = {
     autoCalcEditTotal, deleteTransaction, openTrash, restoreTx, permanentlyDeleteTx,
     emptyTrash, showAuditTrail, healTodaysOpeningStock,
     runLedgerDiagnostic, downloadReportAsPDF, initCustomDropdowns, healDeskTransfers, executeAdminDrawerTransfer, deleteAgentDateData, healDuplicateSessions,
-    openRecycleTracker, filterRecycleList, filterRecycleByStatus, openAddRecycleModal, submitRecycleApplication, openUpdateRecycleStatusModal, onRecycleStatusChangeSelect, saveRecycleStatusUpdate, deleteRecycleSimEntry, triggerStoreRecycleSale, populateStoreRecycleSaleOptions, onSelectRecycleSaleNumberChange, confirmRecycleSimSale,
+    openRecycleTracker, filterRecycleList, filterRecycleByStatus, openAddRecycleModal, submitRecycleApplication, openUpdateRecycleStatusModal, onRecycleStatusChangeSelect, onAddRecycleStatusChange, saveRecycleStatusUpdate, deleteRecycleSimEntry, triggerStoreRecycleSale, populateStoreRecycleSaleOptions, onSelectRecycleSaleNumberChange, confirmRecycleSimSale,
     promptSimOnboarding, confirmSimOnboarding, cancelSimOnboarding, toggleOnboardingRow, syncOnboardingCheck,
     openCallRates, closeCallRates, filterRatesList, openManageRates, closeManageRates, openPackageForm, closePackageForm, addRateRow, savePackageData, deletePackage, autoCalcRateTax
 };
