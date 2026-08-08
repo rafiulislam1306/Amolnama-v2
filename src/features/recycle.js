@@ -398,7 +398,9 @@ export function openUpdateRecycleStatusModal(id) {
 
     document.getElementById('status-update-id').value = id;
     const phoneEl = document.getElementById('status-update-number');
-    if (phoneEl) phoneEl.innerText = `${sim.recycledNumber} (Alt: ${sim.alternativeNumber})`;
+    if (phoneEl) phoneEl.innerText = sim.recycledNumber;
+    const altEl = document.getElementById('status-update-alt-number');
+    if (altEl) altEl.innerText = sim.alternativeNumber || 'None';
     document.getElementById('status-update-select').value = sim.status;
     document.getElementById('status-update-note').value = sim.notes || '';
     
