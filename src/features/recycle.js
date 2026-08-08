@@ -260,18 +260,26 @@ export function renderRecycleList() {
                     ${callButton}
                 </div>
 
-                <!-- Audit & Timeline Grid (Registered vs Last Contacted) -->
+                <!-- Audit & Timeline Grid (Registered vs Last Contacted / Sold By) -->
                 <div class="recycle-card-grid">
                     <div class="recycle-grid-item">
                         <span class="recycle-grid-label">Registered By</span>
                         <span class="recycle-grid-val">${sim.appliedBy || 'System'}</span>
                         <span class="recycle-grid-subval">${formatTimestamp(sim.appliedAt) || 'Initial record'}</span>
                     </div>
+                    ${sim.status === 'completed' ? `
+                    <div class="recycle-grid-item">
+                        <span class="recycle-grid-label">Sold By</span>
+                        <span class="recycle-grid-val">${sim.soldBy || sim.completedBy || sim.updatedBy || 'Agent'}</span>
+                        <span class="recycle-grid-subval">${sim.completedAt ? formatTimestamp(sim.completedAt) : (formatTimestamp(sim.updatedAt) || 'Completed')}</span>
+                    </div>
+                    ` : `
                     <div class="recycle-grid-item">
                         <span class="recycle-grid-label">Last Contacted</span>
                         <span class="recycle-grid-val">${sim.updatedBy || 'Not updated yet'}</span>
                         <span class="recycle-grid-subval">${sim.updatedAt ? formatTimestamp(sim.updatedAt) : 'Pending first follow-up'}</span>
                     </div>
+                    `}
                 </div>
 
                 <!-- Notes Banner (If any) -->
@@ -486,6 +494,9 @@ export async function saveRecycleStatusUpdate() {
 
     if (newStatus === 'completed') {
         updateData.completedAt = serverTimestamp();
+        updateData.completedBy = agentName;
+        updateData.soldBy = agentName;
+        updateData.previousStatus = sim.status || 'arrived';
         
         // INTERACTIVE BRIDGE: Ask if they want to log the sale transaction now
         closeModal('modal-recycle-status-update');
@@ -633,8 +644,8 @@ export async function confirmRecycleSimSale() {
                 return;
             }
 
-            // 1. Log transaction in cloud with onboarding
-            addTransactionToCloudWithRecycleDetails('Item', catalogItem.name, price, 1, payment, note, { firstCall, appReg });
+            // 1. Log transaction in cloud with onboarding and recycle metadata
+            addTransactionToCloudWithRecycleDetails('Item', catalogItem.name, price, 1, payment, note, { firstCall, appReg }, simId, finalRecycleNumber);
 
             // 2. Update status of the tracking SIM to Completed
             if (simId) {
@@ -651,11 +662,14 @@ export async function confirmRecycleSimSale() {
 
                 const updateData = {
                     status: 'completed',
+                    previousStatus: sim ? (sim.status || 'arrived') : 'arrived',
                     completedAt: serverTimestamp(),
+                    completedBy: agentName,
+                    soldBy: agentName,
                     updatedBy: agentName,
                     updatedById: AppState.currentUser?.uid || '',
                     updatedAt: serverTimestamp(),
-                    history: [...(sim.history || []), historyItem]
+                    history: [...((sim && sim.history) || []), historyItem]
                 };
 
                 try {
@@ -670,7 +684,7 @@ export async function confirmRecycleSimSale() {
         });
     } else {
         // Fallback
-        addTransactionToCloudWithRecycleDetails('Item', catalogItem.name, price, 1, payment, note, { firstCall: false, appReg: false });
+        addTransactionToCloudWithRecycleDetails('Item', catalogItem.name, price, 1, payment, note, { firstCall: false, appReg: false }, simId, finalRecycleNumber);
         if (simId) {
             const sim = recycleSimsList.find(s => s.id === simId);
             const timestamp = new Date().toISOString();
@@ -685,11 +699,14 @@ export async function confirmRecycleSimSale() {
 
             const updateData = {
                 status: 'completed',
+                previousStatus: sim ? (sim.status || 'arrived') : 'arrived',
                 completedAt: serverTimestamp(),
+                completedBy: agentName,
+                soldBy: agentName,
                 updatedBy: agentName,
                 updatedById: AppState.currentUser?.uid || '',
                 updatedAt: serverTimestamp(),
-                history: [...(sim.history || []), historyItem]
+                history: [...((sim && sim.history) || []), historyItem]
             };
 
             try {
@@ -704,7 +721,7 @@ export async function confirmRecycleSimSale() {
 }
 
 // Special wrapper to ensure note field is populated with the recycle number
-function addTransactionToCloudWithRecycleDetails(type, name, amount, qty, payment, notesStr, onboarding = null) {
+function addTransactionToCloudWithRecycleDetails(type, name, amount, qty, payment, notesStr, onboarding = null, recycleSimId = null, recycledNumber = '') {
     if(!AppState.currentUser) return;
     if (!AppState.currentSessionId) return;
 
@@ -735,6 +752,9 @@ function addTransactionToCloudWithRecycleDetails(type, name, amount, qty, paymen
         agentId: AppState.currentUser.uid, 
         agentName: AppState.userNickname || AppState.userDisplayName,
         notes: notesStr, // Save the recycle number inside the transaction notes!
+        recycleSimId: recycleSimId,
+        recycledNumber: recycledNumber,
+        isRecycleSale: true,
         timestamp: serverTimestamp()
     };
 

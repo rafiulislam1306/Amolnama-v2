@@ -1,5 +1,5 @@
 // src/features/transactions.js
-import { collection, doc, addDoc, updateDoc, deleteDoc, serverTimestamp, getDocs, query, where, writeBatch } from "firebase/firestore";
+import { collection, doc, addDoc, updateDoc, deleteDoc, serverTimestamp, getDoc, getDocs, query, where, writeBatch } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { generateReceiptNo, getStrictDate, formatToGBDate } from '../utils/helpers.js';
 import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/ui-helpers.js';
@@ -625,6 +625,51 @@ export function deleteTransaction(docId, localId) {
                 } else {
                     await updateDoc(doc(db, 'transactions', docId), { isDeleted: true, deletedBy: agentStr, deletedByUid: AppState.currentUser.uid, deletedAt: nowStr });
                 }
+
+                // If this was a Recycle SIM sale transaction, revert the SIM status in Firestore back to its previous status (e.g. arrived)
+                if (tx && (tx.recycleSimId || tx.isRecycleSale || tx.name === 'Recycle SIM' || tx.notes?.includes('Recycle SIM:'))) {
+                    try {
+                        let targetSimId = tx.recycleSimId;
+                        if (!targetSimId && tx.notes) {
+                            const match = tx.notes.match(/Recycle SIM:\s*(01[3-9]\d{8})/);
+                            if (match && match[1]) {
+                                const q = query(collection(db, 'recycle_sims'), where('recycledNumber', '==', match[1]));
+                                const qSnap = await getDocs(q);
+                                if (!qSnap.empty) {
+                                    targetSimId = qSnap.docs[0].id;
+                                }
+                            }
+                        }
+
+                        if (targetSimId) {
+                            const simRef = doc(db, 'recycle_sims', targetSimId);
+                            const simSnap = await getDoc(simRef);
+                            if (simSnap.exists()) {
+                                const simData = simSnap.data();
+                                if (simData.status === 'completed') {
+                                    const revertStatus = simData.previousStatus || 'arrived';
+                                    await updateDoc(simRef, {
+                                        status: revertStatus,
+                                        completedAt: null,
+                                        completedBy: null,
+                                        soldBy: null,
+                                        updatedBy: agentStr,
+                                        updatedAt: serverTimestamp(),
+                                        history: [...(simData.history || []), {
+                                            status: revertStatus,
+                                            timestamp: new Date().toISOString(),
+                                            by: agentStr,
+                                            note: `Sale transaction deleted from ledger; status restored to ${revertStatus}.`
+                                        }]
+                                    });
+                                }
+                            }
+                        }
+                    } catch (revertErr) {
+                        console.warn("Could not revert recycle SIM status on tx deletion:", revertErr);
+                    }
+                }
+
                 showFlashMessage(navigator.onLine ? "Moved to Trash!" : "Offline: Trash queued");
             } catch(e) {
                 if (tx) tx.isDeleted = false; // Rollback on failure
