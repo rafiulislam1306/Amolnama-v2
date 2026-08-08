@@ -11,11 +11,13 @@ let activeFilterStatus = 'all';
 let isListenerActive = false;
 let unsubscribeRecycle = null;
 
-// Helper to format timestamps to readable DD/MM/YYYY HH:MM
+// Helper to format timestamps to readable DD Mon YYYY, hh:mm AM/PM
 function formatTimestamp(ts) {
     if (!ts) return '';
     const date = ts.toDate ? ts.toDate() : new Date(ts);
-    return date.toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    if (isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' + 
+           date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
 // Helper to format date to DD/MM/YYYY
@@ -195,35 +197,45 @@ export function renderRecycleList() {
                 <!-- Card Header -->
                 <div class="recycle-card-header">
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <div class="hub-menu-icon-wrapper" style="width: 32px; height: 32px; border-radius: 8px; background: ${dotColor}0c; color: ${dotColor}; display: flex; align-items: center; justify-content: center;">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
+                        <div class="hub-menu-icon-wrapper" style="width: 34px; height: 34px; border-radius: 10px; background: ${dotColor}0c; color: ${dotColor}; display: flex; align-items: center; justify-content: center;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
                         </div>
                         <span class="recycle-phone-num">${sim.recycledNumber}</span>
                     </div>
                     ${statusBadge}
                 </div>
 
-                <!-- Card Grid Info -->
+                <!-- Contact & Direct Call Strip -->
+                <div class="recycle-contact-strip">
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <span class="recycle-grid-label">Alternative Contact</span>
+                        <span class="recycle-phone-alt">${sim.alternativeNumber || 'None provided'}</span>
+                    </div>
+                    ${callButton}
+                </div>
+
+                <!-- Audit & Timeline Grid (Registered vs Last Contacted) -->
                 <div class="recycle-card-grid">
                     <div class="recycle-grid-item">
-                        <span class="recycle-grid-label">Alternative Contact</span>
-                        <span class="recycle-grid-val mono">${sim.alternativeNumber || 'N/A'}</span>
+                        <span class="recycle-grid-label">Registered By</span>
+                        <span class="recycle-grid-val">${sim.appliedBy || 'System'}</span>
+                        <span class="recycle-grid-subval">${formatTimestamp(sim.appliedAt) || 'Initial record'}</span>
                     </div>
                     <div class="recycle-grid-item">
-                        <span class="recycle-grid-label">Registered Agent</span>
-                        <span class="recycle-grid-val">${sim.appliedBy || 'System'}</span>
+                        <span class="recycle-grid-label">Last Contacted</span>
+                        <span class="recycle-grid-val">${sim.updatedBy || 'Not updated yet'}</span>
+                        <span class="recycle-grid-subval">${sim.updatedAt ? formatTimestamp(sim.updatedAt) : 'Pending first follow-up'}</span>
                     </div>
                 </div>
 
                 <!-- Notes Banner (If any) -->
                 ${detailNotes}
 
-                <!-- Card Footer (Countdown & Call Action) -->
+                <!-- Card Footer (Countdown & Tracking Status) -->
                 <div class="recycle-card-footer">
-                    <div style="display: flex; align-items: center; gap: 6px;">
+                    <div style="display: flex; align-items: center; gap: 6px; width: 100%;">
                         ${dateMsg}
                     </div>
-                    ${callButton}
                 </div>
             </div>
         `;

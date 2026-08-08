@@ -1742,6 +1742,31 @@ div:has(> .desk-filter-pill)::-webkit-scrollbar { display: none; }
     font-weight: 700;
 }
 
+.recycle-grid-subval {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-top: 1px;
+}
+
+.recycle-contact-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface-strong);
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+
+.recycle-phone-alt {
+    font-size: 0.95rem;
+    font-weight: 800;
+    font-family: monospace;
+    color: var(--text-primary);
+    letter-spacing: -0.2px;
+}
+
 .recycle-card-footer {
     display: flex;
     align-items: center;
