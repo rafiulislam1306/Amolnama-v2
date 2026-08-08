@@ -1056,9 +1056,21 @@
                     <label class="admin-label">Follow-up / Pickup Date</label>
                     <input type="date" id="status-update-date" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;">
                 </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label class="admin-label">Last Contacted By *</label>
+                        <select id="status-update-agent" class="settings-input" style="padding: 10px; width: 100%; box-sizing: border-box; font-size: 0.85rem;">
+                            <!-- Dynamically filled with active agents -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="admin-label">Contacted Time *</label>
+                        <input type="datetime-local" id="status-update-contacted-at" class="settings-input" style="padding: 10px; width: 100%; box-sizing: border-box; font-size: 0.85rem;">
+                    </div>
+                </div>
                 <div>
                     <label class="admin-label">Add Note / Comment</label>
-                    <input type="text" id="status-update-note" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. SIM arrived, customer called.">
+                    <input type="text" id="status-update-note" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. Customer called, asked to visit center.">
                 </div>
             </div>
 

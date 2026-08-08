@@ -1,5 +1,5 @@
 // src/features/recycle.js
-import { collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, serverTimestamp } from "firebase/firestore";
+import { collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, serverTimestamp, getDocs } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
 import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/ui-helpers.js';
@@ -10,6 +10,52 @@ let recycleSimsList = [];
 let activeFilterStatus = 'all';
 let isListenerActive = false;
 let unsubscribeRecycle = null;
+let cachedAgentsList = [];
+
+function getLocalDateTimeString(d = new Date()) {
+    const pad = n => String(n).padStart(2, '0');
+    const year = d.getFullYear();
+    const month = pad(d.getMonth() + 1);
+    const day = pad(d.getDate());
+    const hours = pad(d.getHours());
+    const minutes = pad(d.getMinutes());
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+async function populateAgentSelect(preselectedName) {
+    const agentSelect = document.getElementById('status-update-agent');
+    if (!agentSelect) return;
+
+    if (cachedAgentsList.length === 0) {
+        try {
+            const usersSnap = await getDocs(collection(db, 'users'));
+            cachedAgentsList = [];
+            usersSnap.forEach(docSnap => {
+                const u = docSnap.data();
+                const name = u.nickname || u.displayName || u.email || 'Agent';
+                if (!cachedAgentsList.includes(name)) {
+                    cachedAgentsList.push(name);
+                }
+            });
+            cachedAgentsList.sort();
+        } catch (e) {
+            console.warn("Error fetching user list for agent dropdown:", e);
+        }
+    }
+
+    const currentAgent = preselectedName || AppState.userNickname || AppState.userDisplayName || 'Agent';
+    
+    if (currentAgent && !cachedAgentsList.includes(currentAgent)) {
+        cachedAgentsList.unshift(currentAgent);
+    }
+
+    let optionsHTML = '';
+    cachedAgentsList.forEach(agent => {
+        optionsHTML += `<option value="${agent}" ${agent === currentAgent ? 'selected' : ''}>${agent}</option>`;
+    });
+
+    agentSelect.innerHTML = optionsHTML;
+}
 
 // Helper to format timestamps to readable DD Mon YYYY, hh:mm AM/PM
 function formatTimestamp(ts) {
@@ -178,7 +224,7 @@ export function renderRecycleList() {
         } else if (sim.status === 'completed' && sim.completedAt) {
             dateMsg = `<span style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">Sold on ${formatTimestamp(sim.completedAt)}</span>`;
         } else {
-            dateMsg = `<span style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">Registered on ${formatTimestamp(sim.appliedAt)}</span>`;
+            dateMsg = '';
         }
 
         let detailNotes = sim.notes ? `<div class="rate-note-banner" style="margin-top: 4px; border-left-color: ${dotColor};">💬 ${sim.notes}</div>` : '';
@@ -231,12 +277,13 @@ export function renderRecycleList() {
                 <!-- Notes Banner (If any) -->
                 ${detailNotes}
 
-                <!-- Card Footer (Countdown & Tracking Status) -->
+                <!-- Card Footer (Countdown & Tracking Status - only rendered when date alert exists) -->
+                ${dateMsg ? `
                 <div class="recycle-card-footer">
                     <div style="display: flex; align-items: center; gap: 6px; width: 100%;">
                         ${dateMsg}
                     </div>
-                </div>
+                </div>` : ''}
             </div>
         `;
     });
@@ -328,6 +375,15 @@ export function openUpdateRecycleStatusModal(id) {
     document.getElementById('status-update-select').value = sim.status;
     document.getElementById('status-update-note').value = '';
     
+    // Auto-populate agent dropdown and select current agent
+    populateAgentSelect(AppState.userNickname || AppState.userDisplayName);
+
+    // Auto-set current local datetime for Contacted Time
+    const timeInput = document.getElementById('status-update-contacted-at');
+    if (timeInput) {
+        timeInput.value = getLocalDateTimeString();
+    }
+    
     const dateInput = document.getElementById('status-update-date');
     if (sim.followUpDate) {
         dateInput.value = sim.followUpDate;
@@ -361,16 +417,20 @@ export async function saveRecycleStatusUpdate() {
     const newStatus = document.getElementById('status-update-select').value;
     const followUpDate = document.getElementById('status-update-date').value;
     const note = document.getElementById('status-update-note').value.trim();
+    
+    const agentSelect = document.getElementById('status-update-agent');
+    const agentName = agentSelect ? agentSelect.value : (AppState.userNickname || AppState.userDisplayName || 'Agent');
+
+    const timeInput = document.getElementById('status-update-contacted-at');
+    const customTimeStr = timeInput ? timeInput.value : '';
+    const contactDate = customTimeStr ? new Date(customTimeStr) : new Date();
 
     const sim = recycleSimsList.find(s => s.id === id);
     if (!sim) return;
 
-    const timestamp = new Date().toISOString();
-    const agentName = AppState.userNickname || AppState.userDisplayName;
-
     const historyItem = {
         status: newStatus,
-        timestamp: timestamp,
+        timestamp: contactDate.toISOString(),
         by: agentName,
         note: note || `Status changed from ${sim.status} to ${newStatus}.`
     };
@@ -379,7 +439,7 @@ export async function saveRecycleStatusUpdate() {
         status: newStatus,
         updatedBy: agentName,
         updatedById: AppState.currentUser?.uid || '',
-        updatedAt: serverTimestamp(),
+        updatedAt: contactDate,
         history: [...(sim.history || []), historyItem]
     };
 
