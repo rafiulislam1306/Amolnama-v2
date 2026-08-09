@@ -1,24 +1,24 @@
 // src/features/auth.js
-import { auth } from '../config/firebase.js';
-import { setPersistence, browserLocalPersistence, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, RecaptchaVerifier, signInWithPhoneNumber, linkWithPhoneNumber } from "firebase/auth";
+import { auth, db } from '../config/firebase.js';
+import { setPersistence, browserLocalPersistence, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword, updatePassword } from "firebase/auth";
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/ui-helpers.js';
 import { AppState, resetAppState } from '../core/state.js';
 
-let phoneConfirmationResult = null;
-let phoneRecaptchaVerifier = null;
-let linkConfirmationResult = null;
-let linkRecaptchaVerifier = null;
-
-function formatToE164(phone) {
-    let clean = phone.replace(/[\s\-\(\)]/g, '');
-    if (clean.startsWith('01')) {
-        clean = '+880' + clean.substring(1);
-    } else if (clean.startsWith('8801')) {
-        clean = '+' + clean;
-    } else if (!clean.startsWith('+')) {
-        clean = '+88' + clean;
+function getCleanPhoneNumber(phone) {
+    let clean = phone.replace(/[\s\-\(\)\+]/g, '');
+    if (clean.startsWith('880')) {
+        clean = clean.substring(2);
+    }
+    if (!clean.startsWith('0')) {
+        clean = '0' + clean;
     }
     return clean;
+}
+
+function getPhoneVirtualEmail(phone) {
+    const clean = getCleanPhoneNumber(phone);
+    return `phone_${clean}@amolnama.internal`;
 }
 
 export function initAuth(onLoginSuccess, onLogout) {
@@ -52,7 +52,7 @@ export function signInWithGoogle() {
 }
 
 // ==========================================
-//   PHONE SIGN-IN HANDLERS
+//   PHONE + PIN SIGN-IN HANDLERS
 // ==========================================
 
 export function showPhoneLoginView() {
@@ -69,209 +69,158 @@ export function hidePhoneLoginView() {
 }
 
 export function resetPhoneLoginView() {
-    if (phoneRecaptchaVerifier) {
-        try { phoneRecaptchaVerifier.clear(); } catch(e){}
-        phoneRecaptchaVerifier = null;
-    }
-    const container = document.getElementById('recaptcha-container');
-    if (container) container.innerHTML = '';
-
-    document.getElementById('phone-step-number').style.display = 'flex';
-    document.getElementById('phone-step-otp').style.display = 'none';
-    document.getElementById('auth-otp-input').value = '';
+    const phoneInput = document.getElementById('auth-phone-input');
+    const pinInput = document.getElementById('auth-pin-input');
+    if (phoneInput) phoneInput.value = '';
+    if (pinInput) pinInput.value = '';
     const errorEl = document.getElementById('auth-error');
     if (errorEl) errorEl.innerText = '';
 }
 
-export async function sendPhoneLoginOtp() {
+export async function signInWithPhoneAndPin() {
     const rawPhone = document.getElementById('auth-phone-input').value.trim();
+    const pin = document.getElementById('auth-pin-input').value.trim();
+    const errorEl = document.getElementById('auth-error');
+    if (errorEl) errorEl.innerText = '';
+
     if (!rawPhone) {
         showAppAlert("Missing Input", "Please enter your mobile phone number.");
         return;
     }
-    const formattedPhone = formatToE164(rawPhone);
-    const errorEl = document.getElementById('auth-error');
-    if (errorEl) errorEl.innerText = '';
-
-    const sendBtn = document.getElementById('btn-send-phone-otp');
-    sendBtn.disabled = true;
-    sendBtn.innerText = "SENDING OTP...";
-
-    try {
-        if (phoneRecaptchaVerifier) {
-            try { phoneRecaptchaVerifier.clear(); } catch(e){}
-            phoneRecaptchaVerifier = null;
-        }
-        const container = document.getElementById('recaptcha-container');
-        if (container) container.innerHTML = '';
-
-        phoneRecaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-            size: 'invisible'
-        });
-
-        phoneConfirmationResult = await signInWithPhoneNumber(auth, formattedPhone, phoneRecaptchaVerifier);
-        document.getElementById('phone-step-number').style.display = 'none';
-        document.getElementById('phone-step-otp').style.display = 'flex';
-        document.getElementById('phone-otp-sent-to').innerText = `6-digit code sent to ${formattedPhone}`;
-        showFlashMessage("Verification code sent via SMS!");
-    } catch (err) {
-        console.error("Phone sign in error:", err);
-        if (errorEl) errorEl.innerText = err.message || "Failed to send SMS code.";
-        showAppAlert("SMS Failed", err.message || "Could not send verification code. Please check number or connection.");
-        if (phoneRecaptchaVerifier) {
-            try { phoneRecaptchaVerifier.clear(); } catch(e){}
-            phoneRecaptchaVerifier = null;
-        }
-        const container = document.getElementById('recaptcha-container');
-        if (container) container.innerHTML = '';
-    } finally {
-        sendBtn.disabled = false;
-        sendBtn.innerText = "SEND VERIFICATION CODE";
-    }
-}
-
-export async function verifyPhoneLoginOtp() {
-    const otpCode = document.getElementById('auth-otp-input').value.trim();
-    if (!otpCode || otpCode.length < 6) {
-        showAppAlert("Invalid Code", "Please enter the complete 6-digit verification code.");
-        return;
-    }
-    if (!phoneConfirmationResult) {
-        showAppAlert("Session Expired", "Please request a new verification code.");
-        resetPhoneLoginView();
+    if (!pin || pin.length < 4) {
+        showAppAlert("Missing Input", "Please enter your 4 to 6-digit PIN.");
         return;
     }
 
-    const verifyBtn = document.getElementById('btn-verify-phone-otp');
-    verifyBtn.disabled = true;
-    verifyBtn.innerText = "VERIFYING...";
-    const errorEl = document.getElementById('auth-error');
-    if (errorEl) errorEl.innerText = '';
+    const virtualEmail = getPhoneVirtualEmail(rawPhone);
+    const signinBtn = document.getElementById('btn-phone-signin');
+    signinBtn.disabled = true;
+    signinBtn.innerText = "SIGNING IN...";
 
     try {
-        await phoneConfirmationResult.confirm(otpCode);
+        await signInWithEmailAndPassword(auth, virtualEmail, pin);
         showFlashMessage("Signed in successfully!");
     } catch (err) {
-        console.error("OTP verification error:", err);
-        if (errorEl) errorEl.innerText = err.message || "Invalid verification code.";
-        showAppAlert("Verification Failed", "The verification code entered is invalid or has expired.");
+        console.error("Phone PIN sign in error:", err);
+        let msg = "Invalid phone number or PIN.";
+        if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+            msg = "No account found with this phone number & PIN. Please sign in with Google first and link your phone in Profile Hub.";
+        } else if (err.code === 'auth/wrong-password') {
+            msg = "Incorrect PIN. Please check your PIN and try again.";
+        } else if (err.code === 'auth/operation-not-allowed') {
+            msg = "Email/Password sign-in provider is not enabled in Firebase Console. Please enable it under Authentication > Sign-in method.";
+        }
+        if (errorEl) errorEl.innerText = msg;
+        showAppAlert("Sign-In Failed", msg);
     } finally {
-        verifyBtn.disabled = false;
-        verifyBtn.innerText = "VERIFY & SIGN IN";
+        signinBtn.disabled = false;
+        signinBtn.innerText = "SIGN IN WITH PIN";
     }
 }
 
 // ==========================================
-//   PHONE LINKING HANDLERS
+//   PHONE + PIN LINKING HANDLERS
 // ==========================================
 
 export function openLinkPhoneModal() {
     closeModal('modal-profile-hub');
-    resetLinkPhoneView();
     const phoneInput = document.getElementById('link-phone-input');
+    const pinInput = document.getElementById('link-pin-input');
+    const confirmInput = document.getElementById('link-pin-confirm');
+    const errorEl = document.getElementById('link-phone-error');
+    
     if (phoneInput) {
-        const existingPhone = AppState.currentUser?.phoneNumber || (AppState.currentUser?.providerData?.find(p => p.providerId === 'phone')?.phoneNumber) || '';
-        phoneInput.value = existingPhone ? existingPhone.replace('+88', '') : '';
+        const existingEmail = AppState.currentUser?.providerData?.find(p => p.providerId === 'password')?.email;
+        if (existingEmail && existingEmail.startsWith('phone_')) {
+            const extracted = existingEmail.replace('phone_', '').replace('@amolnama.internal', '');
+            phoneInput.value = extracted;
+        } else {
+            phoneInput.value = '';
+        }
     }
+    if (pinInput) pinInput.value = '';
+    if (confirmInput) confirmInput.value = '';
+    if (errorEl) errorEl.innerText = '';
+    
     openModal('modal-link-phone');
 }
 
-export function resetLinkPhoneView() {
-    if (linkRecaptchaVerifier) {
-        try { linkRecaptchaVerifier.clear(); } catch(e){}
-        linkRecaptchaVerifier = null;
-    }
-    const container = document.getElementById('link-recaptcha-container');
-    if (container) container.innerHTML = '';
-
-    document.getElementById('link-phone-step-number').style.display = 'flex';
-    document.getElementById('link-phone-step-otp').style.display = 'none';
-    document.getElementById('link-otp-input').value = '';
-    const errorEl = document.getElementById('link-phone-error');
-    if (errorEl) errorEl.innerText = '';
-}
-
-export async function sendLinkPhoneOtp() {
+export async function linkPhoneAndPin() {
     if (!auth.currentUser) {
-        showAppAlert("Not Signed In", "Please sign in first to link a phone number.");
+        showAppAlert("Not Signed In", "Please sign in first with Google to link your phone.");
         return;
     }
+
     const rawPhone = document.getElementById('link-phone-input').value.trim();
-    if (!rawPhone) {
-        showAppAlert("Missing Input", "Please enter your mobile phone number.");
-        return;
-    }
-    const formattedPhone = formatToE164(rawPhone);
+    const pin = document.getElementById('link-pin-input').value.trim();
+    const confirmPin = document.getElementById('link-pin-confirm').value.trim();
     const errorEl = document.getElementById('link-phone-error');
     if (errorEl) errorEl.innerText = '';
 
-    const sendBtn = document.getElementById('btn-send-link-otp');
-    sendBtn.disabled = true;
-    sendBtn.innerText = "SENDING OTP...";
-
-    try {
-        if (linkRecaptchaVerifier) {
-            try { linkRecaptchaVerifier.clear(); } catch(e){}
-            linkRecaptchaVerifier = null;
-        }
-        const container = document.getElementById('link-recaptcha-container');
-        if (container) container.innerHTML = '';
-
-        linkRecaptchaVerifier = new RecaptchaVerifier(auth, 'link-recaptcha-container', {
-            size: 'invisible'
-        });
-
-        linkConfirmationResult = await linkWithPhoneNumber(auth.currentUser, formattedPhone, linkRecaptchaVerifier);
-        document.getElementById('link-phone-step-number').style.display = 'none';
-        document.getElementById('link-phone-step-otp').style.display = 'flex';
-        document.getElementById('link-otp-sent-to').innerText = `6-digit code sent to ${formattedPhone}`;
-        showFlashMessage("Verification code sent via SMS!");
-    } catch (err) {
-        console.error("Link phone error:", err);
-        if (errorEl) errorEl.innerText = err.message || "Failed to send SMS code.";
-        showAppAlert("SMS Failed", err.message || "Could not send verification code. If this number is already linked to another account, you may need to unlink it first.");
-        if (linkRecaptchaVerifier) {
-            try { linkRecaptchaVerifier.clear(); } catch(e){}
-            linkRecaptchaVerifier = null;
-        }
-        const container = document.getElementById('link-recaptcha-container');
-        if (container) container.innerHTML = '';
-    } finally {
-        sendBtn.disabled = false;
-        sendBtn.innerText = "SEND VERIFICATION CODE";
-    }
-}
-
-export async function verifyLinkPhoneOtp() {
-    const otpCode = document.getElementById('link-otp-input').value.trim();
-    if (!otpCode || otpCode.length < 6) {
-        showAppAlert("Invalid Code", "Please enter the complete 6-digit verification code.");
+    if (!rawPhone || rawPhone.length < 11) {
+        showAppAlert("Invalid Phone", "Please enter a valid 11-digit mobile number.");
         return;
     }
-    if (!linkConfirmationResult) {
-        showAppAlert("Session Expired", "Please request a new verification code.");
-        resetLinkPhoneView();
+    if (!pin || pin.length < 4) {
+        showAppAlert("Invalid PIN", "Please enter a security PIN of at least 4 digits.");
+        return;
+    }
+    if (pin !== confirmPin) {
+        showAppAlert("PIN Mismatch", "The PIN and confirmation PIN do not match.");
         return;
     }
 
-    const verifyBtn = document.getElementById('btn-verify-link-otp');
-    verifyBtn.disabled = true;
-    verifyBtn.innerText = "LINKING...";
-    const errorEl = document.getElementById('link-phone-error');
-    if (errorEl) errorEl.innerText = '';
+    const cleanPhone = getCleanPhoneNumber(rawPhone);
+    const virtualEmail = getPhoneVirtualEmail(cleanPhone);
+    const saveBtn = document.getElementById('btn-save-phone-pin');
+    saveBtn.disabled = true;
+    saveBtn.innerText = "SAVING...";
 
     try {
-        await linkConfirmationResult.confirm(otpCode);
+        const credential = EmailAuthProvider.credential(virtualEmail, pin);
+        
+        // Check if user already has an email/password credential linked
+        const hasEmailProvider = auth.currentUser.providerData?.some(p => p.providerId === 'password');
+        
+        if (hasEmailProvider) {
+            try {
+                await updatePassword(auth.currentUser, pin);
+            } catch(passErr) {
+                await linkWithCredential(auth.currentUser, credential);
+            }
+        } else {
+            await linkWithCredential(auth.currentUser, credential);
+        }
+
+        // Save phone metadata to Firestore user doc
+        try {
+            await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+                linkedPhone: cleanPhone,
+                phoneAuthLinked: true,
+                updatedAt: serverTimestamp()
+            });
+        } catch (dbErr) {
+            console.warn("Could not save linked phone to Firestore user doc:", dbErr);
+        }
+
         closeModal('modal-link-phone');
-        showAppAlert("Phone Linked! 🎉", "Your phone number has been linked to your account. You can now log in using either Google or your Phone Number!");
+        showAppAlert("Phone & PIN Linked! 🎉", `Phone ${cleanPhone} is now linked to your account! You can now sign in using this phone number and PIN anytime.`);
         openProfileHub();
     } catch (err) {
-        console.error("Link OTP verification error:", err);
-        if (errorEl) errorEl.innerText = err.message || "Invalid verification code.";
-        showAppAlert("Verification Failed", "The verification code entered is invalid or has expired.");
+        console.error("Link phone and PIN error:", err);
+        let msg = err.message || "Failed to link phone & PIN.";
+        if (err.code === 'auth/email-already-in-use' || err.code === 'auth/credential-already-in-use') {
+            msg = "This phone number is already linked to another account.";
+        } else if (err.code === 'auth/requires-recent-login') {
+            msg = "Please log out and sign in with Google again before updating your security PIN.";
+        } else if (err.code === 'auth/operation-not-allowed') {
+            msg = "Email/Password sign-in provider is not enabled in Firebase Console. Please enable it under Authentication > Sign-in method.";
+        }
+        if (errorEl) errorEl.innerText = msg;
+        showAppAlert("Linking Failed", msg);
     } finally {
-        verifyBtn.disabled = false;
-        verifyBtn.innerText = "VERIFY & LINK PHONE";
+        saveBtn.disabled = false;
+        saveBtn.innerText = "SAVE & LINK TO ACCOUNT";
     }
 }
 
@@ -292,16 +241,18 @@ export function openProfileHub() {
     document.getElementById('hub-user-name').innerText = AppState.userNickname || AppState.userDisplayName;
     document.getElementById('hub-user-email').innerText = AppState.currentUser.email || 'No Email Linked';
     
-    const phoneLinked = AppState.currentUser?.phoneNumber || (AppState.currentUser?.providerData?.find(p => p.providerId === 'phone')?.phoneNumber);
+    const passwordProvider = AppState.currentUser?.providerData?.find(p => p.providerId === 'password');
     const linkPhoneTitle = document.getElementById('hub-link-phone-title');
     const linkPhoneDesc = document.getElementById('hub-link-phone-desc');
+    
     if (linkPhoneTitle && linkPhoneDesc) {
-        if (phoneLinked) {
-            linkPhoneTitle.innerText = "Linked: " + phoneLinked;
-            linkPhoneDesc.innerText = "Phone is linked. Tap to update or change number";
+        if (passwordProvider && passwordProvider.email && passwordProvider.email.startsWith('phone_')) {
+            const phoneNum = passwordProvider.email.replace('phone_', '').replace('@amolnama.internal', '');
+            linkPhoneTitle.innerText = "Linked: " + phoneNum;
+            linkPhoneDesc.innerText = "Phone & PIN linked. Tap to update PIN or number";
         } else {
-            linkPhoneTitle.innerText = "Link Phone Number";
-            linkPhoneDesc.innerText = "Connect your phone to sign in with SMS code";
+            linkPhoneTitle.innerText = "Set Up Phone & PIN";
+            linkPhoneDesc.innerText = "Connect phone & PIN to sign in without Google";
         }
     }
     
