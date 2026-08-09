@@ -24,8 +24,9 @@ export function toggleAddForm() {
 export function renderInventoryGroupsAdmin() {
     let html = '';
     AppState.globalInventoryGroups.forEach((group, index) => {
-        html += `<span style="background: #f1f5f9; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 16px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px;">
-            ${group} <button style="background: none; border: none; color: #ef4444; font-weight: bold; cursor: pointer;" onclick="removeInventoryGroup(${index})">✕</button>
+        html += `<span style="background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-primary); padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+            ${group} 
+            <button style="background: rgba(239, 68, 68, 0.1); border: none; color: #ef4444; width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 800; cursor: pointer; padding: 0;" onclick="removeInventoryGroup(${index})" title="Remove SKU">✕</button>
         </span>`;
     });
     document.getElementById('admin-inventory-groups').innerHTML = html;
@@ -102,17 +103,20 @@ export function openSettings() {
                 let row = document.createElement('div'); row.className = 'admin-row-card admin-row'; row.setAttribute('data-key', item.key);
                 row.innerHTML = `
                     <div class="admin-row-header">
-                        <span class="drag-handle">⋮⋮</span>
-                        <input type="text" class="settings-input i-name" style="flex:1; border:none; background:transparent; font-weight:700; color:#0f172a; padding:0; min-width:0;" value="${item.name}">
-                        <button class="delete-btn" style="color: #ef4444; padding: 4px 8px; font-size: 1.1rem; flex-shrink: 0;" onclick="removeRow(this)">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                        <span class="drag-handle" title="Drag to reorder">⋮⋮</span>
+                        <input type="text" class="settings-input i-name" style="flex:1; border:none; background:transparent; font-weight:800; font-size:1.02rem; color:var(--text-primary); padding:0; min-width:0; box-shadow:none;" value="${item.name}">
+                        <button class="delete-btn" style="color: #ef4444; padding: 6px; border-radius: 8px; font-size: 1.1rem; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(239, 68, 68, 0.08);" onclick="removeRow(this)" title="Delete Item">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                         </button>
                     </div>
                     <div class="admin-row-body">
-                        <div><label class="admin-label">Price (${userCurrency})</label><input type="number" class="settings-input i-price" style="padding: 10px; width: 100%; box-sizing: border-box;" value="${item.price}"></div>
+                        <div>
+                            <label class="admin-label">Price (${userCurrency})</label>
+                            <input type="number" class="settings-input i-price" style="padding: 10px 12px; width: 100%; box-sizing: border-box; border-radius: 12px;" value="${item.price}">
+                        </div>
                         <div>
                             <label class="admin-label">Category</label>
-                            <select class="settings-input i-cat" style="padding: 10px; width: 100%; box-sizing: border-box;">
+                            <select class="settings-input i-cat" style="padding: 10px 12px; width: 100%; box-sizing: border-box; border-radius: 12px;">
                                 <option value="new-sim" ${item.cat==='new-sim'?'selected':''}>New SIM</option>
                                 <option value="paid-rep" ${item.cat==='paid-rep'?'selected':''}>Paid Rep</option>
                                 <option value="cards" ${item.cat==='cards'?'selected':''}>Cards</option>
@@ -121,15 +125,17 @@ export function openSettings() {
                                 <option value="free-action" ${item.cat==='free-action'?'selected':''}>Free Action</option>
                             </select>
                         </div>
-                        <div style="grid-column: span 2;">
+                        <div style="grid-column: 1 / -1;">
                             <label class="admin-label">Deducts from Physical Inventory:</label>
-                            <select class="settings-input i-track" style="padding: 10px; width: 100%; box-sizing: border-box;">
+                            <select class="settings-input i-track" style="padding: 10px 12px; width: 100%; box-sizing: border-box; border-radius: 12px;">
                                 ${trackOptions}
                             </select>
                         </div>
-                        <div style="grid-column: span 2; display: flex; align-items: center; gap: 8px; margin-top: 4px;">
-                            <input type="checkbox" class="i-manager-only" id="mgr_${item.key}" ${item.managerOnly ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
-                            <label for="mgr_${item.key}" class="admin-label" style="margin: 0; color: #ef4444; font-weight: 700; cursor: pointer;">🔒 Restricted (Center Manager Only)</label>
+                        <div style="grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin-top: 4px; padding-top: 8px; border-top: 1px dashed var(--border-color);">
+                            <input type="checkbox" class="i-manager-only" id="mgr_${item.key}" ${item.managerOnly ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer; accent-color: #ef4444;">
+                            <label for="mgr_${item.key}" class="admin-label" style="margin: 0; color: #ef4444; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                                🔒 Restricted (Center Manager Only)
+                            </label>
                         </div>
                     </div>
                 `;
@@ -361,14 +367,17 @@ export async function renderUserManagementAdmin() {
                 const deskName = u.assignedDeskId.replace('_', ' ').toUpperCase();
 
                 html += `
-                    <div style="background: #ffffff; border: 1px solid #fcd34d; padding: 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <div style="background: var(--surface-color); border: 1px solid var(--border-color); padding: 12px 14px; border-radius: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.02);">
                         <div>
-                            <strong style="color: #92400e; font-size: 0.95rem;">${displayName}</strong>
-                            <div style="font-size: 0.8rem; color: #b45309;">${deskName}</div>
+                            <strong style="color: var(--text-primary); font-size: 0.95rem; font-weight: 800; display: block;">${displayName}</strong>
+                            <div style="font-size: 0.8rem; color: #f59e0b; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+                                <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #10b981;"></span>
+                                ${deskName}
+                            </div>
                         </div>
-                        <div style="display: flex; gap: 6px;">
-                            <button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: auto; border-color: #f59e0b; color: #d97706;" onclick="kickAgent('${uid}')">Kick</button>
-                            <button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: auto; border-color: #ef4444; color: #ef4444; background: #fef2f2;" onclick="nukeAgent('${uid}', '${displayName}')">Nuke & Kick</button>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: 34px; border-color: #f59e0b; color: #f59e0b; border-radius: 10px; font-weight: 700;" onclick="kickAgent('${uid}')">Kick</button>
+                            <button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: 34px; border-color: #ef4444; color: #ef4444; background: rgba(239, 68, 68, 0.08); border-radius: 10px; font-weight: 700;" onclick="nukeAgent('${uid}', '${displayName}')">Nuke & Kick</button>
                         </div>
                     </div>
                 `;
