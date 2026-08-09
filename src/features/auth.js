@@ -69,6 +69,13 @@ export function hidePhoneLoginView() {
 }
 
 export function resetPhoneLoginView() {
+    if (phoneRecaptchaVerifier) {
+        try { phoneRecaptchaVerifier.clear(); } catch(e){}
+        phoneRecaptchaVerifier = null;
+    }
+    const container = document.getElementById('recaptcha-container');
+    if (container) container.innerHTML = '';
+
     document.getElementById('phone-step-number').style.display = 'flex';
     document.getElementById('phone-step-otp').style.display = 'none';
     document.getElementById('auth-otp-input').value = '';
@@ -91,11 +98,17 @@ export async function sendPhoneLoginOtp() {
     sendBtn.innerText = "SENDING OTP...";
 
     try {
-        if (!phoneRecaptchaVerifier) {
-            phoneRecaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-                size: 'invisible'
-            });
+        if (phoneRecaptchaVerifier) {
+            try { phoneRecaptchaVerifier.clear(); } catch(e){}
+            phoneRecaptchaVerifier = null;
         }
+        const container = document.getElementById('recaptcha-container');
+        if (container) container.innerHTML = '';
+
+        phoneRecaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            size: 'invisible'
+        });
+
         phoneConfirmationResult = await signInWithPhoneNumber(auth, formattedPhone, phoneRecaptchaVerifier);
         document.getElementById('phone-step-number').style.display = 'none';
         document.getElementById('phone-step-otp').style.display = 'flex';
@@ -109,6 +122,8 @@ export async function sendPhoneLoginOtp() {
             try { phoneRecaptchaVerifier.clear(); } catch(e){}
             phoneRecaptchaVerifier = null;
         }
+        const container = document.getElementById('recaptcha-container');
+        if (container) container.innerHTML = '';
     } finally {
         sendBtn.disabled = false;
         sendBtn.innerText = "SEND VERIFICATION CODE";
@@ -162,6 +177,13 @@ export function openLinkPhoneModal() {
 }
 
 export function resetLinkPhoneView() {
+    if (linkRecaptchaVerifier) {
+        try { linkRecaptchaVerifier.clear(); } catch(e){}
+        linkRecaptchaVerifier = null;
+    }
+    const container = document.getElementById('link-recaptcha-container');
+    if (container) container.innerHTML = '';
+
     document.getElementById('link-phone-step-number').style.display = 'flex';
     document.getElementById('link-phone-step-otp').style.display = 'none';
     document.getElementById('link-otp-input').value = '';
@@ -188,11 +210,17 @@ export async function sendLinkPhoneOtp() {
     sendBtn.innerText = "SENDING OTP...";
 
     try {
-        if (!linkRecaptchaVerifier) {
-            linkRecaptchaVerifier = new RecaptchaVerifier(auth, 'link-recaptcha-container', {
-                size: 'invisible'
-            });
+        if (linkRecaptchaVerifier) {
+            try { linkRecaptchaVerifier.clear(); } catch(e){}
+            linkRecaptchaVerifier = null;
         }
+        const container = document.getElementById('link-recaptcha-container');
+        if (container) container.innerHTML = '';
+
+        linkRecaptchaVerifier = new RecaptchaVerifier(auth, 'link-recaptcha-container', {
+            size: 'invisible'
+        });
+
         linkConfirmationResult = await linkWithPhoneNumber(auth.currentUser, formattedPhone, linkRecaptchaVerifier);
         document.getElementById('link-phone-step-number').style.display = 'none';
         document.getElementById('link-phone-step-otp').style.display = 'flex';
@@ -206,6 +234,8 @@ export async function sendLinkPhoneOtp() {
             try { linkRecaptchaVerifier.clear(); } catch(e){}
             linkRecaptchaVerifier = null;
         }
+        const container = document.getElementById('link-recaptcha-container');
+        if (container) container.innerHTML = '';
     } finally {
         sendBtn.disabled = false;
         sendBtn.innerText = "SEND VERIFICATION CODE";
