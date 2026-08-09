@@ -4,7 +4,7 @@
 // ==========================================
 import { showAppAlert, executeAlertConfirm, showFlashMessage, openModal, closeModal, showTooltip, initNetworkStatus, setupBottomSheetDrag, initCustomDropdowns } from './utils/ui-helpers.js';
 import { initPWA, installPWA } from './features/pwa.js';
-import { initAuth, signInWithGoogle, logout, openProfileHub } from './features/auth.js';
+import { initAuth, signInWithGoogle, logout, openProfileHub, showPhoneLoginView, hidePhoneLoginView, resetPhoneLoginView, sendPhoneLoginOtp, verifyPhoneLoginOtp, openLinkPhoneModal, resetLinkPhoneView, sendLinkPhoneOtp, verifyLinkPhoneOtp } from './features/auth.js';
 import { AppState } from './core/state.js';
 import { ersKeyPress, ersBackspace, saveErs, selectItem, stepQty, onQtySliderChange, onQtyInputChange, saveQuantity, openEditTx, saveTxEdit, toggleEditSplitFields, updateSplitTotal, cancelTxEdit, autoCalcEditTotal, deleteTransaction, openTrash, restoreTx, permanentlyDeleteTx, emptyTrash, showAuditTrail, promptSimOnboarding, confirmSimOnboarding, cancelSimOnboarding, toggleOnboardingRow, syncOnboardingCheck } from './features/transactions.js';
 import { getPhysicalItems, getInventoryChange, passStockFirewall, switchStoreCategory } from './features/inventory.js';
@@ -64,7 +64,8 @@ window.Amolnama = {
     runLedgerDiagnostic, downloadReportAsPDF, initCustomDropdowns, healDeskTransfers, executeAdminDrawerTransfer, deleteAgentDateData, healDuplicateSessions,
     openRecycleTracker, filterRecycleList, filterRecycleByStatus, openAddRecycleModal, submitRecycleApplication, openUpdateRecycleStatusModal, onRecycleStatusChangeSelect, onAddRecycleStatusChange, saveRecycleStatusUpdate, deleteRecycleSimEntry, triggerStoreRecycleSale, populateStoreRecycleSaleOptions, onSelectRecycleSaleNumberChange, confirmRecycleSimSale,
     promptSimOnboarding, confirmSimOnboarding, cancelSimOnboarding, toggleOnboardingRow, syncOnboardingCheck,
-    openCallRates, closeCallRates, filterRatesList, openManageRates, closeManageRates, openPackageForm, closePackageForm, addRateRow, savePackageData, deletePackage, autoCalcRateTax
+    openCallRates, closeCallRates, filterRatesList, openManageRates, closeManageRates, openPackageForm, closePackageForm, addRateRow, savePackageData, deletePackage, autoCalcRateTax,
+    showPhoneLoginView, hidePhoneLoginView, resetPhoneLoginView, sendPhoneLoginOtp, verifyPhoneLoginOtp, openLinkPhoneModal, resetLinkPhoneView, sendLinkPhoneOtp, verifyLinkPhoneOtp
 };
 
 // Dynamically bind all Amolnama functions to the global window object.
