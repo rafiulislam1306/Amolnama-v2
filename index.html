@@ -345,50 +345,72 @@
         </div>
     </main>
 
-    <div id="modal-nicknames" class="modal-overlay" style="z-index: 9600;">
-        <div class="modal-content">
-            <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
-                <h3 style="color: #0ea5e9;">User Management</h3>
-                <button class="delete-btn" style="color: #64748b; font-size: 1.5rem; padding: 0;" onclick="closeModal('modal-nicknames')">✕</button>
+    <!-- USER & ROLE MANAGEMENT MODAL -->
+    <div id="modal-nicknames" class="modal-overlay" style="z-index: 9600; background-color: var(--bg-color);">
+        <div class="modal-content" style="height: 100dvh; max-height: 100dvh; border-radius: 0; padding: 0; display: flex; flex-direction: column; background-color: var(--bg-color);">
+            <div class="admin-header-bar">
+                <h3 style="color: #8b5cf6; margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    User & Role Management
+                </h3>
+                <button class="delete-btn" style="color: var(--text-secondary); font-size: 1.5rem; padding: 4px;" onclick="closeModal('modal-nicknames')">✕</button>
             </div>
-            <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 16px;">Manage agent nicknames, system roles, and access controls.</p>
-            <div id="nickname-list-container" style="display: flex; flex-direction: column; gap: 12px; max-height: 60vh; overflow-y: auto; padding-bottom: 20px;">
+            <div class="admin-body" style="padding: 16px; flex: 1; overflow-y: auto;">
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px;">Manage agent nicknames, system roles, and access controls.</p>
+                <div id="nickname-list-container" style="display: flex; flex-direction: column; gap: 12px; padding-bottom: 20px;"></div>
             </div>
         </div>
     </div>
 
+    <!-- SEND STOCK MODAL (TO TARGET DESK) -->
     <div id="modal-transfer" class="modal-overlay" style="z-index: 9500;">
-        <div class="modal-content">
-            <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
-                <h3 style="color: #8b5cf6;">Send Stock</h3>
+        <div class="bottom-sheet" style="padding: 24px; max-width: 480px; margin: 0 auto; border-radius: 24px 24px 0 0; background: var(--bg-color);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+                <h3 style="color: #8b5cf6; margin: 0; font-size: 1.15rem; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                    <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><polyline points="8 14 12 18 16 14"/><line x1="12" x2="12" y1="6" y2="18"/></svg>
+                    </span>
+                    Send Stock to Desk
+                </h3>
+                <button class="hub-close-btn" onclick="closeModal('modal-transfer')">✕</button>
             </div>
-            <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 16px;">Transferring inventory to <strong id="transfer-target-name" style="color: #0f172a;">Desk Name</strong>.</p>
             
-            <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
-                <div style="margin-bottom: 16px;">
-                    <label class="admin-label">Select Item to Send</label>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px;">Transferring inventory to <strong id="transfer-target-name" style="color: var(--text-primary);">Desk Name</strong>.</p>
+            
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 20px;">
+                <div style="margin-bottom: 14px;">
+                    <label class="admin-label">Select Item to Send *</label>
                     <select id="transfer-item-select" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;"></select>
                 </div>
                 <div>
-                    <label class="admin-label">Quantity</label>
+                    <label class="admin-label">Quantity *</label>
                     <input type="number" id="transfer-qty" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0">
                 </div>
             </div>
-            <button class="btn-primary-full" style="background-color: #8b5cf6;" onclick="executeTransfer()">CONFIRM TRANSFER</button>
-            <button class="modal-close" style="color: #64748b;" onclick="closeModal('modal-transfer')">Cancel</button>
+            
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn-primary-full" style="height: 48px; border-radius: 14px; font-weight: 700; background-color: #8b5cf6;" onclick="executeTransfer()">CONFIRM TRANSFER</button>
+                <button class="modal-close" style="color: var(--text-secondary); margin-top: 4px;" onclick="closeModal('modal-transfer')">Cancel</button>
+            </div>
         </div>
     </div>
 
-
-
+    <!-- DRAWER CASH ACTIONS MODAL -->
     <div id="modal-manager-cash" class="modal-overlay" style="z-index: 9500;">
-        <div class="modal-content">
-            <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
-                <h3 style="color: #10b981;">Drawer Cash Actions</h3>
+        <div class="bottom-sheet" style="padding: 24px; max-width: 480px; margin: 0 auto; border-radius: 24px 24px 0 0; background: var(--bg-color);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+                <h3 style="color: #10b981; margin: 0; font-size: 1.15rem; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                    <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: rgba(16, 185, 129, 0.1); color: #10b981;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    </span>
+                    Drawer Cash Actions
+                </h3>
+                <button class="hub-close-btn" onclick="closeModal('modal-manager-cash')">✕</button>
             </div>
-            <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
-                <div style="margin-bottom: 16px;">
-                    <label class="admin-label">Action Type</label>
+
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 20px;">
+                <div style="margin-bottom: 14px;">
+                    <label class="admin-label">Action Type *</label>
                     <select id="mgr-cash-action" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box; font-size: 0.95rem;">
                         <optgroup label="Cash Leaving Drawer (-)">
                             <option value="drop_manager">Drop Cash TO Manager</option>
@@ -400,15 +422,15 @@
                         </optgroup>
                     </select>
                 </div>
-                <div style="margin-top: 16px;">
-                    <label class="admin-label">Amount (Tk)</label>
+                <div>
+                    <label class="admin-label">Amount (Tk) *</label>
                     <input type="number" id="mgr-cash-amount" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0">
                 </div>
-                <div id="handset-model-wrapper" style="display: none; margin-top: 16px;">
+                <div id="handset-model-wrapper" style="display: none; margin-top: 14px;">
                     <label class="admin-label">Handset Model</label>
                     <input type="text" id="mgr-cash-handset-model" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. Redmi Note 13 Pro">
                 </div>
-                <div id="mgr-cash-payment-wrapper" style="display: none; margin-top: 16px;">
+                <div id="mgr-cash-payment-wrapper" style="display: none; margin-top: 14px;">
                     <label class="admin-label">Payment Method</label>
                     <select id="mgr-cash-payment" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" onchange="toggleMgrCashPaymentFields()">
                         <option value="Cash">Cash</option>
@@ -416,7 +438,7 @@
                         <option value="Split">Split Payment</option>
                     </select>
                 </div>
-                <div id="mgr-cash-split-fields" style="display: none; gap: 12px; margin-top: 16px;">
+                <div id="mgr-cash-split-fields" style="display: none; gap: 12px; margin-top: 14px;">
                     <div style="flex: 1;">
                         <label class="admin-label">Cash Amount</label>
                         <input type="number" id="mgr-cash-split-cash" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0" oninput="validateMgrCashSplit()">
@@ -426,83 +448,121 @@
                         <input type="number" id="mgr-cash-split-mfs" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0" oninput="validateMgrCashSplit()">
                     </div>
                 </div>
-                <div id="mgr-cash-notes-wrapper" style="margin-top: 16px;">
-                    <label class="admin-label">Notes</label>
+                <div id="mgr-cash-notes-wrapper" style="margin-top: 14px;">
+                    <label class="admin-label">Notes (Optional)</label>
                     <input type="text" id="mgr-cash-notes" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. Refill morning float or Charity donation">
                 </div>
             </div>
-            <button class="btn-primary-full" style="background-color: #10b981;" onclick="saveManagerCash()">SAVE ACTION</button>
-            <button class="modal-close" style="color: #64748b;" onclick="closeModal('modal-manager-cash')">Cancel</button>
+            
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn-primary-full" style="height: 48px; border-radius: 14px; font-weight: 700; background-color: #10b981;" onclick="saveManagerCash()">SAVE ACTION</button>
+                <button class="modal-close" style="color: var(--text-secondary); margin-top: 4px;" onclick="closeModal('modal-manager-cash')">Cancel</button>
+            </div>
         </div>
     </div>
 
+    <!-- RECEIVE MAIN STOCK MODAL -->
     <div id="modal-main-stock" class="modal-overlay" style="z-index: 9500;">
-        <div class="modal-content">
-            <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
-                <h3 style="color: #0ea5e9;">Receive Main Stock</h3>
+        <div class="bottom-sheet" style="padding: 24px; max-width: 480px; margin: 0 auto; border-radius: 24px 24px 0 0; background: var(--bg-color);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+                <h3 style="color: #0ea5e9; margin: 0; font-size: 1.15rem; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                    <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: rgba(14, 165, 233, 0.1); color: #0ea5e9;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+                    </span>
+                    Receive Main Stock
+                </h3>
+                <button class="hub-close-btn" onclick="closeModal('modal-main-stock')">✕</button>
             </div>
-            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px;">Log physical items brought from the main center inventory into your drawer.</p>
-            <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
-                <div style="margin-bottom: 16px;">
-                    <label class="admin-label">Physical Item</label>
+
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px;">Log physical items brought from the main center inventory into your drawer.</p>
+            
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 20px;">
+                <div style="margin-bottom: 14px;">
+                    <label class="admin-label">Physical Item *</label>
                     <select id="main-stock-item" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;"></select>
                 </div>
                 <div>
-                    <label class="admin-label">Quantity Received</label>
+                    <label class="admin-label">Quantity Received *</label>
                     <input type="number" id="main-stock-qty" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0">
                 </div>
             </div>
-            <button class="btn-primary-full" onclick="saveMainStock()">ADD TO DRAWER</button>
-            <button class="modal-close" style="color: #64748b;" onclick="closeModal('modal-main-stock')">Cancel</button>
+            
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn-primary-full" style="height: 48px; border-radius: 14px; font-weight: 700; background-color: #0ea5e9;" onclick="saveMainStock()">ADD TO DRAWER</button>
+                <button class="modal-close" style="color: var(--text-secondary); margin-top: 4px;" onclick="closeModal('modal-main-stock')">Cancel</button>
+            </div>
         </div>
     </div>
 
+    <!-- RETURN TO MAIN STOCK MODAL -->
     <div id="modal-return-stock" class="modal-overlay" style="z-index: 9500;">
-        <div class="modal-content">
-            <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
-                <h3 style="color: #ef4444;">Return to Main Stock</h3>
+        <div class="bottom-sheet" style="padding: 24px; max-width: 480px; margin: 0 auto; border-radius: 24px 24px 0 0; background: var(--bg-color);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+                <h3 style="color: #ef4444; margin: 0; font-size: 1.15rem; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                    <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 1 1-1.73l7-4a2 2 0 0 1 2 0l7 4A2 2 0 0 1 21 8v8a2 2 0 0 1-1 1.73l-7 4a2 2 0 0 1-2 0l-7-4A2 2 0 0 1 3 16Z"/><path d="m7.5 4.21 4.5 2.6 4.5-2.6"/><path d="m7.5 19.79 4.5-2.6 4.5 2.6"/><path d="M3.27 6.96 12 12l8.73-5.04"/><path d="M12 22V12"/></svg>
+                    </span>
+                    Return to Main Stock
+                </h3>
+                <button class="hub-close-btn" onclick="closeModal('modal-return-stock')">✕</button>
             </div>
-            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px;">Log physical items returned to the vault, or correct a double-count from a transfer.</p>
-            <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
-                <div style="margin-bottom: 16px;">
-                    <label class="admin-label">Physical Item</label>
+
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px;">Log physical items returned to the vault, or correct a double-count.</p>
+            
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 20px;">
+                <div style="margin-bottom: 14px;">
+                    <label class="admin-label">Physical Item *</label>
                     <select id="return-stock-item" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;"></select>
                 </div>
                 <div>
-                    <label class="admin-label">Quantity Returned</label>
+                    <label class="admin-label">Quantity Returned *</label>
                     <input type="number" id="return-stock-qty" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0">
                 </div>
             </div>
-            <button class="btn-primary-full" style="background-color: #ef4444;" onclick="saveReturnStock()">RETURN FROM DRAWER</button>
-            <button class="modal-close" style="color: #64748b;" onclick="closeModal('modal-return-stock')">Cancel</button>
+            
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn-primary-full" style="height: 48px; border-radius: 14px; font-weight: 700; background-color: #ef4444;" onclick="saveReturnStock()">RETURN FROM DRAWER</button>
+                <button class="modal-close" style="color: var(--text-secondary); margin-top: 4px;" onclick="closeModal('modal-return-stock')">Cancel</button>
+            </div>
         </div>
     </div>
 
+    <!-- DESK TRANSFER MODAL -->
     <div id="modal-desk-transfer" class="modal-overlay" style="z-index: 9500;">
-        <div class="modal-content">
-            <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
-                <h3 style="color: #8b5cf6;">Transfer Stock</h3>
+        <div class="bottom-sheet" style="padding: 24px; max-width: 480px; margin: 0 auto; border-radius: 24px 24px 0 0; background: var(--bg-color);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+                <h3 style="color: #8b5cf6; margin: 0; font-size: 1.15rem; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                    <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><polyline points="8 14 12 18 16 14"/><line x1="12" x2="12" y1="6" y2="18"/></svg>
+                    </span>
+                    Transfer Stock to Desk
+                </h3>
+                <button class="hub-close-btn" onclick="closeModal('modal-desk-transfer')">✕</button>
             </div>
-            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px;">Send physical items to another active desk.</p>
-            <div class="admin-form-card" style="padding: 16px; margin-bottom: 24px;">
 
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px;">Send physical items to another active desk.</p>
+            
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 20px;">
                 <input type="hidden" name="transfer-direction" value="send">
 
-                <div style="margin-bottom: 16px;">
-                    <label id="transfer-desk-label" class="admin-label">Destination Desk</label>
+                <div style="margin-bottom: 14px;">
+                    <label id="transfer-desk-label" class="admin-label">Destination Desk *</label>
                     <select id="desk-transfer-target" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;"></select>
                 </div>
-                <div style="margin-bottom: 16px;">
-                    <label class="admin-label">Physical Item</label>
+                <div style="margin-bottom: 14px;">
+                    <label class="admin-label">Physical Item *</label>
                     <select id="desk-transfer-item" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;"></select>
                 </div>
                 <div>
-                    <label id="transfer-qty-label" class="admin-label">Quantity to Send</label>
+                    <label id="transfer-qty-label" class="admin-label">Quantity to Send *</label>
                     <input type="number" id="desk-transfer-qty" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0">
                 </div>
             </div>
-            <button id="desk-transfer-btn" class="btn-primary-full" style="background-color: #8b5cf6;" onclick="executeDeskTransfer()">SEND TO DESK</button>
-            <button class="modal-close" style="color: #64748b;" onclick="closeModal('modal-desk-transfer')">Cancel</button>
+            
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button id="desk-transfer-btn" class="btn-primary-full" style="height: 48px; border-radius: 14px; font-weight: 700; background-color: #8b5cf6;" onclick="executeDeskTransfer()">SEND TO DESK</button>
+                <button class="modal-close" style="color: var(--text-secondary); margin-top: 4px;" onclick="closeModal('modal-desk-transfer')">Cancel</button>
+            </div>
         </div>
     </div>
 
@@ -783,87 +843,132 @@
         </div>
     </div>
 
-    <div id="modal-quantity" class="modal-overlay">
-        <div class="bottom-sheet" style="padding: 24px;">
-            <div class="qty-header" id="qty-item-name">Item Name</div>
-            <div class="ers-display-wrapper" style="margin-bottom: 16px;">
+    <!-- QUANTITY STEPPER MODAL -->
+    <div id="modal-quantity" class="modal-overlay" style="z-index: 9600;">
+        <div class="bottom-sheet" style="padding: 24px; max-width: 480px; margin: 0 auto; border-radius: 24px 24px 0 0; background: var(--bg-color);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+                <div class="qty-header" id="qty-item-name" style="margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--text-primary);">Item Name</div>
+                <button class="hub-close-btn" onclick="closeModal('modal-quantity')">✕</button>
+            </div>
+            
+            <div class="ers-display-wrapper" style="margin-bottom: 14px;">
                 <div class="ers-currency">Qty:</div>
                 <div class="ers-display" id="qty-display">1</div>
             </div>
-            <div class="qty-calc" id="qty-calc-display" style="margin-bottom: 20px;">1 x 0 = 0 Tk</div>
+            <div class="qty-calc" id="qty-calc-display" style="margin-bottom: 20px; font-weight: 700;">1 x 0 = 0 Tk</div>
             
             <!-- Standard Stepper & Slider Interface -->
-            <div style="display: flex; flex-direction: column; gap: 20px; width: 100%; margin-bottom: 24px; box-sizing: border-box;">
+            <div style="display: flex; flex-direction: column; gap: 18px; width: 100%; margin-bottom: 24px; box-sizing: border-box;">
                 <!-- Tactile Button Stepper -->
-                <div style="display: flex; align-items: center; justify-content: center; gap: 24px; width: 100%;">
-                    <button type="button" class="btn-outline" onclick="stepQty(-1)" style="width: 56px; height: 56px; border-radius: 50%; font-size: 1.8rem; font-weight: 800; display: flex; align-items: center; justify-content: center; cursor: pointer; border-color: var(--border-color); color: var(--text-primary); transition: all 0.2s; background: transparent;" onpointerdown="this.style.transform='scale(0.85)'" onpointerup="this.style.transform='scale(1)'">−</button>
-                    <input type="number" id="qty-number-input" value="1" min="1" max="100" style="width: 80px; height: 56px; font-size: 1.6rem; font-weight: 800; text-align: center; border: 1px solid var(--border-color); border-radius: 12px; background: var(--surface-color); color: var(--text-primary); outline: none; margin: 0; box-shadow: var(--shadow-soft);" oninput="onQtyInputChange(this.value)">
-                    <button type="button" class="btn-outline" onclick="stepQty(1)" style="width: 56px; height: 56px; border-radius: 50%; font-size: 1.8rem; font-weight: 800; display: flex; align-items: center; justify-content: center; cursor: pointer; border-color: var(--border-color); color: var(--text-primary); transition: all 0.2s; background: transparent;" onpointerdown="this.style.transform='scale(0.85)'" onpointerup="this.style.transform='scale(1)'">+</button>
+                <div style="display: flex; align-items: center; justify-content: center; gap: 20px; width: 100%;">
+                    <button type="button" class="btn-outline" onclick="stepQty(-1)" style="width: 52px; height: 52px; border-radius: 50%; font-size: 1.6rem; font-weight: 800; display: flex; align-items: center; justify-content: center; cursor: pointer; border-color: var(--border-color); color: var(--text-primary); transition: all 0.2s; background: var(--surface-color);" onpointerdown="this.style.transform='scale(0.88)'" onpointerup="this.style.transform='scale(1)'">−</button>
+                    <input type="number" id="qty-number-input" value="1" min="1" max="100" style="width: 84px; height: 52px; font-size: 1.6rem; font-weight: 800; text-align: center; border: 1.5px solid var(--border-color); border-radius: 14px; background: var(--surface-color); color: var(--text-primary); outline: none; margin: 0; box-shadow: var(--shadow-soft);" oninput="onQtyInputChange(this.value)">
+                    <button type="button" class="btn-outline" onclick="stepQty(1)" style="width: 52px; height: 52px; border-radius: 50%; font-size: 1.6rem; font-weight: 800; display: flex; align-items: center; justify-content: center; cursor: pointer; border-color: var(--border-color); color: var(--text-primary); transition: all 0.2s; background: var(--surface-color);" onpointerdown="this.style.transform='scale(0.88)'" onpointerup="this.style.transform='scale(1)'">+</button>
                 </div>
                 
                 <!-- Range Slider -->
                 <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
                     <span style="font-size: 0.85rem; font-weight: 800; color: var(--text-secondary); width: 20px; text-align: center;">1</span>
-                    <input type="range" id="qty-slider" min="1" max="50" value="1" style="flex: 1; height: 8px; border-radius: 4px; background: var(--border-color); outline: none; cursor: pointer; transition: background 450ms ease-in; accent-color: var(--accent-color);" oninput="onQtySliderChange(this.value)">
+                    <input type="range" id="qty-slider" min="1" max="50" value="1" style="flex: 1; height: 8px; border-radius: 4px; background: var(--border-color); outline: none; cursor: pointer; accent-color: var(--accent-color);" oninput="onQtySliderChange(this.value)">
                     <span style="font-size: 0.85rem; font-weight: 800; color: var(--text-secondary); width: 20px; text-align: center;">50</span>
                 </div>
             </div>
 
-            <button class="save-ers-btn" onclick="saveQuantity()">SAVE</button>
-            <button class="modal-close" onclick="closeModal('modal-quantity')">Cancel</button>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn-primary-full" style="height: 48px; border-radius: 14px; font-weight: 700;" onclick="saveQuantity()">SAVE QUANTITY</button>
+                <button class="modal-close" style="color: var(--text-secondary); margin-top: 4px;" onclick="closeModal('modal-quantity')">Cancel</button>
+            </div>
         </div>
     </div>
 
-    <div id="modal-edit-tx" class="modal-overlay">
-        <div class="bottom-sheet" style="padding: 24px;">
-            <div class="qty-header" id="edit-tx-name">Item Name</div>
-            <div style="display:flex; gap:8px; margin-bottom:12px;">
-                <div style="flex:1;">
-                    <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: bold;">Qty</label>
-                    <input type="number" id="edit-tx-qty" class="settings-input" style="text-align:center;" oninput="autoCalcEditTotal()">
+    <!-- EDIT TRANSACTION MODAL -->
+    <div id="modal-edit-tx" class="modal-overlay" style="z-index: 9600;">
+        <div class="bottom-sheet" style="padding: 24px; max-width: 480px; margin: 0 auto; border-radius: 24px 24px 0 0; background: var(--bg-color);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+                <div class="qty-header" id="edit-tx-name" style="margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--text-primary);">Item Name</div>
+                <button class="hub-close-btn" onclick="cancelTxEdit()">✕</button>
+            </div>
+            
+            <div style="display: flex; gap: 12px; margin-bottom: 14px;">
+                <div style="flex: 1;">
+                    <label class="admin-label">Qty</label>
+                    <input type="number" id="edit-tx-qty" class="settings-input" style="text-align: center; height: 44px;" oninput="autoCalcEditTotal()">
                 </div>
-                <div style="flex:2;">
-                    <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: bold;">Total Tk</label>
-                    <input type="number" id="edit-tx-amount" class="settings-input" inputmode="decimal" oninput="updateSplitTotal()">
+                <div style="flex: 2;">
+                    <label class="admin-label">Total Tk</label>
+                    <input type="number" id="edit-tx-amount" class="settings-input" inputmode="decimal" style="height: 44px;" oninput="updateSplitTotal()">
                 </div>
             </div>
-            <div style="margin-bottom:12px;">
-                <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: bold;">Payment Method</label>
-                <select id="edit-tx-payment" class="settings-input" style="text-align:left;" onchange="toggleEditSplitFields()">
+            
+            <div style="margin-bottom: 14px;">
+                <label class="admin-label">Payment Method</label>
+                <select id="edit-tx-payment" class="settings-input" style="height: 44px;" onchange="toggleEditSplitFields()">
                     <option value="Cash">Cash</option>
                     <option value="MFS">MFS</option>
                     <option value="Split">Split</option>
                 </select>
             </div>
-            <div id="edit-split-fields" style="display:none; gap:8px; margin-bottom:24px;">
-                <div style="flex:1;">
-                    <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: bold;">Cash Portion</label>
-                    <input type="number" id="edit-tx-cash" class="settings-input" style="text-align:center;" oninput="updateSplitTotal()">
+            
+            <div id="edit-split-fields" style="display: none; gap: 12px; margin-bottom: 20px;">
+                <div style="flex: 1;">
+                    <label class="admin-label">Cash Portion</label>
+                    <input type="number" id="edit-tx-cash" class="settings-input" style="text-align: center; height: 44px;" oninput="updateSplitTotal()">
                 </div>
-                <div style="flex:1;">
-                    <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: bold;">MFS Portion</label>
-                    <input type="number" id="edit-tx-mfs" class="settings-input" style="text-align:center;" oninput="updateSplitTotal()">
+                <div style="flex: 1;">
+                    <label class="admin-label">MFS Portion</label>
+                    <input type="number" id="edit-tx-mfs" class="settings-input" style="text-align: center; height: 44px;" oninput="updateSplitTotal()">
                 </div>
             </div>
-            <button class="save-ers-btn" onclick="saveTxEdit()">UPDATE</button>
-            <button class="modal-close" onclick="cancelTxEdit()">Cancel</button>
+            
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn-primary-full" style="height: 48px; border-radius: 14px; font-weight: 700;" onclick="saveTxEdit()">UPDATE TRANSACTION</button>
+                <button class="modal-close" style="color: var(--text-secondary); margin-top: 4px;" onclick="cancelTxEdit()">Cancel</button>
+            </div>
         </div>
     </div>
 
-    <div id="modal-trash" class="modal-overlay">
-        <div class="modal-content">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                <h3 class="modal-title" style="margin-bottom: 0;">Deleted Items</h3>
-                <button class="delete-btn" style="font-size: 0.9rem; padding: 6px 12px; border: 1px solid #ef4444; border-radius: 4px; cursor: pointer;" onclick="emptyTrash()">Empty All</button>
+    <!-- TRASH BIN MODAL -->
+    <div id="modal-trash" class="modal-overlay" style="z-index: 9600; background-color: var(--bg-color);">
+        <div class="modal-content" style="height: 100dvh; max-height: 100dvh; border-radius: 0; padding: 0; display: flex; flex-direction: column; background-color: var(--bg-color);">
+            <div class="admin-header-bar">
+                <h3 style="color: #ef4444; margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                    Deleted Items (Trash)
+                </h3>
+                <button class="delete-btn" style="color: var(--text-secondary); font-size: 1.5rem; padding: 4px;" onclick="closeModal('modal-trash')">✕</button>
             </div>
-            <div id="trash-log" style="max-height: 50vh; overflow-y: auto; margin-bottom: 16px;"></div>
-            <button class="modal-close" onclick="closeModal('modal-trash')">Close</button>
+            <div class="admin-toolbar" style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border-bottom: 1px solid var(--border-color);">
+                <span style="font-size: 0.82rem; color: var(--text-secondary); font-weight: 600;">Items moved to trash can be restored or emptied.</span>
+                <button class="btn-outline" style="font-size: 0.8rem; padding: 6px 14px; border-color: #ef4444; color: #ef4444; height: 34px; border-radius: 10px; font-weight: 700;" onclick="emptyTrash()">Empty All</button>
+            </div>
+            <div class="admin-body" id="trash-log" style="padding: 16px; flex: 1; overflow-y: auto;"></div>
         </div>
     </div>
 
+    <!-- HISTORIC AUDIT LOGS MODAL -->
+    <div id="modal-audit" class="modal-overlay" style="z-index: 9600; background-color: var(--bg-color);">
+        <div class="modal-content" style="height: 100dvh; max-height: 100dvh; border-radius: 0; padding: 0; display: flex; flex-direction: column; background-color: var(--bg-color);">
+            <div class="admin-header-bar">
+                <h3 style="color: #f59e0b; margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
+                    Historic Audit Logs
+                </h3>
+                <button class="delete-btn" style="color: var(--text-secondary); font-size: 1.5rem; padding: 4px;" onclick="closeModal('modal-audit')">✕</button>
+            </div>
+            <div class="admin-toolbar" style="padding: 12px 16px; display: flex; align-items: center; gap: 12px; background: var(--surface-color); border-bottom: 1px solid var(--border-color);">
+                <label style="font-weight: 700; color: var(--text-secondary); font-size: 0.85rem; margin: 0;">Select Date:</label>
+                <input type="date" id="audit-date" class="settings-input" style="flex: 1; height: 38px; padding: 6px 12px; border-radius: 10px; margin: 0;" onchange="fetchAuditLogs()">
+            </div>
+            <div class="admin-body" id="audit-results" style="padding: 16px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
+                <p class="placeholder-text">Select a date to view closed sessions.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- DESK SELECTOR MODAL -->
     <div id="modal-desk-select" class="modal-overlay" style="z-index: 9000; background-color: var(--bg-color);">
         <div class="modal-content" style="height: 100dvh; max-height: 100dvh; display: flex; flex-direction: column; justify-content: flex-start; border-radius: 0; padding: 24px; padding-top: calc(32px + env(safe-area-inset-top));">
-            <h2 style="font-size: 1.75rem; font-weight: 700; color: var(--text-primary); margin-bottom: 32px; letter-spacing: -0.5px;">Where are you working today?</h2>
+            <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 28px; letter-spacing: -0.5px;">Where are you working today?</h2>
             <div id="desk-list-container" style="display: flex; flex-direction: column; gap: 0;">
                 <div class="spinner" style="align-self: center;"></div>
             </div>
@@ -874,40 +979,23 @@
         #modal-close-desk .modal-content::before { display: none !important; }
     </style>
 
+    <!-- CLOSE DESK MODAL -->
     <div id="modal-close-desk" class="modal-overlay" style="z-index: 9500; background-color: var(--bg-color);">
         <div class="modal-content" id="close-desk-content" style="height: 100dvh; max-height: 100dvh; border-radius: 0; padding: 0; display: flex; flex-direction: column; background-color: var(--bg-color);">
         </div>
     </div>
 
+    <!-- APP ALERT MODAL -->
     <div id="modal-app-alert" class="modal-overlay" style="z-index: 100000; align-items: center;">
-        <div class="modal-content" style="max-width: 320px; border-radius: 16px; padding: 24px; text-align: center; animation: alertPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+        <div class="modal-content" style="max-width: 320px; border-radius: 20px; padding: 24px; text-align: center; animation: alertPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); background: var(--surface-color); border: 1px solid var(--border-color); box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
             <div id="app-alert-icon" style="margin-bottom: 16px; color: #ef4444; display: flex; justify-content: center;">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
             </div>
-            <h3 id="app-alert-title" style="margin-bottom: 8px; font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">Error</h3>
-            <p id="app-alert-message" style="font-size: 0.95rem; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.5;">Message goes here.</p>
+            <h3 id="app-alert-title" style="margin-bottom: 8px; font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">Error</h3>
+            <p id="app-alert-message" style="font-size: 0.92rem; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.5;">Message goes here.</p>
             <div style="display: flex; gap: 12px; justify-content: center;">
-                <button id="app-alert-cancel" class="btn-outline" style="flex: 1; display: none;" onclick="closeModal('modal-app-alert')">Cancel</button>
-                <button id="app-alert-confirm" class="btn-primary-full" style="flex: 1; background: #ef4444;" onclick="executeAlertConfirm()">OK</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="modal-audit" class="modal-overlay" style="z-index: 9600;">
-        <div class="modal-content">
-            <div class="admin-header-bar" style="margin-bottom: 16px; padding: 0 0 16px 0;">
-                <h3 style="color: #f59e0b;">Historic Audit Logs</h3>
-                <button class="delete-btn" style="color: #64748b; font-size: 1.5rem; padding: 0;" onclick="closeModal('modal-audit')">✕</button>
-            </div>
-            <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 16px;">Review end-of-day handovers, shortages, and overages for any past date.</p>
-            
-            <div style="margin-bottom: 16px; display: flex; gap: 12px; align-items: center; background: transparent; padding: 12px; border-radius: 8px;">
-                <label style="font-weight: bold; color: var(--text-secondary); font-size: 0.9rem; margin: 0;">Select Date:</label>
-                <input type="date" id="audit-date" class="settings-input" style="padding: 8px; width: auto; margin: 0; border-color: var(--border-color);" onchange="fetchAuditLogs()">
-            </div>
-            
-            <div id="audit-results" style="max-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
-                <p class="placeholder-text">Select a date to view closed sessions.</p>
+                <button id="app-alert-cancel" class="btn-outline" style="flex: 1; height: 44px; border-radius: 12px; font-weight: 700; display: none;" onclick="closeModal('modal-app-alert')">Cancel</button>
+                <button id="app-alert-confirm" class="btn-primary-full" style="flex: 1; height: 44px; border-radius: 12px; font-weight: 700; background: #ef4444;" onclick="executeAlertConfirm()">OK</button>
             </div>
         </div>
     </div>
@@ -1182,24 +1270,34 @@
         </div>
     </div>
 
+    <!-- SELECT RECYCLE SIM FOR SALE MODAL -->
     <div id="modal-select-recycle-sim" class="modal-overlay" style="z-index: 9700;">
-        <div class="bottom-sheet" style="padding: 24px;">
-            <div class="qty-header" style="color: var(--accent-color);">Recycle SIM Sale</div>
-            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px; text-align: center;">Select which arrived recycled SIM you are selling, or choose untracked sale.</p>
+        <div class="bottom-sheet" style="padding: 24px; max-width: 480px; margin: 0 auto; border-radius: 24px 24px 0 0; background: var(--bg-color);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+                <h3 style="color: var(--accent-color); margin: 0; font-size: 1.15rem; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                    <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: rgba(51, 144, 236, 0.1); color: var(--accent-color);">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                    </span>
+                    Recycle SIM Sale
+                </h3>
+                <button class="hub-close-btn" onclick="closeModal('modal-select-recycle-sim')">✕</button>
+            </div>
+
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px;">Select which arrived recycled SIM you are selling, or choose untracked sale.</p>
             
-            <div class="admin-form-card" style="padding: 16px; margin-bottom: 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px;">
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px;">
                 <div>
-                    <label class="admin-label">Arrived Recycled Numbers</label>
+                    <label class="admin-label">Arrived Recycled Numbers *</label>
                     <select id="recycle-select-sale-number" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" onchange="Amolnama.onSelectRecycleSaleNumberChange()">
                         <!-- Dynamically filled with options -->
                     </select>
                 </div>
                 <div id="recycle-sale-untracked-number-wrapper" style="display: none;">
-                    <label class="admin-label">Recycled SIM Number (Manual Input)</label>
+                    <label class="admin-label">Recycled SIM Number (Manual Input) *</label>
                     <input type="text" id="recycle-sale-untracked-number" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. 017XXXXXXXX" inputmode="tel">
                 </div>
                 <div>
-                    <label class="admin-label">Payment Method</label>
+                    <label class="admin-label">Payment Method *</label>
                     <select id="recycle-sale-payment" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;">
                         <option value="Cash">Cash</option>
                         <option value="MFS">MFS</option>
@@ -1207,8 +1305,10 @@
                 </div>
             </div>
 
-            <button class="btn-primary-full" onclick="Amolnama.confirmRecycleSimSale()">CONFIRM & LOG SALE</button>
-            <button class="modal-close" style="color: var(--text-secondary);" onclick="closeModal('modal-select-recycle-sim')">Cancel</button>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn-primary-full" style="height: 48px; border-radius: 14px; font-weight: 700;" onclick="Amolnama.confirmRecycleSimSale()">CONFIRM & LOG SALE</button>
+                <button class="modal-close" style="color: var(--text-secondary); margin-top: 4px;" onclick="closeModal('modal-select-recycle-sim')">Cancel</button>
+            </div>
         </div>
     </div>
     <div id="modal-sim-onboarding" class="modal-overlay" style="z-index: 9800;">

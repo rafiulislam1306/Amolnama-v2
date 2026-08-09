@@ -131,8 +131,8 @@ export async function renderPersonalReport() {
         let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
         let badges = '';
         
-        if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
-        if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
+        if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: rgba(245, 158, 11, 0.15); color: #f59e0b; padding: 2px 8px; border-radius: 10px; margin-left: 8px; font-weight: 700;">Pending</span>';
+        if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: rgba(139, 92, 246, 0.15); color: #8b5cf6; padding: 2px 8px; border-radius: 10px; margin-left: 8px; font-weight: 700; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
         
         let detailsHTML = '';
         if (tx.handsetModel) {
@@ -145,10 +145,10 @@ export async function renderPersonalReport() {
 
         let actionBtns = `
                 <div class="tx-actions" style="display: none; width: 100%; padding-top: 12px; margin-top: 12px; border-top: 1px dashed var(--border-color); justify-content: flex-end; gap: 8px;">
-                    <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: var(--accent-color); border-color: var(--accent-color); gap: 6px;" onclick="event.stopPropagation(); openEditTx(${tx.id})">
+                    <button class="btn-outline" style="height: 36px; padding: 0 16px; font-size: 0.85rem; color: var(--accent-color); border-color: var(--accent-color); gap: 6px; border-radius: 10px; font-weight: 700;" onclick="event.stopPropagation(); openEditTx(${tx.id})">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> Edit
                     </button>
-                    <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: #ef4444; border-color: #fca5a5; background: #fef2f2; gap: 6px;" onclick="event.stopPropagation(); deleteTransaction('${tx.docId}', ${tx.id})">
+                    <button class="btn-outline" style="height: 36px; padding: 0 16px; font-size: 0.85rem; color: #ef4444; border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.08); gap: 6px; border-radius: 10px; font-weight: 700;" onclick="event.stopPropagation(); deleteTransaction('${tx.docId}', ${tx.id})">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg> Trash
                     </button>
                 </div>
