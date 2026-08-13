@@ -493,25 +493,15 @@ export async function saveRecycleStatusUpdate() {
     }
 
     if (newStatus === 'completed') {
-        updateData.completedAt = serverTimestamp();
-        updateData.completedBy = agentName;
-        updateData.soldBy = agentName;
-        updateData.previousStatus = sim.status || 'arrived';
-        
-        // INTERACTIVE BRIDGE: Ask if they want to log the sale transaction now
+        // Direct checkout to prevent status mismatch
         closeModal('modal-recycle-status-update');
-        
-        showAppAlert("Log Sale", `Would you like to log the sale of Recycle SIM ${sim.recycledNumber} to today's ledger?`, true, () => {
-            // Open Checkout Modal
-            openRecycleSaleCheckoutForSIM(sim.id);
-        }, "Log Sale");
+        openRecycleSaleCheckoutForSIM(sim.id);
+        return;
     }
 
     try {
         await updateDoc(doc(db, 'recycle_sims', id), updateData);
-        if (newStatus !== 'completed') {
-            closeModal('modal-recycle-status-update');
-        }
+        closeModal('modal-recycle-status-update');
         showFlashMessage("Status updated successfully!");
     } catch (e) {
         console.error("Error updating status:", e);
@@ -555,12 +545,14 @@ export function triggerStoreRecycleSale() {
     openModal('modal-select-recycle-sim');
 }
 
-export function populateStoreRecycleSaleOptions() {
+export function populateStoreRecycleSaleOptions(extraSimId = null) {
     const select = document.getElementById('recycle-select-sale-number');
     if (!select) return;
 
-    // Filter SIMs with status 'arrived' or 'scheduled'
-    const eligibleSims = recycleSimsList.filter(sim => ['arrived', 'scheduled'].includes(sim.status));
+    // Filter SIMs with status 'arrived' or 'scheduled', or the extra one
+    const eligibleSims = recycleSimsList.filter(sim => 
+        ['arrived', 'scheduled'].includes(sim.status) || sim.id === extraSimId
+    );
 
     let html = '';
     eligibleSims.forEach(sim => {
@@ -585,6 +577,8 @@ export function onSelectRecycleSaleNumberChange() {
 function openRecycleSaleCheckoutForSIM(simId) {
     const sim = recycleSimsList.find(s => s.id === simId);
     if (!sim) return;
+
+    populateStoreRecycleSaleOptions(simId);
 
     const select = document.getElementById('recycle-select-sale-number');
     if (select) {
@@ -632,9 +626,15 @@ export async function confirmRecycleSimSale() {
         finalRecycleNumber = sim.recycledNumber;
     }
 
+    let customNote = '';
+    const statusNoteEl = document.getElementById('status-update-note');
+    if (statusNoteEl && statusNoteEl.value.trim()) {
+        customNote = statusNoteEl.value.trim();
+    }
+
     const catalogItem = AppState.globalCatalog["sim_recycle"] || { name: 'Recycle SIM', price: 400 };
     const price = catalogItem.price || 400;
-    const note = `Recycle SIM: ${finalRecycleNumber}`;
+    const note = `Recycle SIM: ${finalRecycleNumber}` + (customNote ? ` (${customNote})` : '');
 
     // Prompt onboarding before saving
     if (typeof window.Amolnama?.promptSimOnboarding === 'function') {
@@ -651,13 +651,15 @@ export async function confirmRecycleSimSale() {
             if (simId) {
                 const sim = recycleSimsList.find(s => s.id === simId);
                 const timestamp = new Date().toISOString();
-                const agentName = AppState.userNickname || AppState.userDisplayName;
+                
+                const agentSelect = document.getElementById('status-update-agent');
+                const agentName = agentSelect ? agentSelect.value : (AppState.userNickname || AppState.userDisplayName || 'Agent');
 
                 const historyItem = {
                     status: 'completed',
                     timestamp: timestamp,
                     by: agentName,
-                    note: 'Completed via direct Store Checkout sale.'
+                    note: customNote ? `Completed: ${customNote}` : 'Completed via direct Store Checkout sale.'
                 };
 
                 const updateData = {
@@ -688,13 +690,15 @@ export async function confirmRecycleSimSale() {
         if (simId) {
             const sim = recycleSimsList.find(s => s.id === simId);
             const timestamp = new Date().toISOString();
-            const agentName = AppState.userNickname || AppState.userDisplayName;
+            
+            const agentSelect = document.getElementById('status-update-agent');
+            const agentName = agentSelect ? agentSelect.value : (AppState.userNickname || AppState.userDisplayName || 'Agent');
 
             const historyItem = {
                 status: 'completed',
                 timestamp: timestamp,
                 by: agentName,
-                note: 'Completed via direct Store Checkout sale.'
+                note: customNote ? `Completed: ${customNote}` : 'Completed via direct Store Checkout sale.'
             };
 
             const updateData = {
