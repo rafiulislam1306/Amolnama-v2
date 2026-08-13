@@ -1945,6 +1945,27 @@ div:has(> .desk-filter-pill)::-webkit-scrollbar { display: none; }
     transform: scale(0.9);
 }
 
+.recycle-call-action-btn.new-pulse {
+    background: rgba(245, 158, 11, 0.15); /* Amber background */
+    color: #d97706; /* Amber text */
+    border-color: rgba(245, 158, 11, 0.45);
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+    animation: amber-pulse 1.8s infinite cubic-bezier(0.66, 0, 0, 1);
+}
+
+@keyframes amber-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(245, 158, 11, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+    }
+}
+
+
 .recycle-summary-strip {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;

@@ -144,6 +144,37 @@ export function renderRecycleSummary() {
     if (scheduledEl) scheduledEl.innerText = scheduled;
 }
 
+export function simNeedsCall(sim) {
+    if (!['arrived', 'scheduled'].includes(sim.status)) {
+        return false;
+    }
+
+    if (!sim.history || sim.history.length === 0) {
+        return true;
+    }
+
+    // Get the timestamp of the last contact action
+    // We look for the most recent history item that is NOT a status change to arrived/scheduled or entry creation
+    let lastContactTimestamp = null;
+    for (let i = sim.history.length - 1; i >= 0; i--) {
+        const item = sim.history[i];
+        const isStatusChangeOnly = item.note?.includes('Status changed') || item.note === 'Recycle SIM entry created.';
+        if (!isStatusChangeOnly) {
+            lastContactTimestamp = new Date(item.timestamp);
+            break;
+        }
+    }
+
+    // If never contacted since arrival, it needs a call
+    if (!lastContactTimestamp) {
+        return true;
+    }
+
+    // Check if the last contact was more than 7 days ago
+    const daysSinceLastContact = (Date.now() - lastContactTimestamp.getTime()) / (1000 * 60 * 60 * 24);
+    return daysSinceLastContact >= 7;
+}
+
 export function renderRecycleList() {
     const container = document.getElementById('recycle-list-container');
     if (!container) return;
@@ -231,8 +262,9 @@ export function renderRecycleList() {
         
         let callButton = '';
         if (sim.alternativeNumber) {
+            const pulseClass = simNeedsCall(sim) ? ' new-pulse' : '';
             callButton = `
-                <a href="tel:${sim.alternativeNumber}" onclick="event.stopPropagation();" class="recycle-call-action-btn" title="Call Customer">
+                <a href="tel:${sim.alternativeNumber}" onclick="event.stopPropagation();" class="recycle-call-action-btn${pulseClass}" title="Call Customer">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                 </a>
             `;
