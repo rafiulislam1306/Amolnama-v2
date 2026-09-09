@@ -252,6 +252,8 @@ export async function saveReturnStock() {
     }
 }
 
+let cachedDeskStocks = {};
+
 export async function openDeskTransfer() {
     if(!AppState.currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
     document.getElementById('desk-transfer-qty').value = '';
@@ -265,11 +267,20 @@ export async function openDeskTransfer() {
 
     let targetSelect = document.getElementById('desk-transfer-target');
     targetSelect.innerHTML = '<option value="">Loading active desks...</option>';
+
+    if (!itemSelect.dataset.listenerBound) {
+        itemSelect.addEventListener('change', updateTransferSuggestion);
+        targetSelect.addEventListener('change', updateTransferSuggestion);
+        itemSelect.dataset.listenerBound = 'true';
+    }
+
     openModal('modal-desk-transfer');
     setTimeout(() => {
         const qtyInput = document.getElementById('desk-transfer-qty');
         if (qtyInput) { qtyInput.focus(); }
     }, 150);
+
+    cachedDeskStocks = {};
 
     try {
         const activeSessionsSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'open')));
@@ -299,29 +310,41 @@ export async function openDeskTransfer() {
             // Filter out old sessions from past dates that were left open and not yet rolled over
             if (deskData.dateStr !== getStrictDate()) continue;
 
+            const sessionTxs = AppState.transactions.filter(tx => tx.sessionId === sid && !tx.isDeleted);
+            let liveCash = parseFloat(deskData.openingBalances?.cash) || 0;
+            let liveInv = { ...(deskData.openingBalances?.inventory || {}) };
+            let grossInv = { ...(deskData.openingBalances?.inventory || {}) };
+            let hasSalesActivity = false;
+
+            sessionTxs.forEach(tx => {
+                let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
+                liveCash += safeCashAmt;
+                
+                let change = getInventoryChange(tx);
+                if (change !== 0) {
+                    liveInv[tx.trackAs] = (liveInv[tx.trackAs] || 0) + change;
+                }
+
+                if (!tx.isRemoteTransfer) {
+                    if (tx.type === 'transfer_in') {
+                        grossInv[tx.trackAs] = (grossInv[tx.trackAs] || 0) + Math.abs(tx.qty);
+                    } else if (tx.type === 'transfer_out') {
+                        grossInv[tx.trackAs] = (grossInv[tx.trackAs] || 0) - Math.abs(tx.qty);
+                    }
+                }
+                
+                if (tx.type === 'Item' || tx.type === 'ERS' || tx.type === 'sale') {
+                    hasSalesActivity = true;
+                }
+            });
+
+            let totalStockQty = Object.values(liveInv).reduce((sum, qty) => sum + Math.max(0, qty || 0), 0);
+
+            // Cache Gross Inventory (Opening + Main Stock) for pure math suggestions
+            cachedDeskStocks[deskData.deskId] = grossInv;
+
             if(deskData.deskId !== AppState.currentDeskId) {
                 // --- FLOOR MAP HEALTH CHECK ---
-                const sessionTxs = AppState.transactions.filter(tx => tx.sessionId === sid && !tx.isDeleted);
-                let liveCash = parseFloat(deskData.openingBalances?.cash) || 0;
-                let liveInv = { ...(deskData.openingBalances?.inventory || {}) };
-                let hasSalesActivity = false;
-
-                sessionTxs.forEach(tx => {
-                    let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
-                    liveCash += safeCashAmt;
-                    
-                    let change = getInventoryChange(tx);
-                    if (change !== 0) {
-                        liveInv[tx.trackAs] = (liveInv[tx.trackAs] || 0) + change;
-                    }
-                    
-                    if (tx.type === 'Item' || tx.type === 'ERS' || tx.type === 'sale') {
-                        hasSalesActivity = true;
-                    }
-                });
-
-                let totalStockQty = Object.values(liveInv).reduce((sum, qty) => sum + Math.max(0, qty || 0), 0);
-
                 // Skip ghost desks: No sales, zero stock, zero cash
                 if (!hasSalesActivity && totalStockQty === 0 && liveCash === 0) continue;
                 // ------------------------------
@@ -355,7 +378,6 @@ export async function openDeskTransfer() {
         targetSelect.innerHTML = optionsHTML || '<option value="">No other desks open</option>';
     } catch(e) { targetSelect.innerHTML = '<option value="">Offline: Cannot fetch desks</option>'; }
 }
-
 export async function executeDeskTransfer() {
     if (!navigator.onLine) {
         showAppAlert("Connection Required", "Desk-to-desk transfers require an active internet connection so the receiving desk gets the stock immediately. Please connect and try again.");
@@ -490,4 +512,40 @@ export function validateMgrCashSplit() {
         cashAmt = Math.max(0, totalAmt - mfsAmt);
         document.getElementById('mgr-cash-split-cash').value = cashAmt;
     }
+}
+
+export function updateTransferSuggestion() {
+    let itemSelect = document.getElementById('desk-transfer-item');
+    let targetSelect = document.getElementById('desk-transfer-target');
+    let qtyInput = document.getElementById('desk-transfer-qty');
+    
+    if (!itemSelect || !targetSelect || !qtyInput) return;
+    
+    let itemName = itemSelect.value;
+    let targetVal = targetSelect.value;
+    
+    if (!itemName || !targetVal) {
+        qtyInput.placeholder = "0";
+        return;
+    }
+    
+    let parts = targetVal.split('|');
+    let targetDeskId = parts[0];
+    
+    let totalAgents = AppState.globalTransferAgentsCount || 6;
+    let totalSystemStock = 0;
+    
+    for (const [deskId, inventory] of Object.entries(cachedDeskStocks)) {
+        totalSystemStock += Math.max(0, inventory[itemName] || 0);
+    }
+    
+    let targetCurrentStock = Math.max(0, cachedDeskStocks[targetDeskId]?.[itemName] || 0);
+    
+    let targetPerAgent = Math.floor(totalSystemStock / totalAgents);
+    let suggestion = Math.max(0, targetPerAgent - targetCurrentStock);
+    
+    if (qtyInput.value === '') {
+        qtyInput.value = suggestion;
+    }
+    qtyInput.placeholder = 'Suggested: ' + suggestion;
 }

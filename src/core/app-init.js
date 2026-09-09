@@ -59,11 +59,13 @@ export async function initUserData(onComplete) {
             if (globalDoc.exists() && globalDoc.data().catalog) {
                 AppState.globalCatalog = globalDoc.data().catalog;
                 AppState.globalInventoryGroups = globalDoc.data().inventoryGroups || defaultInventoryGroups;
-                localStorage.setItem('amolnama_cache_global', JSON.stringify({ catalog: AppState.globalCatalog, inventoryGroups: AppState.globalInventoryGroups }));
+                AppState.globalTransferAgentsCount = globalDoc.data().transferAgentsCount || 6;
+                localStorage.setItem('amolnama_cache_global', JSON.stringify({ catalog: AppState.globalCatalog, inventoryGroups: AppState.globalInventoryGroups, transferAgentsCount: AppState.globalTransferAgentsCount }));
             } else {
                 AppState.globalCatalog = defaultCatalog;
                 AppState.globalInventoryGroups = defaultInventoryGroups;
-                if (AppState.currentUserRole === 'admin') await setDoc(doc(db, 'global', 'settings'), { catalog: AppState.globalCatalog, inventoryGroups: AppState.globalInventoryGroups }, { merge: true });
+                AppState.globalTransferAgentsCount = 6;
+                if (AppState.currentUserRole === 'admin') await setDoc(doc(db, 'global', 'settings'), { catalog: AppState.globalCatalog, inventoryGroups: AppState.globalInventoryGroups, transferAgentsCount: AppState.globalTransferAgentsCount }, { merge: true });
             }
         } catch (err) {
             console.warn("Offline Mode: Loading global catalog from cache", err);
@@ -71,9 +73,11 @@ export async function initUserData(onComplete) {
             if (cachedGlobal) {
                 AppState.globalCatalog = cachedGlobal.catalog;
                 AppState.globalInventoryGroups = cachedGlobal.inventoryGroups;
+                AppState.globalTransferAgentsCount = cachedGlobal.transferAgentsCount || 6;
             } else {
                 AppState.globalCatalog = defaultCatalog;
                 AppState.globalInventoryGroups = defaultInventoryGroups;
+                AppState.globalTransferAgentsCount = 6;
             }
         }
 

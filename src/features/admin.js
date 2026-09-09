@@ -71,6 +71,9 @@ export function openSettings() {
     renderInventoryGroupsAdmin();
     renderUserManagementAdmin(); 
     populateAdminTransferSection();
+    
+    let agentsCountInput = document.getElementById('admin-transfer-agents-count');
+    if (agentsCountInput) agentsCountInput.value = AppState.globalTransferAgentsCount || 6;
 
     const categories = [
         { id: 'new-sim', title: 'New SIMs', color: '#10b981' },
@@ -198,7 +201,12 @@ export async function saveSettings() {
         }
     });
     try {
-        if (['admin', 'owner'].includes(AppState.currentUserRole)) await setDoc(doc(db, 'global', 'settings'), { catalog: AppState.globalCatalog, inventoryGroups: AppState.globalInventoryGroups }, { merge: true });
+        let agentsCountInput = document.getElementById('admin-transfer-agents-count');
+        if (agentsCountInput) {
+            AppState.globalTransferAgentsCount = parseInt(agentsCountInput.value) || 6;
+        }
+
+        if (['admin', 'owner'].includes(AppState.currentUserRole)) await setDoc(doc(db, 'global', 'settings'), { catalog: AppState.globalCatalog, inventoryGroups: AppState.globalInventoryGroups, transferAgentsCount: AppState.globalTransferAgentsCount }, { merge: true });
         if (typeof window.renderAppUI === 'function') window.renderAppUI(); 
         closeModal('modal-settings'); showFlashMessage("Settings Saved & Synced!");
     } catch(e) { showAppAlert("Error", "Error saving settings."); }
