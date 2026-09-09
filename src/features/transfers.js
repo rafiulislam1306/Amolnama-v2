@@ -23,7 +23,7 @@ export function openManagerCashModal() {
     
     // Reset payment fields
     const paySelect = document.getElementById('mgr-cash-payment');
-    if (paySelect) paySelect.value = 'Cash';
+    if (paySelect) paySelect.value = '';
     const payWrapper = document.getElementById('mgr-cash-payment-wrapper');
     if (payWrapper) payWrapper.style.display = 'none';
     const splitFields = document.getElementById('mgr-cash-split-fields');
@@ -33,7 +33,7 @@ export function openManagerCashModal() {
     
     const actionSelect = document.getElementById('mgr-cash-action');
     if (actionSelect) {
-        actionSelect.value = 'drop_manager';
+        actionSelect.value = '';
         // Attach change listener if not already done
         if (!actionSelect.dataset.listenerBound) {
             actionSelect.addEventListener('change', (e) => {
@@ -76,6 +76,11 @@ export async function saveManagerCash() {
     }
     
     let action = document.getElementById('mgr-cash-action').value; 
+    if (!action) {
+        isSaving = false;
+        showAppAlert("Invalid Selection", "Please select an action.");
+        return;
+    }
     let finalCash = 0;
     let finalMfs = 0;
     let method = 'Cash';
@@ -97,6 +102,11 @@ export async function saveManagerCash() {
     } else if (action === 'handset_cash') { 
         txName = 'Handset Cash'; 
         method = document.getElementById('mgr-cash-payment').value;
+        if (!method) {
+            isSaving = false;
+            showAppAlert("Invalid Selection", "Please select a payment method.");
+            return;
+        }
         
         if (method === 'Split') {
             let cashVal = parseFloat(document.getElementById('mgr-cash-split-cash').value) || 0;
@@ -155,7 +165,7 @@ export function openMainStockModal() {
     if(!AppState.currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
     document.getElementById('main-stock-qty').value = '';
     let selectEl = document.getElementById('main-stock-item');
-    selectEl.innerHTML = '';
+    selectEl.innerHTML = '<option value="" disabled selected>� Select a Product �</option>';
     getPhysicalItems().forEach(itemName => {
         let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
         selectEl.appendChild(opt);
@@ -178,6 +188,11 @@ export async function saveMainStock() {
         return; 
     }
     let itemName = document.getElementById('main-stock-item').value;
+    if (!itemName) {
+        isSaving = false;
+        showAppAlert("Invalid Selection", "Please select a product.");
+        return;
+    }
 
     const tx = {
         id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty,
@@ -203,7 +218,7 @@ export function openReturnStockModal() {
     if(!AppState.currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
     document.getElementById('return-stock-qty').value = '';
     let selectEl = document.getElementById('return-stock-item');
-    selectEl.innerHTML = '';
+    selectEl.innerHTML = '<option value="" disabled selected>� Select a Product �</option>';
     getPhysicalItems().forEach(itemName => {
         let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
         selectEl.appendChild(opt);
@@ -226,6 +241,11 @@ export async function saveReturnStock() {
         return; 
     }
     let itemName = document.getElementById('return-stock-item').value;
+    if (!itemName) {
+        isSaving = false;
+        showAppAlert("Invalid Selection", "Please select a product.");
+        return;
+    }
 
     if (!passStockFirewall(itemName, qty)) {
         isSaving = false;
@@ -259,7 +279,7 @@ export async function openDeskTransfer() {
     document.getElementById('desk-transfer-qty').value = '';
     
     let itemSelect = document.getElementById('desk-transfer-item');
-    itemSelect.innerHTML = '';
+    itemSelect.innerHTML = '<option value="" disabled selected>� Select a Product �</option>';
     getPhysicalItems().forEach(itemName => {
         let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
         itemSelect.appendChild(opt);
@@ -375,7 +395,7 @@ export async function openDeskTransfer() {
             }
         }
         
-        targetSelect.innerHTML = optionsHTML || '<option value="">No other desks open</option>';
+        targetSelect.innerHTML = (optionsHTML ? '<option value="" disabled selected>� Select an Agent �</option>' + optionsHTML : '<option value="">No other desks open</option>');
     } catch(e) { targetSelect.innerHTML = '<option value="">Offline: Cannot fetch desks</option>'; }
 }
 export async function executeDeskTransfer() {
@@ -394,6 +414,11 @@ export async function executeDeskTransfer() {
         return; 
     }
     let itemName = document.getElementById('desk-transfer-item').value;
+    if (!itemName) {
+        isSaving = false;
+        showAppAlert("Invalid Selection", "Please select a product.");
+        return;
+    }
 
     let targetSelect = document.getElementById('desk-transfer-target');
     let targetVal = targetSelect.value;
@@ -446,7 +471,7 @@ export function openTransferModal(targetDesk, targetSession, targetName) {
     document.getElementById('transfer-target-name').innerText = targetTransferDeskName;
     document.getElementById('transfer-qty').value = '';
     let selectEl = document.getElementById('transfer-item-select');
-    selectEl.innerHTML = '';
+    selectEl.innerHTML = '<option value="" disabled selected>� Select a Product �</option>';
     getPhysicalItems().forEach(itemName => {
         let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
         selectEl.appendChild(opt);
@@ -458,6 +483,10 @@ export function executeTransfer() {
     let qty = parseInt(document.getElementById('transfer-qty').value) || 0;
     if (qty <= 0) { showAppAlert("Invalid Input", "Enter valid quantity."); return; }
     let itemName = document.getElementById('transfer-item-select').value;
+    if (!itemName) {
+        showAppAlert("Invalid Selection", "Please select a product.");
+        return;
+    }
     let timeStr = new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
     let dateStr = getStrictDate();
 

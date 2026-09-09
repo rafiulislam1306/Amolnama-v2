@@ -412,6 +412,7 @@
                 <div style="margin-bottom: 14px;">
                     <label class="admin-label">Action Type *</label>
                     <select id="mgr-cash-action" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box; font-size: 0.95rem;">
+                        <option value="" disabled selected>— Select Action —</option>
                         <optgroup label="Cash Leaving Drawer (-)">
                             <option value="drop_manager">Drop Cash TO Manager</option>
                             <option value="expense">Expense / Donation</option>
@@ -433,6 +434,7 @@
                 <div id="mgr-cash-payment-wrapper" style="display: none; margin-top: 14px;">
                     <label class="admin-label">Payment Method</label>
                     <select id="mgr-cash-payment" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" onchange="toggleMgrCashPaymentFields()">
+                        <option value="" disabled selected>— Select Payment Method —</option>
                         <option value="Cash">Cash</option>
                         <option value="MFS">MFS</option>
                         <option value="Split">Split Payment</option>
