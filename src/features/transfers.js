@@ -345,7 +345,8 @@ export async function openDeskTransfer() {
                     liveInv[tx.trackAs] = (liveInv[tx.trackAs] || 0) + change;
                 }
 
-                if (!tx.isRemoteTransfer) {
+                const isAllocationTx = (tx.type === 'transfer_in' || tx.type === 'transfer_out');
+                if (isAllocationTx) {
                     if (tx.type === 'transfer_in') {
                         grossInv[tx.trackAs] = (grossInv[tx.trackAs] || 0) + Math.abs(tx.qty);
                     } else if (tx.type === 'transfer_out') {
@@ -571,7 +572,7 @@ export function updateTransferSuggestion() {
     let targetCurrentStock = Math.max(0, cachedDeskStocks[targetDeskId]?.[itemName] || 0);
     
     let targetPerAgent = Math.floor(totalSystemStock / totalAgents);
-    let suggestion = Math.max(0, targetPerAgent - targetCurrentStock);
+    let suggestion = targetPerAgent - targetCurrentStock;
     
     if (qtyInput.value === '') {
         qtyInput.value = suggestion;
