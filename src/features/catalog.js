@@ -138,7 +138,7 @@ export function renderAppUI() {
             if (!container) return; // Skip if category HTML container doesn't exist
             
             // STRICT RULE: Death TOF and Govt. FOC are ONLY visible to center_manager
-            if ((item.name === 'Death TOF' || item.name === 'Govt. FOC') && AppState.currentUserRole !== 'center_manager') {
+            if ((item.name === 'Death TOF') && AppState.currentUserRole !== 'center_manager') {
                 return; // Hide entirely
             }
 

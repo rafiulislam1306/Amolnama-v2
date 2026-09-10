@@ -65,6 +65,6 @@ export const defaultCatalog = {
     "card_100": { name: 'GP 100 Tk Card', display: 'GP 100 Tk Card', price: 100, cat: 'cards', trackAs: 'GP 100 Tk Card', isActive: true, order: 26 },
 
     // MANAGER ONLY ACTIONS (Locked)
-    "foc_govt": { name: 'Govt. FOC', display: 'Govt. FOC', price: 0, cat: 'free-action', trackAs: 'Regular Kit', isActive: true, order: 27, managerOnly: true },
+    "foc_govt": { name: 'Govt. FOC', display: 'Govt. FOC', price: 0, cat: 'free-action', trackAs: 'Regular Kit', isActive: true, order: 27 },
     "foc_death": { name: 'Death TOF', display: 'Death TOF', price: 0, cat: 'free-action', trackAs: 'Regular Kit', isActive: true, order: 28, managerOnly: true }
 };
