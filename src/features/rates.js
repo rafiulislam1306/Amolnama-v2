@@ -716,7 +716,7 @@ let activeRatesList = [];
 let hasInitialized = false;
 
 // Initialize rates by pulling from Firestore or fallback
-export async function loadRatesFromCloud() {
+async function loadRatesFromCloud() {
     if (hasInitialized) return;
     try {
         const ratesDoc = await getDoc(doc(db, 'global', 'rates'));
