@@ -9,12 +9,6 @@ import { fetchTransactionsForDate } from '../features/reports.js';
 import { setupBottomSheetDrag, showAppAlert } from '../utils/ui-helpers.js';
 import { initRecycleListener } from '../features/recycle.js';
 
-export function updateCurrencyUI() { 
-    const userCurrency = 'Tk';
-    document.querySelectorAll('.ers-currency').forEach(el => { 
-        if(!el.innerText.includes('Qty')) el.innerText = userCurrency; 
-    }); 
-}
 export async function initUserData(onComplete) {
     if(!AppState.currentUser) return;
     
@@ -113,7 +107,10 @@ export async function initUserData(onComplete) {
             }
         }
 
-        updateCurrencyUI(); 
+        const userCurrency = 'Tk';
+        document.querySelectorAll('.ers-currency').forEach(el => {
+            if(!el.innerText.includes('Qty')) el.innerText = userCurrency;
+        });
         if (typeof window.renderAppUI === 'function') window.renderAppUI();
         
         const t = new Date();
