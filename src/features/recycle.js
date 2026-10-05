@@ -124,7 +124,7 @@ export function initRecycleListener() {
     });
 }
 
-export function renderRecycleSummary() {
+function renderRecycleSummary() {
     let pending = 0;
     let arrived = 0;
     let scheduled = 0;
