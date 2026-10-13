@@ -144,26 +144,60 @@ export function renderRecycleSummary() {
     if (scheduledEl) scheduledEl.innerText = scheduled;
 }
 
+// Helper to get the last confirmed customer contact time
+export function getLastContactTime(sim) {
+    if (!sim) return null;
+
+    // 1. Direct lastContactedAt field (preferred)
+    if (sim.lastContactedAt) {
+        const d = sim.lastContactedAt.toDate ? sim.lastContactedAt.toDate() : new Date(sim.lastContactedAt);
+        if (!isNaN(d.getTime())) return d;
+    }
+
+    // 2. Backward compatibility: Scan history items backwards
+    if (Array.isArray(sim.history) && sim.history.length > 0) {
+        for (let i = sim.history.length - 1; i >= 0; i--) {
+            const item = sim.history[i];
+            if (!item) continue;
+
+            const note = (item.note || '').trim();
+
+            // Skip initial entry creation
+            if (note === 'Recycle SIM entry created.' || note.startsWith('Entry created:')) {
+                continue;
+            }
+
+            // Skip initial arrival transition from applied to arrived with default status note
+            if (note === 'Status changed from applied to arrived.' || note.toLowerCase() === 'status changed from applied to arrived.') {
+                continue;
+            }
+
+            // Any other history entry (status unchanged / follow-up, scheduled, custom note, call note) counts as a contact
+            const d = item.timestamp?.toDate ? item.timestamp.toDate() : new Date(item.timestamp);
+            if (!isNaN(d.getTime())) {
+                return d;
+            }
+        }
+    }
+
+    // 3. Fallback: Check updatedAt if updated after creation
+    if (sim.updatedAt && sim.appliedAt) {
+        const updatedTime = sim.updatedAt.toDate ? sim.updatedAt.toDate() : new Date(sim.updatedAt);
+        const appliedTime = sim.appliedAt.toDate ? sim.appliedAt.toDate() : new Date(sim.appliedAt);
+        if (!isNaN(updatedTime.getTime()) && !isNaN(appliedTime.getTime()) && (updatedTime.getTime() - appliedTime.getTime() > 60000)) {
+            return updatedTime;
+        }
+    }
+
+    return null;
+}
+
 export function simNeedsCall(sim) {
     if (!['arrived', 'scheduled'].includes(sim.status)) {
         return false;
     }
 
-    if (!sim.history || sim.history.length === 0) {
-        return true;
-    }
-
-    // Get the timestamp of the last contact action
-    // We look for the most recent history item that is NOT a status change to arrived/scheduled or entry creation
-    let lastContactTimestamp = null;
-    for (let i = sim.history.length - 1; i >= 0; i--) {
-        const item = sim.history[i];
-        const isStatusChangeOnly = item.note?.includes('Status changed') || item.note === 'Recycle SIM entry created.';
-        if (!isStatusChangeOnly) {
-            lastContactTimestamp = new Date(item.timestamp);
-            break;
-        }
-    }
+    const lastContactTimestamp = getLastContactTime(sim);
 
     // If never contacted since arrival, it needs a call
     if (!lastContactTimestamp) {
@@ -308,8 +342,8 @@ export function renderRecycleList() {
                     ` : `
                     <div class="recycle-grid-item">
                         <span class="recycle-grid-label">Last Contacted</span>
-                        <span class="recycle-grid-val">${sim.updatedBy || 'Not updated yet'}</span>
-                        <span class="recycle-grid-subval">${sim.updatedAt ? formatTimestamp(sim.updatedAt) : 'Pending first follow-up'}</span>
+                        <span class="recycle-grid-val">${sim.lastContactedBy || (getLastContactTime(sim) ? (sim.updatedBy || 'Agent') : 'Not contacted yet')}</span>
+                        <span class="recycle-grid-subval">${getLastContactTime(sim) ? formatTimestamp(getLastContactTime(sim)) : 'Pending first follow-up'}</span>
                     </div>
                     `}
                 </div>
@@ -410,6 +444,8 @@ export async function submitRecycleApplication() {
         appliedBy: AppState.userNickname || AppState.userDisplayName,
         appliedById: AppState.currentUser?.uid || '',
         appliedAt: serverTimestamp(),
+        lastContactedAt: initialStatus === 'scheduled' ? serverTimestamp() : null,
+        lastContactedBy: initialStatus === 'scheduled' ? (AppState.userNickname || AppState.userDisplayName) : null,
         updatedBy: AppState.userNickname || AppState.userDisplayName,
         updatedById: AppState.currentUser?.uid || '',
         updatedAt: serverTimestamp(),
@@ -497,11 +533,27 @@ export async function saveRecycleStatusUpdate() {
     const sim = recycleSimsList.find(s => s.id === id);
     if (!sim) return;
 
+    // Determine whether this action is purely parcel arrival without customer contact
+    const isArrivalOnly = (sim.status === 'applied' && newStatus === 'arrived' && !note);
+
+    let historyNote = note;
+    if (!historyNote) {
+        if (newStatus !== sim.status) {
+            if (newStatus === 'scheduled') {
+                historyNote = `Scheduled pickup for ${followUpDate ? formatDate(followUpDate) : 'upcoming date'}.`;
+            } else {
+                historyNote = `Status changed from ${sim.status} to ${newStatus}.`;
+            }
+        } else {
+            historyNote = `Customer contact / follow-up logged by ${agentName}.`;
+        }
+    }
+
     const historyItem = {
         status: newStatus,
         timestamp: contactDate.toISOString(),
         by: agentName,
-        note: note || `Status changed from ${sim.status} to ${newStatus}.`
+        note: historyNote
     };
 
     const updateData = {
@@ -509,9 +561,14 @@ export async function saveRecycleStatusUpdate() {
         updatedBy: agentName,
         updatedById: AppState.currentUser?.uid || '',
         updatedAt: contactDate,
-        notes: note,
+        notes: note || sim.notes || '',
         history: [...(sim.history || []), historyItem]
     };
+
+    if (!isArrivalOnly) {
+        updateData.lastContactedAt = contactDate;
+        updateData.lastContactedBy = agentName;
+    }
 
     if (newStatus === 'scheduled') {
         if (!followUpDate) {
