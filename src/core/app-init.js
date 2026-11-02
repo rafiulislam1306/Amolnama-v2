@@ -37,13 +37,15 @@ export async function initUserData(onComplete) {
                 localStorage.setItem('amolnama_cache_user_' + AppState.currentUser.uid, JSON.stringify(userData));
                 AppState.currentUserRole = userData.role || 'user';
                 AppState.userNickname = userData.nickname || '';
+                AppState.canPerformCashActions = Boolean(userData.canPerformCashActions);
                 // Only update email and name on login (avoid writing the role field to prevent security rules rejections)
                 await setDoc(userDocRef, { email: AppState.currentUser.email || null, displayName: AppState.userDisplayName || 'User' }, { merge: true });
             } else {
                 AppState.currentUserRole = 'user';
                 AppState.userNickname = '';
+                AppState.canPerformCashActions = false;
                 // Write role: 'user' on initial profile creation
-                await setDoc(userDocRef, { email: AppState.currentUser.email || null, displayName: AppState.userDisplayName || 'User', role: 'user' }, { merge: true });
+                await setDoc(userDocRef, { email: AppState.currentUser.email || null, displayName: AppState.userDisplayName || 'User', role: 'user', canPerformCashActions: false }, { merge: true });
             }
         } catch (err) {
             console.warn("Offline Mode: Loading user data from cache", err);
@@ -51,6 +53,7 @@ export async function initUserData(onComplete) {
             userData = JSON.parse(localStorage.getItem('amolnama_cache_user_' + AppState.currentUser.uid) || '{}');
             AppState.currentUserRole = userData.role || 'user';
             AppState.userNickname = userData.nickname || '';
+            AppState.canPerformCashActions = Boolean(userData.canPerformCashActions);
         }
 
         // 2. Fetch global catalog & inventory groups BEFORE auto-close
@@ -111,6 +114,12 @@ export async function initUserData(onComplete) {
                 navBtns[0].style.display = 'flex';
                 navBtns[1].style.display = 'flex';
             }
+        }
+
+        const floorMgrCashBar = document.getElementById('floor-manager-cash-bar');
+        if (floorMgrCashBar) {
+            const showCashBar = (AppState.currentUserRole === 'manager' && AppState.canPerformCashActions) || AppState.currentUserRole === 'admin';
+            floorMgrCashBar.style.display = showCashBar ? 'block' : 'none';
         }
 
         updateCurrencyUI(); 

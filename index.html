@@ -340,6 +340,13 @@
                 Refresh
             </button>
         </div>
+        <!-- Floor Manager Cash Actions Trigger -->
+        <div id="floor-manager-cash-bar" style="display: none; margin-bottom: 16px;">
+            <button class="btn-primary-full" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border-radius: 14px; padding: 14px 18px; font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);" onclick="openManagerCashModal()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                Record Cash Action
+            </button>
+        </div>
         <div id="live-floor-container" style="display: flex; flex-direction: column; gap: 16px;">
             <div class="placeholder-text">Loading floor data...</div>
         </div>
@@ -1257,16 +1264,20 @@
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div>
-                        <label class="admin-label">Last Contacted By *</label>
-                        <select id="status-update-agent" class="settings-input" style="padding: 12px; width: 100%; border-radius: 12px; box-sizing: border-box; font-size: 0.85rem;">
+                        <label class="admin-label">Last Contacted By</label>
+                        <select id="status-update-agent" class="settings-input" style="padding: 12px; width: 100%; border-radius: 12px; box-sizing: border-box; font-size: 0.85rem;" onchange="Amolnama.onRecycleAgentChange()">
                             <!-- Dynamically filled with active agents -->
                         </select>
                     </div>
                     <div>
-                        <label class="admin-label">Contacted Time *</label>
-                        <input type="datetime-local" id="status-update-contacted-at" class="settings-input" style="padding: 12px; width: 100%; border-radius: 12px; box-sizing: border-box; font-size: 0.85rem;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
+                            <label class="admin-label" style="margin-bottom: 0;">Contacted Time</label>
+                            <button type="button" class="btn-text-action" onclick="Amolnama.setRecycleContactTimeToNow()" style="font-size: 0.72rem; padding: 2px 8px; border-radius: 6px; background: rgba(51, 144, 236, 0.1); color: var(--accent-color); border: none; font-weight: 700; cursor: pointer;" title="Set to current date and time">⚡ Set Now</button>
+                        </div>
+                        <input type="datetime-local" id="status-update-contacted-at" class="settings-input" style="padding: 12px; width: 100%; border-radius: 12px; box-sizing: border-box; font-size: 0.85rem;" onclick="Amolnama.onRecycleContactTimeClick()" oninput="Amolnama.onRecycleContactTimeManualChange()">
                     </div>
                 </div>
+                <div id="status-update-contact-hint" style="font-size: 0.74rem; margin-top: -6px; line-height: 1.4;"></div>
 
                 <div>
                     <label class="admin-label">Add Note / Customer Feedback</label>

@@ -27,6 +27,54 @@ function getOnboardingBadge(tx) {
     `;
 }
 
+let centerCashActionsExpanded = false;
+let centerCashCategoriesExpanded = {
+    drop_manager: false,
+    expense: false,
+    handset_cash: false,
+    receive_float: false
+};
+
+export function toggleCenterCashActions() {
+    centerCashActionsExpanded = !centerCashActionsExpanded;
+    const accordion = document.getElementById('center-cash-accordion');
+    const chevron = document.getElementById('center-cash-chevron');
+    if (accordion) {
+        accordion.style.display = centerCashActionsExpanded ? 'flex' : 'none';
+    }
+    if (chevron) {
+        chevron.style.transform = centerCashActionsExpanded ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+}
+
+export function toggleCenterCashCategory(catKey) {
+    centerCashCategoriesExpanded[catKey] = !centerCashCategoriesExpanded[catKey];
+    const drill = document.getElementById(`center-cat-${catKey}-drill`);
+    const chevron = document.getElementById(`center-cat-${catKey}-chevron`);
+    if (drill) {
+        drill.style.display = centerCashCategoriesExpanded[catKey] ? 'flex' : 'none';
+    }
+    if (chevron) {
+        chevron.style.transform = centerCashCategoriesExpanded[catKey] ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.toggleCenterCashActions = toggleCenterCashActions;
+    window.toggleCenterCashCategory = toggleCenterCashCategory;
+}
+
+function classifyCashAction(tx) {
+    if (tx.type !== 'adjustment') return null;
+    const name = (tx.name || '').toLowerCase();
+    const pay = (tx.payment || '').toLowerCase();
+    if (name.includes('handset') || tx.handsetModel) return 'handset_cash';
+    if (name.includes('expense') || name.includes('donation') || pay.includes('cash out')) return 'expense';
+    if (name.includes('float') || name.includes('receive cash') || pay.includes('float') || pay.includes('cash in')) return 'receive_float';
+    if (name.includes('drop') || name.includes('handover') || pay.includes('drop')) return 'drop_manager';
+    return (tx.cashAmt !== undefined && tx.cashAmt >= 0) ? 'receive_float' : 'drop_manager';
+}
+
 export async function renderPersonalReport() {
     let filterVal = document.getElementById('personal-history-filter') ? document.getElementById('personal-history-filter').value : 'all';
     
@@ -39,6 +87,12 @@ export async function renderPersonalReport() {
 
     let floorOpeningCash = 0;
     let floorManagerDrops = 0;
+    let cashActionCategories = {
+        drop_manager: { total: 0, items: [] },
+        expense: { total: 0, items: [] },
+        handset_cash: { total: 0, items: [] },
+        receive_float: { total: 0, items: [] }
+    };
     
     let floorInvStats = {};
     getPhysicalItems().forEach(item => {
@@ -87,6 +141,11 @@ export async function renderPersonalReport() {
         
         if (tx.type === 'adjustment') {
             floorManagerDrops += safeCashAmt;
+            const catKey = classifyCashAction(tx);
+            if (catKey && cashActionCategories[catKey]) {
+                cashActionCategories[catKey].total += safeCashAmt;
+                cashActionCategories[catKey].items.push(tx);
+            }
         } else if (tx.type !== 'transfer_out' && tx.type !== 'transfer_in') {
             myCash += safeCashAmt; 
             myMfs += safeMfsAmt;
@@ -228,6 +287,108 @@ export async function renderPersonalReport() {
 
     let expectedCenterCash = floorOpeningCash + myCash + floorManagerDrops;
     
+    const catConfigs = [
+        { key: 'drop_manager', title: 'Cash Drop to Manager' },
+        { key: 'expense', title: 'Expense / Donation' },
+        { key: 'handset_cash', title: 'Receive Handset Cash' },
+        { key: 'receive_float', title: 'Receive Cash from Manager' }
+    ];
+
+    function formatSignedTk(val) {
+        if (val === 0) return '0 Tk';
+        const sign = val > 0 ? '+' : '-';
+        return `${sign}${fmt(Math.abs(val))} Tk`;
+    }
+
+    const categoriesHTML = catConfigs.map(cfg => {
+        const catData = cashActionCategories[cfg.key] || { total: 0, items: [] };
+        const catTotal = catData.total;
+        const txList = catData.items;
+        const isCatExpanded = Boolean(centerCashCategoriesExpanded[cfg.key]);
+        const catAmtColor = catTotal > 0 ? '#10b981' : (catTotal < 0 ? '#ef4444' : 'var(--text-secondary)');
+
+        let drillHTML = '';
+        if (txList.length === 0) {
+            drillHTML = `
+                <div style="font-size: 0.75rem; color: var(--text-secondary); font-style: italic; padding: 8px 12px; text-align: center; background: var(--surface-color); border: 1px dashed var(--border-color); border-radius: 8px;">
+                    No transactions in this category today
+                </div>
+            `;
+        } else {
+            drillHTML = txList.map(tx => {
+                let safeCash = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
+                let safeMfs = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0);
+                let signedCashText = safeCash >= 0 ? `+${fmt(safeCash)} Tk` : `-${fmt(Math.abs(safeCash))} Tk`;
+                let signedCashColor = safeCash >= 0 ? '#10b981' : '#ef4444';
+
+                if (cfg.key === 'handset_cash') {
+                    let splitText = tx.payment === 'Split' ? `<span style="opacity: 0.85; margin-left: 4px;">(Cash: ${fmt(safeCash)}, MFS: ${fmt(safeMfs)})</span>` : '';
+                    return `
+                        <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                                <div style="font-weight: 800; font-size: 0.85rem; color: var(--accent-color); word-break: break-word;">
+                                    📱 Model: ${tx.handsetModel || 'Handset (Model Unspecified)'}
+                                </div>
+                                <div style="font-weight: 800; font-size: 0.85rem; color: ${signedCashColor}; white-space: nowrap;">
+                                    ${signedCashText}
+                                </div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-secondary); flex-wrap: wrap; gap: 4px;">
+                                <div>Method: <strong>${tx.payment || 'Cash'}</strong> ${splitText}</div>
+                                <div style="font-weight: 600;">${tx.time || ''}</div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.7rem; color: var(--text-secondary); opacity: 0.85; border-top: 1px dashed var(--border-color); padding-top: 4px; margin-top: 2px;">
+                                <div>By ${tx.agentName || 'Staff'} ${tx.deskId ? `• ${tx.deskId}` : '• Floor'}</div>
+                                <div>${tx.receiptNo ? `#${tx.receiptNo}` : ''}</div>
+                            </div>
+                            ${tx.notes ? `<div style="font-size: 0.72rem; color: var(--text-secondary); font-style: italic;">Note: ${tx.notes}</div>` : ''}
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                                <div style="font-weight: 700; font-size: 0.82rem; color: var(--text-primary); word-break: break-word;">
+                                    ${tx.name || cfg.title}
+                                </div>
+                                <div style="font-weight: 800; font-size: 0.85rem; color: ${signedCashColor}; white-space: nowrap;">
+                                    ${signedCashText}
+                                </div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-secondary); flex-wrap: wrap; gap: 4px;">
+                                <div>By ${tx.agentName || 'Staff'} ${tx.deskId ? `• ${tx.deskId}` : '• Floor'}</div>
+                                <div style="font-weight: 600;">${tx.time || ''}</div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.7rem; color: var(--text-secondary); opacity: 0.85;">
+                                <div>${tx.payment ? `Type: ${tx.payment}` : ''}</div>
+                                <div>${tx.receiptNo ? `#${tx.receiptNo}` : ''}</div>
+                            </div>
+                            ${tx.notes ? `<div style="font-size: 0.72rem; color: var(--text-secondary); font-style: italic; border-top: 1px dashed var(--border-color); padding-top: 4px; margin-top: 2px;">Note: ${tx.notes}</div>` : ''}
+                        </div>
+                    `;
+                }
+            }).join('');
+        }
+
+        return `
+            <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px;">
+                <div onclick="toggleCenterCashCategory('${cfg.key}')" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 0.82rem; font-weight: 700; color: var(--text-primary);">${cfg.title}</span>
+                        <span style="font-size: 0.7rem; font-weight: 700; background: rgba(99, 102, 241, 0.08); color: #6366f1; padding: 2px 7px; border-radius: 9999px; border: 1px solid rgba(99, 102, 241, 0.2);">${txList.length}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 0.95rem; font-weight: 800; color: ${catAmtColor};">${formatSignedTk(catTotal)}</span>
+                        <svg id="center-cat-${cfg.key}-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-secondary); transition: transform 0.2s ease; transform: ${isCatExpanded ? 'rotate(180deg)' : 'rotate(0deg)'};"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                </div>
+                <div id="center-cat-${cfg.key}-drill" style="display: ${isCatExpanded ? 'flex' : 'none'}; flex-direction: column; gap: 8px; border-top: 1px dashed var(--border-color); padding-top: 8px;">
+                    ${drillHTML}
+                </div>
+            </div>
+        `;
+    }).join('');
+    
     const cardContainer = document.getElementById('report-profile-card-container');
     if (cardContainer) {
         cardContainer.innerHTML = `
@@ -259,11 +420,20 @@ export async function renderPersonalReport() {
                         <span style="font-size: 1.4rem; font-weight: 800; color: #10b981;">+${fmt(myCash)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Tk</span></span>
                     </div>
                     
-                    <!-- +/- Cash Actions -->
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px;">+/- Cash Actions</span>
-                        <span id="center-tot-drops" style="font-size: 1.4rem; font-weight: 800; color: ${floorManagerDrops >= 0 ? '#10b981' : '#ef4444'};">                            ${floorManagerDrops >= 0 ? '+' : ''}${fmt(floorManagerDrops)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Tk</span>
+                    <!-- +/- Cash Actions (Interactive Accordion) -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; padding: 4px 0;" onclick="toggleCenterCashActions()">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px;">+/- Cash Actions</span>
+                            <svg id="center-cash-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-secondary); transition: transform 0.2s ease; transform: ${centerCashActionsExpanded ? 'rotate(180deg)' : 'rotate(0deg)'};"><polyline points="6 9 12 15 18 9"/></svg>
+                        </div>
+                        <span id="center-tot-drops" style="font-size: 1.4rem; font-weight: 800; color: ${floorManagerDrops >= 0 ? '#10b981' : '#ef4444'};">
+                            ${floorManagerDrops >= 0 ? '+' : ''}${fmt(floorManagerDrops)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Tk</span>
                         </span>
+                    </div>
+
+                    <!-- Level 1: Inline Expandable Category Accordion -->
+                    <div id="center-cash-accordion" style="display: ${centerCashActionsExpanded ? 'flex' : 'none'}; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.02); border: 1px solid var(--border-color); border-radius: 14px; padding: 10px; margin-top: -4px;">
+                        ${categoriesHTML}
                     </div>
 
                     <div style="border-top: 1px solid var(--border-color); margin: 6px 0;"></div>

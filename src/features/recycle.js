@@ -11,6 +11,9 @@ let activeFilterStatus = 'all';
 let isListenerActive = false;
 let unsubscribeRecycle = null;
 let cachedAgentsList = [];
+let recycleContactTimeWasTouched = false;
+let initialContactTimeValue = '';
+let initialContactAgentValue = '';
 
 function getLocalDateTimeString(d = new Date()) {
     const pad = n => String(n).padStart(2, '0');
@@ -22,7 +25,7 @@ function getLocalDateTimeString(d = new Date()) {
     return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
-async function populateAgentSelect(preselectedName) {
+async function populateAgentSelect(preselectedName = '') {
     const agentSelect = document.getElementById('status-update-agent');
     if (!agentSelect) return;
 
@@ -43,15 +46,21 @@ async function populateAgentSelect(preselectedName) {
         }
     }
 
-    const currentAgent = preselectedName || AppState.userNickname || AppState.userDisplayName || 'Agent';
-    
-    if (currentAgent && !cachedAgentsList.includes(currentAgent)) {
-        cachedAgentsList.unshift(currentAgent);
+    const loggedInAgent = AppState.userNickname || AppState.userDisplayName || 'Agent';
+    if (loggedInAgent && !cachedAgentsList.includes(loggedInAgent)) {
+        cachedAgentsList.unshift(loggedInAgent);
+    }
+
+    if (preselectedName && !cachedAgentsList.includes(preselectedName)) {
+        cachedAgentsList.unshift(preselectedName);
     }
 
     let optionsHTML = '';
+    if (!preselectedName) {
+        optionsHTML += `<option value="" selected>-- Not contacted yet --</option>`;
+    }
     cachedAgentsList.forEach(agent => {
-        optionsHTML += `<option value="${agent}" ${agent === currentAgent ? 'selected' : ''}>${agent}</option>`;
+        optionsHTML += `<option value="${agent}" ${agent === preselectedName ? 'selected' : ''}>${agent}</option>`;
     });
 
     agentSelect.innerHTML = optionsHTML;
@@ -472,6 +481,8 @@ export function openUpdateRecycleStatusModal(id) {
     const sim = recycleSimsList.find(s => s.id === id);
     if (!sim) return;
 
+    recycleContactTimeWasTouched = false;
+
     document.getElementById('status-update-id').value = id;
     const phoneEl = document.getElementById('status-update-number');
     if (phoneEl) phoneEl.innerText = sim.recycledNumber;
@@ -480,15 +491,24 @@ export function openUpdateRecycleStatusModal(id) {
     document.getElementById('status-update-select').value = sim.status;
     document.getElementById('status-update-note').value = sim.notes || '';
     
-    // Auto-populate agent dropdown and select current agent
-    populateAgentSelect(AppState.userNickname || AppState.userDisplayName);
+    // Determine existing contact info
+    const lastContactTimestamp = getLastContactTime(sim);
+    const existingAgent = sim.lastContactedBy || (lastContactTimestamp ? (sim.updatedBy || '') : '');
 
-    // Auto-set current local datetime for Contacted Time
+    initialContactTimeValue = lastContactTimestamp ? getLocalDateTimeString(lastContactTimestamp) : '';
+    initialContactAgentValue = existingAgent;
+
+    // Populate agent dropdown with previous agent
+    populateAgentSelect(existingAgent);
+
+    // Populate Contacted Time input with existing timestamp or leave blank if never contacted
     const timeInput = document.getElementById('status-update-contacted-at');
     if (timeInput) {
-        timeInput.value = getLocalDateTimeString();
+        timeInput.value = initialContactTimeValue;
     }
     
+    updateContactTimeIndicator();
+
     const dateInput = document.getElementById('status-update-date');
     if (sim.followUpDate) {
         dateInput.value = sim.followUpDate;
@@ -509,6 +529,77 @@ export function openUpdateRecycleStatusModal(id) {
     openModal('modal-recycle-status-update');
 }
 
+export function setRecycleContactTimeToNow() {
+    const timeInput = document.getElementById('status-update-contacted-at');
+    if (timeInput) {
+        timeInput.value = getLocalDateTimeString();
+    }
+    const currentAgent = AppState.userNickname || AppState.userDisplayName || 'Agent';
+    const agentSelect = document.getElementById('status-update-agent');
+    if (agentSelect) {
+        if (!cachedAgentsList.includes(currentAgent)) {
+            cachedAgentsList.unshift(currentAgent);
+            populateAgentSelect(currentAgent);
+        } else {
+            agentSelect.value = currentAgent;
+        }
+    }
+    recycleContactTimeWasTouched = true;
+    updateContactTimeIndicator();
+}
+
+export function onRecycleContactTimeClick() {
+    if (!recycleContactTimeWasTouched) {
+        setRecycleContactTimeToNow();
+    }
+}
+
+export function onRecycleContactTimeManualChange() {
+    recycleContactTimeWasTouched = true;
+    const agentSelect = document.getElementById('status-update-agent');
+    if (agentSelect && !agentSelect.value) {
+        agentSelect.value = AppState.userNickname || AppState.userDisplayName || 'Agent';
+    }
+    updateContactTimeIndicator();
+}
+
+export function onRecycleAgentChange() {
+    recycleContactTimeWasTouched = true;
+    const timeInput = document.getElementById('status-update-contacted-at');
+    if (timeInput && !timeInput.value) {
+        timeInput.value = getLocalDateTimeString();
+    }
+    updateContactTimeIndicator();
+}
+
+export function resetRecycleContactTimeToPrevious() {
+    const timeInput = document.getElementById('status-update-contacted-at');
+    if (timeInput) {
+        timeInput.value = initialContactTimeValue;
+    }
+    const agentSelect = document.getElementById('status-update-agent');
+    if (agentSelect) {
+        agentSelect.value = initialContactAgentValue;
+    }
+    recycleContactTimeWasTouched = false;
+    updateContactTimeIndicator();
+}
+
+function updateContactTimeIndicator() {
+    const hintEl = document.getElementById('status-update-contact-hint');
+    if (!hintEl) return;
+    if (recycleContactTimeWasTouched) {
+        hintEl.innerHTML = `<span style="color: #10b981; font-weight: 700;">✓ Will update contact time & agent on save</span> <a href="javascript:void(0)" onclick="Amolnama.resetRecycleContactTimeToPrevious()" style="color: var(--text-secondary); text-decoration: underline; margin-left: 8px; font-weight: normal; cursor: pointer;">(Revert)</a>`;
+    } else {
+        const timeInput = document.getElementById('status-update-contacted-at');
+        if (timeInput && timeInput.value) {
+            hintEl.innerHTML = `<span style="color: var(--text-secondary); opacity: 0.85;">Keeping existing contact info (Click time or "Set Now" to update)</span>`;
+        } else {
+            hintEl.innerHTML = `<span style="color: var(--text-secondary); opacity: 0.85;">Not contacted yet (Click time or "Set Now" to log contact)</span>`;
+        }
+    }
+}
+
 export function onRecycleStatusChangeSelect() {
     const selectVal = document.getElementById('status-update-select').value;
     const dateWrapper = document.getElementById('status-update-date-wrapper');
@@ -523,18 +614,15 @@ export async function saveRecycleStatusUpdate() {
     const followUpDate = document.getElementById('status-update-date').value;
     const note = document.getElementById('status-update-note').value.trim();
     
-    const agentSelect = document.getElementById('status-update-agent');
-    const agentName = agentSelect ? agentSelect.value : (AppState.userNickname || AppState.userDisplayName || 'Agent');
-
-    const timeInput = document.getElementById('status-update-contacted-at');
-    const customTimeStr = timeInput ? timeInput.value : '';
-    const contactDate = customTimeStr ? new Date(customTimeStr) : new Date();
-
     const sim = recycleSimsList.find(s => s.id === id);
     if (!sim) return;
 
-    // Determine whether this action is purely parcel arrival without customer contact
-    const isArrivalOnly = (sim.status === 'applied' && newStatus === 'arrived' && !note);
+    const currentAgentName = AppState.userNickname || AppState.userDisplayName || 'Agent';
+    const agentSelect = document.getElementById('status-update-agent');
+    const selectedAgent = agentSelect ? agentSelect.value : '';
+
+    const timeInput = document.getElementById('status-update-contacted-at');
+    const customTimeStr = timeInput ? timeInput.value : '';
 
     let historyNote = note;
     if (!historyNote) {
@@ -544,30 +632,39 @@ export async function saveRecycleStatusUpdate() {
             } else {
                 historyNote = `Status changed from ${sim.status} to ${newStatus}.`;
             }
+        } else if (recycleContactTimeWasTouched) {
+            historyNote = `Customer contact logged by ${selectedAgent || currentAgentName}.`;
         } else {
-            historyNote = `Customer contact / follow-up logged by ${agentName}.`;
+            historyNote = `Record updated by ${currentAgentName}.`;
         }
     }
 
+    const now = new Date();
     const historyItem = {
         status: newStatus,
-        timestamp: contactDate.toISOString(),
-        by: agentName,
+        timestamp: now.toISOString(),
+        by: currentAgentName,
         note: historyNote
     };
 
     const updateData = {
         status: newStatus,
-        updatedBy: agentName,
+        updatedBy: currentAgentName,
         updatedById: AppState.currentUser?.uid || '',
-        updatedAt: contactDate,
+        updatedAt: serverTimestamp(),
         notes: note || sim.notes || '',
         history: [...(sim.history || []), historyItem]
     };
 
-    if (!isArrivalOnly) {
-        updateData.lastContactedAt = contactDate;
-        updateData.lastContactedBy = agentName;
+    // ONLY update lastContactedAt and lastContactedBy if user clicked or modified the contact fields!
+    if (recycleContactTimeWasTouched) {
+        if (customTimeStr) {
+            updateData.lastContactedAt = new Date(customTimeStr);
+            updateData.lastContactedBy = selectedAgent || currentAgentName;
+        } else {
+            updateData.lastContactedAt = null;
+            updateData.lastContactedBy = null;
+        }
     }
 
     if (newStatus === 'scheduled') {

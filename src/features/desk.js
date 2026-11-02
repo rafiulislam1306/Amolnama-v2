@@ -5,6 +5,7 @@ import { AppState } from '../core/state.js';
 import { getStrictDate } from '../utils/helpers.js';
 import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/ui-helpers.js';
 import { getInventoryChange, getPhysicalItems, getNormalizedTrackAs } from './inventory.js';
+import { canUserPerformCashActions, openManagerCashModal } from './transfers.js';
 import { priorityInventorySortOrder } from '../core/constants.js';
 
 // ==========================================
@@ -445,6 +446,12 @@ export async function executeHandleDeskSelect(deskId, deskName, status, sessionI
 //    FLOOR MAP UI & DRAWER ROUTING
 // ==========================================
 export async function renderLiveFloorTab() {
+    const cashBar = document.getElementById('floor-manager-cash-bar');
+    if (cashBar) {
+        const showCashBar = (AppState.currentUserRole === 'manager' && AppState.canPerformCashActions) || AppState.currentUserRole === 'admin';
+        cashBar.style.display = showCashBar ? 'block' : 'none';
+    }
+
     const container = document.getElementById('live-floor-container');
     container.innerHTML = '<div class="spinner" style="align-self: center; margin-top: 40px;"></div>';
 
@@ -700,6 +707,8 @@ export function peekAtDesk(targetDeskId, targetDeskName) {
 export function handleMyDrawerNav() {
     if (AppState.currentDeskId) {
         openMyDeskDashboard();
+    } else if (canUserPerformCashActions()) {
+        openManagerCashModal();
     } else {
         showAppAlert("No Active Desk", "You are not currently assigned to an open desk. Please open or join one from the Live Floor map first.");
         if(window.switchTab) window.switchTab('floor', 'Live Floor Map');

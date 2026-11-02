@@ -8,12 +8,28 @@ import { passStockFirewall, getPhysicalItems, getInventoryChange } from './inven
 
 let isSaving = false;
 
+export function canUserPerformCashActions() {
+    if (AppState.currentSessionId) return true;
+    if (AppState.currentUserRole === 'admin') return true;
+    if (AppState.currentUserRole === 'manager' && AppState.canPerformCashActions) return true;
+    return false;
+}
+
 export function openManagerCashModal() {
-    if(!AppState.currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
+    if (AppState.currentUserRole === 'manager' && !AppState.canPerformCashActions) {
+        showAppAlert("Access Denied", "You do not have cash action permissions. Contact a Center Admin.");
+        return;
+    }
+    if (!canUserPerformCashActions()) {
+        showAppAlert("Error", "Desk not open.");
+        return;
+    }
     document.getElementById('mgr-cash-amount').value = '';
     
     const notesInput = document.getElementById('mgr-cash-notes');
     if (notesInput) notesInput.value = '';
+    const notesWrapper = document.getElementById('mgr-cash-notes-wrapper');
+    if (notesWrapper) notesWrapper.style.display = 'block';
     
     const handsetModelInput = document.getElementById('mgr-cash-handset-model');
     if (handsetModelInput) handsetModelInput.value = '';
@@ -65,6 +81,14 @@ export function openManagerCashModal() {
 }
 
 export async function saveManagerCash() {
+    if (AppState.currentUserRole === 'manager' && !AppState.canPerformCashActions) {
+        showAppAlert("Access Denied", "You do not have cash action permissions. Contact a Center Admin.");
+        return;
+    }
+    if (!canUserPerformCashActions()) {
+        showAppAlert("Error", "Desk not open.");
+        return;
+    }
     if (isSaving) return;
     isSaving = true;
 
@@ -136,13 +160,22 @@ export async function saveManagerCash() {
     if (action === 'handset_cash') {
         const modelInput = document.getElementById('mgr-cash-handset-model');
         if (modelInput) handsetModel = modelInput.value.trim();
+        if (!handsetModel) {
+            isSaving = false;
+            showAppAlert("Missing Input", "Please enter the handset model.");
+            return;
+        }
     }
 
     const tx = {
         id: Date.now(), receiptNo: generateReceiptNo(), type: 'adjustment', name: txName, trackAs: 'Physical Cash', amount: amount, qty: 1,
         payment: paymentLabel, cashAmt: finalCash, mfsAmt: finalMfs, isDeleted: false,
         time: new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'}),
-        dateStr: getStrictDate(), deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName,
+        dateStr: getStrictDate(),
+        deskId: AppState.currentDeskId || null,
+        sessionId: AppState.currentSessionId || null,
+        agentId: (AppState.currentUser && AppState.currentUser.uid) ? AppState.currentUser.uid : '',
+        agentName: AppState.userNickname || AppState.userDisplayName || 'Floor Manager',
         timestamp: serverTimestamp()
     };
 

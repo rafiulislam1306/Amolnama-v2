@@ -9,12 +9,12 @@ import { AppState } from './core/state.js';
 import { ersKeyPress, ersBackspace, saveErs, selectItem, stepQty, onQtySliderChange, onQtyInputChange, saveQuantity, openEditTx, saveTxEdit, toggleEditSplitFields, updateSplitTotal, cancelTxEdit, autoCalcEditTotal, deleteTransaction, openTrash, restoreTx, permanentlyDeleteTx, emptyTrash, showAuditTrail, promptSimOnboarding, confirmSimOnboarding, cancelSimOnboarding, toggleOnboardingRow, syncOnboardingCheck } from './features/transactions.js';
 import { getPhysicalItems, getInventoryChange, passStockFirewall, switchStoreCategory } from './features/inventory.js';
 import { loadFloorMap, handleDeskSelect, executeHandleDeskSelect, renderLiveFloorTab, openMyDeskDashboard, peekAtDesk, handleMyDrawerNav, initiateCloseDesk, submitClosingReport } from './features/desk.js';
-import { openManagerCashModal, saveManagerCash, openMainStockModal, saveMainStock, openReturnStockModal, saveReturnStock, openDeskTransfer, executeDeskTransfer, openTransferModal, executeTransfer, toggleMgrCashPaymentFields, validateMgrCashSplit } from './features/transfers.js';
+import { canUserPerformCashActions, openManagerCashModal, saveManagerCash, openMainStockModal, saveMainStock, openReturnStockModal, saveReturnStock, openDeskTransfer, executeDeskTransfer, openTransferModal, executeTransfer, toggleMgrCashPaymentFields, validateMgrCashSplit } from './features/transfers.js';
 import { filterAdminCatalog, toggleAddForm, addInventoryGroup, removeInventoryGroup, openSettings, removeRow, addNewItem, saveSettings, openNicknameManager, saveAdminNickname, saveUserConfig, kickAgent, nukeAgent, resetMyDeskLock, forceCloseAllDesks, nukeTodaysLedger, fixPastManagerDrops, openAuditModal, fetchAuditLogs, healTodaysOpeningStock, runLedgerDiagnostic, healDeskTransfers, executeAdminDrawerTransfer, deleteAgentDateData, healDuplicateSessions } from './features/admin.js';
 import { renderAppUI, filterStoreCatalog, clearStoreSearch } from './features/catalog.js';
 import { initUserData } from './core/app-init.js';
-import { renderPersonalReport, renderDeskDashboard, fetchTransactionsForDate, getTxListenerUnsubscribe, setTxListenerUnsubscribe, downloadReportAsPDF } from './features/reports.js';
-import { openRecycleTracker, filterRecycleList, filterRecycleByStatus, openAddRecycleModal, submitRecycleApplication, openUpdateRecycleStatusModal, onRecycleStatusChangeSelect, onAddRecycleStatusChange, saveRecycleStatusUpdate, deleteRecycleSimEntry, triggerStoreRecycleSale, populateStoreRecycleSaleOptions, onSelectRecycleSaleNumberChange, confirmRecycleSimSale } from './features/recycle.js';
+import { renderPersonalReport, renderDeskDashboard, fetchTransactionsForDate, getTxListenerUnsubscribe, setTxListenerUnsubscribe, downloadReportAsPDF, toggleCenterCashActions, toggleCenterCashCategory } from './features/reports.js';
+import { openRecycleTracker, filterRecycleList, filterRecycleByStatus, openAddRecycleModal, submitRecycleApplication, openUpdateRecycleStatusModal, onRecycleStatusChangeSelect, onAddRecycleStatusChange, saveRecycleStatusUpdate, deleteRecycleSimEntry, triggerStoreRecycleSale, populateStoreRecycleSaleOptions, onSelectRecycleSaleNumberChange, confirmRecycleSimSale, setRecycleContactTimeToNow, onRecycleContactTimeClick, onRecycleContactTimeManualChange, onRecycleAgentChange, resetRecycleContactTimeToPrevious } from './features/recycle.js';
 import { openCallRates, closeCallRates, filterRatesList, openManageRates, closeManageRates, openPackageForm, closePackageForm, addRateRow, savePackageData, deletePackage, autoCalcRateTax } from './features/rates.js';
 
 // ==========================================
@@ -25,6 +25,7 @@ Object.defineProperties(window, {
     userDisplayName: { get: () => AppState.userDisplayName, set: (v) => AppState.userDisplayName = v },
     userNickname: { get: () => AppState.userNickname, set: (v) => AppState.userNickname = v },
     currentUserRole: { get: () => AppState.currentUserRole, set: (v) => AppState.currentUserRole = v },
+    canPerformCashActions: { get: () => AppState.canPerformCashActions, set: (v) => AppState.canPerformCashActions = v },
     currentDeskId: { get: () => AppState.currentDeskId, set: (v) => AppState.currentDeskId = v },
     currentSessionId: { get: () => AppState.currentSessionId, set: (v) => AppState.currentSessionId = v },
     currentDeskName: { get: () => AppState.currentDeskName, set: (v) => AppState.currentDeskName = v },
@@ -49,7 +50,7 @@ window.Amolnama = {
     stepQty, onQtySliderChange, onQtyInputChange, saveQuantity, toggleMFS, getPhysicalItems,
     getInventoryChange, passStockFirewall, switchStoreCategory, loadFloorMap,
     handleDeskSelect, executeHandleDeskSelect, renderPersonalReport,
-    renderDeskDashboard, openManagerCashModal, saveManagerCash, openMainStockModal, toggleMgrCashPaymentFields, validateMgrCashSplit,
+    renderDeskDashboard, canUserPerformCashActions, openManagerCashModal, saveManagerCash, openMainStockModal, toggleMgrCashPaymentFields, validateMgrCashSplit,
     saveMainStock, openReturnStockModal, saveReturnStock, openDeskTransfer,
     executeDeskTransfer, openTransferModal, executeTransfer, filterAdminCatalog,
     toggleAddForm, addInventoryGroup, removeInventoryGroup, openSettings,
@@ -62,10 +63,11 @@ window.Amolnama = {
     autoCalcEditTotal, deleteTransaction, openTrash, restoreTx, permanentlyDeleteTx,
     emptyTrash, showAuditTrail, healTodaysOpeningStock,
     runLedgerDiagnostic, downloadReportAsPDF, initCustomDropdowns, healDeskTransfers, executeAdminDrawerTransfer, deleteAgentDateData, healDuplicateSessions,
-    openRecycleTracker, filterRecycleList, filterRecycleByStatus, openAddRecycleModal, submitRecycleApplication, openUpdateRecycleStatusModal, onRecycleStatusChangeSelect, onAddRecycleStatusChange, saveRecycleStatusUpdate, deleteRecycleSimEntry, triggerStoreRecycleSale, populateStoreRecycleSaleOptions, onSelectRecycleSaleNumberChange, confirmRecycleSimSale,
+    openRecycleTracker, filterRecycleList, filterRecycleByStatus, openAddRecycleModal, submitRecycleApplication, openUpdateRecycleStatusModal, onRecycleStatusChangeSelect, onAddRecycleStatusChange, saveRecycleStatusUpdate, deleteRecycleSimEntry, triggerStoreRecycleSale, populateStoreRecycleSaleOptions, onSelectRecycleSaleNumberChange, confirmRecycleSimSale, setRecycleContactTimeToNow, onRecycleContactTimeClick, onRecycleContactTimeManualChange, onRecycleAgentChange, resetRecycleContactTimeToPrevious,
     promptSimOnboarding, confirmSimOnboarding, cancelSimOnboarding, toggleOnboardingRow, syncOnboardingCheck,
     openCallRates, closeCallRates, filterRatesList, openManageRates, closeManageRates, openPackageForm, closePackageForm, addRateRow, savePackageData, deletePackage, autoCalcRateTax,
-    showPhoneLoginView, hidePhoneLoginView, resetPhoneLoginView, signInWithPhoneAndPin, openLinkPhoneModal, linkPhoneAndPin
+    showPhoneLoginView, hidePhoneLoginView, resetPhoneLoginView, signInWithPhoneAndPin, openLinkPhoneModal, linkPhoneAndPin,
+    toggleCenterCashActions, toggleCenterCashCategory
 };
 
 // Dynamically bind all Amolnama functions to the global window object.

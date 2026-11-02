@@ -6,6 +6,7 @@ const INITIAL_STATE = {
     userDisplayName: 'ERS',
     userNickname: '',
     currentUserRole: 'user',
+    canPerformCashActions: false,
     lastError: null,
     
     currentDeskId: null,

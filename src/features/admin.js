@@ -235,8 +235,10 @@ export async function openNicknameManager() {
           const currentNick = u.nickname || '';
           const currentRole = u.role || 'user';
           
+          const canPerformCashActions = Boolean(u.canPerformCashActions);
+          
           let roleSelectHTML = `
-              <select id="role_${uid}" class="settings-input" style="padding: 8px; width: 100%; box-sizing: border-box; font-size: 0.85rem; height: 38px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--surface-color); color: var(--text-primary);">
+              <select id="role_${uid}" class="settings-input" onchange="const w = document.getElementById('cash_perm_wrapper_${uid}'); if (w) w.style.display = this.value === 'manager' ? 'flex' : 'none';" style="padding: 8px; width: 100%; box-sizing: border-box; font-size: 0.85rem; height: 38px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--surface-color); color: var(--text-primary);">
                   <option value="user" ${currentRole === 'user' ? 'selected' : ''}>Floor Agent</option>
                   <option value="manager" ${currentRole === 'manager' ? 'selected' : ''}>Floor Manager (Observer)</option>
                   <option value="center_manager" ${currentRole === 'center_manager' ? 'selected' : ''}>Center Manager</option>
@@ -260,6 +262,15 @@ export async function openNicknameManager() {
                           <label class="admin-label" style="font-size: 0.75rem; margin-bottom: 4px; display: block;">Role</label>
                           ${roleSelectHTML}
                       </div>
+                  </div>
+                  <div id="cash_perm_wrapper_${uid}" style="display: ${currentRole === 'manager' ? 'flex' : 'none'}; align-items: center; justify-content: space-between; background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 8px; padding: 10px 12px;">
+                      <div style="display: flex; flex-direction: column;">
+                          <span style="font-size: 0.82rem; font-weight: 700; color: #10b981;">Allow Cash Actions</span>
+                          <span style="font-size: 0.72rem; color: var(--text-secondary);">Enable floor manager to perform cash & handset transactions</span>
+                      </div>
+                      <label style="position: relative; display: inline-flex; align-items: center; cursor: pointer;">
+                          <input type="checkbox" id="cash_perm_${uid}" ${canPerformCashActions ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: #10b981; cursor: pointer;">
+                      </label>
                   </div>
                   <div style="display: flex; justify-content: flex-end;">
                       <button class="btn-outline" style="height: auto; padding: 8px 16px; border-color: #10b981; color: #10b981;" onclick="saveUserConfig('${uid}', 'nick_${uid}', 'role_${uid}')">Save User</button>
@@ -285,13 +296,28 @@ export async function saveUserConfig(uid, nickInputId, roleSelectId) {
     }
     const newNick = document.getElementById(nickInputId).value.trim();
     const newRole = document.getElementById(roleSelectId).value;
+    const permCheckbox = document.getElementById('cash_perm_' + uid);
+    const canPerformCashActions = Boolean(permCheckbox && permCheckbox.checked && newRole === 'manager');
+
     try {
-        await updateDoc(doc(db, 'users', uid), { nickname: newNick, role: newRole });
+        await updateDoc(doc(db, 'users', uid), { 
+            nickname: newNick, 
+            role: newRole,
+            canPerformCashActions: canPerformCashActions
+        });
         showFlashMessage("User updated successfully!");
         
         if (uid === AppState.currentUser.uid) {
             AppState.userNickname = newNick;
             AppState.currentUserRole = newRole;
+            AppState.canPerformCashActions = canPerformCashActions;
+
+            const floorMgrCashBar = document.getElementById('floor-manager-cash-bar');
+            if (floorMgrCashBar) {
+                const showCashBar = (AppState.currentUserRole === 'manager' && AppState.canPerformCashActions) || AppState.currentUserRole === 'admin';
+                floorMgrCashBar.style.display = showCashBar ? 'block' : 'none';
+            }
+
             const rName = document.getElementById('report-user-name');
             if (rName) rName.innerText = AppState.userNickname || AppState.userDisplayName;
             
