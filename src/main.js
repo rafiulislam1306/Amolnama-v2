@@ -110,7 +110,7 @@ initAuth(
 // ==========================================
 //    UI NAVIGATION & CORE APP LOGIC
 // ==========================================
-function switchTab(tabId, title) {
+export function switchTab(tabId, title) {
     document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     
@@ -136,9 +136,9 @@ function switchTab(tabId, title) {
     const activeDeskName = (AppState.currentDeskName && AppState.currentDeskName !== 'undefined') ? AppState.currentDeskName : '';
     document.getElementById('header-title').innerText = tabId === 'ers' ? (activeDeskName || AppState.userNickname || AppState.userDisplayName) : title;
     
-    // Only redraw the DOM if the dirty flag is true (meaning new data arrived while tab was hidden)
+    // Switch to floor ensures the live floor map renders fresh data reliably
     if (tabId === 'floor') {
-        if (AppState.needsRender.floor && typeof window.renderLiveFloorTab === 'function') {
+        if (typeof window.renderLiveFloorTab === 'function') {
             window.renderLiveFloorTab();
             AppState.needsRender.floor = false; // Clear the flag
         }

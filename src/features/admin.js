@@ -314,7 +314,7 @@ export async function saveUserConfig(uid, nickInputId, roleSelectId) {
 
             const floorMgrCashBar = document.getElementById('floor-manager-cash-bar');
             if (floorMgrCashBar) {
-                const showCashBar = (AppState.currentUserRole === 'manager' && AppState.canPerformCashActions) || AppState.currentUserRole === 'admin';
+                const showCashBar = AppState.currentUserRole === 'manager' && Boolean(AppState.canPerformCashActions);
                 floorMgrCashBar.style.display = showCashBar ? 'block' : 'none';
             }
 

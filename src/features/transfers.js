@@ -307,12 +307,24 @@ export async function saveReturnStock() {
 
 let cachedDeskStocks = {};
 
+export function shouldIncludeTransferTarget({ deskData, currentDeskId, hasSalesActivity, totalStockQty, liveCash }) {
+    if (!deskData || !deskData.deskId || deskData.deskId === currentDeskId) {
+        return false;
+    }
+    const isPersonalDrawer = Boolean(deskData.deskId.startsWith('personal_'));
+    // Skip ghost desks: No sales, zero stock, zero cash, but retain personal drawers
+    if (!isPersonalDrawer && !hasSalesActivity && totalStockQty === 0 && liveCash === 0) {
+        return false;
+    }
+    return true;
+}
+
 export async function openDeskTransfer() {
     if(!AppState.currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
     document.getElementById('desk-transfer-qty').value = '';
     
     let itemSelect = document.getElementById('desk-transfer-item');
-    itemSelect.innerHTML = '<option value="" disabled selected>� Select a Product �</option>';
+    itemSelect.innerHTML = '<option value="" disabled selected>📦 Select a Product 📦</option>';
     getPhysicalItems().forEach(itemName => {
         let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
         itemSelect.appendChild(opt);
@@ -397,12 +409,7 @@ export async function openDeskTransfer() {
             // Cache Gross Inventory (Opening + Main Stock) for pure math suggestions
             cachedDeskStocks[deskData.deskId] = grossInv;
 
-            if(deskData.deskId !== AppState.currentDeskId) {
-                // --- FLOOR MAP HEALTH CHECK ---
-                // Skip ghost desks: No sales, zero stock, zero cash
-                if (!hasSalesActivity && totalStockQty === 0 && liveCash === 0) continue;
-                // ------------------------------
-
+            if (shouldIncludeTransferTarget({ deskData, currentDeskId: AppState.currentDeskId, hasSalesActivity, totalStockQty, liveCash })) {
                 let displayName = deskData.deskName || deskData.deskId.replace('_', ' ').toUpperCase();
                 
                 if (deskData.deskId.startsWith('personal_')) {

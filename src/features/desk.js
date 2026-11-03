@@ -445,10 +445,74 @@ export async function executeHandleDeskSelect(deskId, deskName, status, sessionI
 // ==========================================
 //    FLOOR MAP UI & DRAWER ROUTING
 // ==========================================
+export function shouldIncludeDeskOnFloor({ session, isMyDesk, hasSalesActivity, totalStockQty, liveCash }) {
+    const isPersonalDrawer = Boolean(session && session.deskId && session.deskId.startsWith('personal_'));
+    const isCurrentDesk = Boolean(isMyDesk || (session && session.deskId && AppState.currentDeskId && session.deskId === AppState.currentDeskId));
+    // Inactive desk filter: skip shared floor desks with no activity/stock/cash, but DO NOT skip active personal drawers or the user's current desk
+    if (!isPersonalDrawer && !isCurrentDesk && !hasSalesActivity && totalStockQty === 0 && liveCash === 0) {
+        return false;
+    }
+    return true;
+}
+
+export function generateFloorDeskCard({ session, isMyDesk, liveCash, invDisplay, displayDeskName, agentNamesStr, rankBadgeHTML = '' }) {
+    let cardStyle = isMyDesk 
+        ? `margin-bottom: 0; padding: 20px; background: var(--info-bg); border: 2px solid var(--info-border); border-radius: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.06); position: relative; transition: all 0.3s var(--spring-physics);`
+        : `margin-bottom: 0; padding: 20px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.03); position: relative; transition: all 0.3s var(--spring-physics);`;
+
+    let badge = '';
+    if (isMyDesk) {
+        badge = `<div style="position: absolute; top: 0; right: 0; background: var(--info-text); color: var(--surface-color); font-size: 0.65rem; font-weight: 800; padding: 6px 16px; border-bottom-left-radius: 16px; border-top-right-radius: 18px; text-transform: uppercase; letter-spacing: 1px; z-index: 5;">My Drawer</div>`;
+    }
+
+    let safeDeskName = (displayDeskName || '').replace(/'/g, "\\'");
+    let actionBtn = isMyDesk 
+        ? `<button class="btn-primary-full" style="width: 100%; margin-top: 8px; border-radius: 14px;" onpointerdown="this.style.transform='scale(0.96)'" onpointerup="this.style.transform='scale(1)'" onclick="openMyDeskDashboard()">Open My Drawer</button>`
+        : `<button class="btn-outline" style="width: 100%; color: var(--purple-text); border-color: var(--purple-border); padding: 14px; margin-top: 8px; border-radius: 14px; font-weight: 700;" onpointerdown="this.style.transform='scale(0.95)'" onpointerup="this.style.transform='scale(1)'" onclick="peekAtDesk('${session.deskId}', '${safeDeskName}')">View Details</button>`;
+
+    let agentIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.7;"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+
+    return `
+        <div style="${cardStyle}">
+            ${badge}
+            <div style="margin-bottom: 16px; position: relative;">
+                <h4 style="margin: 0 0 6px 0; color: var(--text-primary); font-size: 1.35rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'Outfit', sans-serif; padding-right: ${isMyDesk ? '84px' : '0px'};">
+                    ${displayDeskName}
+                </h4>
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; color: ${isMyDesk ? 'var(--info-text)' : 'var(--text-secondary)'}; font-weight: 600; min-width: 0;">
+                        ${agentIcon}
+                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${agentNamesStr}</span>
+                    </div>
+                    ${rankBadgeHTML}
+                </div>
+            </div>
+            
+            <div style="background: ${isMyDesk ? 'var(--surface-color)' : 'var(--bg-color)'}; border-radius: 12px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border: 1px solid var(--border-color);">
+                <span style="font-size: 0.85rem; font-weight: 700; color: ${isMyDesk ? 'var(--info-text)' : 'var(--text-secondary)'}; text-transform: uppercase; letter-spacing: 0.5px;">Live Cash</span>
+                <span style="font-size: 1.35rem; font-weight: 800; color: var(--success-text); letter-spacing: -0.5px;">${liveCash} <span style="font-size: 0.9rem; opacity: 0.8;">Tk</span></span>
+            </div>
+
+            <div style="margin-bottom: ${isMyDesk ? '8px' : '16px'};">
+                <span style="display: block; font-size: 0.75rem; font-weight: 800; color: ${isMyDesk ? 'var(--info-text)' : 'var(--text-secondary)'}; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Physical Stock</span>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px;">${invDisplay}</div>
+            </div>
+            
+            ${actionBtn}
+        </div>
+    `;
+}
+
+export function shouldShowFloorManagerCashBar({ role, canPerformCashActions } = {}) {
+    const userRole = role !== undefined ? role : AppState.currentUserRole;
+    const canCash = canPerformCashActions !== undefined ? canPerformCashActions : AppState.canPerformCashActions;
+    return userRole === 'manager' && Boolean(canCash);
+}
+
 export async function renderLiveFloorTab() {
     const cashBar = document.getElementById('floor-manager-cash-bar');
     if (cashBar) {
-        const showCashBar = (AppState.currentUserRole === 'manager' && AppState.canPerformCashActions) || AppState.currentUserRole === 'admin';
+        const showCashBar = shouldShowFloorManagerCashBar();
         cashBar.style.display = showCashBar ? 'block' : 'none';
     }
 
@@ -480,7 +544,7 @@ export async function renderLiveFloorTab() {
         let docsArray = Array.from(uniqueDesks.values());
         docsArray.sort((a, b) => a.data().deskId.localeCompare(b.data().deskId, undefined, { numeric: true }));
         
-        let myIndex = docsArray.findIndex(doc => doc.id === AppState.currentSessionId);
+        let myIndex = docsArray.findIndex(doc => doc.id === AppState.currentSessionId || (AppState.currentDeskId && doc.data().deskId === AppState.currentDeskId));
         if (myIndex > 0) {
             let myDoc = docsArray.splice(myIndex, 1)[0];
             docsArray.unshift(myDoc);
@@ -489,7 +553,8 @@ export async function renderLiveFloorTab() {
         let floorHTML = '';
         for (const docSnap of docsArray) {
             const session = docSnap.data(); const sid = docSnap.id;
-            const isMyDesk = sid === AppState.currentSessionId;
+            const isPersonalDrawer = Boolean(session.deskId && session.deskId.startsWith('personal_'));
+            const isMyDesk = (sid === AppState.currentSessionId) || Boolean(session.deskId && AppState.currentDeskId && session.deskId === AppState.currentDeskId);
             
             // 3. ZERO READ COST: Filter transactions for this desk from local memory array
             const sessionTxs = AppState.transactions.filter(tx => tx.sessionId === sid && !tx.isDeleted);
@@ -533,7 +598,7 @@ export async function renderLiveFloorTab() {
                 }
             });
 
-            if (!hasSalesActivity && totalStockQty === 0 && liveCash === 0) {
+            if (!shouldIncludeDeskOnFloor({ session, isMyDesk, hasSalesActivity, totalStockQty, liveCash })) {
                 continue;
             }
 
@@ -575,6 +640,19 @@ export async function renderLiveFloorTab() {
                     const deskSnap = await getDoc(doc(db, 'desks', session.deskId));
                     if (deskSnap.exists() && deskSnap.data().name) {
                         displayDeskName = deskSnap.data().name;
+                    } else if (session.deskId && session.deskId.startsWith('personal_')) {
+                        const uid = session.deskId.replace('personal_', '');
+                        const userSnap = await getDoc(doc(db, 'users', uid));
+                        if (userSnap.exists() && userSnap.data().nickname) {
+                            displayDeskName = `${userSnap.data().nickname}'s Drawer`;
+                            agentNamesStr = userSnap.data().nickname;
+                        } else if (userSnap.exists() && userSnap.data().displayName) {
+                            const firstName = userSnap.data().displayName.split(' ')[0];
+                            displayDeskName = `${firstName}'s Drawer`;
+                            agentNamesStr = firstName;
+                        } else {
+                            displayDeskName = "Personal Drawer";
+                        }
                     } else {
                         displayDeskName = session.deskId.startsWith('personal_') ? "Personal Drawer" : session.deskId.replace('_', ' ').toUpperCase();
                     }
@@ -595,53 +673,15 @@ export async function renderLiveFloorTab() {
                 displayDeskName = "My Drawer";
             }
 
-            let cardStyle = isMyDesk 
-                ? `margin-bottom: 0; padding: 20px; background: var(--info-bg); border: 2px solid var(--info-border); border-radius: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.06); position: relative; transition: all 0.3s var(--spring-physics);`
-                : `margin-bottom: 0; padding: 20px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.03); position: relative; transition: all 0.3s var(--spring-physics);`;
-
-            let badge = '';
-            if (isMyDesk) {
-                badge = `<div style="position: absolute; top: 0; right: 0; background: var(--info-text); color: var(--surface-color); font-size: 0.65rem; font-weight: 800; padding: 6px 16px; border-bottom-left-radius: 16px; border-top-right-radius: 18px; text-transform: uppercase; letter-spacing: 1px; z-index: 5;">My Drawer</div>`;
-            }
-
-            let rankBadgeHTML = '';
-
-            let safeDeskName = displayDeskName.replace(/'/g, "\\'");
-            let actionBtn = isMyDesk 
-                ? `<button class="btn-primary-full" style="width: 100%; margin-top: 8px; border-radius: 14px;" onpointerdown="this.style.transform='scale(0.96)'" onpointerup="this.style.transform='scale(1)'" onclick="openMyDeskDashboard()">Open My Drawer</button>`
-                : `<button class="btn-outline" style="width: 100%; color: var(--purple-text); border-color: var(--purple-border); padding: 14px; margin-top: 8px; border-radius: 14px; font-weight: 700;" onpointerdown="this.style.transform='scale(0.95)'" onpointerup="this.style.transform='scale(1)'" onclick="peekAtDesk('${session.deskId}', '${safeDeskName}')">View Details</button>`;
-
-            let agentIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.7;"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
-
-            floorHTML += `
-                <div style="${cardStyle}">
-                    ${badge}
-                    <div style="margin-bottom: 16px; position: relative;">
-                        <h4 style="margin: 0 0 6px 0; color: var(--text-primary); font-size: 1.35rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'Outfit', sans-serif; padding-right: ${isMyDesk ? '84px' : '0px'};">
-                            ${displayDeskName}
-                        </h4>
-                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                            <div style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; color: ${isMyDesk ? 'var(--info-text)' : 'var(--text-secondary)'}; font-weight: 600; min-width: 0;">
-                                ${agentIcon}
-                                <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${agentNamesStr}</span>
-                            </div>
-                            ${rankBadgeHTML}
-                        </div>
-                    </div>
-                    
-                    <div style="background: ${isMyDesk ? 'var(--surface-color)' : 'var(--bg-color)'}; border-radius: 12px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border: 1px solid var(--border-color);">
-                        <span style="font-size: 0.85rem; font-weight: 700; color: ${isMyDesk ? 'var(--info-text)' : 'var(--text-secondary)'}; text-transform: uppercase; letter-spacing: 0.5px;">Live Cash</span>
-                        <span style="font-size: 1.35rem; font-weight: 800; color: var(--success-text); letter-spacing: -0.5px;">${liveCash} <span style="font-size: 0.9rem; opacity: 0.8;">Tk</span></span>
-                    </div>
-
-                    <div style="margin-bottom: ${isMyDesk ? '8px' : '16px'};">
-                        <span style="display: block; font-size: 0.75rem; font-weight: 800; color: ${isMyDesk ? 'var(--info-text)' : 'var(--text-secondary)'}; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Physical Stock</span>
-                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">${invDisplay}</div>
-                    </div>
-                    
-                    ${actionBtn}
-                </div>
-            `;
+            floorHTML += generateFloorDeskCard({
+                session,
+                isMyDesk,
+                liveCash,
+                invDisplay,
+                displayDeskName,
+                agentNamesStr,
+                rankBadgeHTML: ''
+            });
         }
         if (!floorHTML) {
             container.innerHTML = '<p class="placeholder-text">No active desks on floor.</p>';
