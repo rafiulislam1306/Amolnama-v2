@@ -65,11 +65,11 @@
                 <div style="display: flex; flex-direction: column; gap: 12px;">
                     <div>
                         <label class="admin-label">Mobile Number</label>
-                        <input type="tel" id="auth-phone-input" class="pos-input" style="padding: 12px; font-size: 1.1rem; border-radius: 12px;" placeholder="017XXXXXXXX" inputmode="tel">
+                        <input type="tel" id="auth-phone-input" class="pos-input" style="padding: 12px; font-size: 1.1rem; border-radius: 12px;" placeholder="017XXXXXXXX" inputmode="tel" autocomplete="tel" onkeydown="if(event.key==='Enter') Amolnama.signInWithPhoneAndPin()">
                     </div>
                     <div>
                         <label class="admin-label">Security PIN</label>
-                        <input type="password" id="auth-pin-input" class="pos-input" style="padding: 12px; font-size: 1.2rem; letter-spacing: 3px; border-radius: 12px;" placeholder="••••" inputmode="numeric" maxlength="8">
+                        <input type="password" id="auth-pin-input" class="pos-input" style="padding: 12px; font-size: 1.2rem; letter-spacing: 3px; border-radius: 12px;" placeholder="••••" inputmode="numeric" maxlength="8" autocomplete="current-password" onkeydown="if(event.key==='Enter') Amolnama.signInWithPhoneAndPin()">
                     </div>
                     <button id="btn-phone-signin" class="btn-primary-full" style="height: 48px; border-radius: 12px; font-weight: 700; background: #10b981;" onclick="Amolnama.signInWithPhoneAndPin()">SIGN IN WITH PIN</button>
                 </div>
@@ -193,7 +193,7 @@
                 Active Agents: <span id="desk-logged-agents" style="color: var(--text-primary);">None</span>
             </div>
             <div style="display: flex; gap: 8px;">
-                <button onclick="downloadReportAsPDF('tab-desk', 'Desk_Ledger')" style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; color: #ef4444; cursor: pointer;" title="Download PDF">
+                <button onclick="downloadReportAsPDF('tab-desk', 'Desk_Ledger')" style="background: rgba(var(--accent-rgb, 51, 144, 236), 0.08); border: 1px solid rgba(var(--accent-rgb, 51, 144, 236), 0.25); border-radius: 12px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; color: var(--accent-color); cursor: pointer; transition: all 0.2s ease;" title="Download PDF" aria-label="Download PDF">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                 </button>
             </div>
@@ -391,7 +391,7 @@
                 </div>
                 <div>
                     <label class="admin-label">Quantity *</label>
-                    <input type="number" id="transfer-qty" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0">
+                    <input type="number" id="transfer-qty" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0" min="1" inputmode="numeric" onkeydown="if(event.key==='Enter') executeTransfer()">
                 </div>
             </div>
             
@@ -432,11 +432,11 @@
                 </div>
                 <div>
                     <label class="admin-label">Amount (Tk) *</label>
-                    <input type="number" id="mgr-cash-amount" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0">
+                    <input type="number" id="mgr-cash-amount" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0" min="1" inputmode="numeric" onkeydown="if(event.key==='Enter') saveManagerCash()">
                 </div>
                 <div id="handset-model-wrapper" style="display: none; margin-top: 14px;">
                     <label class="admin-label">Handset Model</label>
-                    <input type="text" id="mgr-cash-handset-model" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. Redmi Note 13 Pro">
+                    <input type="text" id="mgr-cash-handset-model" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. Redmi Note 13 Pro" onkeydown="if(event.key==='Enter') saveManagerCash()">
                 </div>
                 <div id="mgr-cash-payment-wrapper" style="display: none; margin-top: 14px;">
                     <label class="admin-label">Payment Method</label>
@@ -450,16 +450,16 @@
                 <div id="mgr-cash-split-fields" style="display: none; gap: 12px; margin-top: 14px;">
                     <div style="flex: 1;">
                         <label class="admin-label">Cash Amount</label>
-                        <input type="number" id="mgr-cash-split-cash" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0" oninput="validateMgrCashSplit()">
+                        <input type="number" id="mgr-cash-split-cash" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0" min="0" inputmode="numeric" oninput="validateMgrCashSplit()" onkeydown="if(event.key==='Enter') saveManagerCash()">
                     </div>
                     <div style="flex: 1;">
                         <label class="admin-label">MFS Amount</label>
-                        <input type="number" id="mgr-cash-split-mfs" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0" oninput="validateMgrCashSplit()">
+                        <input type="number" id="mgr-cash-split-mfs" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0" min="0" inputmode="numeric" oninput="validateMgrCashSplit()" onkeydown="if(event.key==='Enter') saveManagerCash()">
                     </div>
                 </div>
                 <div id="mgr-cash-notes-wrapper" style="margin-top: 14px;">
                     <label class="admin-label">Notes (Optional)</label>
-                    <input type="text" id="mgr-cash-notes" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. Refill morning float or Charity donation">
+                    <input type="text" id="mgr-cash-notes" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. Refill morning float or Charity donation" onkeydown="if(event.key==='Enter') saveManagerCash()">
                 </div>
             </div>
             
@@ -492,7 +492,7 @@
                 </div>
                 <div>
                     <label class="admin-label">Quantity Received *</label>
-                    <input type="number" id="main-stock-qty" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0">
+                    <input type="number" id="main-stock-qty" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0" min="1" inputmode="numeric" onkeydown="if(event.key==='Enter') saveMainStock()">
                 </div>
             </div>
             
@@ -525,7 +525,7 @@
                 </div>
                 <div>
                     <label class="admin-label">Quantity Returned *</label>
-                    <input type="number" id="return-stock-qty" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0">
+                    <input type="number" id="return-stock-qty" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0" min="1" inputmode="numeric" onkeydown="if(event.key==='Enter') saveReturnStock()">
                 </div>
             </div>
             
@@ -564,7 +564,7 @@
                 </div>
                 <div>
                     <label id="transfer-qty-label" class="admin-label">Quantity to Send *</label>
-                    <input type="number" id="desk-transfer-qty" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0">
+                    <input type="number" id="desk-transfer-qty" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="0" min="1" inputmode="numeric" onkeydown="if(event.key==='Enter') executeDeskTransfer()">
                 </div>
             </div>
             
@@ -754,7 +754,7 @@
                 <div class="admin-form-card">
                     <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.4;">Set the total number of agents for calculating desk transfer suggestions.</p>
                     <div style="display: flex; gap: 8px; align-items: center;">
-                        <input type="number" id="admin-transfer-agents-count" class="settings-input" placeholder="e.g. 6" style="flex: 1; height: 42px;">
+                        <input type="number" id="admin-transfer-agents-count" class="settings-input" placeholder="e.g. 6" style="flex: 1; height: 42px;" inputmode="numeric">
                     </div>
                 </div>
 
@@ -770,7 +770,7 @@
                     <div class="admin-row-body" style="padding: 0; margin-bottom: 12px;">
                         <div>
                             <label class="admin-label" for="new-item-price">Price</label>
-                            <input type="number" id="new-item-price" class="settings-input" style="padding: 10px; width: 100%; box-sizing: border-box;" placeholder="0">
+                            <input type="number" id="new-item-price" class="settings-input" style="padding: 10px; width: 100%; box-sizing: border-box;" placeholder="0" min="0" inputmode="numeric">
                         </div>
                         <div>
                             <label class="admin-label">Category</label>
@@ -818,7 +818,7 @@
                         </div>
                         <div style="flex: 1;">
                             <label class="admin-label">Quantity</label>
-                            <input type="number" id="admin-transfer-qty" class="settings-input" style="padding: 10px; width: 100%; box-sizing: border-box;" placeholder="0">
+                            <input type="number" id="admin-transfer-qty" class="settings-input" style="padding: 10px; width: 100%; box-sizing: border-box;" placeholder="0" min="1" inputmode="numeric">
                         </div>
                     </div>
                     <button class="btn-primary-full" style="padding: 10px; background-color: #8b5cf6;" onclick="executeAdminDrawerTransfer()">Execute Admin Transfer</button>
@@ -881,15 +881,15 @@
                 <!-- Tactile Button Stepper -->
                 <div style="display: flex; align-items: center; justify-content: center; gap: 20px; width: 100%;">
                     <button type="button" class="btn-outline" onclick="stepQty(-1)" style="width: 52px; height: 52px; border-radius: 50%; font-size: 1.6rem; font-weight: 800; display: flex; align-items: center; justify-content: center; cursor: pointer; border-color: var(--border-color); color: var(--text-primary); transition: all 0.2s; background: var(--surface-color);" onpointerdown="this.style.transform='scale(0.88)'" onpointerup="this.style.transform='scale(1)'">−</button>
-                    <input type="number" id="qty-number-input" value="1" min="1" max="100" style="width: 84px; height: 52px; font-size: 1.6rem; font-weight: 800; text-align: center; border: 1.5px solid var(--border-color); border-radius: 14px; background: var(--surface-color); color: var(--text-primary); outline: none; margin: 0; box-shadow: var(--shadow-soft);" oninput="onQtyInputChange(this.value)">
+                    <input type="number" id="qty-number-input" value="1" min="1" max="100" inputmode="numeric" style="width: 84px; height: 52px; font-size: 1.6rem; font-weight: 800; text-align: center; border: 1.5px solid var(--border-color); border-radius: 14px; background: var(--surface-color); color: var(--text-primary); outline: none; margin: 0; box-shadow: var(--shadow-soft);" oninput="onQtyInputChange(this.value)">
                     <button type="button" class="btn-outline" onclick="stepQty(1)" style="width: 52px; height: 52px; border-radius: 50%; font-size: 1.6rem; font-weight: 800; display: flex; align-items: center; justify-content: center; cursor: pointer; border-color: var(--border-color); color: var(--text-primary); transition: all 0.2s; background: var(--surface-color);" onpointerdown="this.style.transform='scale(0.88)'" onpointerup="this.style.transform='scale(1)'">+</button>
                 </div>
                 
                 <!-- Range Slider -->
                 <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
                     <span style="font-size: 0.85rem; font-weight: 800; color: var(--text-secondary); width: 20px; text-align: center;">1</span>
-                    <input type="range" id="qty-slider" min="1" max="50" value="1" style="flex: 1; height: 8px; border-radius: 4px; background: var(--border-color); outline: none; cursor: pointer; accent-color: var(--accent-color);" oninput="onQtySliderChange(this.value)">
-                    <span style="font-size: 0.85rem; font-weight: 800; color: var(--text-secondary); width: 20px; text-align: center;">50</span>
+                    <input type="range" id="qty-slider" min="1" max="100" value="1" style="flex: 1; height: 8px; border-radius: 4px; background: var(--border-color); outline: none; cursor: pointer; accent-color: var(--accent-color);" oninput="onQtySliderChange(this.value)">
+                    <span style="font-size: 0.85rem; font-weight: 800; color: var(--text-secondary); width: 28px; text-align: center;">100</span>
                 </div>
             </div>
 
@@ -911,11 +911,11 @@
             <div style="display: flex; gap: 12px; margin-bottom: 14px;">
                 <div style="flex: 1;">
                     <label class="admin-label">Qty</label>
-                    <input type="number" id="edit-tx-qty" class="settings-input" style="text-align: center; height: 44px;" oninput="autoCalcEditTotal()">
+                    <input type="number" id="edit-tx-qty" class="settings-input" min="1" inputmode="numeric" style="text-align: center; height: 44px;" oninput="autoCalcEditTotal()" onkeydown="if(event.key==='Enter') saveTxEdit()">
                 </div>
                 <div style="flex: 2;">
                     <label class="admin-label">Total Tk</label>
-                    <input type="number" id="edit-tx-amount" class="settings-input" inputmode="decimal" style="height: 44px;" oninput="updateSplitTotal()">
+                    <input type="number" id="edit-tx-amount" class="settings-input" inputmode="decimal" style="height: 44px;" oninput="updateSplitTotal()" onkeydown="if(event.key==='Enter') saveTxEdit()">
                 </div>
             </div>
             
@@ -931,11 +931,11 @@
             <div id="edit-split-fields" style="display: none; gap: 12px; margin-bottom: 20px;">
                 <div style="flex: 1;">
                     <label class="admin-label">Cash Portion</label>
-                    <input type="number" id="edit-tx-cash" class="settings-input" style="text-align: center; height: 44px;" oninput="updateSplitTotal()">
+                    <input type="number" id="edit-tx-cash" class="settings-input" min="0" inputmode="numeric" style="text-align: center; height: 44px;" oninput="updateSplitTotal()" onkeydown="if(event.key==='Enter') saveTxEdit()">
                 </div>
                 <div style="flex: 1;">
                     <label class="admin-label">MFS Portion</label>
-                    <input type="number" id="edit-tx-mfs" class="settings-input" style="text-align: center; height: 44px;" oninput="updateSplitTotal()">
+                    <input type="number" id="edit-tx-mfs" class="settings-input" min="0" inputmode="numeric" style="text-align: center; height: 44px;" oninput="updateSplitTotal()" onkeydown="if(event.key==='Enter') saveTxEdit()">
                 </div>
             </div>
             
@@ -1184,11 +1184,11 @@
             <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px;">
                 <div>
                     <label class="admin-label">Recycled SIM Number *</label>
-                    <input type="text" id="add-recycle-number" class="pos-input" style="padding: 12px; border-radius: 12px;" placeholder="e.g. 017XXXXXXXX" inputmode="tel">
+                    <input type="tel" id="add-recycle-number" class="pos-input" style="padding: 12px; border-radius: 12px;" placeholder="e.g. 017XXXXXXXX" inputmode="tel" autocomplete="tel" onkeydown="if(event.key==='Enter') Amolnama.submitRecycleApplication()">
                 </div>
                 <div>
                     <label class="admin-label">Alternative Contact Number *</label>
-                    <input type="text" id="add-recycle-alt" class="pos-input" style="padding: 12px; border-radius: 12px;" placeholder="e.g. 01XXXXXXXXX" inputmode="tel">
+                    <input type="tel" id="add-recycle-alt" class="pos-input" style="padding: 12px; border-radius: 12px;" placeholder="e.g. 01XXXXXXXXX" inputmode="tel" autocomplete="tel" onkeydown="if(event.key==='Enter') Amolnama.submitRecycleApplication()">
                 </div>
                 <div>
                     <label class="admin-label">Initial Status *</label>
@@ -1206,7 +1206,7 @@
                 </div>
                 <div>
                     <label class="admin-label">Initial Note (Optional)</label>
-                    <input type="text" id="add-recycle-notes" class="pos-input" style="padding: 12px; border-radius: 12px;" placeholder="e.g. Customer wants GP premium package">
+                    <input type="text" id="add-recycle-notes" class="pos-input" style="padding: 12px; border-radius: 12px;" placeholder="e.g. Customer wants GP premium package" onkeydown="if(event.key==='Enter') Amolnama.submitRecycleApplication()">
                 </div>
             </div>
 
@@ -1317,7 +1317,7 @@
                 </div>
                 <div id="recycle-sale-untracked-number-wrapper" style="display: none;">
                     <label class="admin-label">Recycled SIM Number (Manual Input) *</label>
-                    <input type="text" id="recycle-sale-untracked-number" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. 017XXXXXXXX" inputmode="tel">
+                    <input type="tel" id="recycle-sale-untracked-number" class="settings-input" style="padding: 12px; width: 100%; box-sizing: border-box;" placeholder="e.g. 017XXXXXXXX" inputmode="tel" autocomplete="tel" onkeydown="if(event.key==='Enter') Amolnama.confirmRecycleSimSale()">
                 </div>
                 <div>
                     <label class="admin-label">Payment Method *</label>
@@ -1417,16 +1417,16 @@
             <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px;">
                 <div>
                     <label class="admin-label">Mobile Number *</label>
-                    <input type="tel" id="link-phone-input" class="pos-input" style="padding: 12px; border-radius: 12px; font-size: 1.05rem;" placeholder="017XXXXXXXX" inputmode="tel">
+                    <input type="tel" id="link-phone-input" class="pos-input" style="padding: 12px; border-radius: 12px; font-size: 1.05rem;" placeholder="017XXXXXXXX" inputmode="tel" autocomplete="tel" onkeydown="if(event.key==='Enter') Amolnama.linkPhoneAndPin()">
                     <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; display: block;">Enter your 11-digit mobile number</span>
                 </div>
                 <div>
                     <label class="admin-label">Create Security PIN (4-6 Digits) *</label>
-                    <input type="password" id="link-pin-input" class="pos-input" style="padding: 12px; border-radius: 12px; font-size: 1.2rem; letter-spacing: 3px;" placeholder="••••" inputmode="numeric" maxlength="8">
+                    <input type="password" id="link-pin-input" class="pos-input" style="padding: 12px; border-radius: 12px; font-size: 1.2rem; letter-spacing: 3px;" placeholder="••••" inputmode="numeric" maxlength="8" autocomplete="new-password" onkeydown="if(event.key==='Enter') Amolnama.linkPhoneAndPin()">
                 </div>
                 <div>
                     <label class="admin-label">Confirm PIN *</label>
-                    <input type="password" id="link-pin-confirm" class="pos-input" style="padding: 12px; border-radius: 12px; font-size: 1.2rem; letter-spacing: 3px;" placeholder="••••" inputmode="numeric" maxlength="8">
+                    <input type="password" id="link-pin-confirm" class="pos-input" style="padding: 12px; border-radius: 12px; font-size: 1.2rem; letter-spacing: 3px;" placeholder="••••" inputmode="numeric" maxlength="8" autocomplete="new-password" onkeydown="if(event.key==='Enter') Amolnama.linkPhoneAndPin()">
                 </div>
                 <button id="btn-save-phone-pin" class="btn-primary-full" style="height: 48px; border-radius: 14px; font-weight: 700; background: #10b981;" onclick="Amolnama.linkPhoneAndPin()">SAVE & LINK TO ACCOUNT</button>
             </div>

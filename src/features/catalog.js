@@ -156,9 +156,9 @@ export function renderAppUI() {
                 if (stock <= 0) {
                     isOutOfStock = true;
                 } else if (stock <= 5) {
-                    stockStatusHTML = `<span style="font-size: 0.72rem; color: #f59e0b; font-weight: 700; margin-top: 4px; display: block;">${stock} left!</span>`;
+                    stockStatusHTML = `<span style="font-size: 0.72rem; color: var(--warning-text, #b45309); font-weight: 700; margin-top: 4px; display: block;">${stock} left!</span>`;
                 } else {
-                    stockStatusHTML = `<span style="font-size: 0.72rem; color: #10b981; font-weight: 700; margin-top: 4px; display: block;">${stock} left</span>`;
+                    stockStatusHTML = `<span style="font-size: 0.72rem; color: var(--success-text, #15803d); font-weight: 700; margin-top: 4px; display: block;">${stock} left</span>`;
                 }
             }
 

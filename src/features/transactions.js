@@ -2,7 +2,7 @@
 import { collection, doc, addDoc, updateDoc, deleteDoc, serverTimestamp, getDoc, getDocs, query, where, writeBatch } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { generateReceiptNo, getStrictDate, formatToGBDate } from '../utils/helpers.js';
-import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/ui-helpers.js';
+import { showAppAlert, showFlashMessage, openModal, closeModal, setButtonLoading } from '../utils/ui-helpers.js';
 import { AppState } from '../core/state.js';
 import { passStockFirewall } from './inventory.js';
 
@@ -118,7 +118,7 @@ export function stepQty(amount) {
     const numInput = document.getElementById('qty-number-input');
     const sliderInput = document.getElementById('qty-slider');
     if (numInput) numInput.value = qtyInt;
-    if (sliderInput) sliderInput.value = Math.min(50, qtyInt);
+    if (sliderInput) sliderInput.value = Math.min(100, qtyInt);
     
     updateQtyDisplay();
 }
@@ -139,7 +139,7 @@ export function onQtyInputChange(val) {
     AppState.ui.currentQty = String(qtyInt);
     
     const sliderInput = document.getElementById('qty-slider');
-    if (sliderInput) sliderInput.value = Math.min(50, qtyInt);
+    if (sliderInput) sliderInput.value = Math.min(100, qtyInt);
     
     updateQtyDisplay();
 }
@@ -565,32 +565,36 @@ export async function saveTxEdit() {
     };
     let updatedEditHistory = tx.editHistory ? [...tx.editHistory, prevTxState] : [prevTxState];
     
-    closeModal('modal-edit-tx');
-    AppState.ui.currentEditTxId = null;
+    const submitBtn = document.querySelector('#modal-edit-tx .btn-primary-full');
+    setButtonLoading(submitBtn, true, 'Updating...');
 
-    // --- OPTIMISTIC LOCAL UPDATE ---
-    tx.qty = newQty;
-    tx.amount = newAmount;
-    tx.payment = method === 'Split' ? 'Split' : method;
-    tx.cashAmt = finalCash;
-    tx.mfsAmt = finalMfs;
-    tx.isEdited = true;
-    tx.editHistory = updatedEditHistory;
+    try {
+        // --- OPTIMISTIC LOCAL UPDATE ---
+        tx.qty = newQty;
+        tx.amount = newAmount;
+        tx.payment = method === 'Split' ? 'Split' : method;
+        tx.cashAmt = finalCash;
+        tx.mfsAmt = finalMfs;
+        tx.isEdited = true;
+        tx.editHistory = updatedEditHistory;
 
-    if (typeof window.renderDeskDashboard === 'function') window.renderDeskDashboard(AppState.currentDeskId);
-    if (typeof window.renderPersonalReport === 'function') window.renderPersonalReport();
+        if (typeof window.renderDeskDashboard === 'function') window.renderDeskDashboard(AppState.currentDeskId);
+        if (typeof window.renderPersonalReport === 'function') window.renderPersonalReport();
 
-    // --- FIRESTORE UPDATE ---
-    if (tx.docId) {
-        try {
+        // --- FIRESTORE UPDATE ---
+        if (tx.docId) {
             await updateDoc(doc(db, 'transactions', tx.docId), { qty: newQty, amount: newAmount, payment: method === 'Split' ? 'Split' : method, cashAmt: finalCash, mfsAmt: finalMfs, isEdited: true, editHistory: updatedEditHistory });
             showFlashMessage(navigator.onLine ? `${tx.name} Updated!` : "Offline: Edit queued");
-        } catch(e) {
-            showAppAlert("Save Failed", "Could not save edit to database.");
-            console.error(e);
+        } else {
+            showFlashMessage("Updated locally (sync pending)");
         }
-    } else {
-        showFlashMessage("Updated locally (sync pending)");
+        closeModal('modal-edit-tx');
+        AppState.ui.currentEditTxId = null;
+    } catch(e) {
+        showAppAlert("Save Failed", "Could not save edit to database.");
+        console.error(e);
+    } finally {
+        setButtonLoading(submitBtn, false);
     }
 }
 

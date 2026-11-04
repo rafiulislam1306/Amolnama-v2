@@ -35,6 +35,28 @@ export function executeAlertConfirm() {
     if (alertConfirmCallback) alertConfirmCallback();
 }
 
+export function setButtonLoading(btn, isLoading, loadingText = 'Saving...') {
+    if (!btn) return;
+    if (isLoading) {
+        btn.dataset.originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<span style="display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+            <svg style="animation: spin 1s linear infinite; width: 18px; height: 18px; flex-shrink: 0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.25"></circle>
+                <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor"></path>
+            </svg>
+            <span>${loadingText}</span>
+        </span>`;
+    } else {
+        btn.disabled = false;
+        if (btn.dataset.originalHtml) {
+            btn.innerHTML = btn.dataset.originalHtml;
+            delete btn.dataset.originalHtml;
+        }
+    }
+}
+window.setButtonLoading = setButtonLoading;
+
 // Exposed globally for compatibility with transaction saves
 window.renderOfflineBanner = function(count) {
     if (window.updateNetworkStatus) window.updateNetworkStatus();
@@ -202,7 +224,7 @@ export function initNetworkStatus() {
 export function setupBottomSheetDrag() {
     document.querySelectorAll('.bottom-sheet, .modal-content').forEach(sheet => {
         // Exclude full-screen modals and popups that shouldn't be swipe-closed
-        if (sheet.closest('#modal-app-alert, #modal-auth, #modal-settings, #modal-desk-select, #modal-close-desk')) return; 
+        if (sheet.closest('#modal-app-alert, #modal-auth, #modal-settings, #modal-desk-select, #modal-close-desk, #modal-nicknames, #modal-trash, #modal-audit, #modal-recycle-tracker, #modal-call-rates, #modal-manage-rates, #modal-package-form')) return; 
 
         let startY = 0;
         let currentY = 0;
@@ -319,12 +341,76 @@ export function initCustomDropdowns() {
 
         const trigger = document.createElement('div');
         trigger.className = 'custom-select-trigger';
+        trigger.setAttribute('tabindex', '0');
+        trigger.setAttribute('role', 'combobox');
+        trigger.setAttribute('aria-expanded', 'false');
+        trigger.setAttribute('aria-haspopup', 'listbox');
         
         const optionsContainer = document.createElement('div');
         optionsContainer.className = 'custom-options';
+        optionsContainer.setAttribute('role', 'listbox');
 
         wrapper.appendChild(trigger);
         wrapper.appendChild(optionsContainer);
+
+        let highlightIndex = -1;
+
+        const getSelectableOptions = () => Array.from(optionsContainer.querySelectorAll('.custom-option:not(.disabled)'));
+
+        const clearHighlight = () => {
+            optionsContainer.querySelectorAll('.custom-option.highlighted').forEach(o => o.classList.remove('highlighted'));
+            highlightIndex = -1;
+        };
+
+        const updateHighlight = () => {
+            const opts = getSelectableOptions();
+            opts.forEach((o, i) => {
+                if (i === highlightIndex) {
+                    o.classList.add('highlighted');
+                    if (typeof o.scrollIntoView === 'function') {
+                        o.scrollIntoView({ block: 'nearest' });
+                    }
+                } else {
+                    o.classList.remove('highlighted');
+                }
+            });
+        };
+
+        const openDropdown = () => {
+            // Close any other open dropdowns first
+            document.querySelectorAll('.custom-options.open').forEach(el => {
+                if (el !== optionsContainer) {
+                    el.classList.remove('open');
+                    const prev = el.previousElementSibling;
+                    if (prev) {
+                        prev.classList.remove('open');
+                        prev.setAttribute('aria-expanded', 'false');
+                    }
+                }
+            });
+            optionsContainer.classList.add('open');
+            trigger.classList.add('open');
+            trigger.setAttribute('aria-expanded', 'true');
+            const opts = getSelectableOptions();
+            const selIdx = opts.findIndex(o => o.classList.contains('selected'));
+            highlightIndex = selIdx >= 0 ? selIdx : (opts.length > 0 ? 0 : -1);
+            updateHighlight();
+        };
+
+        const closeDropdown = () => {
+            optionsContainer.classList.remove('open');
+            trigger.classList.remove('open');
+            trigger.setAttribute('aria-expanded', 'false');
+            clearHighlight();
+        };
+
+        const toggleDropdown = () => {
+            if (optionsContainer.classList.contains('open')) {
+                closeDropdown();
+            } else {
+                openDropdown();
+            }
+        };
 
         // Core rendering logic
         const renderOptions = () => {
@@ -335,7 +421,8 @@ export function initCustomDropdowns() {
             trigger.innerHTML = `<span class="custom-trigger-text" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px;"></span> 
                                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><polyline points="6 9 12 15 18 9"/></svg>`;
             // Inject text safely via innerText
-            trigger.querySelector('.custom-trigger-text').innerText = selectedText;
+            const triggerTextSpan = trigger.querySelector('.custom-trigger-text');
+            if (triggerTextSpan) triggerTextSpan.innerText = selectedText;
 
             Array.from(select.children).forEach(child => {
                 if (child.tagName === 'OPTGROUP') {
@@ -353,17 +440,24 @@ export function initCustomDropdowns() {
         const createOptionEl = (opt) => {
             const optEl = document.createElement('div');
             optEl.className = 'custom-option';
+            optEl.setAttribute('role', 'option');
+            optEl.setAttribute('aria-selected', opt.selected ? 'true' : 'false');
             if (opt.selected) optEl.classList.add('selected');
+            if (opt.disabled) {
+                optEl.classList.add('disabled');
+                optEl.setAttribute('aria-disabled', 'true');
+            }
             optEl.innerText = opt.text;
             
-            optEl.addEventListener('click', (e) => {
-                e.stopPropagation();
-                select.value = opt.value; 
-                select.dispatchEvent(new Event('change')); // Tell the app it changed!
-                renderOptions(); 
-                optionsContainer.classList.remove('open');
-                trigger.classList.remove('open');
-            });
+            if (!opt.disabled) {
+                optEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    select.value = opt.value; 
+                    select.dispatchEvent(new Event('change')); // Tell the app it changed!
+                    renderOptions(); 
+                    closeDropdown();
+                });
+            }
             optionsContainer.appendChild(optEl);
         };
 
@@ -373,18 +467,57 @@ export function initCustomDropdowns() {
         const observer = new MutationObserver(renderOptions);
         observer.observe(select, { childList: true });
 
-        // Click to open logic
+        // Click to toggle logic
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
-            // Close any other open dropdowns first
-            document.querySelectorAll('.custom-options.open').forEach(el => {
-                if (el !== optionsContainer) {
-                    el.classList.remove('open');
-                    el.previousElementSibling.classList.remove('open');
+            toggleDropdown();
+        });
+
+        // Accessible Keyboard navigation
+        trigger.addEventListener('keydown', (e) => {
+            const isOpen = optionsContainer.classList.contains('open');
+
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                if (!isOpen) {
+                    openDropdown();
+                } else {
+                    const opts = getSelectableOptions();
+                    if (highlightIndex >= 0 && highlightIndex < opts.length) {
+                        opts[highlightIndex].click();
+                    } else {
+                        closeDropdown();
+                    }
                 }
-            });
-            optionsContainer.classList.toggle('open');
-            trigger.classList.toggle('open');
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (!isOpen) {
+                    openDropdown();
+                } else {
+                    const opts = getSelectableOptions();
+                    if (opts.length > 0) {
+                        highlightIndex = (highlightIndex + 1) % opts.length;
+                        updateHighlight();
+                    }
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (!isOpen) {
+                    openDropdown();
+                } else {
+                    const opts = getSelectableOptions();
+                    if (opts.length > 0) {
+                        highlightIndex = (highlightIndex - 1 + opts.length) % opts.length;
+                        updateHighlight();
+                    }
+                }
+            } else if (e.key === 'Escape') {
+                if (isOpen) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    closeDropdown();
+                }
+            }
         });
     });
 
@@ -392,7 +525,11 @@ export function initCustomDropdowns() {
     document.addEventListener('click', () => {
         document.querySelectorAll('.custom-options.open').forEach(el => {
             el.classList.remove('open');
-            el.previousElementSibling.classList.remove('open');
+            const prev = el.previousElementSibling;
+            if (prev) {
+                prev.classList.remove('open');
+                prev.setAttribute('aria-expanded', 'false');
+            }
         });
     });
 }

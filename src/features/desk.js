@@ -519,9 +519,18 @@ export async function renderLiveFloorTab() {
     const container = document.getElementById('live-floor-container');
     container.innerHTML = '<div class="spinner" style="align-self: center; margin-top: 40px;"></div>';
 
+    const emptyFloorStateHTML = `
+        <div class="empty-state" style="grid-column: 1 / -1; width: 100%;">
+            <div class="empty-state-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+            </div>
+            <div class="empty-state-title">No Active Desks on Floor</div>
+            <div class="empty-state-desc">Open a desk or personal drawer to begin recording floor sales and activity.</div>
+        </div>`;
+
     try {
         const activeSessionsSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'open')));
-        if (activeSessionsSnap.empty) { container.innerHTML = '<p class="placeholder-text">No desks open.</p>'; return; }
+        if (activeSessionsSnap.empty) { container.innerHTML = emptyFloorStateHTML; return; }
 
         const todayStr = getStrictDate();
         let uniqueDesks = new Map();
@@ -684,7 +693,7 @@ export async function renderLiveFloorTab() {
             });
         }
         if (!floorHTML) {
-            container.innerHTML = '<p class="placeholder-text">No active desks on floor.</p>';
+            container.innerHTML = emptyFloorStateHTML;
         } else {
             container.innerHTML = floorHTML;
         }
@@ -848,6 +857,11 @@ export async function submitClosingReport() {
     actualClosingStats.cash = expectedClosingStats.cash;
     actualClosingStats.inventory = expectedClosingStats.inventory;
 
+    const closeBtn = document.querySelector('#close-desk-content button[onclick*="submitClosingReport"]');
+    if (typeof window.setButtonLoading === 'function') {
+        window.setButtonLoading(closeBtn, true, 'Sealing Desk...');
+    }
+
     try {
         await setDoc(doc(collection(db, 'eod_reports')), {
             deskId: AppState.currentDeskId,
@@ -887,6 +901,9 @@ export async function submitClosingReport() {
         loadFloorMap(); 
 
     } catch (e) { 
+        if (typeof window.setButtonLoading === 'function') {
+            window.setButtonLoading(closeBtn, false);
+        }
         console.error("Failed to close desk:", e);
         if (typeof window.showAppAlert === 'function') {
             window.showAppAlert("Sync Error", "Could not seal the desk. Check your connection to ensure the data is saved safely.");

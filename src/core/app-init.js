@@ -104,16 +104,19 @@ export async function initUserData(onComplete) {
 
         // --- MANAGER ROLE UI RESTRICTIONS ---
         const navBtns = document.querySelectorAll('.nav-item');
+        const bottomNav = document.querySelector('.bottom-nav');
         if (['manager', 'owner'].includes(AppState.currentUserRole)) {
             if (navBtns.length >= 2) {
                 navBtns[0].style.display = 'none'; // Hide ERS
                 navBtns[1].style.display = 'none'; // Hide Store
             }
+            if (bottomNav) bottomNav.style.gridTemplateColumns = 'repeat(3, 1fr)';
         } else {
             if (navBtns.length >= 2) {
                 navBtns[0].style.display = 'flex';
                 navBtns[1].style.display = 'flex';
             }
+            if (bottomNav) bottomNav.style.gridTemplateColumns = 'repeat(5, 1fr)';
         }
 
         const floorMgrCashBar = document.getElementById('floor-manager-cash-bar');

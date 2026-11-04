@@ -190,7 +190,7 @@ export async function renderPersonalReport() {
         let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
         let badges = '';
         
-        if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: rgba(245, 158, 11, 0.15); color: #f59e0b; padding: 2px 8px; border-radius: 10px; margin-left: 8px; font-weight: 700;">Pending</span>';
+        if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: rgba(245, 158, 11, 0.15); color: var(--warning-text, #b45309); padding: 2px 8px; border-radius: 10px; margin-left: 8px; font-weight: 700;">Pending</span>';
         if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: rgba(139, 92, 246, 0.15); color: #8b5cf6; padding: 2px 8px; border-radius: 10px; margin-left: 8px; font-weight: 700; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
         
         let detailsHTML = '';
@@ -227,7 +227,7 @@ export async function renderPersonalReport() {
         let amtPrefix = isOutflow ? '− ' : '';
 
         historyHTML += `
-            <div class="history-item" style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-strong); border: 1px solid var(--border-color); border-radius: 18px; box-shadow: var(--shadow-soft); margin-bottom: 12px; cursor: pointer; transition: transform 0.4s var(--spring-physics), background-color 0.2s ease;" onpointerdown="this.style.transform='scale(0.975)'" onpointerup="this.style.transform='scale(1)'" onpointerleave="this.style.transform='scale(1)'" onclick="const actions = this.querySelector('.tx-actions'); if(actions) { actions.style.display = actions.style.display === 'none' ? 'flex' : 'none'; }">
+            <div class="history-item" style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-strong); border: 1px solid var(--border-color); border-radius: 18px; box-shadow: var(--shadow-soft); margin-bottom: 12px; cursor: pointer; transition: transform 0.4s var(--spring-physics), background-color 0.2s ease;" onpointerdown="this.style.transform='scale(0.975)'" onpointerup="this.style.transform='scale(1)'" onpointerleave="this.style.transform='scale(1)'" onclick="const actions = this.querySelector('.tx-actions'); const chv = this.querySelector('.tx-chevron svg'); if(actions) { const isExp = actions.style.display !== 'none'; actions.style.display = isExp ? 'none' : 'flex'; if(chv) chv.style.transform = isExp ? 'rotate(0deg)' : 'rotate(180deg)'; }">
                 <div style="display: flex; width: 100%; align-items: center; gap: 14px;">
                     <!-- Left: Tactile Qty Badge -->
                     <div style="width: 44px; height: 44px; border-radius: 12px; background: ${dotColor}0c; color: ${dotColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${dotColor}18; box-shadow: 0 2px 6px ${dotColor}08;">
@@ -257,7 +257,7 @@ export async function renderPersonalReport() {
                         <!-- Row 2: Payment + Agent + Badges -->
                         <div style="display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1; flex-wrap: wrap;">
                             <!-- Payment Mode -->
-                            <div style="display: flex; align-items: center; gap: 4px; color: ${tx.payment === 'MFS' ? '#10b981' : 'var(--text-secondary)'}; flex-shrink: 0;">
+                            <div style="display: flex; align-items: center; gap: 4px; color: ${tx.payment === 'MFS' ? 'var(--success-text, #15803d)' : 'var(--text-secondary)'}; flex-shrink: 0;">
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
                                 <span style="margin-top: 1px;">${payLabel}</span>
                             </div>
@@ -274,10 +274,15 @@ export async function renderPersonalReport() {
                         </div>
                     </div>
                     
-                    <!-- Right: Amount display with perfect visual hierarchy -->
-                    <div style="font-size: 1.25rem; font-weight: 900; color: ${amtColor}; flex-shrink: 0; text-align: right; font-family: monospace; display: flex; align-items: baseline; gap: 2px;">
-                        <span>${amtPrefix}${Math.abs(tx.amount || 0)}</span>
-                        <span style="font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); font-family: inherit;">Tk</span>
+                    <!-- Right: Amount display and expandable chevron affordance -->
+                    <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 4px; flex-shrink: 0;">
+                        <div style="font-size: 1.25rem; font-weight: 900; color: ${amtColor}; text-align: right; font-family: monospace; display: flex; align-items: baseline; gap: 2px;">
+                            <span>${amtPrefix}${Math.abs(tx.amount || 0)}</span>
+                            <span style="font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); font-family: inherit;">Tk</span>
+                        </div>
+                        <div class="tx-chevron" style="color: var(--text-secondary); opacity: 0.6; display: flex; align-items: center; justify-content: center;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s ease;"><path d="m6 9 6 6 6-6"/></svg>
+                        </div>
                     </div>
                 </div>
                 ${actionBtns}
@@ -401,7 +406,7 @@ export async function renderPersonalReport() {
                         </div>
                         <h3 style="margin: 0; font-size: 1.25rem; font-weight: 900; color: var(--text-primary); letter-spacing: -0.2px;">Center Report</h3>
                     </div>
-                    <button onclick="downloadReportAsPDF('tab-report', 'Center_Report')" style="background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 12px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; color: #ef4444; cursor: pointer; transition: all 0.2s ease;" title="Download PDF">
+                    <button onclick="downloadReportAsPDF('tab-report', 'Center_Report')" style="background: rgba(var(--accent-rgb, 51, 144, 236), 0.08); border: 1px solid rgba(var(--accent-rgb, 51, 144, 236), 0.25); border-radius: 12px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; color: var(--accent-color); cursor: pointer; transition: all 0.2s ease;" title="Download PDF" aria-label="Download PDF">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                     </button>
                 </div>
@@ -417,7 +422,7 @@ export async function renderPersonalReport() {
                     <!-- Cash Sales -->
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px;">Cash Sales</span>
-                        <span style="font-size: 1.4rem; font-weight: 800; color: #10b981;">+${fmt(myCash)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Tk</span></span>
+                        <span style="font-size: 1.4rem; font-weight: 800; color: var(--success-text, #15803d);">+${fmt(myCash)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Tk</span></span>
                     </div>
                     
                     <!-- +/- Cash Actions (Interactive Accordion) -->
@@ -426,7 +431,7 @@ export async function renderPersonalReport() {
                             <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px;">+/- Cash Actions</span>
                             <svg id="center-cash-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-secondary); transition: transform 0.2s ease; transform: ${centerCashActionsExpanded ? 'rotate(180deg)' : 'rotate(0deg)'};"><polyline points="6 9 12 15 18 9"/></svg>
                         </div>
-                        <span id="center-tot-drops" style="font-size: 1.4rem; font-weight: 800; color: ${floorManagerDrops >= 0 ? '#10b981' : '#ef4444'};">
+                        <span id="center-tot-drops" style="font-size: 1.4rem; font-weight: 800; color: ${floorManagerDrops >= 0 ? 'var(--success-text, #15803d)' : 'var(--danger-text, #b91c1c)'};">
                             ${floorManagerDrops >= 0 ? '+' : ''}${fmt(floorManagerDrops)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Tk</span>
                         </span>
                     </div>
@@ -439,9 +444,9 @@ export async function renderPersonalReport() {
                     <div style="border-top: 1px solid var(--border-color); margin: 6px 0;"></div>
 
                     <!-- Expected Cash Highlight Box -->
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(245, 158, 11, 0.05); border-left: 4px solid #f59e0b; border-radius: 10px;">
-                        <span style="font-weight: 900; color: #f59e0b; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.8px; white-space: nowrap; flex-shrink: 0;">Expected Cash</span>
-                        <span id="center-tot-expected" style="font-weight: 900; color: #f59e0b; font-size: 1.4rem; white-space: nowrap; display: inline-flex; align-items: baseline; gap: 4px;">${fmt(expectedCenterCash)} <span style="font-size: 0.9rem; font-weight: 800;">Tk</span></span>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--warning-bg, rgba(245, 158, 11, 0.05)); border-left: 4px solid var(--warning-text, #b45309); border-radius: 10px;">
+                        <span style="font-weight: 900; color: var(--warning-text, #b45309); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.8px; white-space: nowrap; flex-shrink: 0;">Expected Cash</span>
+                        <span id="center-tot-expected" style="font-weight: 900; color: var(--warning-text, #b45309); font-size: 1.4rem; white-space: nowrap; display: inline-flex; align-items: baseline; gap: 4px;">${fmt(expectedCenterCash)} <span style="font-size: 0.9rem; font-weight: 800;">Tk</span></span>
                     </div>
                 </div>
             </div>
@@ -1178,7 +1183,7 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
         let amtPrefix = isOutflow ? '− ' : '';
 
         historyHTML += `
-            <div class="history-item" style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-strong); border: 1px solid var(--border-color); border-radius: 18px; box-shadow: var(--shadow-soft); margin-bottom: 12px; cursor: pointer; transition: transform 0.4s var(--spring-physics), background-color 0.2s ease;" onpointerdown="this.style.transform='scale(0.975)'" onpointerup="this.style.transform='scale(1)'" onpointerleave="this.style.transform='scale(1)'" onclick="const actions = this.querySelector('.tx-actions'); if(actions) { actions.style.display = actions.style.display === 'none' ? 'flex' : 'none'; }">
+            <div class="history-item" style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-strong); border: 1px solid var(--border-color); border-radius: 18px; box-shadow: var(--shadow-soft); margin-bottom: 12px; cursor: pointer; transition: transform 0.4s var(--spring-physics), background-color 0.2s ease;" onpointerdown="this.style.transform='scale(0.975)'" onpointerup="this.style.transform='scale(1)'" onpointerleave="this.style.transform='scale(1)'" onclick="const actions = this.querySelector('.tx-actions'); const chv = this.querySelector('.tx-chevron svg'); if(actions) { const isExp = actions.style.display !== 'none'; actions.style.display = isExp ? 'none' : 'flex'; if(chv) chv.style.transform = isExp ? 'rotate(0deg)' : 'rotate(180deg)'; }">
                 <div style="display: flex; width: 100%; align-items: center; gap: 14px;">
                     <!-- Left: Tactile Qty Badge -->
                     <div style="width: 44px; height: 44px; border-radius: 12px; background: ${dotColor}0c; color: ${dotColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${dotColor}18; box-shadow: 0 2px 6px ${dotColor}08;">
@@ -1208,7 +1213,7 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
                         <!-- Row 2: Payment + Agent + Badges -->
                         <div style="display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1; flex-wrap: wrap;">
                             <!-- Payment Mode -->
-                            <div style="display: flex; align-items: center; gap: 4px; color: ${tx.payment === 'MFS' ? '#10b981' : 'var(--text-secondary)'}; flex-shrink: 0;">
+                            <div style="display: flex; align-items: center; gap: 4px; color: ${tx.payment === 'MFS' ? 'var(--success-text, #15803d)' : 'var(--text-secondary)'}; flex-shrink: 0;">
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
                                 <span style="margin-top: 1px;">${payLabel}</span>
                             </div>
@@ -1225,10 +1230,15 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
                         </div>
                     </div>
                     
-                    <!-- Right: Amount display with perfect visual hierarchy -->
-                    <div style="font-size: 1.25rem; font-weight: 900; color: ${amtColor}; flex-shrink: 0; text-align: right; font-family: monospace; display: flex; align-items: baseline; gap: 2px;">
-                        <span>${amtPrefix}${Math.abs(tx.amount || 0)}</span>
-                        <span style="font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); font-family: inherit;">Tk</span>
+                    <!-- Right: Amount display and expandable chevron affordance -->
+                    <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 4px; flex-shrink: 0;">
+                        <div style="font-size: 1.25rem; font-weight: 900; color: ${amtColor}; text-align: right; font-family: monospace; display: flex; align-items: baseline; gap: 2px;">
+                            <span>${amtPrefix}${Math.abs(tx.amount || 0)}</span>
+                            <span style="font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); font-family: inherit;">Tk</span>
+                        </div>
+                        <div class="tx-chevron" style="color: var(--text-secondary); opacity: 0.6; display: flex; align-items: center; justify-content: center;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s ease;"><path d="m6 9 6 6 6-6"/></svg>
+                        </div>
                     </div>
                 </div>
                 ${actionBtns}
@@ -1302,7 +1312,7 @@ export async function fetchTransactionsForDate() {
             else AppState.needsRender.floor = true;
 
             const financialLabel = document.getElementById('financial-date-label');
-            if (financialLabel) financialLabel.innerHTML = `${dateLabel}`;
+            if (financialLabel) financialLabel.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg> ${dateLabel}`;
         };
 
         txListenerUnsubscribe = onSnapshot(

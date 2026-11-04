@@ -3,7 +3,7 @@ import { collection, addDoc, getDocs, query, where, doc, getDoc, serverTimestamp
 import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
 import { generateReceiptNo, getStrictDate } from '../utils/helpers.js';
-import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/ui-helpers.js';
+import { showAppAlert, showFlashMessage, openModal, closeModal, setButtonLoading } from '../utils/ui-helpers.js';
 import { passStockFirewall, getPhysicalItems, getInventoryChange } from './inventory.js';
 
 let isSaving = false;
@@ -182,6 +182,9 @@ export async function saveManagerCash() {
     if (notes) tx.notes = notes;
     if (handsetModel) tx.handsetModel = handsetModel;
 
+    const saveBtn = document.querySelector('#modal-manager-cash .btn-primary-full');
+    setButtonLoading(saveBtn, true, 'Saving Action...');
+
     try {
         await addDoc(collection(db, 'transactions'), tx);
         closeModal('modal-manager-cash');
@@ -191,6 +194,7 @@ export async function saveManagerCash() {
         console.error(e);
     } finally {
         isSaving = false;
+        setButtonLoading(saveBtn, false);
     }
 }
 
@@ -198,7 +202,7 @@ export function openMainStockModal() {
     if(!AppState.currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
     document.getElementById('main-stock-qty').value = '';
     let selectEl = document.getElementById('main-stock-item');
-    selectEl.innerHTML = '<option value="" disabled selected>� Select a Product �</option>';
+    selectEl.innerHTML = '<option value="" disabled selected>📦 Select a Product</option>';
     getPhysicalItems().forEach(itemName => {
         let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
         selectEl.appendChild(opt);
@@ -235,6 +239,9 @@ export async function saveMainStock() {
         timestamp: serverTimestamp()
     };
 
+    const submitBtn = document.querySelector('#modal-main-stock .btn-primary-full');
+    setButtonLoading(submitBtn, true, 'Adding to Drawer...');
+
     try {
         await addDoc(collection(db, 'transactions'), tx);
         closeModal('modal-main-stock');
@@ -244,6 +251,7 @@ export async function saveMainStock() {
         console.error(e);
     } finally {
         isSaving = false;
+        setButtonLoading(submitBtn, false);
     }
 }
 
@@ -251,7 +259,7 @@ export function openReturnStockModal() {
     if(!AppState.currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
     document.getElementById('return-stock-qty').value = '';
     let selectEl = document.getElementById('return-stock-item');
-    selectEl.innerHTML = '<option value="" disabled selected>� Select a Product �</option>';
+    selectEl.innerHTML = '<option value="" disabled selected>📦 Select a Product</option>';
     getPhysicalItems().forEach(itemName => {
         let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
         selectEl.appendChild(opt);
@@ -293,6 +301,9 @@ export async function saveReturnStock() {
         timestamp: serverTimestamp()
     };
 
+    const submitReturnBtn = document.querySelector('#modal-return-stock .btn-primary-full');
+    setButtonLoading(submitReturnBtn, true, 'Returning Stock...');
+
     try {
         await addDoc(collection(db, 'transactions'), tx);
         closeModal('modal-return-stock');
@@ -302,6 +313,7 @@ export async function saveReturnStock() {
         console.error(e);
     } finally {
         isSaving = false;
+        setButtonLoading(submitReturnBtn, false);
     }
 }
 
@@ -436,7 +448,7 @@ export async function openDeskTransfer() {
             }
         }
         
-        targetSelect.innerHTML = (optionsHTML ? '<option value="" disabled selected>� Select an Agent �</option>' + optionsHTML : '<option value="">No other desks open</option>');
+        targetSelect.innerHTML = (optionsHTML ? '<option value="" disabled selected>👤 Select an Agent</option>' + optionsHTML : '<option value="">No other desks open</option>');
     } catch(e) { targetSelect.innerHTML = '<option value="">Offline: Cannot fetch desks</option>'; }
 }
 export async function executeDeskTransfer() {
@@ -484,6 +496,9 @@ export async function executeDeskTransfer() {
     senderTx = { id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: AppState.currentDeskId, sessionId: AppState.currentSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, transferGroupId: transferGroupId, timestamp: serverTimestamp() };
     receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${AppState.currentDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetDeskId, sessionId: targetSessionId, agentId: targetAgentId || AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, isRemoteTransfer: true, transferGroupId: transferGroupId, timestamp: serverTimestamp() };
     
+    const deskTransferBtn = document.getElementById('desk-transfer-btn');
+    setButtonLoading(deskTransferBtn, true, 'Sending to Desk...');
+
     try {
         const batch = writeBatch(db);
         batch.set(doc(collection(db, 'transactions')), senderTx);
@@ -497,6 +512,7 @@ export async function executeDeskTransfer() {
         console.error(e);
     } finally {
         isSaving = false;
+        setButtonLoading(deskTransferBtn, false);
     }
 }
 
@@ -512,7 +528,7 @@ export function openTransferModal(targetDesk, targetSession, targetName) {
     document.getElementById('transfer-target-name').innerText = targetTransferDeskName;
     document.getElementById('transfer-qty').value = '';
     let selectEl = document.getElementById('transfer-item-select');
-    selectEl.innerHTML = '<option value="" disabled selected>� Select a Product �</option>';
+    selectEl.innerHTML = '<option value="" disabled selected>📦 Select a Product</option>';
     getPhysicalItems().forEach(itemName => {
         let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
         selectEl.appendChild(opt);
@@ -539,6 +555,8 @@ export function executeTransfer() {
     showAppAlert("Confirm Force Transfer", `You are about to force-transfer ${qty}x ${itemName} to ${targetTransferDeskName}. This bypasses standard stock limits. Proceed?`, true, async () => {
         if (isSaving) return;
         isSaving = true;
+        const confirmBtn = document.getElementById('app-alert-confirm');
+        setButtonLoading(confirmBtn, true, 'Transferring...');
         try {
             const batch = writeBatch(db);
             batch.set(doc(collection(db, 'transactions')), senderTx);
@@ -552,6 +570,7 @@ export function executeTransfer() {
             console.error(e);
         } finally {
             isSaving = false;
+            setButtonLoading(confirmBtn, false);
         }
     }, "Force Transfer");
 }

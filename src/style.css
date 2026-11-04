@@ -12,6 +12,11 @@
   --border-color: #e2e8f0;
   --nav-bg: #ffffff;
 
+  /* Physics & RGB Tokens */
+  --spring-physics: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --bg-rgb: 240, 242, 245;
+  --accent-rgb: 51, 144, 236;
+
   /* Semantic Alerts & Cards (Light Mode) */
   --danger-bg: #fef2f2;
   --danger-border: #fecaca;
@@ -44,6 +49,10 @@
     --accent-color: #38bdf8;
     --border-color: #1e293b;
     --nav-bg: #17212b;
+
+    /* Physics & RGB Tokens (Dark Mode) */
+    --bg-rgb: 14, 22, 33;
+    --accent-rgb: 56, 189, 248;
 
     /* Semantic Alerts & Cards (Dark Mode - Transparent Overlays) */
     --danger-bg: rgba(239, 68, 68, 0.15);
@@ -119,6 +128,15 @@ input, textarea, select {
 }
 .store-pill:focus-visible, .flash-pill:focus-visible {
     border-radius: 24px;
+}
+
+/* Accessibility & State: Disabled controls */
+button:disabled, .btn:disabled, .action-btn:disabled, .save-ers-btn:disabled, .btn-primary-full:disabled, input:disabled, select:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    transform: none !important;
+    box-shadow: none !important;
 }
 
 /* --- 3. LAYOUT COMPONENTS --- */
@@ -368,6 +386,24 @@ header {
     background: linear-gradient(135deg, #0284c7, #1d4ed8);
 }
 
+/* Distinct ERS Payment CTAs */
+.save-ers-btn.btn-cash { 
+    background: linear-gradient(135deg, #10b981, #059669); 
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35); 
+}
+.save-ers-btn.btn-cash:active { 
+    background: linear-gradient(135deg, #059669, #047857); 
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.2); 
+}
+.save-ers-btn.btn-mfs { 
+    background: linear-gradient(135deg, #8b5cf6, #6366f1); 
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35); 
+}
+.save-ers-btn.btn-mfs:active { 
+    background: linear-gradient(135deg, #7c3aed, #4f46e5); 
+    box-shadow: 0 2px 6px rgba(99, 102, 241, 0.2); 
+}
+
 /* --- 7. TOGGLE SWITCH (SEGMENTED CONTROL) --- */
 .toggle-container { display: flex; align-items: center; justify-content: space-between; background-color: transparent; padding: 0 4px; margin-bottom: 20px; }
 .toggle-label { font-weight: 600; font-size: 0.95rem; color: var(--text-secondary); }
@@ -574,8 +610,41 @@ header {
 .delete-btn:active { transform: scale(0.9); }
 
 /* Premium Empty States */
-.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; color: var(--text-secondary); opacity: 0.6; text-align: center; }
-.empty-state svg { width: 56px; height: 56px; margin-bottom: 16px; stroke-width: 1.5; }
+.empty-state { 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center; 
+    padding: 48px 20px; 
+    color: var(--text-secondary); 
+    text-align: center; 
+}
+.empty-state-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+    color: var(--text-secondary);
+    box-shadow: var(--shadow-soft);
+}
+.empty-state-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+.empty-state-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    max-width: 320px;
+    line-height: 1.4;
+}
+.empty-state svg { width: 28px; height: 28px; stroke-width: 2; }
 .empty-state p { font-size: 1.05rem; font-weight: 500; margin: 0; }
 
 /* --- 12. ADMIN DASHBOARD & CATALOG SETUP --- */
@@ -842,6 +911,17 @@ header {
 
 .custom-option:hover, .custom-option.selected { 
     background: var(--bg-color); color: var(--accent-color); font-weight: 700; 
+}
+
+.custom-option.highlighted {
+    background: var(--bg-color); color: var(--accent-color); font-weight: 700; outline: 2px solid var(--accent-color); outline-offset: -2px;
+}
+
+.custom-option.disabled {
+    opacity: 0.45;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    color: var(--text-secondary);
 }
 
 .custom-optgroup { 
@@ -1436,6 +1516,37 @@ header {
         top: 0px !important;
         margin: 0 -10px 12px -10px !important;
         border-radius: 16px !important;
+    }
+
+    /* Constrain ERS Keypad on Desktop/Tablet */
+    .ers-container {
+        max-width: 460px;
+        margin: 0 auto;
+        width: 100%;
+    }
+
+    /* Responsive Grid for Live Floor Map on Desktop/Tablet */
+    #live-floor-container {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)) !important;
+        gap: 20px !important;
+    }
+
+    /* Responsive Bounds for Full-Screen Admin Modals on Desktop */
+    #modal-nicknames .modal-content,
+    #modal-settings .modal-content,
+    #modal-recycle-tracker .modal-content,
+    #modal-call-rates .modal-content {
+        height: 85vh !important;
+        max-height: 820px !important;
+        max-width: 760px !important;
+        border-radius: 24px !important;
+        margin: auto !important;
+    }
+    #modal-nicknames,
+    #modal-recycle-tracker,
+    #modal-call-rates {
+        background-color: rgba(0, 0, 0, 0.45) !important;
     }
 }
 
