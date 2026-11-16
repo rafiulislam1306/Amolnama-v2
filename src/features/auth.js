@@ -269,11 +269,11 @@ export function openProfileHub() {
     
     roleBadge.innerText = displayRole;
     if (isHighLevel) {
-        roleBadge.style.background = '#e0f2fe';
-        roleBadge.style.color = '#0284c7';
+        roleBadge.style.background = 'var(--info-bg)';
+        roleBadge.style.color = 'var(--info-text)';
     } else {
-        roleBadge.style.background = '#f1f5f9';
-        roleBadge.style.color = '#475569';
+        roleBadge.style.background = 'var(--bg-color)';
+        roleBadge.style.color = 'var(--text-secondary)';
     }
     
     // STRICT RULE: Only Center Admin can manage and change systems

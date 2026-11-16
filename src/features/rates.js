@@ -1007,7 +1007,7 @@ export function addRateRow(rateData = null) {
     row.innerHTML = `
         <div class="editor-rate-row-header">
             <span style="font-size: 0.8rem; font-weight: 800; color: var(--accent-color); text-transform: uppercase;">Rate configuration</span>
-            <button class="delete-btn" style="color: #ef4444; font-size: 0.85rem; font-weight: 700; padding: 4px 8px; border: 1px solid #fecaca; background: #fef2f2; border-radius: 8px;" onclick="document.getElementById('${rowId}').remove()">Remove</button>
+            <button class="delete-btn" style="color: var(--danger-text); font-size: 0.85rem; font-weight: 700; padding: 4px 8px; border: 1px solid var(--danger-border); background: var(--danger-bg); border-radius: 8px;" onclick="document.getElementById('${rowId}').remove()">Remove</button>
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
             <div>

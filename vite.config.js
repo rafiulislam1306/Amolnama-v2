@@ -1,7 +1,13 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  base: '/Amolnama-v2/',
+  base: '/',
+
+  server: {
+    host: '0.0.0.0',
+    port: 3000,
+    allowedHosts: true,
+  },
   
   build: {
     // Explicitly disable source maps to protect proprietary code

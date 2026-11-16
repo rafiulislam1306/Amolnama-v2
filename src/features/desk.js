@@ -698,7 +698,7 @@ export async function renderLiveFloorTab() {
             container.innerHTML = floorHTML;
         }
     } catch (e) { 
-        const personalDeskId = 'personal_' + AppState.currentUser.uid;
+        const personalDeskId = 'personal_' + (AppState.currentUser?.uid || 'guest');
         const myFirstName = AppState.userNickname || (AppState.userDisplayName ? AppState.userDisplayName.split(' ')[0] : 'Agent');
         const myDrawerName = `${myFirstName}'s Drawer`;
         const safeDrawerName = myDrawerName.replace(/'/g, "\\'");
@@ -813,9 +813,9 @@ export async function initiateCloseDesk() {
             let qty = expectedInv[itemName];
             if (qty > 0) {
                 invHTML += `
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding: 6px 0; border-bottom:1px dashed #e2e8f0; font-size: 0.9rem;">
-                        <span style="color:#334155; font-weight: 600;">${itemName}</span>
-                        <span style="color:#0f172a; font-weight: 800;">${qty}</span>
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding: 6px 0; border-bottom:1px dashed var(--border-color); font-size: 0.9rem;">
+                        <span style="color:var(--text-secondary); font-weight: 600;">${itemName}</span>
+                        <span style="color:var(--text-primary); font-weight: 800;">${qty}</span>
                     </div>
                 `;
             }
@@ -832,14 +832,14 @@ export async function initiateCloseDesk() {
         <div style="flex: 1; overflow-y: auto; padding: 24px 20px; padding-bottom: calc(24px + env(safe-area-inset-bottom));">
             <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 24px; line-height: 1.5;">Please hand over the following expected cash and items to your manager. This will permanently seal your shift.</p>
       
-            <div class="admin-form-card" style="margin-bottom: 24px; padding: 20px; border: 2px solid #10b981; background: #ecfdf5;">
-                <label style="display: block; font-size: 0.8rem; font-weight: 800; color: #047857; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Expected Cash Handover</label>
-                <div style="font-size: 2rem; font-weight: 900; color: #065f46;">${expectedCash} Tk</div>
-                <div style="font-size: 0.85rem; font-weight: 600; color: #047857; margin-top: 4px;">Expected MFS: ${expectedMfs} Tk</div>
+            <div class="admin-form-card" style="margin-bottom: 24px; padding: 20px; border: 2px solid #10b981; background: var(--success-bg);">
+                <label style="display: block; font-size: 0.8rem; font-weight: 800; color: var(--success-text); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Expected Cash Handover</label>
+                <div style="font-size: 2rem; font-weight: 900; color: var(--success-text);">${expectedCash} Tk</div>
+                <div style="font-size: 0.85rem; font-weight: 600; color: var(--success-text); margin-top: 4px;">Expected MFS: ${expectedMfs} Tk</div>
             </div>
 
             <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Expected Physical Stock</div>
-            <div class="admin-form-card" style="padding: 16px; margin-bottom: 32px; background: #f8fafc; border: 1px solid #cbd5e1;">
+            <div class="admin-form-card" style="padding: 16px; margin-bottom: 32px; background: var(--surface-strong); border: 1px solid var(--border-color);">
                 ${invHTML}
             </div>
 

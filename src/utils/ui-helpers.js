@@ -96,13 +96,11 @@ export function showFlashMessage(text) {
 }
 
 export function openModal(modalId) { 
-    console.warn("DEBUG: openModal called for:", modalId);
     const modalEl = document.getElementById(modalId);
     if (modalEl) modalEl.classList.add('active'); 
 }
 
 export function closeModal(modalId) { 
-    console.warn("DEBUG: closeModal called for:", modalId);
     const overlay = document.getElementById(modalId);
     if (!overlay) return;
     overlay.classList.remove('active');
@@ -377,17 +375,31 @@ export function initCustomDropdowns() {
         };
 
         const openDropdown = () => {
+            if (typeof select._refreshCustomDropdown === 'function') {
+                select._refreshCustomDropdown();
+            }
             // Close any other open dropdowns first
             document.querySelectorAll('.custom-options.open').forEach(el => {
                 if (el !== optionsContainer) {
-                    el.classList.remove('open');
+                    el.classList.remove('open', 'open-up');
                     const prev = el.previousElementSibling;
                     if (prev) {
-                        prev.classList.remove('open');
+                        prev.classList.remove('open', 'open-up');
                         prev.setAttribute('aria-expanded', 'false');
                     }
                 }
             });
+            optionsContainer.classList.remove('open-up');
+            trigger.classList.remove('open-up');
+            if (typeof trigger.getBoundingClientRect === 'function' && typeof window !== 'undefined' && typeof window.innerHeight === 'number') {
+                const rect = trigger.getBoundingClientRect();
+                const spaceBelow = window.innerHeight - rect.bottom;
+                const spaceAbove = rect.top;
+                if (spaceBelow < 220 && spaceAbove > spaceBelow) {
+                    optionsContainer.classList.add('open-up');
+                    trigger.classList.add('open-up');
+                }
+            }
             optionsContainer.classList.add('open');
             trigger.classList.add('open');
             trigger.setAttribute('aria-expanded', 'true');
@@ -398,8 +410,8 @@ export function initCustomDropdowns() {
         };
 
         const closeDropdown = () => {
-            optionsContainer.classList.remove('open');
-            trigger.classList.remove('open');
+            optionsContainer.classList.remove('open', 'open-up');
+            trigger.classList.remove('open', 'open-up');
             trigger.setAttribute('aria-expanded', 'false');
             clearHighlight();
         };
@@ -461,6 +473,7 @@ export function initCustomDropdowns() {
             optionsContainer.appendChild(optEl);
         };
 
+        select._refreshCustomDropdown = renderOptions;
         renderOptions();
 
         // Magic: Auto-rebuild if the app adds new items to the original hidden select
@@ -524,12 +537,26 @@ export function initCustomDropdowns() {
     // Close dropdowns if tapping outside
     document.addEventListener('click', () => {
         document.querySelectorAll('.custom-options.open').forEach(el => {
-            el.classList.remove('open');
+            el.classList.remove('open', 'open-up');
             const prev = el.previousElementSibling;
             if (prev) {
-                prev.classList.remove('open');
+                prev.classList.remove('open', 'open-up');
                 prev.setAttribute('aria-expanded', 'false');
             }
         });
     });
 }
+
+export function refreshCustomDropdowns(selectOrIds) {
+    const targets = selectOrIds
+        ? (Array.isArray(selectOrIds) ? selectOrIds : [selectOrIds])
+        : Array.from(document.querySelectorAll('select.settings-input'));
+
+    targets.forEach(target => {
+        const el = typeof target === 'string' ? document.getElementById(target) : target;
+        if (el && typeof el._refreshCustomDropdown === 'function') {
+            el._refreshCustomDropdown();
+        }
+    });
+}
+if (typeof window !== 'undefined') window.refreshCustomDropdowns = refreshCustomDropdowns;

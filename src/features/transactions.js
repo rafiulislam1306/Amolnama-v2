@@ -2,7 +2,7 @@
 import { collection, doc, addDoc, updateDoc, deleteDoc, serverTimestamp, getDoc, getDocs, query, where, writeBatch } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { generateReceiptNo, getStrictDate, formatToGBDate } from '../utils/helpers.js';
-import { showAppAlert, showFlashMessage, openModal, closeModal, setButtonLoading } from '../utils/ui-helpers.js';
+import { showAppAlert, showFlashMessage, openModal, closeModal, setButtonLoading, refreshCustomDropdowns } from '../utils/ui-helpers.js';
 import { AppState } from '../core/state.js';
 import { passStockFirewall } from './inventory.js';
 
@@ -177,9 +177,7 @@ export function saveQuantity() {
 }
 
 export function instantSaveItem(itemName, price) {
-  console.warn("DEBUG: instantSaveItem called for:", itemName, "price:", price);
   if (isSaving) {
-      console.warn("DEBUG: instantSaveItem returned because isSaving is true");
       return;
   }
   isSaving = true;
@@ -234,9 +232,7 @@ export function instantSaveItem(itemName, price) {
 //    CORE TRANSACTION SAVER
 // ==========================================
 export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt = 0, mfsAmt = 0, onboarding = null) {
-    console.warn("DEBUG: addTransactionToCloud called. type:", type, "name:", name, "amount:", amount, "payment:", payment, "onboarding:", onboarding);
     if(!AppState.currentUser) {
-        console.warn("DEBUG: currentUser is null, returning");
         return;
     }
     
@@ -249,10 +245,7 @@ export function addTransactionToCloud(type, name, amount, qty, payment, cashAmt 
     const isGPOnboarding = isSimOrMnpSale(name) && !name.toLowerCase().includes('skitto');
     const isSkittoOnboarding = isSimOrMnpSale(name) && name.toLowerCase().includes('skitto');
 
-    console.warn("DEBUG: isGPOnboarding:", isGPOnboarding, "isSkittoOnboarding:", isSkittoOnboarding);
-
     if (type === 'Item' && (isGPOnboarding || isSkittoOnboarding) && onboarding === null) {
-        console.warn("DEBUG: Intercepting for onboarding prompt");
         promptSimOnboarding(name, (firstCall, appReg) => {
             if (firstCall !== null) {
                 addTransactionToCloud(type, name, amount, qty, payment, cashAmt, mfsAmt, { firstCall, appReg });
@@ -484,6 +477,7 @@ export function openEditTx(id) {
         document.getElementById('edit-tx-cash').value = tx.cashAmt || 0;
         document.getElementById('edit-tx-mfs').value = tx.mfsAmt || 0;
     } else { paymentSelect.value = tx.payment; splitFields.style.display = 'none'; }
+    refreshCustomDropdowns(paymentSelect);
     openModal('modal-edit-tx');
     
     setTimeout(() => {
@@ -693,7 +687,7 @@ export function openTrash() { renderTrash(); openModal('modal-trash'); }
 
 export function renderTrash() {
     let html = '';
-    if(AppState.trashTransactions.length === 0) html = '<p class="placeholder-text">Trash is empty</p>';
+    if(AppState.trashTransactions.length === 0) html = '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg><p>Trash is empty</p><span>Deleted transactions appear here for 30 days before permanent removal.</span></div>';
     else {
         [...AppState.trashTransactions].sort((a,b) => b.id - a.id).forEach(tx => {
             let safeDocId = tx.docId ? `'${tx.docId}'` : `null`;
@@ -709,7 +703,7 @@ export function renderTrash() {
                             <button class="btn-outline" style="padding:6px 12px; font-size:0.85rem; height:auto; color: #10b981; gap: 6px;" onclick="restoreTx(${safeDocId}, ${tx.id})">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg> Restore
                             </button>
-                            <button class="btn-outline" style="padding:6px 12px; font-size:0.85rem; height:auto; color: #ef4444; gap: 6px; background: #fef2f2;" onclick="permanentlyDeleteTx(${safeDocId}, ${tx.id})">
+                            <button class="btn-outline" style="padding:6px 12px; font-size:0.85rem; height:auto; color: var(--danger-text); border-color: var(--danger-border); gap: 6px; background: var(--danger-bg);" onclick="permanentlyDeleteTx(${safeDocId}, ${tx.id})">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg> Delete
                             </button>
                         </div>

@@ -2,7 +2,7 @@
 import { collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, serverTimestamp, getDocs } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
-import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/ui-helpers.js';
+import { showAppAlert, showFlashMessage, openModal, closeModal, refreshCustomDropdowns } from '../utils/ui-helpers.js';
 import { addTransactionToCloud } from './transactions.js';
 import { getStrictDate, generateReceiptNo, formatToGBDate } from '../utils/helpers.js';
 
@@ -236,10 +236,10 @@ export function renderRecycleList() {
 
     if (filteredList.length === 0) {
         container.innerHTML = `
-            <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary);">
-                <div style="font-size: 2.2rem; margin-bottom: 12px;">♻️</div>
-                <div style="font-weight: 700; color: var(--text-primary);">No applications found</div>
-                <div style="font-size: 0.8rem; margin-top: 4px; opacity: 0.8;">Use search or filters above, or add a new application.</div>
+            <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                <p>No matching recycle entries</p>
+                <span>Use the filters above or tap + Add SIM to log a new application.</span>
             </div>`;
         return;
     }
@@ -393,6 +393,7 @@ export function openAddRecycleModal() {
     const statusSelect = document.getElementById('add-recycle-status');
     if (statusSelect) {
         statusSelect.value = 'applied';
+        refreshCustomDropdowns(statusSelect);
     }
     const dateInput = document.getElementById('add-recycle-date');
     if (dateInput) {
@@ -488,7 +489,11 @@ export function openUpdateRecycleStatusModal(id) {
     if (phoneEl) phoneEl.innerText = sim.recycledNumber;
     const altEl = document.getElementById('status-update-alt-number');
     if (altEl) altEl.innerText = sim.alternativeNumber || 'None';
-    document.getElementById('status-update-select').value = sim.status;
+    const statusSelect = document.getElementById('status-update-select');
+    if (statusSelect) {
+        statusSelect.value = sim.status;
+        refreshCustomDropdowns(statusSelect);
+    }
     document.getElementById('status-update-note').value = sim.notes || '';
     
     // Determine existing contact info
@@ -542,6 +547,7 @@ export function setRecycleContactTimeToNow() {
             populateAgentSelect(currentAgent);
         } else {
             agentSelect.value = currentAgent;
+            refreshCustomDropdowns(agentSelect);
         }
     }
     recycleContactTimeWasTouched = true;
@@ -559,6 +565,7 @@ export function onRecycleContactTimeManualChange() {
     const agentSelect = document.getElementById('status-update-agent');
     if (agentSelect && !agentSelect.value) {
         agentSelect.value = AppState.userNickname || AppState.userDisplayName || 'Agent';
+        refreshCustomDropdowns(agentSelect);
     }
     updateContactTimeIndicator();
 }
@@ -580,6 +587,7 @@ export function resetRecycleContactTimeToPrevious() {
     const agentSelect = document.getElementById('status-update-agent');
     if (agentSelect) {
         agentSelect.value = initialContactAgentValue;
+        refreshCustomDropdowns(agentSelect);
     }
     recycleContactTimeWasTouched = false;
     updateContactTimeIndicator();

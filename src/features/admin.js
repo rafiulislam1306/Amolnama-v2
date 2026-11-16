@@ -330,8 +330,8 @@ export async function saveUserConfig(uid, nickInputId, roleSelectId) {
                 if (newRole === 'owner') displayRole = 'System Owner';
                 
                 roleBadge.innerText = displayRole;
-                roleBadge.style.background = newRole === 'user' ? '#f1f5f9' : '#e0f2fe';
-                roleBadge.style.color = newRole === 'user' ? '#475569' : '#0284c7';
+                roleBadge.style.background = newRole === 'user' ? 'var(--bg-color)' : 'var(--info-bg)';
+                roleBadge.style.color = newRole === 'user' ? 'var(--text-secondary)' : 'var(--info-text)';
             }
 
             const hubAdmin = document.getElementById('hub-admin-section');
@@ -610,17 +610,17 @@ export async function fetchAuditLogs() {
 
             html += `
                 <div class="admin-form-card" style="padding: 16px; margin-bottom: 0; border-left: 4px solid ${vColor};">
-                    <div style="display:flex; justify-content:space-between; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
-                        <h4 style="margin:0; color:#0f172a; font-size: 1.1rem;">${(s.deskId || 'Unknown').replace('_',' ').toUpperCase()}</h4>
-                        <span style="font-size:0.8rem; color:#64748b; font-weight: 600;">Closed by: ${s.closedBy || 'Unknown'}</span>
+                    <div style="display:flex; justify-content:space-between; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                        <h4 style="margin:0; color:var(--text-primary); font-size: 1.1rem;">${(s.deskId || 'Unknown').replace('_',' ').toUpperCase()}</h4>
+                        <span style="font-size:0.8rem; color:var(--text-secondary); font-weight: 600;">Closed by: ${s.closedBy || 'Unknown'}</span>
                     </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem; color: #475569; margin-bottom: 12px;">
-                        <div>Morning Open: <strong style="color: #0f172a;">${s.openingBalances?.cash || 0} Tk</strong></div>
-                        <div>Mid-Day Drop: <strong style="color: #0ea5e9;">${s.managerDrop || 0} Tk</strong></div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">
+                        <div>Morning Open: <strong style="color: var(--text-primary);">${s.openingBalances?.cash || 0} Tk</strong></div>
+                        <div>Mid-Day Drop: <strong style="color: var(--accent-color);">${s.managerDrop || 0} Tk</strong></div>
                         <div>Expected Cash: <strong style="color: #10b981;">${s.expectedClosing?.cash || 0} Tk</strong></div>
-                        <div>Actual Count: <strong style="color: #0f172a;">${s.actualClosing?.cash || 0} Tk</strong></div>
+                        <div>Actual Count: <strong style="color: var(--text-primary);">${s.actualClosing?.cash || 0} Tk</strong></div>
                     </div>
-                    <div style="padding-top: 12px; border-top: 1px dashed #e2e8f0; font-weight: bold; font-size: 0.95rem; color: ${vColor}; text-align: center;">
+                    <div style="padding-top: 12px; border-top: 1px dashed var(--border-color); font-weight: bold; font-size: 0.95rem; color: ${vColor}; text-align: center;">
                         ${vText}
                     </div>
                 </div>

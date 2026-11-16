@@ -244,7 +244,7 @@ export async function renderPersonalReport() {
                         <!-- Row 1: Receipt + Time (guaranteed single row) -->
                         <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1;">
                             <!-- Receipt No -->
-                            <div style="display: flex; align-items: center; background: rgba(0,0,0,0.02); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-primary); font-weight: 700; font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" title="${tx.receiptNo || tx.id}">
+                            <div style="display: flex; align-items: center; background: var(--bg-color); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-primary); font-weight: 700; font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" title="${tx.receiptNo || tx.id}">
                                 ${tx.receiptNo || tx.id}
                             </div>
                             <!-- Time -->
@@ -1143,8 +1143,8 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
         
         let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
         let badges = '';
-        if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
-        if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
+        if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: var(--warning-bg); color: var(--warning-text); padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
+        if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: var(--purple-bg); color: var(--purple-text); padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
 
         let detailsHTML = '';
         if (tx.handsetModel) {
@@ -1161,7 +1161,7 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
                     <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: var(--accent-color); border-color: var(--accent-color); gap: 6px;" onclick="event.stopPropagation(); openEditTx(${tx.id})">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> Edit
                     </button>
-                    <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: #ef4444; border-color: #fca5a5; background: #fef2f2; gap: 6px;" onclick="event.stopPropagation(); deleteTransaction('${tx.docId}', ${tx.id})">
+                    <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: var(--danger-text); border-color: var(--danger-border); background: rgba(239, 68, 68, 0.08); gap: 6px;" onclick="event.stopPropagation(); deleteTransaction('${tx.docId}', ${tx.id})">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg> Trash
                     </button>
                 </div>
@@ -1200,7 +1200,7 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
                         <!-- Row 1: Receipt + Time (guaranteed single row) -->
                         <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1;">
                             <!-- Receipt No -->
-                            <div style="display: flex; align-items: center; background: rgba(0,0,0,0.02); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-primary); font-weight: 700; font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" title="${tx.receiptNo || tx.id}">
+                            <div style="display: flex; align-items: center; background: var(--bg-color); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-primary); font-weight: 700; font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" title="${tx.receiptNo || tx.id}">
                                 ${tx.receiptNo || tx.id}
                             </div>
                             <!-- Time -->
@@ -1383,6 +1383,7 @@ export async function fetchTransactionsForDate() {
 export async function openHistoricalSession(sessionId) {
     openModal('modal-historical');
     const container = document.getElementById('historical-content');
+    if (!container) return;
     container.innerHTML = '<div class="spinner" style="margin: 40px auto; border-top-color: #b91c1c;"></div>';
 
     try {
@@ -1477,7 +1478,7 @@ export async function openHistoricalSession(sessionId) {
             let amtColor = isOutflow ? 'var(--danger-text)' : 'var(--text-primary)';
             let amtPrefix = isOutflow ? '− ' : '';
             let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
-            let badges = tx.isEdited ? `<span style="font-size: 0.7rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Edited</span>` : '';
+            let badges = tx.isEdited ? `<span style="font-size: 0.7rem; background: var(--purple-bg); color: var(--purple-text); padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Edited</span>` : '';
 
             let detailsHTML = '';
             if (tx.handsetModel) {
@@ -1504,7 +1505,7 @@ export async function openHistoricalSession(sessionId) {
                             <!-- Row 1: Receipt + Time (guaranteed single row) -->
                             <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1;">
                                 <!-- Receipt No -->
-                                <div style="display: flex; align-items: center; background: rgba(0,0,0,0.02); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-primary); font-weight: 700; font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" title="${tx.receiptNo || tx.id}">
+                                <div style="display: flex; align-items: center; background: var(--bg-color); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-primary); font-weight: 700; font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" title="${tx.receiptNo || tx.id}">
                                     ${tx.receiptNo || tx.id}
                                 </div>
                                 <!-- Time -->

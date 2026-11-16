@@ -7,27 +7,27 @@ def modify():
 
         code = code.replace(
             '''    let selectEl = document.getElementById('main-stock-item');\n    selectEl.innerHTML = '';''',
-            '''    let selectEl = document.getElementById('main-stock-item');\n    selectEl.innerHTML = '<option value=\"\" disabled selected>— Select a Product —</option>';'''
+            '''    let selectEl = document.getElementById('main-stock-item');\n    selectEl.innerHTML = '<option value=\"\" disabled selected>ï¿½ Select a Product ï¿½</option>';'''
         )
 
         code = code.replace(
             '''    let selectEl = document.getElementById('return-stock-item');\n    selectEl.innerHTML = '';''',
-            '''    let selectEl = document.getElementById('return-stock-item');\n    selectEl.innerHTML = '<option value=\"\" disabled selected>— Select a Product —</option>';'''
+            '''    let selectEl = document.getElementById('return-stock-item');\n    selectEl.innerHTML = '<option value=\"\" disabled selected>ï¿½ Select a Product ï¿½</option>';'''
         )
 
         code = code.replace(
             '''    let itemSelect = document.getElementById('desk-transfer-item');\n    itemSelect.innerHTML = '';''',
-            '''    let itemSelect = document.getElementById('desk-transfer-item');\n    itemSelect.innerHTML = '<option value=\"\" disabled selected>— Select a Product —</option>';'''
+            '''    let itemSelect = document.getElementById('desk-transfer-item');\n    itemSelect.innerHTML = '<option value=\"\" disabled selected>ï¿½ Select a Product ï¿½</option>';'''
         )
         
         code = code.replace(
             '''targetSelect.innerHTML = optionsHTML || '<option value=\"\">No other desks open</option>';''',
-            '''targetSelect.innerHTML = (optionsHTML ? '<option value=\"\" disabled selected>— Select an Agent —</option>' + optionsHTML : '<option value=\"\">No other desks open</option>');'''
+            '''targetSelect.innerHTML = (optionsHTML ? '<option value=\"\" disabled selected>ï¿½ Select an Agent ï¿½</option>' + optionsHTML : '<option value=\"\">No other desks open</option>');'''
         )
 
         code = code.replace(
             '''    let selectEl = document.getElementById('transfer-item-select');\n    selectEl.innerHTML = '';''',
-            '''    let selectEl = document.getElementById('transfer-item-select');\n    selectEl.innerHTML = '<option value=\"\" disabled selected>— Select a Product —</option>';'''
+            '''    let selectEl = document.getElementById('transfer-item-select');\n    selectEl.innerHTML = '<option value=\"\" disabled selected>ï¿½ Select a Product ï¿½</option>';'''
         )
 
         code = code.replace(

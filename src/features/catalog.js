@@ -180,28 +180,24 @@ export function renderAppUI() {
                 }
                 isLongPress = false;
                 isCancelled = false;
-                row.style.backgroundColor = 'var(--border-color)';
-                row.style.transform = 'scale(0.92)';
+                row.classList.add('is-pressed');
                 pressTimer = setTimeout(() => {
                     isLongPress = true;
                     if (navigator.vibrate) navigator.vibrate([50]);
                     selectItem(item.name, safePrice);
-                    row.style.backgroundColor = 'transparent';
-                    row.style.transform = 'scale(1)';
+                    row.classList.remove('is-pressed');
                 }, 500);
             };
 
             const cancelPress = () => {
                 isCancelled = true;
-                row.style.backgroundColor = 'transparent';
-                row.style.transform = 'scale(1)';
+                row.classList.remove('is-pressed');
                 clearTimeout(pressTimer);
             };
 
             const endPress = (e) => {
                 clearTimeout(pressTimer);
-                row.style.backgroundColor = 'transparent';
-                row.style.transform = 'scale(1)';
+                row.classList.remove('is-pressed');
 
                 // If finger moved more than 8px vertically, it was a scroll — ignore entirely
                 const didScroll = Math.abs((e.clientY || startY) - startY) > 8;
