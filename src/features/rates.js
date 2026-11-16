@@ -1115,8 +1115,8 @@ export function addRateRow(rateData = null) {
             <span style="font-size: 0.8rem; font-weight: 800; color: var(--accent-color); text-transform: uppercase;">Rate configuration</span>
             <button class="delete-btn" style="color: var(--danger-text); font-size: 0.85rem; font-weight: 700; padding: 4px 8px; border: 1px solid var(--danger-border); background: var(--danger-bg); border-radius: 8px;" onclick="document.getElementById('${rowId}').remove()">Remove</button>
         </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-            <div>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px;">
+            <div style="min-width: 0;">
                 <label class="admin-label" style="font-size: 0.72rem; margin-bottom: 4px;">Call / Rate Type *</label>
                 <select class="pos-select edit-rate-calltype" style="padding: 8px 12px; height: auto; font-size: 0.85rem; border-radius: 10px;">
                     <option value="GP-Any net" ${callType === 'GP-Any net' ? 'selected' : ''}>GP-Any net</option>
@@ -1127,29 +1127,29 @@ export function addRateRow(rateData = null) {
                 </select>
                 <input type="text" class="pos-input edit-rate-custom-calltype" style="padding: 8px 12px; font-size: 0.85rem; border-radius: 10px; margin-top: 6px; display: ${(!['GP-Any net', 'SMS'].includes(callType) && !callType.includes('FnF') && callType !== '') ? 'block' : 'none'};" placeholder="e.g. SFnF (GP- Any net)" value="${escapeHtml(callType)}">
             </div>
-            <div>
+            <div style="min-width: 0;">
                 <label class="admin-label" style="font-size: 0.72rem; margin-bottom: 4px;">FnF Count</label>
                 <input type="number" class="pos-input edit-rate-fnf" style="padding: 8px 12px; font-size: 0.85rem; border-radius: 10px;" value="${escapeHtml(fnfCount)}" min="0">
             </div>
         </div>
         
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-            <div>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px;">
+            <div style="min-width: 0;">
                 <label class="admin-label" style="font-size: 0.72rem; margin-bottom: 4px;">Base Tariff (Excl. Tax) *</label>
                 <input type="number" step="0.01" class="pos-input edit-rate-tariff-base" style="padding: 8px 12px; font-size: 0.85rem; border-radius: 10px;" placeholder="e.g. 1.50" value="${escapeHtml(baseVal)}" oninput="Amolnama.autoCalcRateTax(this)">
             </div>
-            <div>
+            <div style="min-width: 0;">
                 <label class="admin-label" style="font-size: 0.72rem; margin-bottom: 4px;">Tariff (Incl. Tax) *</label>
                 <input type="number" step="0.01" class="pos-input edit-rate-tariff-tax" style="padding: 8px 12px; font-size: 0.85rem; border-radius: 10px;" placeholder="e.g. 2.08" value="${escapeHtml(taxVal)}">
             </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-            <div>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px;">
+            <div style="min-width: 0;">
                 <label class="admin-label" style="font-size: 0.72rem; margin-bottom: 4px;">Pulse (Seconds / Char)</label>
                 <input type="text" class="pos-input edit-rate-pulse" style="padding: 8px 12px; font-size: 0.85rem; border-radius: 10px;" placeholder="e.g. 10 or 160 characters" value="${escapeHtml(pulse)}">
             </div>
-            <div>
+            <div style="min-width: 0;">
                 <label class="admin-label" style="font-size: 0.72rem; margin-bottom: 4px;">Time Slot</label>
                 <input type="text" class="pos-input edit-rate-timeslot" style="padding: 8px 12px; font-size: 0.85rem; border-radius: 10px;" placeholder="e.g. 24 Hrs" value="${escapeHtml(slot)}">
             </div>

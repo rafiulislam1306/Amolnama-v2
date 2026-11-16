@@ -707,4 +707,46 @@ test('Upgrade Suite: POS UX, Accessibility & Visual Discipline', async (t) => {
         assert.equal(isTransactionModifiable(peerTx, 'edit'), true);
         cancelTxEdit();
     });
+
+    await t.test('12. Mobile Horizontal Overflow Containment & Sticky Compatibility Contracts', () => {
+        const styleCss = fs.readFileSync(path.resolve('src/style.css'), 'utf8');
+        const indexHtml = fs.readFileSync(path.resolve('index.html'), 'utf8');
+        const reportsJs = fs.readFileSync(path.resolve('src/features/reports.js'), 'utf8');
+        const deskJs = fs.readFileSync(path.resolve('src/features/desk.js'), 'utf8');
+        const adminJs = fs.readFileSync(path.resolve('src/features/admin.js'), 'utf8');
+        const ratesJs = fs.readFileSync(path.resolve('src/features/rates.js'), 'utf8');
+
+        // 1. Root, main, tabs, and bottom sheets use overflow-x: clip (not hidden) to preserve position: sticky
+        assert.match(styleCss, /html,\s*body\s*\{[\s\S]*?max-width:\s*100%;[\s\S]*?overflow-x:\s*clip;/);
+        assert.match(styleCss, /#app-main\s*\{[\s\S]*?max-width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?overflow-x:\s*clip;/);
+        assert.match(styleCss, /\.tab-content\s*\{[\s\S]*?max-width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?overflow-x:\s*clip;/);
+        assert.doesNotMatch(styleCss, /\.tab-content\s*\{[^}]*overflow-x:\s*hidden/);
+        assert.match(styleCss, /\.bottom-sheet,\s*\.modal-content\s*\{[\s\S]*?max-width:\s*100%;[\s\S]*?overflow-x:\s*clip;/);
+        assert.match(styleCss, /\.admin-body\s*\{[\s\S]*?overflow-x:\s*clip;/);
+
+        // 2. Sticky ledger filter bar & store header stay aligned to .tab-content { padding: 16px } without horizontal overhang
+        assert.match(styleCss, /\.ledger-filter-bar\s*\{[\s\S]*?top:\s*-16px;[\s\S]*?margin:\s*-16px\s+-16px\s+12px\s+-16px;[\s\S]*?max-width:\s*calc\(100%\s*\+\s*32px\);/);
+        assert.match(styleCss, /#tab-store\s*>\s*div:first-child\s*\{[\s\S]*?max-width:\s*calc\(100%\s*\+\s*32px\)\s*!important;/);
+
+        // 3. No 100vw width/height rules in modal settings or PDF loader (avoids scrollbar/iOS viewport overhang)
+        assert.doesNotMatch(styleCss, /#modal-settings\s+\.modal-content\s*\{[^}]*width:\s*100vw/);
+        assert.doesNotMatch(reportsJs, /#pdf-generation-loader[\s\S]{0,400}100vw/);
+        assert.match(styleCss, /\.bottom-nav\s*\{[\s\S]*?max-width:\s*calc\(100%\s*-\s*24px\);/);
+
+        // 4. Search wrappers & flex items shrink cleanly down to 0
+        assert.match(styleCss, /\.search-input-wrap\s*\{[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;/);
+        assert.doesNotMatch(styleCss, /\.search-input-wrap\s*\{[^}]*min-width:\s*140px/);
+
+        // 5. Multi-column grids enforce minmax(0, ...) tracks so wide text/chips never stretch page width
+        assert.match(styleCss, /\.admin-row-body\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
+        assert.match(styleCss, /\.recycle-card-grid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
+        assert.match(styleCss, /\.recycle-summary-strip\s*\{[\s\S]*?grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);/);
+        assert.match(reportsJs, /minmax\(0,\s*2fr\)\s+repeat\(3,\s*minmax\(0,\s*1fr\)\)\s+minmax\(0,\s*1\.2fr\)/);
+        assert.match(reportsJs, /heightMeasurer\.style\.cssText\s*=\s*"position:\s*fixed;\s*left:\s*-9999px;/);
+        assert.match(deskJs, /max-width:\s*100%;\s*overflow:\s*hidden;/);
+        assert.match(adminJs, /repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+        assert.match(ratesJs, /repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+        assert.match(indexHtml, /\.desk-actions-grid|grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+    });
 });
+

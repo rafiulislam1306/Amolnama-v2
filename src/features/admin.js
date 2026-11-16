@@ -273,11 +273,11 @@ export function openSettings() {
                         </button>
                     </div>
                     <div class="admin-row-body">
-                        <div>
+                        <div style="min-width: 0;">
                             <label class="admin-label">Price (${userCurrency})</label>
                             <input type="number" class="settings-input i-price" style="padding: 10px 12px; width: 100%; box-sizing: border-box; border-radius: 12px;" value="${escapeHtml(item.price)}">
                         </div>
-                        <div>
+                        <div style="min-width: 0;">
                             <label class="admin-label">Category</label>
                             <select class="settings-input i-cat" style="padding: 10px 12px; width: 100%; box-sizing: border-box; border-radius: 12px;">
                                 <option value="new-sim" ${item.cat==='new-sim'?'selected':''}>New SIM</option>
@@ -539,18 +539,18 @@ export function renderUsersList(usersOverride = null) {
                         <span class="tabular-nums" style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 700;">UID: ${escapeHtml(uid.substring(0, 6))}</span>
                     </div>
                 </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end;">
-                    <div>
+                <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: end;">
+                    <div style="min-width: 0;">
                         <label class="admin-label" for="nick_${safeUidAttr}" style="font-size: 0.74rem; margin-bottom: 4px;">Nickname</label>
                         <input type="text" id="nick_${safeUidAttr}" class="settings-input" style="padding: 8px 10px; width: 100%; box-sizing: border-box; font-size: 0.85rem; height: 40px;" placeholder="Set nickname..." value="${escapeHtml(currentNick)}">
                     </div>
-                    <div>
+                    <div style="min-width: 0;">
                         <label class="admin-label" for="role_${safeUidAttr}" style="font-size: 0.74rem; margin-bottom: 4px;">Role</label>
                         ${roleSelectHTML}
                     </div>
                 </div>
                 <div id="cash_perm_wrapper_${safeUidAttr}" class="user-cash-perm-box" style="display: ${currentRole === 'manager' ? 'flex' : 'none'};">
-                    <div style="display: flex; flex-direction: column;">
+                    <div style="display: flex; flex-direction: column; min-width: 0; flex: 1;">
                         <span style="font-size: 0.82rem; font-weight: 800; color: var(--success-text);">Allow Cash Actions</span>
                         <span style="font-size: 0.72rem; color: var(--text-secondary);">Enable floor manager to perform cash & handset transactions</span>
                     </div>
@@ -779,13 +779,13 @@ export async function renderUserManagementAdmin() {
 
                 html += `
                     <div style="background: var(--surface-color); border: 1px solid var(--border-color); padding: 12px 14px; border-radius: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.02);">
-                        <div>
-                            <strong style="color: var(--text-primary); font-size: 0.95rem; font-weight: 800; display: block;">${escapeHtml(displayName)}</strong>
-                            <div style="font-size: 0.8rem; color: var(--warning-text); font-weight: 700;">
+                        <div style="min-width: 0; flex: 1;">
+                            <strong style="color: var(--text-primary); font-size: 0.95rem; font-weight: 800; display: block; overflow-wrap: anywhere;">${escapeHtml(displayName)}</strong>
+                            <div style="font-size: 0.8rem; color: var(--warning-text); font-weight: 700; overflow-wrap: anywhere;">
                                 Active on ${escapeHtml(deskName)}
                             </div>
                         </div>
-                        <div style="display: flex; gap: 8px;">
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <button type="button" class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: 34px; border-color: var(--warning-border); color: var(--warning-text); border-radius: 10px; font-weight: 700;" onclick="kickAgent('${escapeJsSingleQuote(uid)}')">Kick</button>
                             <button type="button" class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: 34px; border-color: var(--danger-border); color: var(--danger-text); background: var(--danger-bg); border-radius: 10px; font-weight: 700;" onclick="nukeAgent('${escapeJsSingleQuote(uid)}', '${escapeJsSingleQuote(displayName)}')">Nuke & Kick</button>
                         </div>
@@ -1013,15 +1013,15 @@ export async function fetchAuditLogs() {
 
             cardsHtml += `
                 <div class="admin-form-card" style="padding: 16px; margin-bottom: 0;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
-                        <h4 style="margin:0; color:var(--text-primary); font-size: 1.05rem; font-weight: 800;">${escapeHtml((s.deskId || 'Unknown').replace('_',' ').toUpperCase())}</h4>
-                        <span style="font-size:0.78rem; color:var(--text-secondary); font-weight: 600;">Closed by: ${escapeHtml(s.closedBy || 'Unknown')}</span>
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                        <h4 style="margin:0; color:var(--text-primary); font-size: 1.05rem; font-weight: 800; min-width: 0; overflow-wrap: anywhere;">${escapeHtml((s.deskId || 'Unknown').replace('_',' ').toUpperCase())}</h4>
+                        <span style="font-size:0.78rem; color:var(--text-secondary); font-weight: 600; min-width: 0; overflow-wrap: anywhere;">Closed by: ${escapeHtml(s.closedBy || 'Unknown')}</span>
                     </div>
-                    <div class="tabular-nums" style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">
-                        <div>Morning Open: <strong style="color: var(--text-primary);">${s.openingBalances?.cash || 0} Tk</strong></div>
-                        <div>Mid-Day Drop: <strong style="color: var(--accent-color);">${s.managerDrop || 0} Tk</strong></div>
-                        <div>Expected Cash: <strong style="color: var(--success-text);">${s.expectedClosing?.cash || 0} Tk</strong></div>
-                        <div>Actual Count: <strong style="color: var(--text-primary);">${s.actualClosing?.cash || 0} Tk</strong></div>
+                    <div class="tabular-nums" style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">
+                        <div style="min-width: 0; overflow-wrap: anywhere;">Morning Open: <strong style="color: var(--text-primary);">${s.openingBalances?.cash || 0} Tk</strong></div>
+                        <div style="min-width: 0; overflow-wrap: anywhere;">Mid-Day Drop: <strong style="color: var(--accent-color);">${s.managerDrop || 0} Tk</strong></div>
+                        <div style="min-width: 0; overflow-wrap: anywhere;">Expected Cash: <strong style="color: var(--success-text);">${s.expectedClosing?.cash || 0} Tk</strong></div>
+                        <div style="min-width: 0; overflow-wrap: anywhere;">Actual Count: <strong style="color: var(--text-primary);">${s.actualClosing?.cash || 0} Tk</strong></div>
                     </div>
                     <div style="padding-top: 10px; border-top: 1px dashed var(--border-color); display: flex; justify-content: center;">
                         <span class="audit-status-badge ${badgeClass}">${vText}</span>

@@ -407,7 +407,7 @@ export function renderRecycleList() {
                 <!-- Card Footer (Countdown & Tracking Status - only rendered when date alert exists) -->
                 ${dateMsg ? `
                 <div class="recycle-card-footer">
-                    <div style="display: flex; align-items: center; gap: 6px; width: 100%;">
+                    <div style="display: flex; align-items: center; gap: 6px; width: 100%; min-width: 0; flex-wrap: wrap;">
                         ${dateMsg}
                     </div>
                 </div>` : ''}

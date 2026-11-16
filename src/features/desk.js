@@ -196,37 +196,37 @@ export async function loadFloorMap() {
                 personalDeskHTML = `
                     <div style="margin-bottom: 32px;">
                         <div style="font-size: 0.75rem; font-weight: 800; color: var(--accent-color); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; margin-left: 4px;">My Workspace</div>
-                        <div class="admin-form-card floor-desk-select-card" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" style="padding: 16px; margin-bottom: 0; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);" onclick="handleDeskSelect('${escapeJsSingleQuote(docSnap.id)}', '${safeDrawerName}', '${escapeJsSingleQuote(desk.status)}', '${escapeJsSingleQuote(desk.currentSessionId)}')">
-                            <div style="display: flex; align-items: center; gap: 16px;">
-                                <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(139, 92, 246, 0.12); color: #8b5cf6; display: flex; align-items: center; justify-content: center;">
+                        <div class="admin-form-card floor-desk-select-card" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" style="padding: 16px; margin-bottom: 0; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; gap: 12px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);" onclick="handleDeskSelect('${escapeJsSingleQuote(docSnap.id)}', '${safeDrawerName}', '${escapeJsSingleQuote(desk.status)}', '${escapeJsSingleQuote(desk.currentSessionId)}')">
+                            <div style="display: flex; align-items: center; gap: 16px; min-width: 0; flex: 1;">
+                                <div style="width: 48px; height: 48px; flex-shrink: 0; border-radius: 12px; background: rgba(139, 92, 246, 0.12); color: #8b5cf6; display: flex; align-items: center; justify-content: center;">
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
                                 </div>
-                                <div>
-                                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">${escapeHtml(myDrawerName)}</h3>
+                                <div style="min-width: 0; flex: 1;">
+                                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-primary); overflow-wrap: anywhere;">${escapeHtml(myDrawerName)}</h3>
                                     <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
                                         ${statusDot} ${statusText}
                                     </div>
                                 </div>
                             </div>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.5;"><path d="m9 18 6-6-6-6"/></svg>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.5; flex-shrink: 0;"><path d="m9 18 6-6-6-6"/></svg>
                         </div>
                     </div>
                 `;
             } else if (!desk.isPersonal) {
                 sharedDesksHTML += `
-                    <div class="admin-form-card floor-desk-select-card" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" style="padding: 16px; margin-bottom: 12px; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);" onclick="handleDeskSelect('${escapeJsSingleQuote(docSnap.id)}', '${escapeJsSingleQuote(desk.name)}', '${escapeJsSingleQuote(desk.status)}', '${escapeJsSingleQuote(desk.currentSessionId)}')">
-                        <div style="display: flex; align-items: center; gap: 16px;">
-                            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(14, 165, 233, 0.1); color: var(--accent-color); display: flex; align-items: center; justify-content: center;">
+                    <div class="admin-form-card floor-desk-select-card" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" style="padding: 16px; margin-bottom: 12px; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; gap: 12px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);" onclick="handleDeskSelect('${escapeJsSingleQuote(docSnap.id)}', '${escapeJsSingleQuote(desk.name)}', '${escapeJsSingleQuote(desk.status)}', '${escapeJsSingleQuote(desk.currentSessionId)}')">
+                        <div style="display: flex; align-items: center; gap: 16px; min-width: 0; flex: 1;">
+                            <div style="width: 48px; height: 48px; flex-shrink: 0; border-radius: 12px; background: rgba(14, 165, 233, 0.1); color: var(--accent-color); display: flex; align-items: center; justify-content: center;">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
                             </div>
-                            <div>
-                                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">${escapeHtml(desk.name)}</h3>
+                            <div style="min-width: 0; flex: 1;">
+                                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-primary); overflow-wrap: anywhere;">${escapeHtml(desk.name)}</h3>
                                 <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
                                     ${statusDot} ${statusText}
                                 </div>
                             </div>
                         </div>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.5;"><path d="m9 18 6-6-6-6"/></svg>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.5; flex-shrink: 0;"><path d="m9 18 6-6-6-6"/></svg>
                     </div>
                 `;
             }
@@ -237,19 +237,19 @@ export async function loadFloorMap() {
             personalDeskHTML = `
                 <div style="margin-bottom: 32px;">
                     <div style="font-size: 0.75rem; font-weight: 800; color: var(--accent-color); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; margin-left: 4px;">My Workspace</div>
-                    <div class="admin-form-card floor-desk-select-card" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" style="padding: 16px; margin-bottom: 0; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);" onclick="handleDeskSelect('${escapeJsSingleQuote(personalDeskId)}', '${safeDrawerName}', 'closed', 'null')">
-                        <div style="display: flex; align-items: center; gap: 16px;">
-                            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(139, 92, 246, 0.12); color: #8b5cf6; display: flex; align-items: center; justify-content: center;">
+                    <div class="admin-form-card floor-desk-select-card" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" style="padding: 16px; margin-bottom: 0; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; gap: 12px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);" onclick="handleDeskSelect('${escapeJsSingleQuote(personalDeskId)}', '${safeDrawerName}', 'closed', 'null')">
+                        <div style="display: flex; align-items: center; gap: 16px; min-width: 0; flex: 1;">
+                            <div style="width: 48px; height: 48px; flex-shrink: 0; border-radius: 12px; background: rgba(139, 92, 246, 0.12); color: #8b5cf6; display: flex; align-items: center; justify-content: center;">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
                             </div>
-                            <div>
-                                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">${escapeHtml(myDrawerName)}</h3>
+                            <div style="min-width: 0; flex: 1;">
+                                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-primary); overflow-wrap: anywhere;">${escapeHtml(myDrawerName)}</h3>
                                 <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
                                     <div style="width: 10px; height: 10px; border-radius: 50%; background-color: #94a3b8;"></div> <span style="color: #94a3b8; font-size: 0.8rem; font-weight: 600;">Closed</span>
                                 </div>
                             </div>
                         </div>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.5;"><path d="m9 18 6-6-6-6"/></svg>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.5; flex-shrink: 0;"><path d="m9 18 6-6-6-6"/></svg>
                     </div>
                 </div>
             `;
@@ -469,8 +469,8 @@ export function shouldIncludeDeskOnFloor({ session, isMyDesk, hasSalesActivity, 
 
 export function generateFloorDeskCard({ session, isMyDesk, liveCash, invDisplay, displayDeskName, agentNamesStr, rankBadgeHTML = '' }) {
     let cardStyle = isMyDesk 
-        ? `margin-bottom: 0; padding: 20px; background: var(--info-bg); border: 2px solid var(--info-border); border-radius: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.06); position: relative; transition: all 0.3s var(--spring-physics);`
-        : `margin-bottom: 0; padding: 20px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.03); position: relative; transition: all 0.3s var(--spring-physics);`;
+        ? `margin-bottom: 0; padding: 20px; width: 100%; max-width: 100%; overflow: hidden; box-sizing: border-box; background: var(--info-bg); border: 2px solid var(--info-border); border-radius: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.06); position: relative; transition: all 0.3s var(--spring-physics);`
+        : `margin-bottom: 0; padding: 20px; width: 100%; max-width: 100%; overflow: hidden; box-sizing: border-box; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.03); position: relative; transition: all 0.3s var(--spring-physics);`;
 
     let badge = '';
     if (isMyDesk) {
@@ -639,7 +639,7 @@ export async function renderLiveFloorTab() {
                     let bg = isLow ? 'var(--danger-bg)' : 'var(--bg-color)';
                     let border = isLow ? 'var(--danger-border)' : 'var(--border-color)';
                     let color = isLow ? 'var(--danger-text)' : 'var(--text-secondary)';
-                    invDisplay += `<div style="flex-grow: 1; display: flex; justify-content: space-between; align-items: center; background:${bg}; border: 1px solid ${border}; padding:6px 10px; border-radius:12px; font-size:0.75rem; color:${color}; font-weight:700;"><span style="white-space:nowrap;">${escapeHtml(name)}</span> <span style="margin-left: 8px; padding-left: 8px; border-left: 1px solid ${border};">${qty}</span></div>`;
+                    invDisplay += `<div style="flex-grow: 1; min-width: 0; max-width: 100%; display: flex; justify-content: space-between; align-items: center; background:${bg}; border: 1px solid ${border}; padding:6px 10px; border-radius:12px; font-size:0.75rem; color:${color}; font-weight:700;"><span style="overflow-wrap: anywhere;">${escapeHtml(name)}</span> <span style="margin-left: 8px; padding-left: 8px; border-left: 1px solid ${border}; flex-shrink: 0;">${qty}</span></div>`;
                 }
             }
             
