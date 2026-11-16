@@ -16,19 +16,26 @@ export function initPWA() {
                   reg.update();
                   reg.addEventListener('updatefound', () => {
                       const newWorker = reg.installing;
+                      if (!newWorker) return;
                       newWorker.addEventListener('statechange', () => {
                           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                              showAppAlert(
+                              const promptUpdate = () => showAppAlert(
                                   "App Update Available", 
                                   "A new version of Amolnama has been downloaded. Please refresh to apply the update.",
-                                    true,
-                                    () => {
-                                        // Send the skip waiting signal. 
-                                        // The controllerchange listener below will automatically handle the reload.
-                                        newWorker.postMessage({ type: 'SKIP_WAITING' });
-                                    },
-                                    "Refresh Now"
+                                  true,
+                                  () => {
+                                      // Send the skip waiting signal. 
+                                      // The controllerchange listener below will automatically handle the reload.
+                                      newWorker.postMessage({ type: 'SKIP_WAITING' });
+                                  },
+                                  "Refresh Now"
                               );
+                              const splash = document.getElementById('splash-screen');
+                              if (splash && splash.classList.contains('active')) {
+                                  setTimeout(promptUpdate, 1500);
+                              } else {
+                                  promptUpdate();
+                              }
                           }
                       });
                   });
@@ -67,7 +74,8 @@ export async function installPWA() {
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === 'accepted') {
-        document.getElementById('install-app-btn').style.display = 'none';
+        const installBtn = document.getElementById('install-app-btn');
+        if (installBtn) installBtn.style.display = 'none';
     }
     deferredPrompt = null;
 }

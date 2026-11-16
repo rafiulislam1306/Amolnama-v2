@@ -2,7 +2,7 @@
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { AppState } from './state.js';
-import { getStrictDate } from '../utils/helpers.js';
+import { getStrictDate, formatLocalISODate, formatUserIdentifier } from '../utils/helpers.js';
 import { defaultInventoryGroups, defaultCatalog } from './constants.js';
 import { performLazyAutoClose, loadFloorMap, executeHandleDeskSelect } from '../features/desk.js';
 import { fetchTransactionsForDate } from '../features/reports.js';
@@ -92,7 +92,7 @@ export async function initUserData(onComplete) {
         const rName = document.getElementById('report-user-name');
         if (rName) rName.innerText = AppState.userDisplayName;
         const rEmail = document.getElementById('report-user-email');
-        if (rEmail && AppState.currentUser.email) rEmail.innerText = AppState.currentUser.email;
+        if (rEmail && AppState.currentUser.email) rEmail.innerText = formatUserIdentifier(AppState.currentUser.email);
         let toggleWrapper = document.getElementById('admin-report-toggle-wrapper');
         if (toggleWrapper) toggleWrapper.style.display = AppState.currentUserRole === 'admin' ? 'flex' : 'none';
         if (AppState.currentUser.photoURL) {
@@ -128,8 +128,8 @@ export async function initUserData(onComplete) {
         updateCurrencyUI(); 
         if (typeof window.renderAppUI === 'function') window.renderAppUI();
         
-        const t = new Date();
-        document.getElementById('report-date-picker').value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+        const datePicker = document.getElementById('report-date-picker');
+        if (datePicker) datePicker.value = formatLocalISODate(new Date());
         
         // --- ROUTING LOGIC ---
         if (['manager', 'owner'].includes(AppState.currentUserRole)) {

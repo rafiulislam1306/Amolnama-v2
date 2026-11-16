@@ -2,9 +2,9 @@
 import { collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, query, where, serverTimestamp, writeBatch } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
-import { getStrictDate, formatToGBDate, generateReceiptNo } from '../utils/helpers.js';
-import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/ui-helpers.js';
-import { getPhysicalItems, getInventoryChange } from './inventory.js';
+import { getStrictDate, formatToGBDate, generateReceiptNo, formatLocalISODate, escapeHtml, escapeJsSingleQuote, formatUserIdentifier } from '../utils/helpers.js';
+import { showAppAlert, showFlashMessage, openModal, closeModal, refreshCustomDropdowns } from '../utils/ui-helpers.js';
+import { getPhysicalItems, getInventoryChange, getNormalizedTrackAs } from './inventory.js';
 
 let isSaving = false;
 
@@ -25,7 +25,7 @@ export function renderInventoryGroupsAdmin() {
     let html = '';
     AppState.globalInventoryGroups.forEach((group, index) => {
         html += `<span style="background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-primary); padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-            ${group} 
+            ${escapeHtml(group)} 
             <button style="background: rgba(239, 68, 68, 0.1); border: none; color: #ef4444; width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 800; cursor: pointer; padding: 0;" onclick="removeInventoryGroup(${index})" title="Remove SKU">✕</button>
         </span>`;
     });
@@ -55,8 +55,9 @@ function populateTrackAsDropdowns() {
     let newSelect = document.getElementById('new-item-track');
     if(newSelect) {
         let options = '<option value="">None (Digital/Service)</option>';
-        AppState.globalInventoryGroups.forEach(g => options += `<option value="${g}">${g}</option>`);
+        AppState.globalInventoryGroups.forEach(g => options += `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`);
         newSelect.innerHTML = options;
+        refreshCustomDropdowns(newSelect);
     }
 }
 
@@ -99,15 +100,16 @@ export function openSettings() {
                 let trackOptions = '<option value="">None (Digital/Service)</option>';
                 AppState.globalInventoryGroups.forEach(g => {
                     let sel = (item.trackAs === g) ? 'selected' : '';
-                    trackOptions += `<option value="${g}" ${sel}>${g}</option>`;
+                    trackOptions += `<option value="${escapeHtml(g)}" ${sel}>${escapeHtml(g)}</option>`;
                 });
                 
                 let userCurrency = 'Tk';
+                let safeKey = escapeHtml(item.key);
                 let row = document.createElement('div'); row.className = 'admin-row-card admin-row'; row.setAttribute('data-key', item.key);
                 row.innerHTML = `
                     <div class="admin-row-header">
                         <span class="drag-handle" title="Drag to reorder">⋮⋮</span>
-                        <input type="text" class="settings-input i-name" style="flex:1; border:none; background:transparent; font-weight:800; font-size:1.02rem; color:var(--text-primary); padding:0; min-width:0; box-shadow:none;" value="${item.name}">
+                        <input type="text" class="settings-input i-name" style="flex:1; border:none; background:transparent; font-weight:800; font-size:1.02rem; color:var(--text-primary); padding:0; min-width:0; box-shadow:none;" value="${escapeHtml(item.name)}">
                         <button class="delete-btn" style="color: #ef4444; padding: 6px; border-radius: 8px; font-size: 1.1rem; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(239, 68, 68, 0.08);" onclick="removeRow(this)" title="Delete Item">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                         </button>
@@ -115,7 +117,7 @@ export function openSettings() {
                     <div class="admin-row-body">
                         <div>
                             <label class="admin-label">Price (${userCurrency})</label>
-                            <input type="number" class="settings-input i-price" style="padding: 10px 12px; width: 100%; box-sizing: border-box; border-radius: 12px;" value="${item.price}">
+                            <input type="number" class="settings-input i-price" style="padding: 10px 12px; width: 100%; box-sizing: border-box; border-radius: 12px;" value="${escapeHtml(item.price)}">
                         </div>
                         <div>
                             <label class="admin-label">Category</label>
@@ -135,8 +137,8 @@ export function openSettings() {
                             </select>
                         </div>
                         <div style="grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin-top: 4px; padding-top: 8px; border-top: 1px dashed var(--border-color);">
-                            <input type="checkbox" class="i-manager-only" id="mgr_${item.key}" ${item.managerOnly ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer; accent-color: #ef4444;">
-                            <label for="mgr_${item.key}" class="admin-label" style="margin: 0; color: #ef4444; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" class="i-manager-only" id="mgr_${safeKey}" ${item.managerOnly ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer; accent-color: #ef4444;">
+                            <label for="mgr_${safeKey}" class="admin-label" style="margin: 0; color: #ef4444; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 4px;">
                                 🔒 Restricted (Center Manager Only)
                             </label>
                         </div>
@@ -147,6 +149,7 @@ export function openSettings() {
         }
     });
     if (typeof window.initCustomDropdowns === 'function') window.initCustomDropdowns();
+    refreshCustomDropdowns();
     openModal('modal-settings');
 }
 
@@ -231,14 +234,16 @@ export async function openNicknameManager() {
       usersSnap.forEach(docSnap => {
           const u = docSnap.data();
           const uid = docSnap.id;
-          const userEmail = u.email || 'No email linked';
+          const safeUidAttr = escapeHtml(uid);
+          const safeUidJs = escapeJsSingleQuote(uid);
+          const userIdentifier = u.email ? formatUserIdentifier(u.email) : 'No contact linked';
           const currentNick = u.nickname || '';
           const currentRole = u.role || 'user';
           
           const canPerformCashActions = Boolean(u.canPerformCashActions);
           
           let roleSelectHTML = `
-              <select id="role_${uid}" class="settings-input" onchange="const w = document.getElementById('cash_perm_wrapper_${uid}'); if (w) w.style.display = this.value === 'manager' ? 'flex' : 'none';" style="padding: 8px; width: 100%; box-sizing: border-box; font-size: 0.85rem; height: 38px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--surface-color); color: var(--text-primary);">
+              <select id="role_${safeUidAttr}" class="settings-input" onchange="const w = document.getElementById('cash_perm_wrapper_${safeUidJs}'); if (w) w.style.display = this.value === 'manager' ? 'flex' : 'none';" style="padding: 8px; width: 100%; box-sizing: border-box; font-size: 0.85rem; height: 38px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--surface-color); color: var(--text-primary);">
                   <option value="user" ${currentRole === 'user' ? 'selected' : ''}>Floor Agent</option>
                   <option value="manager" ${currentRole === 'manager' ? 'selected' : ''}>Floor Manager (Observer)</option>
                   <option value="center_manager" ${currentRole === 'center_manager' ? 'selected' : ''}>Center Manager</option>
@@ -250,30 +255,30 @@ export async function openNicknameManager() {
           html += `
               <div class="admin-form-card" style="padding: 16px; margin-bottom: 0; display: flex; flex-direction: column; gap: 12px; border: 1px solid var(--border-color); background: var(--surface-color);">
                   <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
-                      <div style="font-size: 0.9rem; font-weight: 700; color: #0ea5e9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%;">${userEmail}</div>
-                      <div style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">UID: ${uid.substring(0,6)}...</div>
+                      <div style="font-size: 0.9rem; font-weight: 700; color: #0ea5e9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%;">${escapeHtml(userIdentifier)}</div>
+                      <div style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">UID: ${escapeHtml(uid.substring(0,6))}...</div>
                   </div>
                   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end;">
                       <div>
                           <label class="admin-label" style="font-size: 0.75rem; margin-bottom: 4px; display: block;">Nickname</label>
-                          <input type="text" id="nick_${uid}" class="settings-input" style="padding: 8px; width: 100%; box-sizing: border-box; font-size: 0.85rem; height: 38px;" placeholder="Set nickname..." value="${currentNick}">
+                          <input type="text" id="nick_${safeUidAttr}" class="settings-input" style="padding: 8px; width: 100%; box-sizing: border-box; font-size: 0.85rem; height: 38px;" placeholder="Set nickname..." value="${escapeHtml(currentNick)}">
                       </div>
                       <div>
                           <label class="admin-label" style="font-size: 0.75rem; margin-bottom: 4px; display: block;">Role</label>
                           ${roleSelectHTML}
                       </div>
                   </div>
-                  <div id="cash_perm_wrapper_${uid}" style="display: ${currentRole === 'manager' ? 'flex' : 'none'}; align-items: center; justify-content: space-between; background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 8px; padding: 10px 12px;">
+                  <div id="cash_perm_wrapper_${safeUidAttr}" style="display: ${currentRole === 'manager' ? 'flex' : 'none'}; align-items: center; justify-content: space-between; background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 8px; padding: 10px 12px;">
                       <div style="display: flex; flex-direction: column;">
                           <span style="font-size: 0.82rem; font-weight: 700; color: #10b981;">Allow Cash Actions</span>
                           <span style="font-size: 0.72rem; color: var(--text-secondary);">Enable floor manager to perform cash & handset transactions</span>
                       </div>
                       <label style="position: relative; display: inline-flex; align-items: center; cursor: pointer;">
-                          <input type="checkbox" id="cash_perm_${uid}" ${canPerformCashActions ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: #10b981; cursor: pointer;">
+                          <input type="checkbox" id="cash_perm_${safeUidAttr}" ${canPerformCashActions ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: #10b981; cursor: pointer;">
                       </label>
                   </div>
                   <div style="display: flex; justify-content: flex-end;">
-                      <button class="btn-outline" style="height: auto; padding: 8px 16px; border-color: #10b981; color: #10b981;" onclick="saveUserConfig('${uid}', 'nick_${uid}', 'role_${uid}')">Save User</button>
+                      <button class="btn-outline" style="height: auto; padding: 8px 16px; border-color: #10b981; color: #10b981;" onclick="saveUserConfig('${safeUidJs}', 'nick_${safeUidJs}', 'role_${safeUidJs}')">Save User</button>
                   </div>
               </div>
           `;
@@ -284,6 +289,8 @@ export async function openNicknameManager() {
               <p style="font-size: 0.95rem; font-weight: 700; color: var(--text-secondary);">No staff or users registered yet</p>
           </div>
       `;
+      if (typeof window.initCustomDropdowns === 'function') window.initCustomDropdowns();
+      refreshCustomDropdowns(Array.from(container.querySelectorAll('select.settings-input')));
   } catch(e) {
       container.innerHTML = '<p style="color: #ef4444; font-size: 0.9rem; font-weight: 600; text-align: center; padding: 20px;">Error loading users.</p>';
   }
@@ -392,9 +399,10 @@ export async function renderUserManagementAdmin() {
 
         users.forEach(u => {
             const uid = u.id;
-            const displayName = u.nickname || u.displayName || u.email?.split('@')[0] || 'Unknown';
+            const formattedContact = u.email ? formatUserIdentifier(u.email) : 'No email';
+            const displayName = u.nickname || u.displayName || (u.email ? formatUserIdentifier(u.email) : 'Unknown');
             
-            agentSelectHTML += `<option value="${uid}">${displayName} (${u.email || 'No email'})</option>`;
+            agentSelectHTML += `<option value="${escapeHtml(uid)}">${escapeHtml(displayName)} (${escapeHtml(formattedContact)})</option>`;
 
             if (u.assignedDeskId) {
                 activeCount++;
@@ -403,15 +411,15 @@ export async function renderUserManagementAdmin() {
                 html += `
                     <div style="background: var(--surface-color); border: 1px solid var(--border-color); padding: 12px 14px; border-radius: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.02);">
                         <div>
-                            <strong style="color: var(--text-primary); font-size: 0.95rem; font-weight: 800; display: block;">${displayName}</strong>
+                            <strong style="color: var(--text-primary); font-size: 0.95rem; font-weight: 800; display: block;">${escapeHtml(displayName)}</strong>
                             <div style="font-size: 0.8rem; color: #f59e0b; font-weight: 700; display: flex; align-items: center; gap: 4px;">
                                 <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #10b981;"></span>
-                                ${deskName}
+                                ${escapeHtml(deskName)}
                             </div>
                         </div>
                         <div style="display: flex; gap: 8px;">
-                            <button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: 34px; border-color: #f59e0b; color: #f59e0b; border-radius: 10px; font-weight: 700;" onclick="kickAgent('${uid}')">Kick</button>
-                            <button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: 34px; border-color: #ef4444; color: #ef4444; background: rgba(239, 68, 68, 0.08); border-radius: 10px; font-weight: 700;" onclick="nukeAgent('${uid}', '${displayName}')">Nuke & Kick</button>
+                            <button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: 34px; border-color: #f59e0b; color: #f59e0b; border-radius: 10px; font-weight: 700;" onclick="kickAgent('${escapeJsSingleQuote(uid)}')">Kick</button>
+                            <button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: 34px; border-color: #ef4444; color: #ef4444; background: rgba(239, 68, 68, 0.08); border-radius: 10px; font-weight: 700;" onclick="nukeAgent('${escapeJsSingleQuote(uid)}', '${escapeJsSingleQuote(displayName)}')">Nuke & Kick</button>
                         </div>
                     </div>
                 `;
@@ -420,6 +428,7 @@ export async function renderUserManagementAdmin() {
 
         if (agentSelect) {
             agentSelect.innerHTML = agentSelectHTML;
+            refreshCustomDropdowns(agentSelect);
         }
 
         container.innerHTML = activeCount > 0 ? html : `
@@ -501,6 +510,7 @@ export function deleteAgentDateData() {
                 // Reset fields
                 dateInput.value = '';
                 agentSelect.value = '';
+                refreshCustomDropdowns(agentSelect);
             } catch(e) { 
                 showAppAlert("Error", "Error executing delete request."); 
                 console.error(e);
@@ -576,8 +586,7 @@ export function fixPastManagerDrops() {
 
 export function openAuditModal() {
     openModal('modal-audit');
-    const t = new Date(); 
-    document.getElementById('audit-date').value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+    document.getElementById('audit-date').value = formatLocalISODate(new Date());
     fetchAuditLogs();
 }
 
@@ -611,8 +620,8 @@ export async function fetchAuditLogs() {
             html += `
                 <div class="admin-form-card" style="padding: 16px; margin-bottom: 0; border-left: 4px solid ${vColor};">
                     <div style="display:flex; justify-content:space-between; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
-                        <h4 style="margin:0; color:var(--text-primary); font-size: 1.1rem;">${(s.deskId || 'Unknown').replace('_',' ').toUpperCase()}</h4>
-                        <span style="font-size:0.8rem; color:var(--text-secondary); font-weight: 600;">Closed by: ${s.closedBy || 'Unknown'}</span>
+                        <h4 style="margin:0; color:var(--text-primary); font-size: 1.1rem;">${escapeHtml((s.deskId || 'Unknown').replace('_',' ').toUpperCase())}</h4>
+                        <span style="font-size:0.8rem; color:var(--text-secondary); font-weight: 600;">Closed by: ${escapeHtml(s.closedBy || 'Unknown')}</span>
                     </div>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">
                         <div>Morning Open: <strong style="color: var(--text-primary);">${s.openingBalances?.cash || 0} Tk</strong></div>
@@ -684,7 +693,13 @@ export async function healTodaysOpeningStock() {
                             
                             if (t < earliestTime) {
                                 earliestTime = t;
-                                trueOpeningInv = { ...(s.openingBalances?.inventory || {}) };
+                                trueOpeningInv = {};
+                                if (s.openingBalances?.inventory) {
+                                    Object.entries(s.openingBalances.inventory).forEach(([k, v]) => {
+                                        let normKey = getNormalizedTrackAs(k);
+                                        trueOpeningInv[normKey] = (trueOpeningInv[normKey] || 0) + v;
+                                    });
+                                }
                             }
                         }
                     });
@@ -697,7 +712,8 @@ export async function healTodaysOpeningStock() {
                     txSnap.forEach(tDoc => {
                         let tx = tDoc.data();
                         let change = getInventoryChange(tx);
-                        if (change !== 0) carryOverInv[tx.trackAs] = (carryOverInv[tx.trackAs] || 0) + change;
+                        let normTrackAs = getNormalizedTrackAs(tx.trackAs);
+                        if (change !== 0 && normTrackAs) carryOverInv[normTrackAs] = (carryOverInv[normTrackAs] || 0) + change;
                     });
 
                     // 6. Safely UPDATE today's session with the correct inventory math
@@ -957,7 +973,7 @@ export async function healDuplicateSessions() {
                 }
 
                 // Update the desk pointer to point to the primary session
-                batch.update(doc(db, 'desks', deskId), { currentSessionId: primarySession.id }, { merge: true });
+                batch.update(doc(db, 'desks', deskId), { currentSessionId: primarySession.id });
             }
 
             await batch.commit();
@@ -1020,29 +1036,37 @@ export async function populateAdminTransferSection() {
                 }
             } catch(e) { console.error(e); }
 
-            optionsHTML += `<option value="${deskData.deskId}|${docSnap.id}|${deskData.openedByUid || ''}|${(deskData.openedBy || '').replace(/\|/g, '')}">${displayName}</option>`;
+            optionsHTML += `<option value="${escapeHtml(deskData.deskId)}|${escapeHtml(docSnap.id)}|${escapeHtml(deskData.openedByUid || '')}|${escapeHtml((deskData.openedBy || '').replace(/\|/g, ''))}">${escapeHtml(displayName)}</option>`;
         }
 
         srcSelect.innerHTML = optionsHTML;
         destSelect.innerHTML = optionsHTML;
+        refreshCustomDropdowns([srcSelect, destSelect, itemSelect]);
     } catch (e) {
         console.error("Error populating admin transfers:", e);
         srcSelect.innerHTML = '<option value="">Error loading</option>';
         destSelect.innerHTML = '<option value="">Error loading</option>';
+        refreshCustomDropdowns([srcSelect, destSelect, itemSelect]);
     }
 }
 
 export async function getDeskSessionStock(deskId, sessionId, itemName) {
     let catItem = Object.values(AppState.globalCatalog).find(c => c.name === itemName);
     let trackAs = catItem ? (catItem.trackAs === '' ? '' : (catItem.trackAs || itemName)) : itemName;
+    let normTarget = getNormalizedTrackAs(trackAs);
 
-    if (!AppState.globalInventoryGroups.includes(trackAs)) return Infinity;
+    if (!AppState.globalInventoryGroups.includes(normTarget)) return Infinity;
 
     try {
         const sessionSnap = await getDoc(doc(db, 'sessions', sessionId));
         if (!sessionSnap.exists()) return 0;
         const sessionData = sessionSnap.data();
-        let stock = sessionData.openingBalances?.inventory?.[trackAs] || 0;
+        let stock = 0;
+        if (sessionData.openingBalances?.inventory) {
+            Object.entries(sessionData.openingBalances.inventory).forEach(([k, v]) => {
+                if (getNormalizedTrackAs(k) === normTarget) stock += v;
+            });
+        }
 
         // Fetch all transactions for this session
         const txSnap = await getDocs(query(
@@ -1053,7 +1077,7 @@ export async function getDeskSessionStock(deskId, sessionId, itemName) {
 
         txSnap.forEach(docSnap => {
             const tx = docSnap.data();
-            if (tx.trackAs === trackAs) {
+            if (getNormalizedTrackAs(tx.trackAs) === normTarget) {
                 stock += getInventoryChange(tx);
             }
         });
@@ -1111,6 +1135,7 @@ export async function executeAdminDrawerTransfer() {
         qtyInput.value = '';
         srcSelect.value = '';
         destSelect.value = '';
+        refreshCustomDropdowns([srcSelect, destSelect]);
         showFlashMessage(`Transferred ${qty}x ${itemName} from ${srcDeskName} to ${destDeskName}!`);
         
         // Refresh UI if necessary

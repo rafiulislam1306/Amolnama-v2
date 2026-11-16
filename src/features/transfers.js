@@ -2,9 +2,9 @@
 import { collection, addDoc, getDocs, query, where, doc, getDoc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
-import { generateReceiptNo, getStrictDate } from '../utils/helpers.js';
-import { showAppAlert, showFlashMessage, openModal, closeModal, setButtonLoading } from '../utils/ui-helpers.js';
-import { passStockFirewall, getPhysicalItems, getInventoryChange } from './inventory.js';
+import { generateReceiptNo, getStrictDate, isViewingHistoricalDate } from '../utils/helpers.js';
+import { showAppAlert, showFlashMessage, openModal, closeModal, setButtonLoading, refreshCustomDropdowns } from '../utils/ui-helpers.js';
+import { passStockFirewall, getPhysicalItems, getInventoryChange, getNormalizedTrackAs, getAvailableStock } from './inventory.js';
 
 let isSaving = false;
 
@@ -73,6 +73,8 @@ export function openManagerCashModal() {
         }
     }
     
+    refreshCustomDropdowns(actionSelect);
+    refreshCustomDropdowns(paySelect);
     openModal('modal-manager-cash');
     setTimeout(() => {
         const amtInput = document.getElementById('mgr-cash-amount');
@@ -87,6 +89,10 @@ export async function saveManagerCash() {
     }
     if (!canUserPerformCashActions()) {
         showAppAlert("Error", "Desk not open.");
+        return;
+    }
+    if (isViewingHistoricalDate()) {
+        showAppAlert("Action Blocked", "You cannot record cash actions while viewing a past date. Please return to 'Today'.");
         return;
     }
     if (isSaving) return;
@@ -207,6 +213,7 @@ export function openMainStockModal() {
         let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
         selectEl.appendChild(opt);
     });
+    refreshCustomDropdowns(selectEl);
     openModal('modal-main-stock');
     setTimeout(() => {
         const qtyInput = document.getElementById('main-stock-qty');
@@ -215,6 +222,10 @@ export function openMainStockModal() {
 }
 
 export async function saveMainStock() {
+    if (isViewingHistoricalDate()) {
+        showAppAlert("Action Blocked", "You cannot add main stock while viewing a past date. Please return to 'Today'.");
+        return;
+    }
     if (isSaving) return;
     isSaving = true;
 
@@ -264,6 +275,7 @@ export function openReturnStockModal() {
         let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
         selectEl.appendChild(opt);
     });
+    refreshCustomDropdowns(selectEl);
     openModal('modal-return-stock');
     setTimeout(() => {
         const qtyInput = document.getElementById('return-stock-qty');
@@ -272,6 +284,10 @@ export function openReturnStockModal() {
 }
 
 export async function saveReturnStock() {
+    if (isViewingHistoricalDate()) {
+        showAppAlert("Action Blocked", "You cannot return stock while viewing a past date. Please return to 'Today'.");
+        return;
+    }
     if (isSaving) return;
     isSaving = true;
 
@@ -351,6 +367,8 @@ export async function openDeskTransfer() {
         itemSelect.dataset.listenerBound = 'true';
     }
 
+    refreshCustomDropdowns(itemSelect);
+    refreshCustomDropdowns(targetSelect);
     openModal('modal-desk-transfer');
     setTimeout(() => {
         const qtyInput = document.getElementById('desk-transfer-qty');
@@ -389,25 +407,31 @@ export async function openDeskTransfer() {
 
             const sessionTxs = AppState.transactions.filter(tx => tx.sessionId === sid && !tx.isDeleted);
             let liveCash = parseFloat(deskData.openingBalances?.cash) || 0;
-            let liveInv = { ...(deskData.openingBalances?.inventory || {}) };
-            let grossInv = { ...(deskData.openingBalances?.inventory || {}) };
+            let liveInv = {};
+            let grossInv = {};
+            Object.entries(deskData.openingBalances?.inventory || {}).forEach(([k, v]) => {
+                const nk = getNormalizedTrackAs(k);
+                liveInv[nk] = (liveInv[nk] || 0) + (parseInt(v) || 0);
+                grossInv[nk] = (grossInv[nk] || 0) + (parseInt(v) || 0);
+            });
             let hasSalesActivity = false;
 
             sessionTxs.forEach(tx => {
                 let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
                 liveCash += safeCashAmt;
                 
+                const normTrackAs = getNormalizedTrackAs(tx.trackAs);
                 let change = getInventoryChange(tx);
                 if (change !== 0) {
-                    liveInv[tx.trackAs] = (liveInv[tx.trackAs] || 0) + change;
+                    liveInv[normTrackAs] = (liveInv[normTrackAs] || 0) + change;
                 }
 
                 const isAllocationTx = (tx.type === 'transfer_in' || tx.type === 'transfer_out');
                 if (isAllocationTx) {
                     if (tx.type === 'transfer_in') {
-                        grossInv[tx.trackAs] = (grossInv[tx.trackAs] || 0) + Math.abs(tx.qty);
+                        grossInv[normTrackAs] = (grossInv[normTrackAs] || 0) + Math.abs(tx.qty);
                     } else if (tx.type === 'transfer_out') {
-                        grossInv[tx.trackAs] = (grossInv[tx.trackAs] || 0) - Math.abs(tx.qty);
+                        grossInv[normTrackAs] = (grossInv[normTrackAs] || 0) - Math.abs(tx.qty);
                     }
                 }
                 
@@ -449,9 +473,17 @@ export async function openDeskTransfer() {
         }
         
         targetSelect.innerHTML = (optionsHTML ? '<option value="" disabled selected>👤 Select an Agent</option>' + optionsHTML : '<option value="">No other desks open</option>');
-    } catch(e) { targetSelect.innerHTML = '<option value="">Offline: Cannot fetch desks</option>'; }
+        refreshCustomDropdowns(targetSelect);
+    } catch(e) {
+        targetSelect.innerHTML = '<option value="">Offline: Cannot fetch desks</option>';
+        refreshCustomDropdowns(targetSelect);
+    }
 }
 export async function executeDeskTransfer() {
+    if (isViewingHistoricalDate()) {
+        showAppAlert("Action Blocked", "You cannot transfer stock while viewing a past date. Please return to 'Today'.");
+        return;
+    }
     if (!navigator.onLine) {
         showAppAlert("Connection Required", "Desk-to-desk transfers require an active internet connection so the receiving desk gets the stock immediately. Please connect and try again.");
         return;
@@ -533,10 +565,15 @@ export function openTransferModal(targetDesk, targetSession, targetName) {
         let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
         selectEl.appendChild(opt);
     });
+    refreshCustomDropdowns(selectEl);
     openModal('modal-transfer');
 }
 
 export function executeTransfer() {
+    if (isViewingHistoricalDate()) {
+        showAppAlert("Action Blocked", "You cannot force-transfer stock while viewing a past date. Please return to 'Today'.");
+        return;
+    }
     let qty = parseInt(document.getElementById('transfer-qty').value) || 0;
     if (qty <= 0) { showAppAlert("Invalid Input", "Enter valid quantity."); return; }
     let itemName = document.getElementById('transfer-item-select').value;
@@ -548,9 +585,10 @@ export function executeTransfer() {
     let dateStr = getStrictDate();
 
     let senderName = AppState.currentDeskName || "Admin";
+    let transferGroupId = 'tr_' + Date.now();
 
-    const senderTx = { id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetTransferDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: AppState.currentDeskId || "Admin", sessionId: AppState.currentSessionId || "Admin", agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, timestamp: serverTimestamp() };
-    const receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${senderName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetTransferDeskId, sessionId: targetTransferSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, isRemoteTransfer: true, timestamp: serverTimestamp() };
+    const senderTx = { id: Date.now(), receiptNo: generateReceiptNo(), type: 'transfer_out', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Sent to ${targetTransferDeskName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: AppState.currentDeskId || "Admin", sessionId: AppState.currentSessionId || "Admin", agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, transferGroupId: transferGroupId, timestamp: serverTimestamp() };
+    const receiverTx = { id: Date.now() + 1, receiptNo: generateReceiptNo(), type: 'transfer_in', name: itemName, trackAs: itemName, amount: 0, qty: qty, payment: `Received from ${senderName}`, cashAmt: 0, mfsAmt: 0, isDeleted: false, time: timeStr, dateStr: dateStr, deskId: targetTransferDeskId, sessionId: targetTransferSessionId, agentId: AppState.currentUser.uid, agentName: AppState.userNickname || AppState.userDisplayName, isRemoteTransfer: true, transferGroupId: transferGroupId, timestamp: serverTimestamp() };
 
     showAppAlert("Confirm Force Transfer", `You are about to force-transfer ${qty}x ${itemName} to ${targetTransferDeskName}. This bypasses standard stock limits. Proceed?`, true, async () => {
         if (isSaving) return;
@@ -631,9 +669,11 @@ export function updateTransferSuggestion() {
     let targetCurrentStock = Math.max(0, cachedDeskStocks[targetDeskId]?.[itemName] || 0);
     
     let targetPerAgent = Math.floor(totalSystemStock / totalAgents);
-    let suggestion = targetPerAgent - targetCurrentStock;
+    let availableStock = getAvailableStock(itemName);
+    let maxSendable = Number.isFinite(availableStock) ? Math.max(0, availableStock) : Infinity;
+    let suggestion = Math.min(maxSendable, Math.max(0, targetPerAgent - targetCurrentStock));
     
-    if (qtyInput.value === '') {
+    if (qtyInput.value === '' && suggestion > 0) {
         qtyInput.value = suggestion;
     }
     qtyInput.placeholder = 'Suggested: ' + suggestion;

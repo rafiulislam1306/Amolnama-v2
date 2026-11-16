@@ -2,13 +2,14 @@ import { collection, query, where, getDocs, onSnapshot, doc, getDoc } from "fire
 import { renderLiveFloorTab } from './desk.js';
 import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
-import { getStrictDate, formatToGBDate } from '../utils/helpers.js';
+import { getStrictDate, formatToGBDate, formatLocalISODate, escapeHtml, escapeJsSingleQuote } from '../utils/helpers.js';
 import { showAppAlert, showFlashMessage, openModal } from '../utils/ui-helpers.js';
 import { getPhysicalItems, getNormalizedTrackAs } from './inventory.js';
 import { priorityItemSortOrder, priorityInventorySortOrder } from '../core/constants.js';
 
 const userCurrency = 'Tk';
 const fmt = (num) => Number(num || 0).toLocaleString('en-IN');
+const getTsMillis = (ts, fallback = 0) => (ts && typeof ts.toMillis === 'function') ? ts.toMillis() : (ts?.seconds ? ts.seconds * 1000 : fallback);
 
 function getOnboardingBadge(tx) {
     if (!tx.onboarding) return '';
@@ -109,7 +110,7 @@ export async function renderPersonalReport() {
             
             // Group sessions by desk to find the true morning start
             // FIX: Use Infinity so pending writes (missing timestamps) don't overwrite valid morning sessions
-            let t = (s.openedAt && typeof s.openedAt.toMillis === 'function') ? s.openedAt.toMillis() : Infinity;
+            let t = getTsMillis(s.openedAt, Infinity);
             if (!deskFirstSessions[s.deskId] || t < deskFirstSessions[s.deskId].time) {
                 deskFirstSessions[s.deskId] = { time: t, data: s };
             }
@@ -191,23 +192,23 @@ export async function renderPersonalReport() {
         let badges = '';
         
         if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: rgba(245, 158, 11, 0.15); color: var(--warning-text, #b45309); padding: 2px 8px; border-radius: 10px; margin-left: 8px; font-weight: 700;">Pending</span>';
-        if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: rgba(139, 92, 246, 0.15); color: #8b5cf6; padding: 2px 8px; border-radius: 10px; margin-left: 8px; font-weight: 700; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
+        if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: rgba(139, 92, 246, 0.15); color: #8b5cf6; padding: 2px 8px; border-radius: 10px; margin-left: 8px; font-weight: 700; cursor: pointer;" onclick="showAuditTrail('${escapeJsSingleQuote(String(tx.id))}')">Edited</span>`;
         
         let detailsHTML = '';
         if (tx.handsetModel) {
-            detailsHTML += `<div style="font-size: 0.8rem; color: var(--accent-color); font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">📱 Model: ${tx.handsetModel}</div>`;
+            detailsHTML += `<div style="font-size: 0.8rem; color: var(--accent-color); font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">📱 Model: ${escapeHtml(tx.handsetModel)}</div>`;
         }
         if (tx.notes) {
-            detailsHTML += `<div style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; margin-top: 2px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${tx.notes}">💬 ${tx.notes}</div>`;
+            detailsHTML += `<div style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; margin-top: 2px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(tx.notes)}">💬 ${escapeHtml(tx.notes)}</div>`;
         }
-        let agentBadge = ` &bull; <span style="color: var(--text-primary); font-weight: 600;">By ${(tx.agentName || 'Unknown').split(' ')[0]}</span>`;
+        let agentBadge = ` &bull; <span style="color: var(--text-primary); font-weight: 600;">By ${escapeHtml((tx.agentName || 'Unknown').split(' ')[0])}</span>`;
 
         let actionBtns = `
                 <div class="tx-actions" style="display: none; width: 100%; padding-top: 12px; margin-top: 12px; border-top: 1px dashed var(--border-color); justify-content: flex-end; gap: 8px;">
-                    <button class="btn-outline" style="height: 36px; padding: 0 16px; font-size: 0.85rem; color: var(--accent-color); border-color: var(--accent-color); gap: 6px; border-radius: 10px; font-weight: 700;" onclick="event.stopPropagation(); openEditTx(${tx.id})">
+                    <button class="btn-outline" style="height: 36px; padding: 0 16px; font-size: 0.85rem; color: var(--accent-color); border-color: var(--accent-color); gap: 6px; border-radius: 10px; font-weight: 700;" onclick="event.stopPropagation(); openEditTx('${escapeJsSingleQuote(String(tx.id))}')">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> Edit
                     </button>
-                    <button class="btn-outline" style="height: 36px; padding: 0 16px; font-size: 0.85rem; color: #ef4444; border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.08); gap: 6px; border-radius: 10px; font-weight: 700;" onclick="event.stopPropagation(); deleteTransaction('${tx.docId}', ${tx.id})">
+                    <button class="btn-outline" style="height: 36px; padding: 0 16px; font-size: 0.85rem; color: #ef4444; border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.08); gap: 6px; border-radius: 10px; font-weight: 700;" onclick="event.stopPropagation(); deleteTransaction('${escapeJsSingleQuote(tx.docId)}', '${escapeJsSingleQuote(String(tx.id))}')">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg> Trash
                     </button>
                 </div>
@@ -237,20 +238,20 @@ export async function renderPersonalReport() {
                     <!-- Middle: Title and Responsive Metadata Grid -->
                     <div style="flex: 1; min-width: 0;">
                         <div style="font-size: 1rem; color: var(--text-primary); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 2px;">
-                            ${tx.name}
+                            ${escapeHtml(tx.name)}
                         </div>
                         ${detailsHTML}
                         
                         <!-- Row 1: Receipt + Time (guaranteed single row) -->
                         <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1;">
                             <!-- Receipt No -->
-                            <div style="display: flex; align-items: center; background: var(--bg-color); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-primary); font-weight: 700; font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" title="${tx.receiptNo || tx.id}">
-                                ${tx.receiptNo || tx.id}
+                            <div style="display: flex; align-items: center; background: var(--bg-color); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-primary); font-weight: 700; font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" title="${escapeHtml(tx.receiptNo || tx.id)}">
+                                ${escapeHtml(tx.receiptNo || tx.id)}
                             </div>
                             <!-- Time -->
                             <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                <span style="margin-top: 1px;">${tx.time}</span>
+                                <span style="margin-top: 1px;">${escapeHtml(tx.time)}</span>
                             </div>
                         </div>
                         
@@ -259,13 +260,13 @@ export async function renderPersonalReport() {
                             <!-- Payment Mode -->
                             <div style="display: flex; align-items: center; gap: 4px; color: ${tx.payment === 'MFS' ? 'var(--success-text, #15803d)' : 'var(--text-secondary)'}; flex-shrink: 0;">
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
-                                <span style="margin-top: 1px;">${payLabel}</span>
+                                <span style="margin-top: 1px;">${escapeHtml(payLabel)}</span>
                             </div>
                             
                             <!-- Agent Name -->
                             <div style="display: flex; align-items: center; gap: 4px; color: var(--text-primary); font-weight: 700; flex-shrink: 0;">
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                                <span style="margin-top: 1px;">${(tx.agentName || 'Unknown').split(' ')[0]}</span>
+                                <span style="margin-top: 1px;">${escapeHtml((tx.agentName || 'Unknown').split(' ')[0])}</span>
                             </div>
                             
                             ${getOnboardingBadge(tx)}
@@ -332,21 +333,21 @@ export async function renderPersonalReport() {
                         <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
                                 <div style="font-weight: 800; font-size: 0.85rem; color: var(--accent-color); word-break: break-word;">
-                                    📱 Model: ${tx.handsetModel || 'Handset (Model Unspecified)'}
+                                    📱 Model: ${escapeHtml(tx.handsetModel || 'Handset (Model Unspecified)')}
                                 </div>
                                 <div style="font-weight: 800; font-size: 0.85rem; color: ${signedCashColor}; white-space: nowrap;">
                                     ${signedCashText}
                                 </div>
                             </div>
                             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-secondary); flex-wrap: wrap; gap: 4px;">
-                                <div>Method: <strong>${tx.payment || 'Cash'}</strong> ${splitText}</div>
-                                <div style="font-weight: 600;">${tx.time || ''}</div>
+                                <div>Method: <strong>${escapeHtml(tx.payment || 'Cash')}</strong> ${splitText}</div>
+                                <div style="font-weight: 600;">${escapeHtml(tx.time || '')}</div>
                             </div>
                             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.7rem; color: var(--text-secondary); opacity: 0.85; border-top: 1px dashed var(--border-color); padding-top: 4px; margin-top: 2px;">
-                                <div>By ${tx.agentName || 'Staff'} ${tx.deskId ? `• ${tx.deskId}` : '• Floor'}</div>
-                                <div>${tx.receiptNo ? `#${tx.receiptNo}` : ''}</div>
+                                <div>By ${escapeHtml(tx.agentName || 'Staff')} ${tx.deskId ? `• ${escapeHtml(tx.deskId)}` : '• Floor'}</div>
+                                <div>${tx.receiptNo ? `#${escapeHtml(tx.receiptNo)}` : ''}</div>
                             </div>
-                            ${tx.notes ? `<div style="font-size: 0.72rem; color: var(--text-secondary); font-style: italic;">Note: ${tx.notes}</div>` : ''}
+                            ${tx.notes ? `<div style="font-size: 0.72rem; color: var(--text-secondary); font-style: italic;">Note: ${escapeHtml(tx.notes)}</div>` : ''}
                         </div>
                     `;
                 } else {
@@ -354,21 +355,21 @@ export async function renderPersonalReport() {
                         <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
                                 <div style="font-weight: 700; font-size: 0.82rem; color: var(--text-primary); word-break: break-word;">
-                                    ${tx.name || cfg.title}
+                                    ${escapeHtml(tx.name || cfg.title)}
                                 </div>
                                 <div style="font-weight: 800; font-size: 0.85rem; color: ${signedCashColor}; white-space: nowrap;">
                                     ${signedCashText}
                                 </div>
                             </div>
                             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-secondary); flex-wrap: wrap; gap: 4px;">
-                                <div>By ${tx.agentName || 'Staff'} ${tx.deskId ? `• ${tx.deskId}` : '• Floor'}</div>
-                                <div style="font-weight: 600;">${tx.time || ''}</div>
+                                <div>By ${escapeHtml(tx.agentName || 'Staff')} ${tx.deskId ? `• ${escapeHtml(tx.deskId)}` : '• Floor'}</div>
+                                <div style="font-weight: 600;">${escapeHtml(tx.time || '')}</div>
                             </div>
                             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.7rem; color: var(--text-secondary); opacity: 0.85;">
-                                <div>${tx.payment ? `Type: ${tx.payment}` : ''}</div>
-                                <div>${tx.receiptNo ? `#${tx.receiptNo}` : ''}</div>
+                                <div>${tx.payment ? `Type: ${escapeHtml(tx.payment)}` : ''}</div>
+                                <div>${tx.receiptNo ? `#${escapeHtml(tx.receiptNo)}` : ''}</div>
                             </div>
-                            ${tx.notes ? `<div style="font-size: 0.72rem; color: var(--text-secondary); font-style: italic; border-top: 1px dashed var(--border-color); padding-top: 4px; margin-top: 2px;">Note: ${tx.notes}</div>` : ''}
+                            ${tx.notes ? `<div style="font-size: 0.72rem; color: var(--text-secondary); font-style: italic; border-top: 1px dashed var(--border-color); padding-top: 4px; margin-top: 2px;">Note: ${escapeHtml(tx.notes)}</div>` : ''}
                         </div>
                     `;
                 }
@@ -482,7 +483,7 @@ export async function renderPersonalReport() {
     for (const [name, qty] of sortedPersonalItems) {
         invHTML += `
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 4px; border-bottom: 1px solid var(--border-color);">
-                <span style="font-weight: 600; color: var(--text-primary); font-size: 1rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px;">${name}</span>
+                <span style="font-weight: 600; color: var(--text-primary); font-size: 1rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px;">${escapeHtml(name)}</span>
                 <span style="font-weight: 800; color: var(--text-secondary); font-size: 1.1rem; flex-shrink: 0;">${qty}x</span>
             </div>
         `;
@@ -521,7 +522,7 @@ export async function renderPersonalReport() {
 
             liveStockHTML += `
                 <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; align-items: center; padding: 12px 4px; border-bottom: 1px dashed var(--border-color); font-size: 0.85rem;">
-                    <div style="font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; cursor: pointer;" onclick="showTooltip(this, '${item.replace(/'/g, "\\'")}')">${item}</div>
+                    <div style="font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; cursor: pointer;" onclick="showTooltip(this, '${escapeJsSingleQuote(item)}')">${escapeHtml(item)}</div>
                     <div style="text-align: center; color: var(--text-secondary); font-weight: 600;">${d.open}</div>
                     <div style="text-align: center; color: ${inOutColor}; font-weight: 700;">${inOutStr}</div>
                     <div style="text-align: center; color: #f59e0b; font-weight: 700;">${d.sold}</div>
@@ -643,15 +644,10 @@ async function executeDownloadReportAsPDF(mode, prefix) {
     `;
     loader.innerHTML = `
         <div style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 24px; padding: 40px; display: flex; flex-direction: column; align-items: center; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); max-width: 90%; width: 340px; text-align: center;">
-            <div class="pdf-spinner" style="width: 50px; height: 50px; border: 4px solid rgba(255, 255, 255, 0.1); border-left-color: #0ea5e9; border-radius: 50%; animation: pdf-spin 1s linear infinite; margin-bottom: 20px;"></div>
+            <div class="pdf-spinner" style="width: 50px; height: 50px; border: 4px solid rgba(255, 255, 255, 0.1); border-left-color: #0ea5e9; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
             <h3 style="margin: 0 0 8px 0; font-size: 1.25rem; font-weight: 700; color: #ffffff;">Generating Ledger</h3>
             <p style="margin: 0; font-size: 0.9rem; color: rgba(255, 255, 255, 0.7); line-height: 1.4;">📄 Preparing continuous PDF ledger... Please wait.</p>
         </div>
-        <style>
-            @keyframes pdf-spin {
-                to { transform: rotate(360deg); }
-            }
-        </style>
     `;
     document.body.appendChild(loader);
 
@@ -679,8 +675,8 @@ async function executeDownloadReportAsPDF(mode, prefix) {
             mgrDrops = document.getElementById('desk-tot-manager')?.innerText?.replace(' Tk', '') || "0";
             expected = document.getElementById('desk-tot-expected-cash')?.innerText?.replace(' Tk', '') || "0";
             
-            const mfsCard = document.evaluate("//div[contains(text(), 'Total MFS')]/following-sibling::div", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-            const ersCard = document.evaluate("//div[contains(text(), 'ERS Sent')]/following-sibling::div", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+            const mfsCard = document.getElementById('desk-tot-mfs');
+            const ersCard = document.getElementById('desk-tot-ers');
             mfsTotal = mfsCard ? mfsCard.innerText.replace(' Tk', '') : "0";
             ersTotal = ersCard ? ersCard.innerText.replace(' Tk', '') : "0";
         } else {
@@ -710,11 +706,11 @@ async function executeDownloadReportAsPDF(mode, prefix) {
                     let bg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
                     inventoryRowsText += `
                         <tr style="background-color: ${bg}; border-bottom: 1px solid #e2e8f0;">
-                            <td style="padding: 10px; font-weight: 600; color: #334155;">${cols[0].innerText}</td>
-                            <td style="padding: 10px; text-align: center; color: #64748b;">${cols[1].innerText}</td>
-                            <td style="padding: 10px; text-align: center; font-weight: bold; color: ${cols[2].innerText.includes('+') ? '#10b981' : (cols[2].innerText.includes('-') ? '#ef4444' : '#64748b')};">${cols[2].innerText}</td>
-                            <td style="padding: 10px; text-align: center; color: #f59e0b;">${cols[3].innerText}</td>
-                            <td style="padding: 10px; text-align: center; font-weight: bold; color: #0ea5e9;">${cols[4].innerText}</td>
+                            <td style="padding: 10px; font-weight: 600; color: #334155;">${escapeHtml(cols[0].innerText)}</td>
+                            <td style="padding: 10px; text-align: center; color: #64748b;">${escapeHtml(cols[1].innerText)}</td>
+                            <td style="padding: 10px; text-align: center; font-weight: bold; color: ${cols[2].innerText.includes('+') ? '#10b981' : (cols[2].innerText.includes('-') ? '#ef4444' : '#64748b')};">${escapeHtml(cols[2].innerText)}</td>
+                            <td style="padding: 10px; text-align: center; color: #f59e0b;">${escapeHtml(cols[3].innerText)}</td>
+                            <td style="padding: 10px; text-align: center; font-weight: bold; color: #0ea5e9;">${escapeHtml(cols[4].innerText)}</td>
                         </tr>`;
                 }
             });
@@ -736,8 +732,8 @@ async function executeDownloadReportAsPDF(mode, prefix) {
                     let bg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
                     itemsRowsText += `
                         <tr style="background-color: ${bg}; border-bottom: 1px solid #e2e8f0;">
-                            <td style="padding: 10px 16px; color: #334155; font-weight: 500;">${name}</td>
-                            <td style="padding: 10px 16px; text-align: right; color: #0f172a; font-weight: bold;">${qty}</td>
+                            <td style="padding: 10px 16px; color: #334155; font-weight: 500;">${escapeHtml(name)}</td>
+                            <td style="padding: 10px 16px; text-align: right; color: #0f172a; font-weight: bold;">${escapeHtml(qty)}</td>
                         </tr>`;
                 }
             });
@@ -754,9 +750,9 @@ async function executeDownloadReportAsPDF(mode, prefix) {
                         <h2 style="margin: 4px 0 0 0; color: #475569; font-size: 14px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;">Daily Ledger Report</h2>
                     </div>
                     <div style="font-size: 13px; color: #64748b; line-height: 1.6;">
-                        <strong>Date:</strong> ${dateStr} &nbsp;|&nbsp; <strong>Time:</strong> ${rawTime}<br>
-                        <strong>Desk:</strong> <span style="color: #0f172a; font-weight: bold;">${deskName}</span><br>
-                        <strong>Agent:</strong> ${agents}
+                        <strong>Date:</strong> ${escapeHtml(dateStr)} &nbsp;|&nbsp; <strong>Time:</strong> ${escapeHtml(rawTime)}<br>
+                        <strong>Desk:</strong> <span style="color: #0f172a; font-weight: bold;">${escapeHtml(deskName)}</span><br>
+                        <strong>Agent:</strong> ${escapeHtml(agents)}
                     </div>
                 </div>
 
@@ -908,7 +904,7 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
         let inOutStr = d.inOut > 0 ? `+${d.inOut}` : (d.inOut < 0 ? `${d.inOut}` : `0`);
         invRows += `
             <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-color); font-size: 0.85rem;">
-                <div style="font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; cursor: pointer;" onclick="showTooltip(this, '${item.replace(/'/g, "\\'")}')">${item}</div>
+                <div style="font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; cursor: pointer;" onclick="showTooltip(this, '${escapeJsSingleQuote(item)}')">${escapeHtml(item)}</div>
                 <div style="text-align: center; color: var(--text-secondary); font-weight: 500;">${d.open}</div>
                 <div style="text-align: center; color: ${inOutColor}; font-weight: 600;">${inOutStr}</div>
                 <div style="text-align: center; color: var(--text-primary); font-weight: 500;">${d.sold}</div>
@@ -934,7 +930,7 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
         let borderStyle = isLast ? '' : 'border-bottom: 1px solid var(--border-color);';
         itemsHTML += `
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; ${borderStyle}">
-                <span style="font-weight: 500; color: var(--text-primary); font-size: 0.875rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px;">${name}</span>
+                <span style="font-weight: 500; color: var(--text-primary); font-size: 0.875rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px;">${escapeHtml(name)}</span>
                 <span style="background: var(--bg-color); color: var(--text-secondary); font-size: 0.8rem; font-weight: 500; padding: 2px 8px; border-radius: 6px; flex-shrink: 0;">${qty}x</span>
             </div>
         `;
@@ -948,7 +944,7 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
         for (const [name, val] of Object.entries(adjustmentLog)) {
             adjBreakdownHTML += `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding-left: 12px; font-size: 0.85rem;">
-                    <span style="color: var(--text-secondary);">${name}</span>
+                    <span style="color: var(--text-secondary);">${escapeHtml(name)}</span>
                     <strong style="color: ${val < 0 ? '#ef4444' : '#10b981'}; font-weight: 500;">${val > 0 ? '+' : ''}${fmt(val)} Tk</strong>
                 </div>
             `;
@@ -1000,11 +996,11 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; border: none !important; box-shadow: none !important; background: transparent !important;">
             <div style="background: var(--surface-strong); border: 1px solid var(--hairline); box-shadow: var(--shadow-soft); padding: 16px; border-radius: var(--radius-card); text-align: left;">
                 <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Total MFS</div>
-                <div style="font-size: 1.35rem; font-weight: 900; color: var(--text-primary);">${fmt(mfsTotal)} <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 700;">Tk</span></div>
+                <div id="desk-tot-mfs" style="font-size: 1.35rem; font-weight: 900; color: var(--text-primary);">${fmt(mfsTotal)} <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 700;">Tk</span></div>
             </div>
             <div style="background: var(--surface-strong); border: 1px solid var(--hairline); box-shadow: var(--shadow-soft); padding: 16px; border-radius: var(--radius-card); text-align: left;">
                 <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">ERS Sent (${fmt(ersData.count)}x)</div>
-                <div style="font-size: 1.35rem; font-weight: 900; color: var(--text-primary);">${fmt(ersData.total)} <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 700;">Tk</span></div>
+                <div id="desk-tot-ers" style="font-size: 1.35rem; font-weight: 900; color: var(--text-primary);">${fmt(ersData.total)} <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 700;">Tk</span></div>
             </div>
         </div>
 
@@ -1065,7 +1061,7 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
             sessSnap.forEach(docSnap => {
                 let s = docSnap.data();
                 if (s.deskId === targetDeskId) {
-                    if (!bestSession || (s.openedAt?.toMillis() || 0) > (bestSession.openedAt?.toMillis() || 0)) {
+                    if (!bestSession || getTsMillis(s.openedAt) > getTsMillis(bestSession.openedAt)) {
                         bestSession = { id: docSnap.id, ...s };
                     }
                 }
@@ -1135,7 +1131,7 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
         
         if (filterVal === 'all') showTx = true;
         else if (filterVal === 'ers' && tx.name === 'ERS Flexiload') showTx = true;
-        else if (filterVal === 'cash_actions' && tx.type === 'adjustment' && tx.name === 'Physical Cash') showTx = true;
+        else if (filterVal === 'cash_actions' && tx.type === 'adjustment') showTx = true;
         else if (filterVal === 'transfers' && (tx.type === 'transfer_in' || tx.type === 'transfer_out')) showTx = true;
         else if (filterVal === txCat) showTx = true;
         
@@ -1144,24 +1140,24 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
         let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
         let badges = '';
         if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: var(--warning-bg); color: var(--warning-text); padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
-        if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: var(--purple-bg); color: var(--purple-text); padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${tx.id}')">Edited</span>`;
+        if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: var(--purple-bg); color: var(--purple-text); padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${escapeJsSingleQuote(String(tx.id))}')">Edited</span>`;
 
         let detailsHTML = '';
         if (tx.handsetModel) {
-            detailsHTML += `<div style="font-size: 0.8rem; color: var(--accent-color); font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">📱 Model: ${tx.handsetModel}</div>`;
+            detailsHTML += `<div style="font-size: 0.8rem; color: var(--accent-color); font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">📱 Model: ${escapeHtml(tx.handsetModel)}</div>`;
         }
         if (tx.notes) {
-            detailsHTML += `<div style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; margin-top: 2px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${tx.notes}">💬 ${tx.notes}</div>`;
+            detailsHTML += `<div style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; margin-top: 2px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(tx.notes)}">💬 ${escapeHtml(tx.notes)}</div>`;
         }
         
         let actionBtns = '';
         if (targetDeskId === AppState.currentDeskId || ['admin', 'owner', 'manager', 'center_manager'].includes(AppState.currentUserRole)) {
             actionBtns = `
                 <div class="tx-actions" style="display: none; width: 100%; padding-top: 12px; margin-top: 12px; border-top: 1px dashed var(--border-color); justify-content: flex-end; gap: 8px;">
-                    <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: var(--accent-color); border-color: var(--accent-color); gap: 6px;" onclick="event.stopPropagation(); openEditTx(${tx.id})">
+                    <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: var(--accent-color); border-color: var(--accent-color); gap: 6px;" onclick="event.stopPropagation(); openEditTx('${escapeJsSingleQuote(String(tx.id))}')">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> Edit
                     </button>
-                    <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: var(--danger-text); border-color: var(--danger-border); background: rgba(239, 68, 68, 0.08); gap: 6px;" onclick="event.stopPropagation(); deleteTransaction('${tx.docId}', ${tx.id})">
+                    <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: var(--danger-text); border-color: var(--danger-border); background: rgba(239, 68, 68, 0.08); gap: 6px;" onclick="event.stopPropagation(); deleteTransaction('${escapeJsSingleQuote(tx.docId)}', '${escapeJsSingleQuote(String(tx.id))}')">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg> Trash
                     </button>
                 </div>
@@ -1193,20 +1189,20 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
                     <!-- Middle: Title and Responsive Metadata Grid -->
                     <div style="flex: 1; min-width: 0;">
                         <div style="font-size: 1rem; color: var(--text-primary); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 2px;">
-                            ${tx.name}
+                            ${escapeHtml(tx.name)}
                         </div>
                         ${detailsHTML}
                         
                         <!-- Row 1: Receipt + Time (guaranteed single row) -->
                         <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1;">
                             <!-- Receipt No -->
-                            <div style="display: flex; align-items: center; background: var(--bg-color); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-primary); font-weight: 700; font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" title="${tx.receiptNo || tx.id}">
-                                ${tx.receiptNo || tx.id}
+                            <div style="display: flex; align-items: center; background: var(--bg-color); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-primary); font-weight: 700; font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" title="${escapeHtml(tx.receiptNo || tx.id)}">
+                                ${escapeHtml(tx.receiptNo || tx.id)}
                             </div>
                             <!-- Time -->
                             <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                <span style="margin-top: 1px;">${tx.time}</span>
+                                <span style="margin-top: 1px;">${escapeHtml(tx.time)}</span>
                             </div>
                         </div>
                         
@@ -1215,13 +1211,13 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
                             <!-- Payment Mode -->
                             <div style="display: flex; align-items: center; gap: 4px; color: ${tx.payment === 'MFS' ? 'var(--success-text, #15803d)' : 'var(--text-secondary)'}; flex-shrink: 0;">
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
-                                <span style="margin-top: 1px;">${payLabel}</span>
+                                <span style="margin-top: 1px;">${escapeHtml(payLabel)}</span>
                             </div>
                             
                             <!-- Agent Name -->
                             <div style="display: flex; align-items: center; gap: 4px; color: var(--text-primary); font-weight: 700; flex-shrink: 0;">
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                                <span style="margin-top: 1px;">${(tx.agentName || 'Unknown').split(' ')[0]}</span>
+                                <span style="margin-top: 1px;">${escapeHtml((tx.agentName || 'Unknown').split(' ')[0])}</span>
                             </div>
                             
                             ${getOnboardingBadge(tx)}
@@ -1282,8 +1278,7 @@ export async function fetchTransactionsForDate() {
 
     const datePicker = document.getElementById('report-date-picker');
     if (!datePicker.value) {
-        const t = new Date(); 
-        datePicker.value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+        datePicker.value = formatLocalISODate(new Date());
     }
     const targetDateStr = formatToGBDate(datePicker.value);
     const isToday = targetDateStr === getStrictDate();
@@ -1482,10 +1477,10 @@ export async function openHistoricalSession(sessionId) {
 
             let detailsHTML = '';
             if (tx.handsetModel) {
-                detailsHTML += `<div style="font-size: 0.8rem; color: var(--accent-color); font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">📱 Model: ${tx.handsetModel}</div>`;
+                detailsHTML += `<div style="font-size: 0.8rem; color: var(--accent-color); font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">📱 Model: ${escapeHtml(tx.handsetModel)}</div>`;
             }
             if (tx.notes) {
-                detailsHTML += `<div style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; margin-top: 2px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${tx.notes}">💬 ${tx.notes}</div>`;
+                detailsHTML += `<div style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; margin-top: 2px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(tx.notes)}">💬 ${escapeHtml(tx.notes)}</div>`;
             }
 
             historyHTML += `
@@ -1499,19 +1494,19 @@ export async function openHistoricalSession(sessionId) {
                         <!-- Middle: Name + Metadata chips -->
                         <div style="flex: 1; min-width: 0;">
                             <div style="font-size: 1rem; color: var(--text-primary); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 2px;">
-                                ${tx.name}
+                                ${escapeHtml(tx.name)}
                             </div>
                             ${detailsHTML}
                             <!-- Row 1: Receipt + Time (guaranteed single row) -->
                             <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1;">
                                 <!-- Receipt No -->
-                                <div style="display: flex; align-items: center; background: var(--bg-color); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-primary); font-weight: 700; font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" title="${tx.receiptNo || tx.id}">
-                                    ${tx.receiptNo || tx.id}
+                                <div style="display: flex; align-items: center; background: var(--bg-color); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-primary); font-weight: 700; font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" title="${escapeHtml(tx.receiptNo || tx.id)}">
+                                    ${escapeHtml(tx.receiptNo || tx.id)}
                                 </div>
                                 <!-- Time -->
                                 <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
                                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                    <span style="margin-top: 1px;">${tx.time}</span>
+                                    <span style="margin-top: 1px;">${escapeHtml(tx.time)}</span>
                                 </div>
                             </div>
                             
@@ -1520,13 +1515,13 @@ export async function openHistoricalSession(sessionId) {
                                 <!-- Payment Mode -->
                                 <div style="display: flex; align-items: center; gap: 4px; color: ${tx.payment === 'MFS' ? '#10b981' : 'var(--text-secondary)'}; flex-shrink: 0;">
                                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
-                                    <span style="margin-top: 1px;">${payLabel}</span>
+                                    <span style="margin-top: 1px;">${escapeHtml(payLabel)}</span>
                                 </div>
                                 
                                 <!-- Agent Name -->
                                 <div style="display: flex; align-items: center; gap: 4px; color: var(--text-primary); font-weight: 700; flex-shrink: 0;">
                                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                                    <span style="margin-top: 1px;">${(tx.agentName || 'Unknown').split(' ')[0]}</span>
+                                    <span style="margin-top: 1px;">${escapeHtml((tx.agentName || 'Unknown').split(' ')[0])}</span>
                                 </div>
                                 
                                 ${getOnboardingBadge(tx)}
@@ -1566,7 +1561,7 @@ export async function openHistoricalSession(sessionId) {
                     if (diff !== 0) {
                         let dColor = diff < 0 ? 'var(--danger-text)' : 'var(--success-text)';
                         let dPref = diff > 0 ? '+' : '';
-                        invDiffHTML += `<div style="display:flex; justify-content:space-between; font-size:0.8rem; padding:4px 0; border-bottom: 1px dashed var(--border-color);"><span>${item}</span> <span style="color: var(--text-secondary);">Exp: ${expected} | Act: ${actual} <strong style="color:${dColor}; margin-left: 4px;">(${dPref}${diff})</strong></span></div>`;
+                        invDiffHTML += `<div style="display:flex; justify-content:space-between; font-size:0.8rem; padding:4px 0; border-bottom: 1px dashed var(--border-color);"><span>${escapeHtml(item)}</span> <span style="color: var(--text-secondary);">Exp: ${expected} | Act: ${actual} <strong style="color:${dColor}; margin-left: 4px;">(${dPref}${diff})</strong></span></div>`;
                     }
                 }
 
@@ -1602,8 +1597,8 @@ export async function openHistoricalSession(sessionId) {
         
         container.innerHTML = `
             <div style="margin-bottom: 20px; text-align: center;">
-                <h2 style="margin: 0 0 4px 0; font-size: 1.4rem; color: var(--text-primary);">${deskName}</h2>
-                <div style="color: var(--text-secondary); font-size: 0.9rem; font-weight: 600;">Agent: ${agentName} &bull; ${session.dateStr}</div>
+                <h2 style="margin: 0 0 4px 0; font-size: 1.4rem; color: var(--text-primary);">${escapeHtml(deskName)}</h2>
+                <div style="color: var(--text-secondary); font-size: 0.9rem; font-weight: 600;">Agent: ${escapeHtml(agentName)} &bull; ${escapeHtml(session.dateStr)}</div>
             </div>
             ${eodHTML}
             ${dashboardHTML}

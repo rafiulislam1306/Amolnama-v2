@@ -3,6 +3,7 @@ import { AppState } from '../core/state.js';
 import { selectItem, instantSaveItem } from './transactions.js';
 import { priorityItemSortOrder } from '../core/constants.js';
 import { getAvailableStock } from './inventory.js';
+import { escapeHtml } from '../utils/helpers.js';
 
 export function filterStoreCatalog() {
     const text = document.getElementById('store-search')?.value.toLowerCase().trim() || '';
@@ -62,8 +63,9 @@ export function filterStoreCatalog() {
             card.style.display = 'flex';
         });
 
-        // 4. Restore the active category tab
-        const activePill = document.querySelector('.store-pill.active');
+        // 4. Restore the active visible category tab
+        const visiblePills = Array.from(document.querySelectorAll('#store-pills-container .store-pill')).filter(p => p.style.display !== 'none');
+        const activePill = visiblePills.find(p => p.classList.contains('active')) || visiblePills[0];
         if (activePill) {
             activePill.click();
         }
@@ -138,14 +140,12 @@ export function renderAppUI() {
             if (!container) return; // Skip if category HTML container doesn't exist
             
             // STRICT RULE: Death TOF and Govt. FOC are ONLY visible to center_manager
-            if ((item.name === 'Death TOF') && AppState.currentUserRole !== 'center_manager') {
+            if ((item.name === 'Death TOF' || item.name === 'Govt. FOC') && AppState.currentUserRole !== 'center_manager') {
                 return; // Hide entirely
             }
 
-            let isLocked = item.managerOnly && AppState.currentUserRole !== 'center_manager';
-            
             // Completely hide other restricted items from standard floor agents
-            if (isLocked) return;
+            if (item.managerOnly && AppState.currentUserRole !== 'center_manager') return;
 
             // --- REAL-TIME LIVE STOCK CALCULATION ---
             let stockStatusHTML = '';
@@ -163,7 +163,7 @@ export function renderAppUI() {
             }
 
             let row = document.createElement('div');
-            row.className = `dynamic-item store-item-row is-${item.cat}${isLocked ? ' is-locked' : ''}${isOutOfStock ? ' is-locked' : ''}`;
+            row.className = `dynamic-item store-item-row is-${item.cat}${isOutOfStock ? ' is-locked' : ''}`;
             
             let pressTimer;
             let isLongPress = false;
@@ -174,7 +174,7 @@ export function renderAppUI() {
                 if (e.button && e.button !== 0) return;
                 // Record where the finger landed — decision is made on pointerup
                 startY = e.clientY;
-                if (isLocked || isOutOfStock) {
+                if (isOutOfStock) {
                     // Don't fire yet — wait to see if user scrolls or actually taps
                     return;
                 }
@@ -203,11 +203,7 @@ export function renderAppUI() {
                 const didScroll = Math.abs((e.clientY || startY) - startY) > 8;
                 if (didScroll) return;
 
-                // Now it's confirmed to be a tap — show locked/OOS alerts here, not on pointerdown
-                if (isLocked) {
-                    if (typeof window.showAppAlert === 'function') window.showAppAlert("Access Denied", "🔒 Only a Center Manager can process this item.");
-                    return;
-                }
+                // Now it's confirmed to be a tap — show OOS alert here, not on pointerdown
                 if (isOutOfStock) {
                     if (typeof window.showAppAlert === 'function') window.showAppAlert("Stock Alert", `⚠️ ${item.display || item.name} is currently out of stock in your drawer.`);
                     return;
@@ -228,21 +224,19 @@ export function renderAppUI() {
                 ? `<span class="store-item-price">${safePrice} <span>${userCurrency}</span></span>` 
                 : `<span class="store-item-free">FREE</span>`;
             
-            let actionIcon = isLocked || isOutOfStock
+            let actionIcon = isOutOfStock
                 ? `<div class="store-item-action is-danger"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>`
                 : `<div class="store-item-action"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>`;
  
-            let subText = isLocked 
-                ? `<span style="font-size: 0.72rem; color: #ef4444; font-weight: 700; margin-top: 4px; display: block;">🔒 Manager Only</span>` 
-                : (isOutOfStock 
-                    ? `<span style="font-size: 0.72rem; color: #ef4444; font-weight: 700; margin-top: 4px; display: block;">⚠️ Out of Stock</span>` 
-                    : stockStatusHTML);
+            let subText = isOutOfStock 
+                ? `<span style="font-size: 0.72rem; color: #ef4444; font-weight: 700; margin-top: 4px; display: block;">⚠️ Out of Stock</span>` 
+                : stockStatusHTML;
 
             row.innerHTML = `
                 <div class="store-item-main">
                     <div class="store-item-icon">${iconSVG}</div>
                     <div class="store-item-copy">
-                        <span class="store-item-name">${item.display || item.name}</span>
+                        <span class="store-item-name">${escapeHtml(item.display || item.name)}</span>
                         ${subText}
                     </div>
                 </div>
@@ -254,14 +248,24 @@ export function renderAppUI() {
             container.appendChild(row);
         });
 
-        // After rendering, hide any category group that ended up empty (e.g., Free Actions for non‑manager users)
+        // After rendering, hide any category group whose containers all ended up empty and sync its pill
         document.querySelectorAll('.store-cat-group').forEach(group => {
-            const container = group.querySelector('[id^="container-"]');
-            if (container && container.childElementCount === 0) {
-                // Keep the group hidden; optionally show a placeholder if desired
+            const containers = Array.from(group.querySelectorAll('[id^="container-"]'));
+            const totalChildren = containers.reduce((sum, c) => sum + c.childElementCount, 0);
+            const pill = document.querySelector(`#store-pills-container .store-pill[onclick*="'${group.id}'"]`);
+            if (totalChildren === 0) {
                 group.style.display = 'none';
+                if (pill) pill.style.display = 'none';
+            } else {
+                if (pill) pill.style.display = '';
             }
         });
+
+        const activePill = document.querySelector('#store-pills-container .store-pill.active');
+        if (activePill && activePill.style.display === 'none') {
+            const firstVisiblePill = Array.from(document.querySelectorAll('#store-pills-container .store-pill')).find(p => p.style.display !== 'none');
+            if (firstVisiblePill) firstVisiblePill.click();
+        }
     } catch (e) {
         console.error("Critical error in renderAppUI:", e);
         if (typeof window.showAppAlert === 'function') {

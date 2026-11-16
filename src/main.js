@@ -256,5 +256,10 @@ document.addEventListener('keydown', (event) => {
     }
 });
 
-document.addEventListener('DOMContentLoaded', setupBottomSheetDrag);
+if (typeof document !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', () => {
+        setupBottomSheetDrag();
+        initCustomDropdowns();
+    });
+}
 initNetworkStatus();

@@ -79,35 +79,37 @@
 }
 
 /* --- 2. GLOBAL RESET & NATIVE PHYSICS --- */
-* { 
-    box-sizing: border-box; 
-    margin: 0; 
-    padding: 0; 
-    font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-    -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-}
+@layer base {
+    * { 
+        box-sizing: border-box; 
+        margin: 0; 
+        padding: 0; 
+        font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
 
-html, body { 
-    background-color: var(--bg-color); 
-    color: var(--text-primary); 
-    width: 100%;
-    display: flex; 
-    flex-direction: column; 
-    height: 100vh; 
-    height: 100dvh; 
-    overflow: hidden;
-    overscroll-behavior-y: none; /* Prevents pull-to-refresh */
-    user-select: none;
-    -webkit-user-select: none;
-    -webkit-touch-callout: none; /* Disables long-press popup on mobile */
-}
+    html, body { 
+        background-color: var(--bg-color); 
+        color: var(--text-primary); 
+        width: 100%;
+        display: flex; 
+        flex-direction: column; 
+        height: 100vh; 
+        height: 100dvh; 
+        overflow: hidden;
+        overscroll-behavior-y: none; /* Prevents pull-to-refresh */
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none; /* Disables long-press popup on mobile */
+    }
 
-input, textarea, select {
-    user-select: auto;
-    -webkit-user-select: auto;
+    input, textarea, select {
+        user-select: auto;
+        -webkit-user-select: auto;
+    }
 }
 
 /* Accessibility: Keyboard Focus Indicators */
@@ -175,8 +177,17 @@ header {
 .header-title { font-size: 1.25rem; font-weight: 600; }
 .settings-btn { background: none; border: none; font-size: 1.5rem; color: var(--text-secondary); cursor: pointer; }
 
+#app-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
 .tab-content { 
     flex: 1; 
+    min-height: 0;
     overflow-y: auto; 
     padding: 16px; 
     display: none; 
@@ -1173,6 +1184,9 @@ header {
     padding: 0;
 }
 .fullscreen-modal-sheet::before {
+    display: none !important;
+}
+#modal-close-desk .modal-content::before {
     display: none !important;
 }
 

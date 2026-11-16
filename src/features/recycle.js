@@ -2,9 +2,10 @@
 import { collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, serverTimestamp, getDocs } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
-import { showAppAlert, showFlashMessage, openModal, closeModal, refreshCustomDropdowns } from '../utils/ui-helpers.js';
+import { showAppAlert, showFlashMessage, openModal, closeModal, refreshCustomDropdowns, setButtonLoading } from '../utils/ui-helpers.js';
 import { addTransactionToCloud } from './transactions.js';
-import { getStrictDate, generateReceiptNo, formatToGBDate } from '../utils/helpers.js';
+import { getStrictDate, generateReceiptNo, formatToGBDate, formatLocalISODate, escapeHtml, escapeJsSingleQuote } from '../utils/helpers.js';
+import { passStockFirewall } from './inventory.js';
 
 let recycleSimsList = [];
 let activeFilterStatus = 'all';
@@ -14,6 +15,8 @@ let cachedAgentsList = [];
 let recycleContactTimeWasTouched = false;
 let initialContactTimeValue = '';
 let initialContactAgentValue = '';
+let isSavingRecycle = false;
+let recycleCheckoutFromStatusUpdate = false;
 
 function getLocalDateTimeString(d = new Date()) {
     const pad = n => String(n).padStart(2, '0');
@@ -35,7 +38,7 @@ async function populateAgentSelect(preselectedName = '') {
             cachedAgentsList = [];
             usersSnap.forEach(docSnap => {
                 const u = docSnap.data();
-                const name = u.nickname || u.displayName || u.email || 'Agent';
+                const name = u.nickname || u.displayName || (u.email && !u.email.endsWith('@amolnama.internal') ? u.email : '') || 'Agent';
                 if (!cachedAgentsList.includes(name)) {
                     cachedAgentsList.push(name);
                 }
@@ -60,10 +63,11 @@ async function populateAgentSelect(preselectedName = '') {
         optionsHTML += `<option value="" selected>-- Not contacted yet --</option>`;
     }
     cachedAgentsList.forEach(agent => {
-        optionsHTML += `<option value="${agent}" ${agent === preselectedName ? 'selected' : ''}>${agent}</option>`;
+        optionsHTML += `<option value="${escapeHtml(agent)}" ${agent === preselectedName ? 'selected' : ''}>${escapeHtml(agent)}</option>`;
     });
 
     agentSelect.innerHTML = optionsHTML;
+    refreshCustomDropdowns(agentSelect);
 }
 
 // Helper to format timestamps to readable DD Mon YYYY, hh:mm AM/PM
@@ -89,7 +93,10 @@ function formatDate(dateStr) {
 function getDaysDifference(dateStr) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const target = new Date(dateStr);
+    const parts = String(dateStr || '').split('-');
+    const target = parts.length === 3
+        ? new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+        : new Date(dateStr);
     target.setHours(0, 0, 0, 0);
     const diffTime = target - today;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -301,27 +308,27 @@ export function renderRecycleList() {
             dateMsg = '';
         }
 
-        let detailNotes = sim.notes ? `<div class="rate-note-banner" style="margin-top: 4px; border-left-color: ${dotColor};">💬 ${sim.notes}</div>` : '';
+        let detailNotes = sim.notes ? `<div class="rate-note-banner" style="margin-top: 4px; border-left-color: ${dotColor};">💬 ${escapeHtml(sim.notes)}</div>` : '';
         
         let callButton = '';
         if (sim.alternativeNumber) {
             const pulseClass = simNeedsCall(sim) ? ' new-pulse' : '';
             callButton = `
-                <a href="tel:${sim.alternativeNumber}" onclick="event.stopPropagation();" class="recycle-call-action-btn${pulseClass}" title="Call Customer">
+                <a href="tel:${escapeHtml(sim.alternativeNumber)}" onclick="event.stopPropagation();" class="recycle-call-action-btn${pulseClass}" title="Call Customer">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                 </a>
             `;
         }
 
         html += `
-            <div class="recycle-card" onclick="Amolnama.openUpdateRecycleStatusModal('${sim.id}')">
+            <div class="recycle-card" onclick="Amolnama.openUpdateRecycleStatusModal('${escapeJsSingleQuote(sim.id)}')">
                 <!-- Card Header -->
                 <div class="recycle-card-header">
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <div class="hub-menu-icon-wrapper" style="width: 34px; height: 34px; border-radius: 10px; background: ${dotColor}0c; color: ${dotColor}; display: flex; align-items: center; justify-content: center;">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
                         </div>
-                        <span class="recycle-phone-num">${sim.recycledNumber}</span>
+                        <span class="recycle-phone-num">${escapeHtml(sim.recycledNumber)}</span>
                     </div>
                     ${statusBadge}
                 </div>
@@ -330,7 +337,7 @@ export function renderRecycleList() {
                 <div class="recycle-contact-strip">
                     <div style="display: flex; flex-direction: column; gap: 2px;">
                         <span class="recycle-grid-label">Alternative Contact</span>
-                        <span class="recycle-phone-alt">${sim.alternativeNumber || 'None provided'}</span>
+                        <span class="recycle-phone-alt">${escapeHtml(sim.alternativeNumber || 'None provided')}</span>
                     </div>
                     ${callButton}
                 </div>
@@ -339,19 +346,19 @@ export function renderRecycleList() {
                 <div class="recycle-card-grid">
                     <div class="recycle-grid-item">
                         <span class="recycle-grid-label">Registered By</span>
-                        <span class="recycle-grid-val">${sim.appliedBy || 'System'}</span>
+                        <span class="recycle-grid-val">${escapeHtml(sim.appliedBy || 'System')}</span>
                         <span class="recycle-grid-subval">${formatTimestamp(sim.appliedAt) || 'Initial record'}</span>
                     </div>
                     ${sim.status === 'completed' ? `
                     <div class="recycle-grid-item">
                         <span class="recycle-grid-label">Sold By</span>
-                        <span class="recycle-grid-val">${sim.soldBy || sim.completedBy || sim.updatedBy || 'Agent'}</span>
+                        <span class="recycle-grid-val">${escapeHtml(sim.soldBy || sim.completedBy || sim.updatedBy || 'Agent')}</span>
                         <span class="recycle-grid-subval">${sim.completedAt ? formatTimestamp(sim.completedAt) : (formatTimestamp(sim.updatedAt) || 'Completed')}</span>
                     </div>
                     ` : `
                     <div class="recycle-grid-item">
                         <span class="recycle-grid-label">Last Contacted</span>
-                        <span class="recycle-grid-val">${sim.lastContactedBy || (getLastContactTime(sim) ? (sim.updatedBy || 'Agent') : 'Not contacted yet')}</span>
+                        <span class="recycle-grid-val">${escapeHtml(sim.lastContactedBy || (getLastContactTime(sim) ? (sim.updatedBy || 'Agent') : 'Not contacted yet'))}</span>
                         <span class="recycle-grid-subval">${getLastContactTime(sim) ? formatTimestamp(getLastContactTime(sim)) : 'Pending first follow-up'}</span>
                     </div>
                     `}
@@ -399,7 +406,7 @@ export function openAddRecycleModal() {
     if (dateInput) {
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
-        dateInput.value = tomorrow.toISOString().split('T')[0];
+        dateInput.value = formatLocalISODate(tomorrow);
     }
     onAddRecycleStatusChange();
     openModal('modal-add-recycle-sim');
@@ -414,6 +421,8 @@ export function onAddRecycleStatusChange() {
 }
 
 export async function submitRecycleApplication() {
+    if (isSavingRecycle) return;
+
     const numberEl = document.getElementById('add-recycle-number');
     const altEl = document.getElementById('add-recycle-alt');
     const notesEl = document.getElementById('add-recycle-notes');
@@ -467,6 +476,10 @@ export async function submitRecycleApplication() {
         }]
     };
 
+    const saveBtn = document.querySelector('#modal-add-recycle-sim .btn-primary-full');
+    isSavingRecycle = true;
+    setButtonLoading(saveBtn, true, 'Saving...');
+
     try {
         await addDoc(collection(db, 'recycle_sims'), docData);
         closeModal('modal-add-recycle-sim');
@@ -474,6 +487,9 @@ export async function submitRecycleApplication() {
     } catch (e) {
         console.error("Error creating recycle SIM record:", e);
         showAppAlert("Database Error", "Failed to save recycle entry. Check rules/connection.");
+    } finally {
+        isSavingRecycle = false;
+        setButtonLoading(saveBtn, false);
     }
 }
 
@@ -521,7 +537,7 @@ export function openUpdateRecycleStatusModal(id) {
         // Default tomorrow
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
-        dateInput.value = tomorrow.toISOString().split('T')[0];
+        dateInput.value = formatLocalISODate(tomorrow);
     }
 
     onRecycleStatusChangeSelect();
@@ -660,7 +676,7 @@ export async function saveRecycleStatusUpdate() {
         updatedBy: currentAgentName,
         updatedById: AppState.currentUser?.uid || '',
         updatedAt: serverTimestamp(),
-        notes: note || sim.notes || '',
+        notes: note,
         history: [...(sim.history || []), historyItem]
     };
 
@@ -733,9 +749,12 @@ export async function deleteRecycleSimEntry() {
 
 // Store Checkout Trigger
 export function triggerStoreRecycleSale() {
-    // When click Recycle SIM in Store catalog:
-    // Open select modal
+    recycleCheckoutFromStatusUpdate = false;
+    const statusNoteEl = document.getElementById('status-update-note');
+    if (statusNoteEl) statusNoteEl.value = '';
     populateStoreRecycleSaleOptions();
+    const paySelect = document.getElementById('recycle-sale-payment');
+    if (paySelect) refreshCustomDropdowns(paySelect);
     openModal('modal-select-recycle-sim');
 }
 
@@ -750,13 +769,14 @@ export function populateStoreRecycleSaleOptions(extraSimId = null) {
 
     let html = '';
     eligibleSims.forEach(sim => {
-        html += `<option value="${sim.id}">${sim.recycledNumber}</option>`;
+        html += `<option value="${escapeHtml(sim.id)}">${escapeHtml(sim.recycledNumber)}</option>`;
     });
 
     // Add direct untracked option
     html += `<option value="untracked">-- Untracked/Direct Sale --</option>`;
 
     select.innerHTML = html;
+    refreshCustomDropdowns(select);
     onSelectRecycleSaleNumberChange();
 }
 
@@ -772,17 +792,21 @@ function openRecycleSaleCheckoutForSIM(simId) {
     const sim = recycleSimsList.find(s => s.id === simId);
     if (!sim) return;
 
+    recycleCheckoutFromStatusUpdate = true;
     populateStoreRecycleSaleOptions(simId);
 
     const select = document.getElementById('recycle-select-sale-number');
     if (select) {
         select.value = simId;
+        refreshCustomDropdowns([select, document.getElementById('recycle-sale-payment')]);
         onSelectRecycleSaleNumberChange();
     }
     openModal('modal-select-recycle-sim');
 }
 
 export async function confirmRecycleSimSale() {
+    if (isSavingRecycle) return;
+
     const selectVal = document.getElementById('recycle-select-sale-number').value;
     const payment = document.getElementById('recycle-sale-payment').value;
     
@@ -821,7 +845,7 @@ export async function confirmRecycleSimSale() {
     }
 
     let customNote = '';
-    const statusNoteEl = document.getElementById('status-update-note');
+    const statusNoteEl = recycleCheckoutFromStatusUpdate ? document.getElementById('status-update-note') : null;
     if (statusNoteEl && statusNoteEl.value.trim()) {
         customNote = statusNoteEl.value.trim();
     }
@@ -830,24 +854,70 @@ export async function confirmRecycleSimSale() {
     const price = catalogItem.price || 400;
     const note = `Recycle SIM: ${finalRecycleNumber}` + (customNote ? ` (${customNote})` : '');
 
+    if (!passStockFirewall(catalogItem.name, 1)) return;
+
+    isSavingRecycle = true;
+
     // Prompt onboarding before saving
     if (typeof window.Amolnama?.promptSimOnboarding === 'function') {
         window.Amolnama.promptSimOnboarding(catalogItem.name, async (firstCall, appReg) => {
             if (firstCall === null) {
+                isSavingRecycle = false;
                 showFlashMessage("Sale aborted.");
                 return;
             }
 
-            // 1. Log transaction in cloud with onboarding and recycle metadata
-            addTransactionToCloudWithRecycleDetails('Item', catalogItem.name, price, 1, payment, note, { firstCall, appReg }, simId, finalRecycleNumber);
+            try {
+                // 1. Log transaction in cloud with onboarding and recycle metadata
+                addTransactionToCloudWithRecycleDetails('Item', catalogItem.name, price, 1, payment, note, { firstCall, appReg }, simId, finalRecycleNumber);
 
-            // 2. Update status of the tracking SIM to Completed
+                // 2. Update status of the tracking SIM to Completed
+                if (simId) {
+                    const sim = recycleSimsList.find(s => s.id === simId);
+                    const timestamp = new Date().toISOString();
+                    const agentName = AppState.userNickname || AppState.userDisplayName || 'Agent';
+
+                    const historyItem = {
+                        status: 'completed',
+                        timestamp: timestamp,
+                        by: agentName,
+                        note: customNote ? `Completed: ${customNote}` : 'Completed via direct Store Checkout sale.'
+                    };
+
+                    const updateData = {
+                        status: 'completed',
+                        previousStatus: sim ? (sim.status || 'arrived') : 'arrived',
+                        completedAt: serverTimestamp(),
+                        completedBy: agentName,
+                        soldBy: agentName,
+                        updatedBy: agentName,
+                        updatedById: AppState.currentUser?.uid || '',
+                        updatedAt: serverTimestamp(),
+                        history: [...((sim && sim.history) || []), historyItem]
+                    };
+
+                    try {
+                        await updateDoc(doc(db, 'recycle_sims', simId), updateData);
+                    } catch (e) {
+                        console.error("Error updating recycle status to completed:", e);
+                    }
+                }
+
+                recycleCheckoutFromStatusUpdate = false;
+                closeModal('modal-select-recycle-sim');
+                showFlashMessage(`Logged Recycle SIM (${finalRecycleNumber}) Sale!`);
+            } finally {
+                isSavingRecycle = false;
+            }
+        });
+    } else {
+        // Fallback
+        try {
+            addTransactionToCloudWithRecycleDetails('Item', catalogItem.name, price, 1, payment, note, { firstCall: false, appReg: false }, simId, finalRecycleNumber);
             if (simId) {
                 const sim = recycleSimsList.find(s => s.id === simId);
                 const timestamp = new Date().toISOString();
-                
-                const agentSelect = document.getElementById('status-update-agent');
-                const agentName = agentSelect ? agentSelect.value : (AppState.userNickname || AppState.userDisplayName || 'Agent');
+                const agentName = AppState.userNickname || AppState.userDisplayName || 'Agent';
 
                 const historyItem = {
                     status: 'completed',
@@ -874,47 +944,12 @@ export async function confirmRecycleSimSale() {
                     console.error("Error updating recycle status to completed:", e);
                 }
             }
-
+            recycleCheckoutFromStatusUpdate = false;
             closeModal('modal-select-recycle-sim');
             showFlashMessage(`Logged Recycle SIM (${finalRecycleNumber}) Sale!`);
-        });
-    } else {
-        // Fallback
-        addTransactionToCloudWithRecycleDetails('Item', catalogItem.name, price, 1, payment, note, { firstCall: false, appReg: false }, simId, finalRecycleNumber);
-        if (simId) {
-            const sim = recycleSimsList.find(s => s.id === simId);
-            const timestamp = new Date().toISOString();
-            
-            const agentSelect = document.getElementById('status-update-agent');
-            const agentName = agentSelect ? agentSelect.value : (AppState.userNickname || AppState.userDisplayName || 'Agent');
-
-            const historyItem = {
-                status: 'completed',
-                timestamp: timestamp,
-                by: agentName,
-                note: customNote ? `Completed: ${customNote}` : 'Completed via direct Store Checkout sale.'
-            };
-
-            const updateData = {
-                status: 'completed',
-                previousStatus: sim ? (sim.status || 'arrived') : 'arrived',
-                completedAt: serverTimestamp(),
-                completedBy: agentName,
-                soldBy: agentName,
-                updatedBy: agentName,
-                updatedById: AppState.currentUser?.uid || '',
-                updatedAt: serverTimestamp(),
-                history: [...((sim && sim.history) || []), historyItem]
-            };
-
-            try {
-                await updateDoc(doc(db, 'recycle_sims', simId), updateData);
-            } catch (e) {
-                console.error("Error updating recycle status to completed:", e);
-            }
+        } finally {
+            isSavingRecycle = false;
         }
-        closeModal('modal-select-recycle-sim');
-        showFlashMessage(`Logged Recycle SIM (${finalRecycleNumber}) Sale!`);
     }
 }
 

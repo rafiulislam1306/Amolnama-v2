@@ -69,7 +69,7 @@
                     </div>
                     <div>
                         <label class="admin-label">Security PIN</label>
-                        <input type="password" id="auth-pin-input" class="pos-input" style="padding: 12px; font-size: 1.2rem; letter-spacing: 3px; border-radius: 12px;" placeholder="••••" inputmode="numeric" maxlength="8" autocomplete="current-password" onkeydown="if(event.key==='Enter') Amolnama.signInWithPhoneAndPin()">
+                        <input type="password" id="auth-pin-input" class="pos-input" style="padding: 12px; font-size: 1.2rem; letter-spacing: 3px; border-radius: 12px;" placeholder="••••••" inputmode="numeric" maxlength="8" autocomplete="current-password" onkeydown="if(event.key==='Enter') Amolnama.signInWithPhoneAndPin()">
                     </div>
                     <button id="btn-phone-signin" class="btn-primary-full" style="height: 48px; border-radius: 12px; font-weight: 700; background: #10b981;" onclick="Amolnama.signInWithPhoneAndPin()">SIGN IN WITH PIN</button>
                 </div>
@@ -93,7 +93,8 @@
         </div>
     </header>
 
-    <main id="tab-ers" class="tab-content active">
+    <main id="app-main">
+    <section id="tab-ers" class="tab-content active">
         <div class="ers-container">
             <div class="ers-display-wrapper">
                 <div class="ers-currency">Tk</div>
@@ -124,9 +125,9 @@
                 </button>
             </div>
         </div>
-    </main>
+    </section>
 
-    <main id="tab-store" class="tab-content">
+    <section id="tab-store" class="tab-content">
         <!-- 1. Sticky Store Controls -->
         <div class="glass-panel" style="position: sticky; top: -16px; z-index: 50; border-bottom: 1px solid var(--border-color); padding: 16px 16px 4px 16px; margin: -16px -16px 16px -16px; box-shadow: 0 4px 16px rgba(0,0,0,0.05);">
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; width: 100%;">
@@ -175,9 +176,9 @@
                 <div style="font-size: 0.8rem; opacity: 0.8;">Double check your spelling or search other keywords.</div>
             </div>
         </div>
-    </main>
+    </section>
 
-    <main id="tab-desk" class="tab-content">
+    <section id="tab-desk" class="tab-content">
         
                 <div id="desk-peek-header" style="display: none; background: var(--info-bg); border: 1px solid var(--info-border); border-radius: 12px; padding: 12px; margin-bottom: 16px; align-items: center; justify-content: space-between;">
             <div style="display: flex; align-items: center; gap: 8px; color: var(--info-text); font-weight: 700;">
@@ -258,9 +259,9 @@
             <div id="desk-history-log" style="display: flex; flex-direction: column; margin-bottom: 24px; padding: 0;">
             </div>
         </div>
-    </main>
+    </section>
 
-    <main id="tab-report" class="tab-content">
+    <section id="tab-report" class="tab-content">
         
         <div class="report-col-left">
             <!-- Redesigned Adaptive Profile/Center Report Card Container -->
@@ -339,9 +340,9 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg> View Trash
             </button>
         </div>
-    </main>
+    </section>
 
-    <main id="tab-floor" class="tab-content" style="background-color: var(--bg-color);">
+    <section id="tab-floor" class="tab-content" style="background-color: var(--bg-color);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <h3 style="color: var(--text-primary); margin: 0; font-size: 1.1rem;">Live Floor Map</h3>
             <button class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; height: auto; gap: 6px;" onclick="renderLiveFloorTab()">
@@ -359,6 +360,7 @@
         <div id="live-floor-container" style="display: flex; flex-direction: column; gap: 16px;">
             <div class="placeholder-text">Loading floor data...</div>
         </div>
+    </section>
     </main>
 
     <!-- USER & ROLE MANAGEMENT MODAL -->
@@ -1003,10 +1005,6 @@
         </div>
     </div>
 
-    <style>
-        #modal-close-desk .modal-content::before { display: none !important; }
-    </style>
-
     <!-- CLOSE DESK MODAL -->
     <div id="modal-close-desk" class="modal-overlay" style="z-index: 9500; background-color: var(--bg-color);">
         <div class="modal-content" id="close-desk-content" style="height: 100dvh; max-height: 100dvh; border-radius: 0; padding: 0; display: flex; flex-direction: column; background-color: var(--bg-color);">
@@ -1421,7 +1419,7 @@
                 <button class="hub-close-btn" onclick="closeModal('modal-link-phone')">✕</button>
             </div>
 
-            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px;">Set your mobile number and a 4 to 6-digit PIN to instantly sign into this exact account anytime without SMS delays.</p>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px;">Set your mobile number and a 6 to 8-digit PIN to instantly sign into this exact account anytime without SMS delays.</p>
 
             <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px;">
                 <div>
@@ -1430,12 +1428,12 @@
                     <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; display: block;">Enter your 11-digit mobile number</span>
                 </div>
                 <div>
-                    <label class="admin-label">Create Security PIN (4-6 Digits) *</label>
-                    <input type="password" id="link-pin-input" class="pos-input" style="padding: 12px; border-radius: 12px; font-size: 1.2rem; letter-spacing: 3px;" placeholder="••••" inputmode="numeric" maxlength="8" autocomplete="new-password" onkeydown="if(event.key==='Enter') Amolnama.linkPhoneAndPin()">
+                    <label class="admin-label">Create Security PIN (6-8 Digits) *</label>
+                    <input type="password" id="link-pin-input" class="pos-input" style="padding: 12px; border-radius: 12px; font-size: 1.2rem; letter-spacing: 3px;" placeholder="••••••" inputmode="numeric" maxlength="8" autocomplete="new-password" onkeydown="if(event.key==='Enter') Amolnama.linkPhoneAndPin()">
                 </div>
                 <div>
                     <label class="admin-label">Confirm PIN *</label>
-                    <input type="password" id="link-pin-confirm" class="pos-input" style="padding: 12px; border-radius: 12px; font-size: 1.2rem; letter-spacing: 3px;" placeholder="••••" inputmode="numeric" maxlength="8" autocomplete="new-password" onkeydown="if(event.key==='Enter') Amolnama.linkPhoneAndPin()">
+                    <input type="password" id="link-pin-confirm" class="pos-input" style="padding: 12px; border-radius: 12px; font-size: 1.2rem; letter-spacing: 3px;" placeholder="••••••" inputmode="numeric" maxlength="8" autocomplete="new-password" onkeydown="if(event.key==='Enter') Amolnama.linkPhoneAndPin()">
                 </div>
                 <button id="btn-save-phone-pin" class="btn-primary-full" style="height: 48px; border-radius: 14px; font-weight: 700; background: #10b981;" onclick="Amolnama.linkPhoneAndPin()">SAVE & LINK TO ACCOUNT</button>
             </div>

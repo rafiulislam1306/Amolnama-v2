@@ -138,7 +138,10 @@ export function showTooltip(element, text) {
 //    NETWORK STATUS ENGINE
 // ==========================================
 export function initNetworkStatus() {
+    if (typeof document === 'undefined' || !document.body) return;
+
     function updateNetworkStatus() {
+        if (typeof document === 'undefined' || !document.body) return;
         const offlineTxs = JSON.parse(localStorage.getItem('amolnama_offline_txs') || '[]');
         const offlineSessions = JSON.parse(localStorage.getItem('amolnama_offline_sessions') || '[]');
         const count = offlineTxs.length + offlineSessions.length;
@@ -162,8 +165,6 @@ export function initNetworkStatus() {
             document.body.appendChild(banner);
         }
 
-        const appContainer = document.querySelector('.app-container');
-
         if (!navigator.onLine) {
             banner.style.background = count > 0 ? '#f59e0b' : '#ef4444';
             banner.style.boxShadow = count > 0 ? '0 4px 12px rgba(245, 158, 11, 0.3)' : '0 4px 12px rgba(239, 68, 68, 0.3)';
@@ -176,7 +177,7 @@ export function initNetworkStatus() {
                    </div>`;
             
             banner.style.display = 'flex';
-            if (appContainer) appContainer.style.marginTop = '45px';
+            document.body.style.paddingTop = '44px';
         } else if (count > 0) {
             banner.style.background = '#0ea5e9';
             banner.style.boxShadow = '0 4px 12px rgba(14, 165, 233, 0.3)';
@@ -191,7 +192,7 @@ export function initNetworkStatus() {
                 </button>
             `;
             banner.style.display = 'flex';
-            if (appContainer) appContainer.style.marginTop = '45px';
+            document.body.style.paddingTop = '44px';
 
             // Auto-trigger sync on reconnection
             if (window.syncOfflineTransactions) {
@@ -199,7 +200,7 @@ export function initNetworkStatus() {
             }
         } else {
             banner.style.display = 'none';
-            if (appContainer) appContainer.style.marginTop = '0';
+            document.body.style.paddingTop = '';
         }
     }
 

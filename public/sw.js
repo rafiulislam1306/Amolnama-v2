@@ -1,4 +1,4 @@
-const CACHE_NAME = 'amolnama-v2-cache-v3';
+const CACHE_NAME = 'amolnama-v2-cache-__BUILD_HASH__';
 
 const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, '');
 const withBase = (path) => `${BASE_PATH}${path}`;
@@ -7,6 +7,7 @@ const withBase = (path) => `${BASE_PATH}${path}`;
 const CORE_ASSETS = [
   withBase('/'),
   withBase('/index.html'),
+  withBase('/manifest.json'),
   withBase('/favicon.svg'),
   withBase('/icons.svg'),
   withBase('/icon-192.png'),
@@ -20,8 +21,7 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('SW: Pre-caching core assets');
-        // Use Promise.all to ensure atomic caching (fails if any core asset fails)
-        return Promise.all(CORE_ASSETS.map(url => cache.add(url)));
+        return Promise.allSettled(CORE_ASSETS.map(url => cache.add(url)));
       })
   );
 });
@@ -50,11 +50,13 @@ self.addEventListener('fetch', event => {
   // Bypass non-GET requests (Service Workers cannot cache POST/PUT/DELETE)
   if (event.request.method !== 'GET') return;
 
-  // Bypass caching for ALL Firebase/Google APIs and browser extensions
+  // Bypass non-HTTP(S) schemes (chrome-extension://, data:, blob:, etc.)
+  if (!event.request.url.startsWith('http')) return;
+
+  // Bypass caching for ALL Firebase/Google APIs
   if (event.request.url.includes('googleapis.com') || 
       event.request.url.includes('identitytoolkit') ||
-      event.request.url.includes('firebase') ||
-      event.request.url.startsWith('chrome-extension')) {
+      event.request.url.includes('firebase')) {
       return;
   }
 
@@ -85,7 +87,7 @@ self.addEventListener('fetch', event => {
             
             // SPA Navigation Fallback: If it's a page navigation, serve index.html
             if (event.request.mode === 'navigate') {
-                return caches.match(withBase('/index.html'));
+                return caches.match(withBase('/index.html')).then(res => res || caches.match(withBase('/')));
             }
 
             // If it's a missing image or API call, safely return an offline status

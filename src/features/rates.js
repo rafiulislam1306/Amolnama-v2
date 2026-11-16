@@ -2,7 +2,8 @@
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
-import { showAppAlert, showFlashMessage, openModal, closeModal, executeAlertConfirm } from '../utils/ui-helpers.js';
+import { showAppAlert, showFlashMessage, openModal, closeModal, refreshCustomDropdowns, setButtonLoading } from '../utils/ui-helpers.js';
+import { escapeHtml } from '../utils/helpers.js';
 
 // Default static fallback packages (64 rows grouped under 15 packages)
 const DEFAULT_RATES_DATABASE = [
@@ -714,6 +715,7 @@ const DEFAULT_RATES_DATABASE = [
 
 let activeRatesList = [];
 let hasInitialized = false;
+let isSavingPackage = false;
 
 // Initialize rates by pulling from Firestore or fallback
 async function loadRatesFromCloud() {
@@ -764,6 +766,7 @@ export async function openCallRates() {
     const operatorSelect = document.getElementById('rates-operator-select');
     if (operatorSelect) {
         operatorSelect.value = 'GP';
+        refreshCustomDropdowns(operatorSelect);
     }
     
     await loadRatesFromCloud();
@@ -867,7 +870,7 @@ export function renderRatesList() {
                 noteHtml = `
                     <div class="rate-note-banner" style="margin-top: 6px;">
                         <span>💡</span>
-                        <div style="flex: 1;">${rate.note}</div>
+                        <div style="flex: 1;">${escapeHtml(rate.note)}</div>
                     </div>
                 `;
             }
@@ -876,9 +879,9 @@ export function renderRatesList() {
                 <div class="rate-row-item">
                     <div class="rate-info-pill">
                         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                            <span class="rate-type-badge ${badgeClass}">${displayType}${hasFnF}</span>
+                            <span class="rate-type-badge ${badgeClass}">${escapeHtml(displayType)}${escapeHtml(hasFnF)}</span>
                         </div>
-                        <span class="rate-info-subtext" style="margin-top: 4px; display: block;">${detailStr}</span>
+                        <span class="rate-info-subtext" style="margin-top: 4px; display: block;">${escapeHtml(detailStr)}</span>
                         ${noteHtml}
                     </div>
                     <div class="rate-price-pill">
@@ -892,7 +895,7 @@ export function renderRatesList() {
         card.innerHTML = `
             <div class="rates-card-header">
                 <h4 class="rates-card-title">
-                    <span>📱</span> ${packageName}
+                    <span>📱</span> ${escapeHtml(packageName)}
                 </h4>
                 <span class="rates-badge-count">
                     ${rates.length} rates
@@ -956,7 +959,7 @@ export function renderManageRatesDashboard() {
         
         row.innerHTML = `
             <div class="list-item-content">
-                <span class="list-item-title" style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary);">${pkgName}</span>
+                <span class="list-item-title" style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary);">${escapeHtml(pkgName)}</span>
                 <span style="font-size: 0.75rem; color: var(--text-secondary);">${count} Call Rate/SMS entries defined</span>
             </div>
             <div style="display: flex; align-items: center; gap: 4px;">
@@ -1019,39 +1022,39 @@ export function addRateRow(rateData = null) {
                     <option value="SMS" ${callType === 'SMS' ? 'selected' : ''}>SMS</option>
                     <option value="Custom" ${!['GP-Any net', 'SMS'].includes(callType) && !callType.includes('FnF') && callType !== '' ? 'selected' : ''}>Custom (Define Below)</option>
                 </select>
-                <input type="text" class="pos-input edit-rate-custom-calltype" style="padding: 8px 12px; font-size: 0.85rem; border-radius: 10px; margin-top: 6px; display: ${(!['GP-Any net', 'SMS'].includes(callType) && !callType.includes('FnF') && callType !== '') ? 'block' : 'none'};" placeholder="e.g. SFnF (GP- Any net)" value="${callType}">
+                <input type="text" class="pos-input edit-rate-custom-calltype" style="padding: 8px 12px; font-size: 0.85rem; border-radius: 10px; margin-top: 6px; display: ${(!['GP-Any net', 'SMS'].includes(callType) && !callType.includes('FnF') && callType !== '') ? 'block' : 'none'};" placeholder="e.g. SFnF (GP- Any net)" value="${escapeHtml(callType)}">
             </div>
             <div>
                 <label class="admin-label" style="font-size: 0.72rem; margin-bottom: 4px;">FnF Count</label>
-                <input type="number" class="pos-input edit-rate-fnf" style="padding: 8px 12px; font-size: 0.85rem; border-radius: 10px;" value="${fnfCount}" min="0">
+                <input type="number" class="pos-input edit-rate-fnf" style="padding: 8px 12px; font-size: 0.85rem; border-radius: 10px;" value="${escapeHtml(fnfCount)}" min="0">
             </div>
         </div>
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
             <div>
                 <label class="admin-label" style="font-size: 0.72rem; margin-bottom: 4px;">Base Tariff (Excl. Tax) *</label>
-                <input type="number" step="0.01" class="pos-input edit-rate-tariff-base" style="padding: 8px 12px; font-size: 0.85rem; border-radius: 10px;" placeholder="e.g. 1.50" value="${baseVal}" oninput="Amolnama.autoCalcRateTax(this)">
+                <input type="number" step="0.01" class="pos-input edit-rate-tariff-base" style="padding: 8px 12px; font-size: 0.85rem; border-radius: 10px;" placeholder="e.g. 1.50" value="${escapeHtml(baseVal)}" oninput="Amolnama.autoCalcRateTax(this)">
             </div>
             <div>
                 <label class="admin-label" style="font-size: 0.72rem; margin-bottom: 4px;">Tariff (Incl. Tax) *</label>
-                <input type="number" step="0.01" class="pos-input edit-rate-tariff-tax" style="padding: 8px 12px; font-size: 0.85rem; border-radius: 10px;" placeholder="e.g. 2.08" value="${taxVal}">
+                <input type="number" step="0.01" class="pos-input edit-rate-tariff-tax" style="padding: 8px 12px; font-size: 0.85rem; border-radius: 10px;" placeholder="e.g. 2.08" value="${escapeHtml(taxVal)}">
             </div>
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
             <div>
                 <label class="admin-label" style="font-size: 0.72rem; margin-bottom: 4px;">Pulse (Seconds / Char)</label>
-                <input type="text" class="pos-input edit-rate-pulse" style="padding: 8px 12px; font-size: 0.85rem; border-radius: 10px;" placeholder="e.g. 10 or 160 characters" value="${pulse}">
+                <input type="text" class="pos-input edit-rate-pulse" style="padding: 8px 12px; font-size: 0.85rem; border-radius: 10px;" placeholder="e.g. 10 or 160 characters" value="${escapeHtml(pulse)}">
             </div>
             <div>
                 <label class="admin-label" style="font-size: 0.72rem; margin-bottom: 4px;">Time Slot</label>
-                <input type="text" class="pos-input edit-rate-timeslot" style="padding: 8px 12px; font-size: 0.85rem; border-radius: 10px;" placeholder="e.g. 24 Hrs" value="${slot}">
+                <input type="text" class="pos-input edit-rate-timeslot" style="padding: 8px 12px; font-size: 0.85rem; border-radius: 10px;" placeholder="e.g. 24 Hrs" value="${escapeHtml(slot)}">
             </div>
         </div>
 
         <div>
             <label class="admin-label" style="font-size: 0.72rem; margin-bottom: 4px;">Rate Specific Note (Optional)</label>
-            <input type="text" class="pos-input edit-rate-note" style="padding: 8px 12px; font-size: 0.85rem; border-radius: 10px;" placeholder="e.g. Tariff changed from 10 Jan 2025" value="${note}">
+            <input type="text" class="pos-input edit-rate-note" style="padding: 8px 12px; font-size: 0.85rem; border-radius: 10px;" placeholder="e.g. Tariff changed from 10 Jan 2025" value="${escapeHtml(note)}">
         </div>
     `;
     
@@ -1113,6 +1116,7 @@ export function closePackageForm() {
 
 // Commit package data to local list and push update to Firestore
 export async function savePackageData() {
+    if (isSavingPackage) return;
     const nameInput = document.getElementById('edit-package-name');
     if (!nameInput) return;
     
@@ -1171,6 +1175,10 @@ export async function savePackageData() {
     // Add the new grouped rates
     activeRatesList.push(...newRates);
     
+    const saveBtn = document.querySelector('#modal-package-form button[onclick*="savePackageData"]');
+    isSavingPackage = true;
+    setButtonLoading(saveBtn, true, 'Saving...');
+
     try {
         // Save to Firestore settings
         await setDoc(doc(db, 'global', 'rates'), { packages: activeRatesList }, { merge: true });
@@ -1180,6 +1188,9 @@ export async function savePackageData() {
     } catch (err) {
         console.error("Error saving call rates to Firestore", err);
         showAppAlert("Database Error", "Could not save package rates to the database. Check connection.");
+    } finally {
+        isSavingPackage = false;
+        setButtonLoading(saveBtn, false);
     }
 }
 
@@ -1191,10 +1202,10 @@ export async function deletePackage() {
     const packageName = nameInput.value.trim();
     if (!packageName) return;
     
-    executeAlertConfirm(
+    showAppAlert(
         "Confirm Delete",
         `Are you sure you want to permanently delete the package "${packageName}" and all its call rates?`,
-        "Delete",
+        true,
         async () => {
             activeRatesList = activeRatesList.filter(item => item.packageName !== packageName);
             
@@ -1207,6 +1218,7 @@ export async function deletePackage() {
                 console.error("Error deleting call rates from Firestore", err);
                 showAppAlert("Database Error", "Could not delete package. Check connection.");
             }
-        }
+        },
+        "Delete"
     );
 }

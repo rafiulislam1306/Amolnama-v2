@@ -1,8 +1,9 @@
 // src/features/auth.js
 import { auth, db } from '../config/firebase.js';
-import { setPersistence, browserLocalPersistence, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword, updatePassword } from "firebase/auth";
+import { setPersistence, browserLocalPersistence, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword, updatePassword, updateEmail } from "firebase/auth";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/ui-helpers.js';
+import { formatUserIdentifier } from '../utils/helpers.js';
 import { AppState, resetAppState } from '../core/state.js';
 
 function getCleanPhoneNumber(phone) {
@@ -83,16 +84,17 @@ export async function signInWithPhoneAndPin() {
     const errorEl = document.getElementById('auth-error');
     if (errorEl) errorEl.innerText = '';
 
-    if (!rawPhone) {
-        showAppAlert("Missing Input", "Please enter your mobile phone number.");
+    const cleanPhone = rawPhone ? getCleanPhoneNumber(rawPhone) : '';
+    if (!cleanPhone || !/^01[3-9]\d{8}$/.test(cleanPhone)) {
+        showAppAlert("Invalid Phone", "Please enter a valid 11-digit mobile number (e.g. 017XXXXXXXX).");
         return;
     }
-    if (!pin || pin.length < 4) {
-        showAppAlert("Missing Input", "Please enter your 4 to 6-digit PIN.");
+    if (!pin || pin.length < 6 || pin.length > 8) {
+        showAppAlert("Invalid PIN", "Please enter your 6 to 8-digit PIN.");
         return;
     }
 
-    const virtualEmail = getPhoneVirtualEmail(rawPhone);
+    const virtualEmail = getPhoneVirtualEmail(cleanPhone);
     const signinBtn = document.getElementById('btn-phone-signin');
     signinBtn.disabled = true;
     signinBtn.innerText = "SIGNING IN...";
@@ -107,6 +109,8 @@ export async function signInWithPhoneAndPin() {
             msg = "No account found with this phone number & PIN. Please sign in with Google first and link your phone in Profile Hub.";
         } else if (err.code === 'auth/wrong-password') {
             msg = "Incorrect PIN. Please check your PIN and try again.";
+        } else if (err.code === 'auth/too-many-requests') {
+            msg = "Too many failed attempts. Please wait a few minutes before trying again.";
         } else if (err.code === 'auth/operation-not-allowed') {
             msg = "Email/Password sign-in provider is not enabled in Firebase Console. Please enable it under Authentication > Sign-in method.";
         }
@@ -157,12 +161,13 @@ export async function linkPhoneAndPin() {
     const errorEl = document.getElementById('link-phone-error');
     if (errorEl) errorEl.innerText = '';
 
-    if (!rawPhone || rawPhone.length < 11) {
-        showAppAlert("Invalid Phone", "Please enter a valid 11-digit mobile number.");
+    const cleanPhone = rawPhone ? getCleanPhoneNumber(rawPhone) : '';
+    if (!cleanPhone || !/^01[3-9]\d{8}$/.test(cleanPhone)) {
+        showAppAlert("Invalid Phone", "Please enter a valid 11-digit mobile number (e.g. 017XXXXXXXX).");
         return;
     }
-    if (!pin || pin.length < 4) {
-        showAppAlert("Invalid PIN", "Please enter a security PIN of at least 4 digits.");
+    if (!pin || pin.length < 6 || pin.length > 8) {
+        showAppAlert("Invalid PIN", "Please enter a security PIN of 6 to 8 digits.");
         return;
     }
     if (pin !== confirmPin) {
@@ -170,7 +175,6 @@ export async function linkPhoneAndPin() {
         return;
     }
 
-    const cleanPhone = getCleanPhoneNumber(rawPhone);
     const virtualEmail = getPhoneVirtualEmail(cleanPhone);
     const saveBtn = document.getElementById('btn-save-phone-pin');
     saveBtn.disabled = true;
@@ -180,14 +184,13 @@ export async function linkPhoneAndPin() {
         const credential = EmailAuthProvider.credential(virtualEmail, pin);
         
         // Check if user already has an email/password credential linked
-        const hasEmailProvider = auth.currentUser.providerData?.some(p => p.providerId === 'password');
+        const emailProvider = auth.currentUser.providerData?.find(p => p.providerId === 'password');
         
-        if (hasEmailProvider) {
-            try {
-                await updatePassword(auth.currentUser, pin);
-            } catch(passErr) {
-                await linkWithCredential(auth.currentUser, credential);
+        if (emailProvider) {
+            if (emailProvider.email && emailProvider.email !== virtualEmail) {
+                await updateEmail(auth.currentUser, virtualEmail);
             }
+            await updatePassword(auth.currentUser, pin);
         } else {
             await linkWithCredential(auth.currentUser, credential);
         }
@@ -201,6 +204,10 @@ export async function linkPhoneAndPin() {
             });
         } catch (dbErr) {
             console.warn("Could not save linked phone to Firestore user doc:", dbErr);
+        }
+
+        if (typeof auth.currentUser.reload === 'function') {
+            try { await auth.currentUser.reload(); } catch (_) {}
         }
 
         closeModal('modal-link-phone');
@@ -239,7 +246,7 @@ export function openProfileHub() {
     
     document.getElementById('hub-user-photo').src = AppState.currentUser.photoURL || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666666'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
     document.getElementById('hub-user-name').innerText = AppState.userNickname || AppState.userDisplayName;
-    document.getElementById('hub-user-email').innerText = AppState.currentUser.email || 'No Email Linked';
+    document.getElementById('hub-user-email').innerText = formatUserIdentifier(AppState.currentUser.email);
     
     const passwordProvider = AppState.currentUser?.providerData?.find(p => p.providerId === 'password');
     const linkPhoneTitle = document.getElementById('hub-link-phone-title');

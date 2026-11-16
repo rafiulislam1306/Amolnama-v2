@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3000",
+    "start": "vite preview --host 0.0.0.0 --port 3000",
     "build": "vite build && node scripts/postbuild.js",
-    "preview": "vite preview",
-    "test": "node tests/floor-drawer.test.mjs",
+    "preview": "vite preview --host 0.0.0.0 --port 3000",
+    "lint": "node -e \"import fs from 'node:fs'; import path from 'node:path'; import { execFileSync } from 'node:child_process'; const walk = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(d, e.name)) : e.name.endsWith('.js') || e.name.endsWith('.mjs') ? [path.join(d, e.name)] : []); for (const f of [...walk('src'), ...walk('scripts'), ...walk('tests')]) execFileSync(process.execPath, ['--check', f], { stdio: 'inherit' });\"",
+    "test": "node --test tests/*.test.mjs",
     "tree": "node tree.cjs"
   },
   "devDependencies": {

@@ -1,9 +1,15 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  base: '/',
+  base: process.env.VITE_BASE_PATH || '/',
 
   server: {
+    host: '0.0.0.0',
+    port: 3000,
+    allowedHosts: true,
+  },
+
+  preview: {
     host: '0.0.0.0',
     port: 3000,
     allowedHosts: true,
@@ -13,8 +19,9 @@ export default defineConfig({
     // Explicitly disable source maps to protect proprietary code
     sourcemap: false,
     
-    // Optimize for modern browsers to reduce polyfill bloat
-    target: 'esnext', 
+    // Optimize for broad mobile browser compatibility
+    target: 'es2020',
+    chunkSizeWarningLimit: 750,
     
     // Use esbuild for fast, aggressive minification
     minify: 'esbuild',

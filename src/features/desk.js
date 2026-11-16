@@ -2,7 +2,7 @@
 import { collection, doc, setDoc, getDoc, getDocs, updateDoc, query, where, orderBy, limit, serverTimestamp } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
-import { getStrictDate } from '../utils/helpers.js';
+import { getStrictDate, escapeHtml, escapeJsSingleQuote } from '../utils/helpers.js';
 import { showAppAlert, showFlashMessage, openModal, closeModal } from '../utils/ui-helpers.js';
 import { getInventoryChange, getPhysicalItems, getNormalizedTrackAs } from './inventory.js';
 import { canUserPerformCashActions, openManagerCashModal } from './transfers.js';
@@ -81,7 +81,12 @@ export async function performLazyAutoClose() {
 
                 // 3. Calculate leftovers from the found history
                 if (lastSession) {
-                    carryOverInv = { ...(lastSession.openingBalances?.inventory || {}) };
+                    if (lastSession.openingBalances?.inventory) {
+                        Object.entries(lastSession.openingBalances.inventory).forEach(([k, v]) => {
+                            let normKey = getNormalizedTrackAs(k);
+                            carryOverInv[normKey] = (carryOverInv[normKey] || 0) + v;
+                        });
+                    }
                     if (lastSession.status === 'open') carryOverCash = parseFloat(lastSession.openingBalances?.cash) || 0;
 
                     // Fetch ALL transactions for that session (including Saturday's stuck sales)
@@ -89,7 +94,8 @@ export async function performLazyAutoClose() {
                     txSnap.forEach(tDoc => {
                         let tx = tDoc.data();
                         let change = getInventoryChange(tx);
-                        if (change !== 0) carryOverInv[tx.trackAs] = (carryOverInv[tx.trackAs] || 0) + change;
+                        let normTrackAs = getNormalizedTrackAs(tx.trackAs);
+                        if (change !== 0 && normTrackAs) carryOverInv[normTrackAs] = (carryOverInv[normTrackAs] || 0) + change;
                         if (lastSession.status === 'open') carryOverCash += (tx.cashAmt || 0);
                     });
 
@@ -138,7 +144,7 @@ export async function performLazyAutoClose() {
                 }
 
                 // 5. Finalize Desk Pointer
-                await updateDoc(doc(db, 'desks', deskId), { status: newStatus, currentSessionId: newSessionId }, { merge: true });
+                await updateDoc(doc(db, 'desks', deskId), { status: newStatus, currentSessionId: newSessionId });
             }
         }
         
@@ -163,7 +169,7 @@ export async function loadFloorMap() {
         const personalDeskId = 'personal_' + AppState.currentUser.uid;
         const myFirstName = AppState.userNickname || (AppState.userDisplayName ? AppState.userDisplayName.split(' ')[0] : 'Agent');
         const myDrawerName = `${myFirstName}'s Drawer`;
-        const safeDrawerName = myDrawerName.replace(/'/g, "\\'");
+        const safeDrawerName = escapeJsSingleQuote(myDrawerName);
         let foundPersonal = false;
 
         if (desksSnapshot.empty) {
@@ -190,13 +196,13 @@ export async function loadFloorMap() {
                 personalDeskHTML = `
                     <div style="margin-bottom: 32px;">
                         <div style="font-size: 0.75rem; font-weight: 800; color: var(--accent-color); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; margin-left: 4px;">My Workspace</div>
-                        <div class="admin-form-card" style="padding: 16px; margin-bottom: 0; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);" onclick="handleDeskSelect('${docSnap.id}', '${safeDrawerName}', '${desk.status}', '${desk.currentSessionId}')">
+                        <div class="admin-form-card" style="padding: 16px; margin-bottom: 0; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);" onclick="handleDeskSelect('${escapeJsSingleQuote(docSnap.id)}', '${safeDrawerName}', '${escapeJsSingleQuote(desk.status)}', '${escapeJsSingleQuote(desk.currentSessionId)}')">
                             <div style="display: flex; align-items: center; gap: 16px;">
                                 <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(139, 92, 246, 0.12); color: #8b5cf6; display: flex; align-items: center; justify-content: center;">
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
                                 </div>
                                 <div>
-                                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">${myDrawerName}</h3>
+                                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">${escapeHtml(myDrawerName)}</h3>
                                     <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
                                         ${statusDot} ${statusText}
                                     </div>
@@ -208,13 +214,13 @@ export async function loadFloorMap() {
                 `;
             } else if (!desk.isPersonal) {
                 sharedDesksHTML += `
-                    <div class="admin-form-card" style="padding: 16px; margin-bottom: 12px; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);" onclick="handleDeskSelect('${docSnap.id}', '${desk.name}', '${desk.status}', '${desk.currentSessionId}')">
+                    <div class="admin-form-card" style="padding: 16px; margin-bottom: 12px; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);" onclick="handleDeskSelect('${escapeJsSingleQuote(docSnap.id)}', '${escapeJsSingleQuote(desk.name)}', '${escapeJsSingleQuote(desk.status)}', '${escapeJsSingleQuote(desk.currentSessionId)}')">
                         <div style="display: flex; align-items: center; gap: 16px;">
                             <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(14, 165, 233, 0.1); color: var(--accent-color); display: flex; align-items: center; justify-content: center;">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
                             </div>
                             <div>
-                                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">${desk.name}</h3>
+                                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">${escapeHtml(desk.name)}</h3>
                                 <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
                                     ${statusDot} ${statusText}
                                 </div>
@@ -231,13 +237,13 @@ export async function loadFloorMap() {
             personalDeskHTML = `
                 <div style="margin-bottom: 32px;">
                     <div style="font-size: 0.75rem; font-weight: 800; color: var(--accent-color); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; margin-left: 4px;">My Workspace</div>
-                    <div class="admin-form-card" style="padding: 16px; margin-bottom: 0; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);" onclick="handleDeskSelect('${personalDeskId}', '${safeDrawerName}', 'closed', 'null')">
+                    <div class="admin-form-card" style="padding: 16px; margin-bottom: 0; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);" onclick="handleDeskSelect('${escapeJsSingleQuote(personalDeskId)}', '${safeDrawerName}', 'closed', 'null')">
                         <div style="display: flex; align-items: center; gap: 16px;">
                             <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(139, 92, 246, 0.12); color: #8b5cf6; display: flex; align-items: center; justify-content: center;">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
                             </div>
                             <div>
-                                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">${myDrawerName}</h3>
+                                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">${escapeHtml(myDrawerName)}</h3>
                                 <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
                                     <div style="width: 10px; height: 10px; border-radius: 50%; background-color: #94a3b8;"></div> <span style="color: #94a3b8; font-size: 0.8rem; font-weight: 600;">Closed</span>
                                 </div>
@@ -338,12 +344,18 @@ export async function executeHandleDeskSelect(deskId, deskName, status, sessionI
                 let carryOverCash = 0;
 
                 if (lastSession) {
-                    carryOverInv = { ...(lastSession.openingBalances?.inventory || {}) };
+                    if (lastSession.openingBalances?.inventory) {
+                        Object.entries(lastSession.openingBalances.inventory).forEach(([k, v]) => {
+                            let normKey = getNormalizedTrackAs(k);
+                            carryOverInv[normKey] = (carryOverInv[normKey] || 0) + v;
+                        });
+                    }
                     const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', lastSessionId), where('isDeleted', '==', false)));
                     txSnap.forEach(tDoc => {
                         let tx = tDoc.data();
                         let change = getInventoryChange(tx);
-                        if (change !== 0) carryOverInv[tx.trackAs] = (carryOverInv[tx.trackAs] || 0) + change;
+                        let normTrackAs = getNormalizedTrackAs(tx.trackAs);
+                        if (change !== 0 && normTrackAs) carryOverInv[normTrackAs] = (carryOverInv[normTrackAs] || 0) + change;
                     });
                 }
 
@@ -465,10 +477,10 @@ export function generateFloorDeskCard({ session, isMyDesk, liveCash, invDisplay,
         badge = `<div style="position: absolute; top: 0; right: 0; background: var(--info-text); color: var(--surface-color); font-size: 0.65rem; font-weight: 800; padding: 6px 16px; border-bottom-left-radius: 16px; border-top-right-radius: 18px; text-transform: uppercase; letter-spacing: 1px; z-index: 5;">My Drawer</div>`;
     }
 
-    let safeDeskName = (displayDeskName || '').replace(/'/g, "\\'");
+    let safeDeskName = escapeJsSingleQuote(displayDeskName || '');
     let actionBtn = isMyDesk 
         ? `<button class="btn-primary-full" style="width: 100%; margin-top: 8px; border-radius: 14px;" onpointerdown="this.style.transform='scale(0.96)'" onpointerup="this.style.transform='scale(1)'" onclick="openMyDeskDashboard()">Open My Drawer</button>`
-        : `<button class="btn-outline" style="width: 100%; color: var(--purple-text); border-color: var(--purple-border); padding: 14px; margin-top: 8px; border-radius: 14px; font-weight: 700;" onpointerdown="this.style.transform='scale(0.95)'" onpointerup="this.style.transform='scale(1)'" onclick="peekAtDesk('${session.deskId}', '${safeDeskName}')">View Details</button>`;
+        : `<button class="btn-outline" style="width: 100%; color: var(--purple-text); border-color: var(--purple-border); padding: 14px; margin-top: 8px; border-radius: 14px; font-weight: 700;" onpointerdown="this.style.transform='scale(0.95)'" onpointerup="this.style.transform='scale(1)'" onclick="peekAtDesk('${escapeJsSingleQuote(session.deskId)}', '${safeDeskName}')">View Details</button>`;
 
     let agentIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.7;"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
 
@@ -477,12 +489,12 @@ export function generateFloorDeskCard({ session, isMyDesk, liveCash, invDisplay,
             ${badge}
             <div style="margin-bottom: 16px; position: relative;">
                 <h4 style="margin: 0 0 6px 0; color: var(--text-primary); font-size: 1.35rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'Outfit', sans-serif; padding-right: ${isMyDesk ? '84px' : '0px'};">
-                    ${displayDeskName}
+                    ${escapeHtml(displayDeskName)}
                 </h4>
                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                     <div style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; color: ${isMyDesk ? 'var(--info-text)' : 'var(--text-secondary)'}; font-weight: 600; min-width: 0;">
                         ${agentIcon}
-                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${agentNamesStr}</span>
+                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(agentNamesStr)}</span>
                     </div>
                     ${rankBadgeHTML}
                 </div>
@@ -627,7 +639,7 @@ export async function renderLiveFloorTab() {
                     let bg = isLow ? 'var(--danger-bg)' : 'var(--bg-color)';
                     let border = isLow ? 'var(--danger-border)' : 'var(--border-color)';
                     let color = isLow ? 'var(--danger-text)' : 'var(--text-secondary)';
-                    invDisplay += `<div style="flex-grow: 1; display: flex; justify-content: space-between; align-items: center; background:${bg}; border: 1px solid ${border}; padding:6px 10px; border-radius:12px; font-size:0.75rem; color:${color}; font-weight:700;"><span style="white-space:nowrap;">${name}</span> <span style="margin-left: 8px; padding-left: 8px; border-left: 1px solid ${border};">${qty}</span></div>`;
+                    invDisplay += `<div style="flex-grow: 1; display: flex; justify-content: space-between; align-items: center; background:${bg}; border: 1px solid ${border}; padding:6px 10px; border-radius:12px; font-size:0.75rem; color:${color}; font-weight:700;"><span style="white-space:nowrap;">${escapeHtml(name)}</span> <span style="margin-left: 8px; padding-left: 8px; border-left: 1px solid ${border};">${qty}</span></div>`;
                 }
             }
             
@@ -701,7 +713,7 @@ export async function renderLiveFloorTab() {
         const personalDeskId = 'personal_' + (AppState.currentUser?.uid || 'guest');
         const myFirstName = AppState.userNickname || (AppState.userDisplayName ? AppState.userDisplayName.split(' ')[0] : 'Agent');
         const myDrawerName = `${myFirstName}'s Drawer`;
-        const safeDrawerName = myDrawerName.replace(/'/g, "\\'");
+        const safeDrawerName = escapeJsSingleQuote(myDrawerName);
 
         container.innerHTML = `
             <div style="padding: 40px 20px; text-align: center;">
@@ -712,7 +724,7 @@ export async function renderLiveFloorTab() {
                 <div style="padding: 20px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; text-align: left; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
                     <h4 style="margin: 0 0 8px 0; font-size: 1.1rem; color: var(--text-primary);">My Workspace</h4>
                     <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 0.85rem; line-height: 1.4;">You can still open your personal drawer to record sales offline. Sales will be saved locally.</p>
-                    <button class="btn-primary-full" style="width: 100%; border-radius: 12px; font-weight: 800; padding: 14px;" onpointerdown="this.style.transform='scale(0.96)'" onpointerup="this.style.transform='scale(1)'" onclick="handleDeskSelect('${personalDeskId}', '${safeDrawerName}', 'closed', 'null')">
+                    <button class="btn-primary-full" style="width: 100%; border-radius: 12px; font-weight: 800; padding: 14px;" onpointerdown="this.style.transform='scale(0.96)'" onpointerup="this.style.transform='scale(1)'" onclick="handleDeskSelect('${escapeJsSingleQuote(personalDeskId)}', '${safeDrawerName}', 'closed', 'null')">
                         Open My Drawer
                     </button>
                 </div>
@@ -769,91 +781,107 @@ export function handleMyDrawerNav() {
 // ==========================================
 let expectedClosingStats = { cash: 0, inventory: {} };
 let actualClosingStats = { cash: 0, inventory: {} };
+let isClosingDesk = false;
 
 export async function initiateCloseDesk() {
-    if (!AppState.currentSessionId) { showAppAlert("Error", "You are not assigned to an open desk."); return; }
+    if (!AppState.currentSessionId || !AppState.currentDeskId) { showAppAlert("Error", "You are not assigned to an open desk."); return; }
 
-    const sessionSnap = await getDoc(doc(db, 'sessions', AppState.currentSessionId));
-    if (!sessionSnap.exists()) return;
-
-    const sessionData = sessionSnap.data();
-    let expectedCash = parseFloat(sessionData.openingBalances.cash) || 0;
-    let expectedMfs = 0;
-    let expectedInv = {};
-    if (sessionData.openingBalances?.inventory) {
-        Object.entries(sessionData.openingBalances.inventory).forEach(([k, v]) => {
-            let normKey = getNormalizedTrackAs(k);
-            expectedInv[normKey] = (expectedInv[normKey] || 0) + v;
-        });
-    }
-
-    const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', AppState.currentSessionId), where('isDeleted', '==', false)));
-
-    txSnap.forEach(docSnap => {
-        let tx = docSnap.data();
-        let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
-        expectedCash += safeCashAmt; 
-        expectedMfs += (tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0));
-        
-        let change = getInventoryChange(tx);
-        if (change !== 0) {
-            let normKey = getNormalizedTrackAs(tx.trackAs);
-            expectedInv[normKey] = (expectedInv[normKey] || 0) + change;
+    try {
+        const sessionSnap = await getDoc(doc(db, 'sessions', AppState.currentSessionId));
+        if (!sessionSnap.exists()) {
+            showAppAlert("Error", "Active desk session could not be found.");
+            return;
         }
-    });
 
-    expectedClosingStats = { cash: expectedCash, mfs: expectedMfs, inventory: expectedInv };
+        const sessionData = sessionSnap.data();
+        let expectedCash = parseFloat(sessionData.openingBalances?.cash) || 0;
+        let expectedMfs = 0;
+        let expectedInv = {};
+        if (sessionData.openingBalances?.inventory) {
+            Object.entries(sessionData.openingBalances.inventory).forEach(([k, v]) => {
+                let normKey = getNormalizedTrackAs(k);
+                expectedInv[normKey] = (expectedInv[normKey] || 0) + v;
+            });
+        }
 
-    let invHTML = '';
-    let itemsToCount = Object.keys(expectedInv);
-    
-    if(itemsToCount.length === 0) invHTML = '<p style="text-align:center; color: var(--text-secondary); font-size: 0.9rem;">No physical inventory tracked today.</p>';
-    else {
-        itemsToCount.forEach(itemName => {
-            let qty = expectedInv[itemName];
-            if (qty > 0) {
-                invHTML += `
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding: 6px 0; border-bottom:1px dashed var(--border-color); font-size: 0.9rem;">
-                        <span style="color:var(--text-secondary); font-weight: 600;">${itemName}</span>
-                        <span style="color:var(--text-primary); font-weight: 800;">${qty}</span>
-                    </div>
-                `;
+        const txSnap = await getDocs(query(collection(db, 'transactions'), where('sessionId', '==', AppState.currentSessionId), where('isDeleted', '==', false)));
+
+        txSnap.forEach(docSnap => {
+            let tx = docSnap.data();
+            let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
+            expectedCash += safeCashAmt; 
+            expectedMfs += (tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0));
+            
+            let change = getInventoryChange(tx);
+            if (change !== 0) {
+                let normKey = getNormalizedTrackAs(tx.trackAs);
+                expectedInv[normKey] = (expectedInv[normKey] || 0) + change;
             }
         });
-        if (!invHTML) invHTML = '<p style="text-align:center; color: var(--text-secondary); font-size: 0.9rem;">All tracked stock is at 0.</p>';
+
+        expectedClosingStats = { cash: expectedCash, mfs: expectedMfs, inventory: expectedInv };
+
+        let invHTML = '';
+        let itemsToCount = Object.keys(expectedInv);
+        
+        if(itemsToCount.length === 0) invHTML = '<p style="text-align:center; color: var(--text-secondary); font-size: 0.9rem;">No physical inventory tracked today.</p>';
+        else {
+            itemsToCount.forEach(itemName => {
+                let qty = expectedInv[itemName];
+                if (qty > 0) {
+                    invHTML += `
+                        <div style="display:flex; justify-content:space-between; align-items:center; padding: 6px 0; border-bottom:1px dashed var(--border-color); font-size: 0.9rem;">
+                            <span style="color:var(--text-secondary); font-weight: 600;">${escapeHtml(itemName)}</span>
+                            <span style="color:var(--text-primary); font-weight: 800;">${qty}</span>
+                        </div>
+                    `;
+                }
+            });
+            if (!invHTML) invHTML = '<p style="text-align:center; color: var(--text-secondary); font-size: 0.9rem;">All tracked stock is at 0.</p>';
+        }
+
+        const modalContent = `
+            <div style="background-color: var(--surface-color); padding: calc(16px + env(safe-area-inset-top)) 20px 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 10;">
+                <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">Close Shift</h3>
+                <button style="background: none; border: none; color: #ef4444; font-weight: 600; font-size: 1rem; padding: 4px 0; cursor: pointer;" onclick="closeModal('modal-close-desk')">Cancel</button>
+            </div>
+
+            <div style="flex: 1; overflow-y: auto; padding: 24px 20px; padding-bottom: calc(24px + env(safe-area-inset-bottom));">
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 24px; line-height: 1.5;">Please hand over the following expected cash and items to your manager. This will permanently seal your shift.</p>
+          
+                <div class="admin-form-card" style="margin-bottom: 24px; padding: 20px; border: 2px solid #10b981; background: var(--success-bg);">
+                    <label style="display: block; font-size: 0.8rem; font-weight: 800; color: var(--success-text); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Expected Cash Handover</label>
+                    <div style="font-size: 2rem; font-weight: 900; color: var(--success-text);">${expectedCash} Tk</div>
+                    <div style="font-size: 0.85rem; font-weight: 600; color: var(--success-text); margin-top: 4px;">Expected MFS: ${expectedMfs} Tk</div>
+                </div>
+
+                <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Expected Physical Stock</div>
+                <div class="admin-form-card" style="padding: 16px; margin-bottom: 32px; background: var(--surface-strong); border: 1px solid var(--border-color);">
+                    ${invHTML}
+                </div>
+
+                <button class="btn-primary-full" style="padding: 16px; font-size: 1.1rem; background-color: #ef4444; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 4px 16px rgba(239,68,68,0.3);" onclick="submitClosingReport()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    CONFIRM & SEAL DESK
+                </button>
+            </div>
+        `;
+        document.getElementById('close-desk-content').innerHTML = modalContent;
+        openModal('modal-close-desk');
+    } catch (e) {
+        console.error("Could not load desk closing summary:", e);
+        showAppAlert("Error", "Could not load desk closing summary. Check connection.");
     }
-
-    const modalContent = `
-        <div style="background-color: var(--surface-color); padding: calc(16px + env(safe-area-inset-top)) 20px 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 10;">
-            <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">Close Shift</h3>
-            <button style="background: none; border: none; color: #ef4444; font-weight: 600; font-size: 1rem; padding: 4px 0; cursor: pointer;" onclick="closeModal('modal-close-desk')">Cancel</button>
-        </div>
-
-        <div style="flex: 1; overflow-y: auto; padding: 24px 20px; padding-bottom: calc(24px + env(safe-area-inset-bottom));">
-            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 24px; line-height: 1.5;">Please hand over the following expected cash and items to your manager. This will permanently seal your shift.</p>
-      
-            <div class="admin-form-card" style="margin-bottom: 24px; padding: 20px; border: 2px solid #10b981; background: var(--success-bg);">
-                <label style="display: block; font-size: 0.8rem; font-weight: 800; color: var(--success-text); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Expected Cash Handover</label>
-                <div style="font-size: 2rem; font-weight: 900; color: var(--success-text);">${expectedCash} Tk</div>
-                <div style="font-size: 0.85rem; font-weight: 600; color: var(--success-text); margin-top: 4px;">Expected MFS: ${expectedMfs} Tk</div>
-            </div>
-
-            <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Expected Physical Stock</div>
-            <div class="admin-form-card" style="padding: 16px; margin-bottom: 32px; background: var(--surface-strong); border: 1px solid var(--border-color);">
-                ${invHTML}
-            </div>
-
-            <button class="btn-primary-full" style="padding: 16px; font-size: 1.1rem; background-color: #ef4444; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 4px 16px rgba(239,68,68,0.3);" onclick="submitClosingReport()">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                CONFIRM & SEAL DESK
-            </button>
-        </div>
-    `;
-    document.getElementById('close-desk-content').innerHTML = modalContent;
-    openModal('modal-close-desk');
 }
 
 export async function submitClosingReport() {
+    if (isClosingDesk) return;
+    if (!AppState.currentDeskId || !AppState.currentSessionId) {
+        showAppAlert("Error", "You are not assigned to an open desk.");
+        return;
+    }
+
+    isClosingDesk = true;
     actualClosingStats.cash = expectedClosingStats.cash;
     actualClosingStats.inventory = expectedClosingStats.inventory;
 
@@ -901,12 +929,14 @@ export async function submitClosingReport() {
         loadFloorMap(); 
 
     } catch (e) { 
-        if (typeof window.setButtonLoading === 'function') {
-            window.setButtonLoading(closeBtn, false);
-        }
         console.error("Failed to close desk:", e);
         if (typeof window.showAppAlert === 'function') {
             window.showAppAlert("Sync Error", "Could not seal the desk. Check your connection to ensure the data is saved safely.");
         }
-    } 
+    } finally {
+        isClosingDesk = false;
+        if (typeof window.setButtonLoading === 'function') {
+            window.setButtonLoading(closeBtn, false);
+        }
+    }
 }

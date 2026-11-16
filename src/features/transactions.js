@@ -1,7 +1,7 @@
 // src/features/transactions.js
 import { collection, doc, addDoc, updateDoc, deleteDoc, serverTimestamp, getDoc, getDocs, query, where, writeBatch } from "firebase/firestore";
 import { db } from '../config/firebase.js';
-import { generateReceiptNo, getStrictDate, formatToGBDate } from '../utils/helpers.js';
+import { generateReceiptNo, getStrictDate, isViewingHistoricalDate, escapeHtml, escapeJsSingleQuote } from '../utils/helpers.js';
 import { showAppAlert, showFlashMessage, openModal, closeModal, setButtonLoading, refreshCustomDropdowns } from '../utils/ui-helpers.js';
 import { AppState } from '../core/state.js';
 import { passStockFirewall } from './inventory.js';
@@ -48,6 +48,11 @@ export function saveErs(paymentMethod) {
         showAppAlert("Invalid Input", "Please enter a valid amount."); 
         return; 
     }
+    if (isViewingHistoricalDate()) {
+        isSaving = false;
+        showAppAlert("Action Blocked", "You cannot process new transactions while viewing a past date. Please return to 'Today'.");
+        return;
+    }
     addTransactionToCloud('ERS', 'ERS Flexiload', amount, 1, paymentMethod);
     AppState.ui.currentErsAmount = '0'; 
     updateErsDisplay();
@@ -71,6 +76,13 @@ export function selectItem(itemName, price) {
     let catItem = Object.values(AppState.globalCatalog).find(c => c.name === itemName);
     if (catItem?.managerOnly && AppState.currentUserRole !== 'center_manager') {
         showAppAlert("Access Denied", "🔒 Center Manager clearance is required to process this service.");
+        return;
+    }
+    if (isViewingHistoricalDate()) {
+        showAppAlert("Action Blocked", "You cannot process new transactions while viewing a past date. Please return to 'Today'.");
+        return;
+    }
+    if (!passStockFirewall(itemName, 1)) {
         return;
     }
     
@@ -156,8 +168,7 @@ export function saveQuantity() {
     }
     
     // Prevent sales while viewing historical dates
-    const datePicker = document.getElementById('report-date-picker');
-    if (datePicker && datePicker.value && formatToGBDate(datePicker.value) !== getStrictDate()) {
+    if (isViewingHistoricalDate()) {
         isSaving = false;
         showAppAlert("Action Blocked", "You cannot process new transactions while viewing a past date. Please return to 'Today'.");
         return;
@@ -189,6 +200,18 @@ export function instantSaveItem(itemName, price) {
       return;
   }
 
+  // Prevent sales while viewing historical dates
+  if (isViewingHistoricalDate()) {
+      isSaving = false;
+      showAppAlert("Action Blocked", "You cannot process new transactions while viewing a past date. Please return to 'Today'.");
+      return;
+  }
+
+  if (!passStockFirewall(itemName, 1)) {
+      isSaving = false;
+      return;
+  }
+
   if (itemName === 'Recycle SIM') {
       isSaving = false;
       document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
@@ -204,19 +227,6 @@ export function instantSaveItem(itemName, price) {
       isSaving = false;
       document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
       addTransactionToCloud('Item', itemName, price, 1, (price > 0 && AppState.isMfs) ? "MFS" : "Cash");
-      return;
-  }
-
-  // Prevent sales while viewing historical dates
-  const datePicker = document.getElementById('report-date-picker');
-  if (datePicker && datePicker.value && formatToGBDate(datePicker.value) !== getStrictDate()) {
-      isSaving = false;
-      showAppAlert("Action Blocked", "You cannot process new transactions while viewing a past date. Please return to 'Today'.");
-      return;
-  }
-
-  if (!passStockFirewall(itemName, 1)) {
-      isSaving = false;
       return;
   }
 
@@ -528,41 +538,44 @@ export function cancelTxEdit() {
 
 export async function saveTxEdit() {
     if(!AppState.currentUser) return;
-    let txIndex = AppState.transactions.findIndex(t => t.id === AppState.ui.currentEditTxId);
-    if(txIndex === -1) return;
-    let tx = AppState.transactions[txIndex];
-    
-    let newQty = parseInt(document.getElementById('edit-tx-qty').value) || 0;
-    let newAmount = parseFloat(document.getElementById('edit-tx-amount').value) || 0;
-         
-    if (newQty <= 0 || newAmount < 0) {
-        showAppAlert("Invalid Edit", "Quantities must be 1 or greater, and amounts cannot be negative.");
-        return;
-    }
-    let method = document.getElementById('edit-tx-payment').value;
-    let finalCash = 0, finalMfs = 0;
-    let diff = newQty - tx.qty;
-     
-    if (diff > 0 && !passStockFirewall(tx.name, diff)) return;
-    
-    if (method === 'Cash') finalCash = newAmount;
-    else if (method === 'MFS') finalMfs = newAmount;
-    else if (method === 'Split') {
-        finalCash = parseFloat(document.getElementById('edit-tx-cash').value) || 0;
-        finalMfs = parseFloat(document.getElementById('edit-tx-mfs').value) || 0;
-        if (Math.abs((finalCash + finalMfs) - newAmount) > 0.01) { showAppAlert("Error", "Cash + MFS must equal Total Tk."); return; }
-    }
-    
-    let prevTxState = {
-        qty: tx.qty, amount: tx.amount, payment: tx.payment, cashAmt: tx.cashAmt, mfsAmt: tx.mfsAmt,
-        editedAt: new Date().toISOString(), editedBy: AppState.userNickname || AppState.userDisplayName, editedByUid: AppState.currentUser.uid
-    };
-    let updatedEditHistory = tx.editHistory ? [...tx.editHistory, prevTxState] : [prevTxState];
-    
-    const submitBtn = document.querySelector('#modal-edit-tx .btn-primary-full');
-    setButtonLoading(submitBtn, true, 'Updating...');
+    if (isSaving) return;
+    isSaving = true;
 
+    const submitBtn = document.querySelector('#modal-edit-tx .btn-primary-full');
     try {
+        let txIndex = AppState.transactions.findIndex(t => t.id === AppState.ui.currentEditTxId);
+        if(txIndex === -1) return;
+        let tx = AppState.transactions[txIndex];
+        
+        let newQty = parseInt(document.getElementById('edit-tx-qty').value) || 0;
+        let newAmount = parseFloat(document.getElementById('edit-tx-amount').value) || 0;
+             
+        if (newQty <= 0 || newAmount < 0) {
+            showAppAlert("Invalid Edit", "Quantities must be 1 or greater, and amounts cannot be negative.");
+            return;
+        }
+        let method = document.getElementById('edit-tx-payment').value;
+        let finalCash = 0, finalMfs = 0;
+        let diff = newQty - tx.qty;
+         
+        if (diff > 0 && !passStockFirewall(tx.name, diff)) return;
+        
+        if (method === 'Cash') finalCash = newAmount;
+        else if (method === 'MFS') finalMfs = newAmount;
+        else if (method === 'Split') {
+            finalCash = parseFloat(document.getElementById('edit-tx-cash').value) || 0;
+            finalMfs = parseFloat(document.getElementById('edit-tx-mfs').value) || 0;
+            if (Math.abs((finalCash + finalMfs) - newAmount) > 0.01) { showAppAlert("Error", "Cash + MFS must equal Total Tk."); return; }
+        }
+        
+        let prevTxState = {
+            qty: tx.qty, amount: tx.amount, payment: tx.payment, cashAmt: tx.cashAmt, mfsAmt: tx.mfsAmt,
+            editedAt: new Date().toISOString(), editedBy: AppState.userNickname || AppState.userDisplayName, editedByUid: AppState.currentUser.uid
+        };
+        let updatedEditHistory = tx.editHistory ? [...tx.editHistory, prevTxState] : [prevTxState];
+        
+        setButtonLoading(submitBtn, true, 'Updating...');
+
         // --- OPTIMISTIC LOCAL UPDATE ---
         tx.qty = newQty;
         tx.amount = newAmount;
@@ -588,6 +601,7 @@ export async function saveTxEdit() {
         showAppAlert("Save Failed", "Could not save edit to database.");
         console.error(e);
     } finally {
+        isSaving = false;
         setButtonLoading(submitBtn, false);
     }
 }
@@ -690,15 +704,15 @@ export function renderTrash() {
     if(AppState.trashTransactions.length === 0) html = '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg><p>Trash is empty</p><span>Deleted transactions appear here for 30 days before permanent removal.</span></div>';
     else {
         [...AppState.trashTransactions].sort((a,b) => b.id - a.id).forEach(tx => {
-            let safeDocId = tx.docId ? `'${tx.docId}'` : `null`;
+            let safeDocId = tx.docId ? `'${escapeJsSingleQuote(tx.docId)}'` : `null`;
             html += `
                 <div style="border:1px solid var(--border-color); padding:12px; margin-bottom:8px; border-radius:8px; background: var(--surface-color);">
                     <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                        <strong style="color: var(--text-primary); text-decoration: line-through;">${tx.qty}x ${tx.name}</strong> 
+                        <strong style="color: var(--text-primary); text-decoration: line-through;">${tx.qty}x ${escapeHtml(tx.name)}</strong> 
                         <span style="font-weight:bold; color:#ef4444;">${tx.amount} Tk</span>
                     </div>
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-size:0.8rem; color:var(--text-secondary);">${tx.time} | ${tx.payment}</span>
+                        <span style="font-size:0.8rem; color:var(--text-secondary);">${escapeHtml(tx.time)} | ${escapeHtml(tx.payment)}</span>
                         <div style="display:flex; gap: 8px;">
                             <button class="btn-outline" style="padding:6px 12px; font-size:0.85rem; height:auto; color: #10b981; gap: 6px;" onclick="restoreTx(${safeDocId}, ${tx.id})">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg> Restore
