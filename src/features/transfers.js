@@ -3,7 +3,7 @@ import { collection, addDoc, getDocs, query, where, doc, getDoc, serverTimestamp
 import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
 import { generateReceiptNo, getStrictDate, isViewingHistoricalDate } from '../utils/helpers.js';
-import { showAppAlert, showFlashMessage, openModal, closeModal, setButtonLoading, refreshCustomDropdowns } from '../utils/ui-helpers.js';
+import { showAppAlert, showFlashMessage, openModal, closeModal, setButtonLoading, refreshCustomDropdowns, markInputError, clearInputError } from '../utils/ui-helpers.js';
 import { passStockFirewall, getPhysicalItems, getInventoryChange, getNormalizedTrackAs, getAvailableStock } from './inventory.js';
 
 let isSaving = false;
@@ -48,11 +48,18 @@ export function openManagerCashModal() {
     document.getElementById('mgr-cash-split-mfs').value = '';
     
     const actionSelect = document.getElementById('mgr-cash-action');
+    clearInputError(document.getElementById('mgr-cash-amount'));
+    clearInputError(actionSelect);
+    clearInputError(paySelect);
+    clearInputError(document.getElementById('mgr-cash-split-cash'));
+    clearInputError(document.getElementById('mgr-cash-split-mfs'));
+    clearInputError(handsetModelInput);
     if (actionSelect) {
         actionSelect.value = '';
         // Attach change listener if not already done
         if (!actionSelect.dataset.listenerBound) {
             actionSelect.addEventListener('change', (e) => {
+                clearInputError(actionSelect);
                 const wrapper = document.getElementById('handset-model-wrapper');
                 const pWrapper = document.getElementById('mgr-cash-payment-wrapper');
                 const nWrapper = document.getElementById('mgr-cash-notes-wrapper');
@@ -98,16 +105,22 @@ export async function saveManagerCash() {
     if (isSaving) return;
     isSaving = true;
 
-    let amount = parseFloat(document.getElementById('mgr-cash-amount').value) || 0;
+    const amtInput = document.getElementById('mgr-cash-amount');
+    clearInputError(amtInput);
+    let amount = parseFloat(amtInput?.value) || 0;
     if (amount <= 0) { 
         isSaving = false;
+        markInputError(amtInput);
         showAppAlert("Invalid Input", "Enter a valid amount."); 
         return; 
     }
     
-    let action = document.getElementById('mgr-cash-action').value; 
+    const actionEl = document.getElementById('mgr-cash-action');
+    clearInputError(actionEl);
+    let action = actionEl ? actionEl.value : ''; 
     if (!action) {
         isSaving = false;
+        markInputError(actionEl);
         showAppAlert("Invalid Selection", "Please select an action.");
         return;
     }
@@ -131,18 +144,27 @@ export async function saveManagerCash() {
         finalCash = amount;
     } else if (action === 'handset_cash') { 
         txName = 'Handset Cash'; 
-        method = document.getElementById('mgr-cash-payment').value;
+        const payEl = document.getElementById('mgr-cash-payment');
+        clearInputError(payEl);
+        method = payEl ? payEl.value : '';
         if (!method) {
             isSaving = false;
+            markInputError(payEl);
             showAppAlert("Invalid Selection", "Please select a payment method.");
             return;
         }
         
         if (method === 'Split') {
-            let cashVal = parseFloat(document.getElementById('mgr-cash-split-cash').value) || 0;
-            let mfsVal = parseFloat(document.getElementById('mgr-cash-split-mfs').value) || 0;
+            const splitCashEl = document.getElementById('mgr-cash-split-cash');
+            const splitMfsEl = document.getElementById('mgr-cash-split-mfs');
+            clearInputError(splitCashEl);
+            clearInputError(splitMfsEl);
+            let cashVal = parseFloat(splitCashEl?.value) || 0;
+            let mfsVal = parseFloat(splitMfsEl?.value) || 0;
             if (Math.abs((cashVal + mfsVal) - amount) > 0.01) {
                 isSaving = false;
+                markInputError(splitCashEl);
+                markInputError(splitMfsEl);
                 showAppAlert("Invalid Split", "Cash and MFS amounts must sum up to the total amount.");
                 return;
             }
@@ -165,9 +187,11 @@ export async function saveManagerCash() {
     let handsetModel = '';
     if (action === 'handset_cash') {
         const modelInput = document.getElementById('mgr-cash-handset-model');
+        clearInputError(modelInput);
         if (modelInput) handsetModel = modelInput.value.trim();
         if (!handsetModel) {
             isSaving = false;
+            markInputError(modelInput);
             showAppAlert("Missing Input", "Please enter the handset model.");
             return;
         }
@@ -206,9 +230,12 @@ export async function saveManagerCash() {
 
 export function openMainStockModal() {
     if(!AppState.currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
-    document.getElementById('main-stock-qty').value = '';
+    const qtyInput = document.getElementById('main-stock-qty');
     let selectEl = document.getElementById('main-stock-item');
-    selectEl.innerHTML = '<option value="" disabled selected>📦 Select a Product</option>';
+    clearInputError(qtyInput);
+    clearInputError(selectEl);
+    qtyInput.value = '';
+    selectEl.innerHTML = '<option value="" disabled selected>Select a product...</option>';
     getPhysicalItems().forEach(itemName => {
         let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
         selectEl.appendChild(opt);
@@ -216,7 +243,6 @@ export function openMainStockModal() {
     refreshCustomDropdowns(selectEl);
     openModal('modal-main-stock');
     setTimeout(() => {
-        const qtyInput = document.getElementById('main-stock-qty');
         if (qtyInput) { qtyInput.focus(); }
     }, 150);
 }
@@ -229,15 +255,21 @@ export async function saveMainStock() {
     if (isSaving) return;
     isSaving = true;
 
-    let qty = parseInt(document.getElementById('main-stock-qty').value) || 0;
+    const qtyEl = document.getElementById('main-stock-qty');
+    const itemEl = document.getElementById('main-stock-item');
+    clearInputError(qtyEl);
+    clearInputError(itemEl);
+    let qty = parseInt(qtyEl?.value) || 0;
     if (qty <= 0) { 
         isSaving = false;
+        markInputError(qtyEl);
         showAppAlert("Invalid Input", "Enter a valid quantity."); 
         return; 
     }
-    let itemName = document.getElementById('main-stock-item').value;
+    let itemName = itemEl ? itemEl.value : '';
     if (!itemName) {
         isSaving = false;
+        markInputError(itemEl);
         showAppAlert("Invalid Selection", "Please select a product.");
         return;
     }
@@ -268,9 +300,12 @@ export async function saveMainStock() {
 
 export function openReturnStockModal() {
     if(!AppState.currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
-    document.getElementById('return-stock-qty').value = '';
+    const qtyInput = document.getElementById('return-stock-qty');
     let selectEl = document.getElementById('return-stock-item');
-    selectEl.innerHTML = '<option value="" disabled selected>📦 Select a Product</option>';
+    clearInputError(qtyInput);
+    clearInputError(selectEl);
+    qtyInput.value = '';
+    selectEl.innerHTML = '<option value="" disabled selected>Select a product...</option>';
     getPhysicalItems().forEach(itemName => {
         let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
         selectEl.appendChild(opt);
@@ -278,7 +313,6 @@ export function openReturnStockModal() {
     refreshCustomDropdowns(selectEl);
     openModal('modal-return-stock');
     setTimeout(() => {
-        const qtyInput = document.getElementById('return-stock-qty');
         if (qtyInput) { qtyInput.focus(); }
     }, 150);
 }
@@ -291,15 +325,21 @@ export async function saveReturnStock() {
     if (isSaving) return;
     isSaving = true;
 
-    let qty = parseInt(document.getElementById('return-stock-qty').value) || 0;
+    const qtyEl = document.getElementById('return-stock-qty');
+    const itemEl = document.getElementById('return-stock-item');
+    clearInputError(qtyEl);
+    clearInputError(itemEl);
+    let qty = parseInt(qtyEl?.value) || 0;
     if (qty <= 0) { 
         isSaving = false;
+        markInputError(qtyEl);
         showAppAlert("Invalid Input", "Enter a valid quantity."); 
         return; 
     }
-    let itemName = document.getElementById('return-stock-item').value;
+    let itemName = itemEl ? itemEl.value : '';
     if (!itemName) {
         isSaving = false;
+        markInputError(itemEl);
         showAppAlert("Invalid Selection", "Please select a product.");
         return;
     }
@@ -349,16 +389,20 @@ export function shouldIncludeTransferTarget({ deskData, currentDeskId, hasSalesA
 
 export async function openDeskTransfer() {
     if(!AppState.currentSessionId) { showAppAlert("Error", "Desk not open."); return; }
-    document.getElementById('desk-transfer-qty').value = '';
-    
+    const qtyInput = document.getElementById('desk-transfer-qty');
     let itemSelect = document.getElementById('desk-transfer-item');
-    itemSelect.innerHTML = '<option value="" disabled selected>📦 Select a Product 📦</option>';
+    let targetSelect = document.getElementById('desk-transfer-target');
+    clearInputError(qtyInput);
+    clearInputError(itemSelect);
+    clearInputError(targetSelect);
+    qtyInput.value = '';
+    
+    itemSelect.innerHTML = '<option value="" disabled selected>Select a product...</option>';
     getPhysicalItems().forEach(itemName => {
         let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
         itemSelect.appendChild(opt);
     });
 
-    let targetSelect = document.getElementById('desk-transfer-target');
     targetSelect.innerHTML = '<option value="">Loading active desks...</option>';
 
     if (!itemSelect.dataset.listenerBound) {
@@ -472,7 +516,7 @@ export async function openDeskTransfer() {
             }
         }
         
-        targetSelect.innerHTML = (optionsHTML ? '<option value="" disabled selected>👤 Select an Agent</option>' + optionsHTML : '<option value="">No other desks open</option>');
+        targetSelect.innerHTML = (optionsHTML ? '<option value="" disabled selected>Select an agent drawer...</option>' + optionsHTML : '<option value="">No other desks open</option>');
         refreshCustomDropdowns(targetSelect);
     } catch(e) {
         targetSelect.innerHTML = '<option value="">Offline: Cannot fetch desks</option>';
@@ -492,23 +536,31 @@ export async function executeDeskTransfer() {
     if (isSaving) return;
     isSaving = true;
 
-    let qty = parseInt(document.getElementById('desk-transfer-qty').value) || 0;
+    const qtyEl = document.getElementById('desk-transfer-qty');
+    const itemEl = document.getElementById('desk-transfer-item');
+    const targetSelect = document.getElementById('desk-transfer-target');
+    clearInputError(qtyEl);
+    clearInputError(itemEl);
+    clearInputError(targetSelect);
+    let qty = parseInt(qtyEl?.value) || 0;
     if (qty <= 0) { 
         isSaving = false;
+        markInputError(qtyEl);
         showAppAlert("Invalid Input", "Enter valid quantity."); 
         return; 
     }
-    let itemName = document.getElementById('desk-transfer-item').value;
+    let itemName = itemEl ? itemEl.value : '';
     if (!itemName) {
         isSaving = false;
+        markInputError(itemEl);
         showAppAlert("Invalid Selection", "Please select a product.");
         return;
     }
 
-    let targetSelect = document.getElementById('desk-transfer-target');
-    let targetVal = targetSelect.value;
+    let targetVal = targetSelect ? targetSelect.value : '';
     if (!targetVal) { 
         isSaving = false;
+        markInputError(targetSelect);
         showAppAlert("Error", "Please select a desk."); 
         return; 
     }
@@ -558,9 +610,12 @@ export function openTransferModal(targetDesk, targetSession, targetName) {
     targetTransferDeskName = targetDesk.startsWith('personal_') ? (targetName || "Personal Drawer") : targetDesk.replace('_', ' ').toUpperCase();
     
     document.getElementById('transfer-target-name').innerText = targetTransferDeskName;
-    document.getElementById('transfer-qty').value = '';
+    const transferQtyEl = document.getElementById('transfer-qty');
     let selectEl = document.getElementById('transfer-item-select');
-    selectEl.innerHTML = '<option value="" disabled selected>📦 Select a Product</option>';
+    clearInputError(transferQtyEl);
+    clearInputError(selectEl);
+    transferQtyEl.value = '';
+    selectEl.innerHTML = '<option value="" disabled selected>Select a product...</option>';
     getPhysicalItems().forEach(itemName => {
         let opt = document.createElement('option'); opt.value = itemName; opt.innerText = itemName;
         selectEl.appendChild(opt);
@@ -574,10 +629,15 @@ export function executeTransfer() {
         showAppAlert("Action Blocked", "You cannot force-transfer stock while viewing a past date. Please return to 'Today'.");
         return;
     }
-    let qty = parseInt(document.getElementById('transfer-qty').value) || 0;
-    if (qty <= 0) { showAppAlert("Invalid Input", "Enter valid quantity."); return; }
-    let itemName = document.getElementById('transfer-item-select').value;
+    const qtyEl = document.getElementById('transfer-qty');
+    const selectEl = document.getElementById('transfer-item-select');
+    clearInputError(qtyEl);
+    clearInputError(selectEl);
+    let qty = parseInt(qtyEl?.value) || 0;
+    if (qty <= 0) { markInputError(qtyEl); showAppAlert("Invalid Input", "Enter valid quantity."); return; }
+    let itemName = selectEl ? selectEl.value : '';
     if (!itemName) {
+        markInputError(selectEl);
         showAppAlert("Invalid Selection", "Please select a product.");
         return;
     }

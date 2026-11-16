@@ -2,7 +2,7 @@
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
-import { showAppAlert, showFlashMessage, openModal, closeModal, refreshCustomDropdowns, setButtonLoading } from '../utils/ui-helpers.js';
+import { showAppAlert, showFlashMessage, openModal, closeModal, refreshCustomDropdowns, setButtonLoading, markInputError, clearInputError } from '../utils/ui-helpers.js';
 import { escapeHtml } from '../utils/helpers.js';
 
 // Default static fallback packages (64 rows grouped under 15 packages)
@@ -714,6 +714,7 @@ const DEFAULT_RATES_DATABASE = [
 ];
 
 let activeRatesList = [];
+let activeRatesTypeFilter = 'all';
 let hasInitialized = false;
 let isSavingPackage = false;
 
@@ -757,11 +758,19 @@ export async function openCallRates() {
         manageBtn.style.display = hasAdminAccess ? 'flex' : 'none';
     }
     
-    // Clear and focus search
+    // Clear search & reset type filter
     const searchInput = document.getElementById('rates-search');
     if (searchInput) {
         searchInput.value = '';
     }
+    const clearBtn = document.getElementById('rates-search-clear');
+    if (clearBtn) clearBtn.classList.remove('visible');
+    activeRatesTypeFilter = 'all';
+    document.querySelectorAll('#modal-call-rates [data-rate-type]').forEach(p => {
+        const isAll = p.getAttribute('data-rate-type') === 'all';
+        p.classList.toggle('active', isAll);
+        p.setAttribute('aria-pressed', isAll ? 'true' : 'false');
+    });
     
     const operatorSelect = document.getElementById('rates-operator-select');
     if (operatorSelect) {
@@ -781,13 +790,45 @@ export function filterRatesList() {
     renderRatesList();
 }
 
+export function filterRatesByType(typeKey = 'all', pillEl = null) {
+    activeRatesTypeFilter = typeKey || 'all';
+    document.querySelectorAll('#modal-call-rates [data-rate-type]').forEach(p => {
+        const isMatch = pillEl ? (p === pillEl) : (p.getAttribute('data-rate-type') === activeRatesTypeFilter);
+        p.classList.toggle('active', isMatch);
+        p.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
+    });
+    renderRatesList();
+}
+
+export function clearRatesSearch() {
+    const searchInput = document.getElementById('rates-search');
+    if (searchInput) {
+        searchInput.value = '';
+        if (typeof searchInput.focus === 'function') searchInput.focus();
+    }
+    const clearBtn = document.getElementById('rates-search-clear');
+    if (clearBtn) clearBtn.classList.remove('visible');
+    renderRatesList();
+}
+
+export function resetRatesFilters() {
+    const searchInput = document.getElementById('rates-search');
+    if (searchInput) searchInput.value = '';
+    const clearBtn = document.getElementById('rates-search-clear');
+    if (clearBtn) clearBtn.classList.remove('visible');
+    filterRatesByType('all');
+}
+
 // REDESIGNED: Premium Spacious Call rates rendering with color-coded badges
 export function renderRatesList() {
     const searchInput = document.getElementById('rates-search');
     const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const clearBtn = document.getElementById('rates-search-clear');
+    if (clearBtn) clearBtn.classList.toggle('visible', query.length > 0);
     
     const operatorSelect = document.getElementById('rates-operator-select');
     const operator = operatorSelect ? operatorSelect.value : 'GP';
+    const countBar = document.getElementById('rates-count-bar');
     
     const container = document.getElementById('rates-list-container');
     if (!container) return;
@@ -795,26 +836,39 @@ export function renderRatesList() {
     container.innerHTML = '';
     
     if (operator !== 'GP') {
+        if (countBar) countBar.style.display = 'none';
         container.innerHTML = `
-            <div style="padding: 60px 20px; text-align: center; color: var(--text-secondary);">
-                <div style="font-size: 3rem; margin-bottom: 16px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.06));">📱</div>
-                <div style="font-weight: 800; color: var(--text-primary); font-size: 1.1rem; margin-bottom: 6px;">No data available</div>
-                <div style="font-size: 0.82rem; opacity: 0.8; max-width: 250px; margin: 0 auto; line-height: 1.4;">Call rates for this operator have not been imported yet.</div>
+            <div class="empty-state" style="padding: 48px 20px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
+                <p>No data available</p>
+                <span>Call rates for this operator have not been imported yet.</span>
             </div>`;
         return;
     }
     
+    // Classify call type for badge & filter pill matching
+    const classifyRateType = (callType = '') => {
+        const lower = String(callType || '').toLowerCase();
+        if (lower.includes('fnf')) return 'fnf';
+        if (lower.includes('sms')) return 'sms';
+        if (lower.includes('any net') || lower.includes('anynet') || lower.includes('local') || lower.includes('gp-any') || lower.includes('base')) return 'anynet';
+        return 'other';
+    };
+
     // Group rates by packageName
     const grouped = {};
+    const totalPackages = new Set(activeRatesList.map(item => item.packageName)).size;
     
     activeRatesList.forEach(item => {
+        const rateKind = classifyRateType(item.callType);
+        const matchesType = activeRatesTypeFilter === 'all' || rateKind === activeRatesTypeFilter;
         const matchesSearch = !query || 
             (item.packageName && item.packageName.toLowerCase().includes(query)) ||
             (item.callType && item.callType.toLowerCase().includes(query)) ||
             (item.note && item.note.toLowerCase().includes(query)) ||
             (item.pulseSeconds && String(item.pulseSeconds).toLowerCase().includes(query));
             
-        if (matchesSearch) {
+        if (matchesType && matchesSearch) {
             if (!grouped[item.packageName]) {
                 grouped[item.packageName] = [];
             }
@@ -823,13 +877,26 @@ export function renderRatesList() {
     });
     
     const packageNames = Object.keys(grouped).sort();
+    const isFiltered = Boolean(query) || activeRatesTypeFilter !== 'all';
+
+    if (countBar) {
+        if (totalPackages === 0) {
+            countBar.style.display = 'none';
+        } else {
+            countBar.style.display = 'flex';
+            countBar.innerHTML = isFiltered
+                ? `<span>Showing ${packageNames.length} of ${totalPackages} GP package${totalPackages === 1 ? '' : 's'}</span><button type="button" class="ledger-reset-link" onclick="Amolnama.resetRatesFilters()">Reset</button>`
+                : `<span>${packageNames.length} GP package${packageNames.length === 1 ? '' : 's'}</span>`;
+        }
+    }
     
     if (packageNames.length === 0) {
         container.innerHTML = `
-            <div style="padding: 60px 20px; text-align: center; color: var(--text-secondary);">
-                <div style="font-size: 3rem; margin-bottom: 16px;">🔍</div>
-                <div style="font-weight: 800; color: var(--text-primary); font-size: 1.1rem; margin-bottom: 6px;">No packages matched</div>
-                <div style="font-size: 0.82rem; opacity: 0.8; max-width: 250px; margin: 0 auto; line-height: 1.4;">Try searching for another keyword like 'Bondhu', 'Ekota', 'SMS' or 'FnF'.</div>
+            <div class="empty-state" style="padding: 48px 20px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <p>No packages matched</p>
+                <span>Try searching for another keyword or reset the call type filter.</span>
+                ${isFiltered ? `<button type="button" class="btn-outline" style="height: auto; padding: 8px 16px; font-size: 0.82rem; margin-top: 12px;" onclick="Amolnama.resetRatesFilters()">Reset Filters</button>` : ''}
             </div>`;
         return;
     }
@@ -848,13 +915,13 @@ export function renderRatesList() {
             
             // Generate details string
             const detailParts = [];
-            if (slotText) detailParts.push(`⏱️ ${slotText}`);
+            if (slotText) detailParts.push(slotText);
             if (pulseText) detailParts.push(pulseText);
-            const detailStr = detailParts.join(' | ');
+            const detailStr = detailParts.join(' · ');
 
             // Color-code and label types
             let badgeClass = 'rate-badge-other';
-            let displayType = rate.callType || 'General';
+            const displayType = rate.callType || 'General';
             
             const lowerType = displayType.toLowerCase();
             if (lowerType.includes('any net') || lowerType.includes('anynet') || lowerType.includes('local') || lowerType.includes('gp-any')) {
@@ -869,7 +936,7 @@ export function renderRatesList() {
             if (rate.note) {
                 noteHtml = `
                     <div class="rate-note-banner" style="margin-top: 6px;">
-                        <span>💡</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; color: var(--warning-text);"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/></svg>
                         <div style="flex: 1;">${escapeHtml(rate.note)}</div>
                     </div>
                 `;
@@ -895,10 +962,11 @@ export function renderRatesList() {
         card.innerHTML = `
             <div class="rates-card-header">
                 <h4 class="rates-card-title">
-                    <span>📱</span> ${escapeHtml(packageName)}
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
+                    ${escapeHtml(packageName)}
                 </h4>
-                <span class="rates-badge-count">
-                    ${rates.length} rates
+                <span class="rates-badge-count tabular-nums">
+                    ${rates.length} rate${rates.length === 1 ? '' : 's'}
                 </span>
             </div>
             <div class="rates-list">
@@ -914,6 +982,10 @@ export function renderRatesList() {
 
 export function openManageRates() {
     closeModal('modal-call-rates');
+    const searchInput = document.getElementById('manage-rates-search');
+    if (searchInput) searchInput.value = '';
+    const clearBtn = document.getElementById('manage-rates-search-clear');
+    if (clearBtn) clearBtn.classList.remove('visible');
     openModal('modal-manage-rates');
     renderManageRatesDashboard();
 }
@@ -923,10 +995,26 @@ export function closeManageRates() {
     openCallRates(); // Return to directory
 }
 
+export function clearManageRatesSearch() {
+    const searchInput = document.getElementById('manage-rates-search');
+    if (searchInput) {
+        searchInput.value = '';
+        if (typeof searchInput.focus === 'function') searchInput.focus();
+    }
+    const clearBtn = document.getElementById('manage-rates-search-clear');
+    if (clearBtn) clearBtn.classList.remove('visible');
+    renderManageRatesDashboard();
+}
+
 // Render dynamic list of packages in management screen
 export function renderManageRatesDashboard() {
     const listContainer = document.getElementById('manage-rates-packages-list');
     if (!listContainer) return;
+
+    const searchInput = document.getElementById('manage-rates-search');
+    const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const clearBtn = document.getElementById('manage-rates-search-clear');
+    if (clearBtn) clearBtn.classList.toggle('visible', query.length > 0);
     
     listContainer.innerHTML = '';
     
@@ -939,28 +1027,43 @@ export function renderManageRatesDashboard() {
     });
     
     uniquePackages.sort();
+
+    const filteredPackages = query
+        ? uniquePackages.filter(pkg => pkg.toLowerCase().includes(query))
+        : uniquePackages;
     
     if (uniquePackages.length === 0) {
         listContainer.innerHTML = `
-            <p style="text-align: center; color: var(--text-secondary); font-size: 0.9rem; padding: 24px;">
-                No packages registered. Click below to add a package.
-            </p>
+            <div class="empty-state" style="padding: 40px 20px;">
+                <p>No packages registered</p>
+                <span>Tap + New Package above to create your first SIM rate package.</span>
+            </div>
+        `;
+        return;
+    }
+
+    if (filteredPackages.length === 0) {
+        listContainer.innerHTML = `
+            <div class="empty-state" style="padding: 40px 20px;">
+                <p>No packages match "${escapeHtml(query)}"</p>
+                <button type="button" class="btn-outline" style="height: auto; padding: 8px 16px; font-size: 0.82rem; margin-top: 10px;" onclick="Amolnama.clearManageRatesSearch()">Clear Search</button>
+            </div>
         `;
         return;
     }
     
-    uniquePackages.forEach(pkgName => {
-        const row = document.createElement('div');
-        row.className = 'list-menu-item';
-        row.style.cssText = 'padding: 14px 16px; margin-bottom: 8px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer;';
+    filteredPackages.forEach(pkgName => {
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'manage-rate-row';
         row.onclick = () => openPackageForm(pkgName);
         
         const count = activeRatesList.filter(item => item.packageName === pkgName).length;
         
         row.innerHTML = `
             <div class="list-item-content">
-                <span class="list-item-title" style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary);">${escapeHtml(pkgName)}</span>
-                <span style="font-size: 0.75rem; color: var(--text-secondary);">${count} Call Rate/SMS entries defined</span>
+                <span class="list-item-title" style="font-weight: 800; font-size: 0.95rem; color: var(--text-primary);">${escapeHtml(pkgName)}</span>
+                <span style="font-size: 0.76rem; color: var(--text-secondary);">${count} Call Rate / SMS entr${count === 1 ? 'y' : 'ies'} defined</span>
             </div>
             <div style="display: flex; align-items: center; gap: 4px;">
                 <svg class="list-item-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
@@ -1086,7 +1189,8 @@ export function openPackageForm(packageName = '') {
     const container = document.getElementById('editor-rates-container');
     
     if (!titleEl || !nameInput || !deleteBtn || !container) return;
-    
+
+    clearInputError(nameInput);
     container.innerHTML = '';
     
     if (packageName) {
@@ -1119,9 +1223,11 @@ export async function savePackageData() {
     if (isSavingPackage) return;
     const nameInput = document.getElementById('edit-package-name');
     if (!nameInput) return;
-    
+
+    clearInputError(nameInput);
     const packageName = nameInput.value.trim();
     if (!packageName) {
+        markInputError(nameInput);
         showAppAlert("Input Required", "Please enter a package name.");
         return;
     }
@@ -1136,18 +1242,29 @@ export async function savePackageData() {
     let isValid = true;
     
     rateRows.forEach(row => {
-        const selectType = row.querySelector('.edit-rate-calltype').value;
-        const customType = row.querySelector('.edit-rate-custom-calltype').value.trim();
+        const selectEl = row.querySelector('.edit-rate-calltype');
+        const customEl = row.querySelector('.edit-rate-custom-calltype');
+        const baseEl = row.querySelector('.edit-rate-tariff-base');
+        const taxEl = row.querySelector('.edit-rate-tariff-tax');
+        clearInputError(customEl);
+        clearInputError(baseEl);
+        clearInputError(taxEl);
+
+        const selectType = selectEl.value;
+        const customType = customEl.value.trim();
         const callType = selectType === 'Custom' ? customType : selectType;
         
         const fnf = parseInt(row.querySelector('.edit-rate-fnf').value, 10) || 0;
-        const baseVal = parseFloat(row.querySelector('.edit-rate-tariff-base').value);
-        const taxVal = parseFloat(row.querySelector('.edit-rate-tariff-tax').value);
+        const baseVal = parseFloat(baseEl.value);
+        const taxVal = parseFloat(taxEl.value);
         const pulse = row.querySelector('.edit-rate-pulse').value.trim();
         const slot = row.querySelector('.edit-rate-timeslot').value.trim();
         const note = row.querySelector('.edit-rate-note').value.trim();
         
-        if (!callType || isNaN(baseVal) || isNaN(taxVal)) {
+        if (!callType || isNaN(baseVal) || baseVal < 0 || isNaN(taxVal) || taxVal < 0) {
+            if (!callType && selectType === 'Custom') markInputError(customEl);
+            if (isNaN(baseVal) || baseVal < 0) markInputError(baseEl);
+            if (isNaN(taxVal) || taxVal < 0) markInputError(taxEl);
             isValid = false;
             return;
         }
@@ -1165,7 +1282,7 @@ export async function savePackageData() {
     });
     
     if (!isValid) {
-        showAppAlert("Validation Error", "Please fill in Call Type, Base Tariff, and Inclusive Tariff for all rates.");
+        showAppAlert("Validation Error", "Please enter a valid Call Type and non-negative Base & Inclusive tariffs.");
         return;
     }
     
@@ -1207,6 +1324,8 @@ export async function deletePackage() {
         `Are you sure you want to permanently delete the package "${packageName}" and all its call rates?`,
         true,
         async () => {
+            const deleteBtn = document.getElementById('btn-delete-package');
+            setButtonLoading(deleteBtn, true, 'Deleting...');
             activeRatesList = activeRatesList.filter(item => item.packageName !== packageName);
             
             try {
@@ -1217,6 +1336,8 @@ export async function deletePackage() {
             } catch (err) {
                 console.error("Error deleting call rates from Firestore", err);
                 showAppAlert("Database Error", "Could not delete package. Check connection.");
+            } finally {
+                setButtonLoading(deleteBtn, false);
             }
         },
         "Delete"

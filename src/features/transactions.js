@@ -2,7 +2,7 @@
 import { collection, doc, addDoc, updateDoc, deleteDoc, serverTimestamp, getDoc, getDocs, query, where, writeBatch } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { generateReceiptNo, getStrictDate, isViewingHistoricalDate, escapeHtml, escapeJsSingleQuote } from '../utils/helpers.js';
-import { showAppAlert, showFlashMessage, openModal, closeModal, setButtonLoading, refreshCustomDropdowns } from '../utils/ui-helpers.js';
+import { showAppAlert, showFlashMessage, openModal, closeModal, setButtonLoading, refreshCustomDropdowns, markInputError, clearInputError } from '../utils/ui-helpers.js';
 import { AppState } from '../core/state.js';
 import { passStockFirewall } from './inventory.js';
 
@@ -38,6 +38,21 @@ export function ersBackspace() {
     updateErsDisplay(); 
 }
 
+export function ersClear() {
+    if (navigator.vibrate) navigator.vibrate(15);
+    AppState.ui.currentErsAmount = '0';
+    updateErsDisplay();
+}
+
+export function ersAddPreset(presetAmount) {
+    if (navigator.vibrate) navigator.vibrate(10);
+    const addVal = Math.max(0, parseInt(presetAmount, 10) || 0);
+    const current = parseInt(AppState.ui.currentErsAmount, 10) || 0;
+    const next = Math.min(999999, current + addVal);
+    AppState.ui.currentErsAmount = String(next);
+    updateErsDisplay();
+}
+
 export function saveErs(paymentMethod) {
     if (isSaving) return;
     isSaving = true;
@@ -68,14 +83,18 @@ function isSimOrMnpSale(nameStr) {
     
     if (clean.includes('replacement') || clean.includes('foc') || clean.includes('reissue')) return false;
     
-    const keywords = ['prime', 'djuice', 'no. 1', 'no.1', 'skitto', 'mnp', 'esim', 'my sim', 'recycle sim'];
+    const keywords = ['prime', 'djuice', 'no. 1', 'no.1', 'skitto', 'nishchinto', 'mnp', 'esim', 'my sim', 'recycle sim'];
     return keywords.some(kw => clean.includes(kw));
+}
+
+export function canSelectMultiQty(itemName) {
+    return Boolean(itemName && itemName !== 'Recycle SIM' && !isSimOrMnpSale(itemName));
 }
 
 export function selectItem(itemName, price) {
     let catItem = Object.values(AppState.globalCatalog).find(c => c.name === itemName);
     if (catItem?.managerOnly && AppState.currentUserRole !== 'center_manager') {
-        showAppAlert("Access Denied", "🔒 Center Manager clearance is required to process this service.");
+        showAppAlert("Access Denied", "Center Manager clearance is required to process this service.");
         return;
     }
     if (isViewingHistoricalDate()) {
@@ -196,7 +215,7 @@ export function instantSaveItem(itemName, price) {
   let catItem = Object.values(AppState.globalCatalog).find(c => c.name === itemName);
   if (catItem?.managerOnly && AppState.currentUserRole !== 'center_manager') {
       isSaving = false;
-      showAppAlert("Access Denied", "🔒 Center Manager clearance is required to process this service.");
+      showAppAlert("Access Denied", "Center Manager clearance is required to process this service.");
       return;
   }
 
@@ -445,6 +464,17 @@ window.syncOfflineTransactions = async function() {
 //   EDIT, SPLIT PAYMENT, & TRASH
 // ==========================================
 
+function findTxById(list, id) {
+    if (id === null || id === undefined || id === '') return null;
+    const needle = String(id);
+    return (list || []).find(t => t && (String(t.id) === needle || (t.docId && String(t.docId) === needle))) || null;
+}
+
+function normalizeDocIdParam(docId) {
+    if (!docId || docId === 'undefined' || docId === 'null') return '';
+    return String(docId);
+}
+
 export function isTransactionModifiable(tx, action) {
     if (AppState.currentUserRole === 'admin' && action === 'delete') {
         return true;
@@ -465,69 +495,182 @@ export function isTransactionModifiable(tx, action) {
         showAppAlert("Action Blocked", "Offline transactions cannot be modified until they are synced to the live database.");
         return false;
     }
+
+    const isPrivileged = ['admin', 'owner', 'manager', 'center_manager'].includes(AppState.currentUserRole);
+    if (!isPrivileged && tx.agentId && AppState.currentUser && tx.agentId !== AppState.currentUser.uid) {
+        showAppAlert("Action Blocked", `You can only ${action} transactions that you created.`);
+        return false;
+    }
     return true;
 }
 
+export function setEditPaymentMethod(method = 'Cash') {
+    const valid = ['Cash', 'MFS', 'Split'].includes(method) ? method : 'Cash';
+    const paymentInput = document.getElementById('edit-tx-payment');
+    if (paymentInput) {
+        paymentInput.value = valid;
+    }
+    document.querySelectorAll('#modal-edit-tx [data-edit-pay]').forEach(btn => {
+        const isActive = btn.getAttribute('data-edit-pay') === valid;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+    toggleEditSplitFields();
+}
+
 export function openEditTx(id) {
-    let tx = AppState.transactions.find(t => t.id === id);
-    if(!tx) return;
+    let tx = findTxById(AppState.transactions, id);
+    if (!tx) return;
     
     // STRICT POS PROTOCOL: Block editing of non-sale items to prevent math corruption
     if (!isTransactionModifiable(tx, 'edit')) return;
 
-    AppState.ui.currentEditTxId = id;
-    document.getElementById('edit-tx-name').innerText = "Edit: " + tx.name;
-    document.getElementById('edit-tx-qty').value = tx.qty || 1;
-    document.getElementById('edit-tx-amount').value = tx.amount;
-    
-    let paymentSelect = document.getElementById('edit-tx-payment');
-    let splitFields = document.getElementById('edit-split-fields');
-    if (tx.payment === 'Split' || (tx.cashAmt > 0 && tx.mfsAmt > 0)) {
-        paymentSelect.value = 'Split'; splitFields.style.display = 'flex';
-        document.getElementById('edit-tx-cash').value = tx.cashAmt || 0;
-        document.getElementById('edit-tx-mfs').value = tx.mfsAmt || 0;
-    } else { paymentSelect.value = tx.payment; splitFields.style.display = 'none'; }
-    refreshCustomDropdowns(paymentSelect);
+    AppState.ui.currentEditTxId = tx.id;
+    const qtyEl = document.getElementById('edit-tx-qty');
+    const amtEl = document.getElementById('edit-tx-amount');
+    const cashEl = document.getElementById('edit-tx-cash');
+    const mfsEl = document.getElementById('edit-tx-mfs');
+    const notesEl = document.getElementById('edit-tx-notes');
+    const metaEl = document.getElementById('edit-tx-meta');
+    const nameEl = document.getElementById('edit-tx-name');
+    const onboardingSection = document.getElementById('edit-tx-onboarding-section');
+    const firstCallChk = document.getElementById('edit-tx-firstcall');
+    const appRegChk = document.getElementById('edit-tx-appreg');
+    const appRegLabel = document.getElementById('edit-tx-appreg-label');
+
+    clearInputError(qtyEl);
+    clearInputError(amtEl);
+    clearInputError(cashEl);
+    clearInputError(mfsEl);
+
+    if (nameEl) nameEl.innerText = "Edit: " + tx.name;
+    if (metaEl) {
+        const parts = [];
+        if (tx.receiptNo) parts.push(`#${tx.receiptNo}`);
+        if (tx.time) parts.push(tx.time);
+        if (tx.agentName) parts.push(tx.agentName);
+        metaEl.innerText = parts.join(' · ');
+        metaEl.style.display = parts.length > 0 ? 'block' : 'none';
+    }
+
+    const currentQty = parseInt(tx.qty, 10) || 1;
+    const lockSingleQty = tx.type === 'ERS' || (!canSelectMultiQty(tx.name) && currentQty === 1);
+    if (qtyEl) {
+        qtyEl.value = currentQty;
+        qtyEl.disabled = lockSingleQty;
+    }
+    if (amtEl) amtEl.value = tx.amount !== undefined && tx.amount !== null ? tx.amount : 0;
+    if (notesEl) notesEl.value = tx.notes || '';
+
+    const showOnboarding = Boolean(tx.onboarding || (tx.type === 'Item' && isSimOrMnpSale(tx.name)));
+    if (onboardingSection) {
+        onboardingSection.style.display = showOnboarding ? 'block' : 'none';
+        if (showOnboarding) {
+            const isSkitto = (tx.name || '').toLowerCase().includes('skitto');
+            if (appRegLabel) appRegLabel.innerText = isSkitto ? 'Skitto App Registration' : 'MyGP Registration';
+            if (firstCallChk) firstCallChk.checked = Boolean(tx.onboarding?.firstCall);
+            if (appRegChk) appRegChk.checked = Boolean(tx.onboarding?.appReg);
+        }
+    }
+
+    const paymentSelect = document.getElementById('edit-tx-payment');
+    const splitFields = document.getElementById('edit-split-fields');
+    const isSplit = tx.payment === 'Split' || ((Number(tx.cashAmt) || 0) > 0 && (Number(tx.mfsAmt) || 0) > 0);
+    const resolvedMethod = isSplit ? 'Split' : (tx.payment === 'MFS' ? 'MFS' : 'Cash');
+
+    if (paymentSelect) paymentSelect.value = resolvedMethod;
+    document.querySelectorAll('#modal-edit-tx [data-edit-pay]').forEach(btn => {
+        const isActive = btn.getAttribute('data-edit-pay') === resolvedMethod;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+
+    if (splitFields) {
+        if (resolvedMethod === 'Split') {
+            splitFields.style.display = 'flex';
+            if (cashEl) cashEl.value = tx.cashAmt ?? 0;
+            if (mfsEl) mfsEl.value = tx.mfsAmt ?? 0;
+        } else {
+            splitFields.style.display = 'none';
+            if (cashEl) cashEl.value = resolvedMethod === 'Cash' ? (tx.amount || 0) : 0;
+            if (mfsEl) mfsEl.value = resolvedMethod === 'MFS' ? (tx.amount || 0) : 0;
+        }
+    }
+    if (paymentSelect && paymentSelect.tagName === 'SELECT') {
+        refreshCustomDropdowns(paymentSelect);
+    }
+
     openModal('modal-edit-tx');
     
     setTimeout(() => {
-        const qtyInput = document.getElementById('edit-tx-qty');
-        if (qtyInput) { qtyInput.focus(); qtyInput.select(); }
+        const targetFocusEl = lockSingleQty ? amtEl : qtyEl;
+        if (targetFocusEl && !targetFocusEl.disabled) {
+            targetFocusEl.focus();
+            if (typeof targetFocusEl.select === 'function') targetFocusEl.select();
+        }
     }, 100);
 }
 
 export function toggleEditSplitFields() {
-    if (document.getElementById('edit-tx-payment').value === 'Split') {
-        document.getElementById('edit-split-fields').style.display = 'flex';
-        document.getElementById('edit-tx-cash').value = parseFloat(document.getElementById('edit-tx-amount').value) || 0;
-        document.getElementById('edit-tx-mfs').value = 0;
-    } else document.getElementById('edit-split-fields').style.display = 'none';
+    const paymentEl = document.getElementById('edit-tx-payment');
+    const splitFields = document.getElementById('edit-split-fields');
+    const amtEl = document.getElementById('edit-tx-amount');
+    const cashEl = document.getElementById('edit-tx-cash');
+    const mfsEl = document.getElementById('edit-tx-mfs');
+    if (!paymentEl || !splitFields) return;
+
+    const method = paymentEl.value;
+    document.querySelectorAll('#modal-edit-tx [data-edit-pay]').forEach(btn => {
+        const isActive = btn.getAttribute('data-edit-pay') === method;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+
+    if (method === 'Split') {
+        splitFields.style.display = 'flex';
+        const total = parseFloat(amtEl?.value) || 0;
+        const curCash = parseFloat(cashEl?.value) || 0;
+        const curMfs = parseFloat(mfsEl?.value) || 0;
+        if (Math.abs((curCash + curMfs) - total) > 0.01 || (curCash === 0 && curMfs === 0 && total > 0)) {
+            if (cashEl) cashEl.value = total;
+            if (mfsEl) mfsEl.value = 0;
+        }
+    } else {
+        splitFields.style.display = 'none';
+    }
 }
 
 export function autoCalcEditTotal() {
-    let tx = AppState.transactions.find(t => t.id === AppState.ui.currentEditTxId);
+    let tx = findTxById(AppState.transactions, AppState.ui.currentEditTxId);
     if (!tx) return;
+    if (tx.type === 'ERS') return;
          
     let catItem = Object.values(AppState.globalCatalog).find(c => c.name === tx.name);
     let unitPrice = catItem ? catItem.price : (tx.qty > 0 ? (tx.amount / tx.qty) : 0);
-    let newQty = parseInt(document.getElementById('edit-tx-qty').value) || 0;
+    let newQty = parseInt(document.getElementById('edit-tx-qty')?.value, 10) || 0;
          
-    document.getElementById('edit-tx-amount').value = unitPrice * newQty;
+    const amtEl = document.getElementById('edit-tx-amount');
+    if (amtEl) amtEl.value = Math.round((unitPrice * newQty) * 100) / 100;
     updateSplitTotal();
 }
 
 export function updateSplitTotal() {
-    let totalAmount = parseFloat(document.getElementById('edit-tx-amount').value) || 0;
+    const paymentVal = document.getElementById('edit-tx-payment')?.value;
+    if (paymentVal !== 'Split') return;
+
+    let totalAmount = parseFloat(document.getElementById('edit-tx-amount')?.value) || 0;
     let cashInput = document.getElementById('edit-tx-cash');
     let mfsInput = document.getElementById('edit-tx-mfs');
+    if (!cashInput || !mfsInput) return;
+
+    const roundMoney = (val) => Math.round(Math.max(0, val) * 100) / 100;
           
-    if (document.activeElement === mfsInput) {
+    if (typeof document !== 'undefined' && document.activeElement === mfsInput) {
         let mfsAmt = parseFloat(mfsInput.value) || 0;
-        cashInput.value = Math.max(0, totalAmount - mfsAmt);
+        cashInput.value = roundMoney(totalAmount - mfsAmt);
     } else {
-        // Default fallback: balances MFS based on Cash if neither is actively focused (e.g., when Qty changes)
         let cashAmt = parseFloat(cashInput.value) || 0;
-        mfsInput.value = Math.max(0, totalAmount - cashAmt);
+        mfsInput.value = roundMoney(totalAmount - cashAmt);
     }
 }
 
@@ -537,35 +680,110 @@ export function cancelTxEdit() {
 }
 
 export async function saveTxEdit() {
-    if(!AppState.currentUser) return;
+    if (!AppState.currentUser) return;
     if (isSaving) return;
     isSaving = true;
 
     const submitBtn = document.querySelector('#modal-edit-tx .btn-primary-full');
+    let tx = null;
+    let prevSnapshot = null;
+
     try {
-        let txIndex = AppState.transactions.findIndex(t => t.id === AppState.ui.currentEditTxId);
-        if(txIndex === -1) return;
-        let tx = AppState.transactions[txIndex];
+        tx = findTxById(AppState.transactions, AppState.ui.currentEditTxId);
+        if (!tx) return;
         
-        let newQty = parseInt(document.getElementById('edit-tx-qty').value) || 0;
-        let newAmount = parseFloat(document.getElementById('edit-tx-amount').value) || 0;
+        const qtyEl = document.getElementById('edit-tx-qty');
+        const amtEl = document.getElementById('edit-tx-amount');
+        const cashEl = document.getElementById('edit-tx-cash');
+        const mfsEl = document.getElementById('edit-tx-mfs');
+        const notesEl = document.getElementById('edit-tx-notes');
+        const onboardingSection = document.getElementById('edit-tx-onboarding-section');
+        const firstCallChk = document.getElementById('edit-tx-firstcall');
+        const appRegChk = document.getElementById('edit-tx-appreg');
+
+        clearInputError(qtyEl);
+        clearInputError(amtEl);
+        clearInputError(cashEl);
+        clearInputError(mfsEl);
+
+        const rawQty = String(qtyEl?.value ?? '').trim();
+        const newQty = rawQty === '' ? NaN : parseInt(rawQty, 10);
+        const rawAmt = String(amtEl?.value ?? '').trim();
+        const newAmountRaw = rawAmt === '' ? NaN : Number(rawAmt);
+        const newAmount = Number.isNaN(newAmountRaw) ? NaN : Math.round(newAmountRaw * 100) / 100;
              
-        if (newQty <= 0 || newAmount < 0) {
-            showAppAlert("Invalid Edit", "Quantities must be 1 or greater, and amounts cannot be negative.");
+        if (Number.isNaN(newQty) || newQty <= 0) {
+            markInputError(qtyEl);
+            showAppAlert("Invalid Edit", "Quantities must be 1 or greater.");
             return;
         }
-        let method = document.getElementById('edit-tx-payment').value;
+        if (Number.isNaN(newAmount) || newAmount < 0) {
+            markInputError(amtEl);
+            showAppAlert("Invalid Edit", "Please enter a valid non-negative Total Tk amount.");
+            return;
+        }
+        if (tx.type === 'ERS' && newAmount <= 0) {
+            markInputError(amtEl);
+            showAppAlert("Invalid Edit", "ERS Flexiload amount must be greater than 0 Tk.");
+            return;
+        }
+
+        let method = document.getElementById('edit-tx-payment')?.value || 'Cash';
+        if (!['Cash', 'MFS', 'Split'].includes(method)) method = 'Cash';
+
         let finalCash = 0, finalMfs = 0;
-        let diff = newQty - tx.qty;
+        let diff = newQty - (parseInt(tx.qty, 10) || 1);
          
-        if (diff > 0 && !passStockFirewall(tx.name, diff)) return;
+        if (diff > 0 && (!tx.sessionId || tx.sessionId === AppState.currentSessionId) && !passStockFirewall(tx.name, diff)) {
+            return;
+        }
         
-        if (method === 'Cash') finalCash = newAmount;
-        else if (method === 'MFS') finalMfs = newAmount;
-        else if (method === 'Split') {
-            finalCash = parseFloat(document.getElementById('edit-tx-cash').value) || 0;
-            finalMfs = parseFloat(document.getElementById('edit-tx-mfs').value) || 0;
-            if (Math.abs((finalCash + finalMfs) - newAmount) > 0.01) { showAppAlert("Error", "Cash + MFS must equal Total Tk."); return; }
+        if (method === 'Cash') {
+            finalCash = newAmount;
+        } else if (method === 'MFS') {
+            finalMfs = newAmount;
+        } else if (method === 'Split') {
+            const rawCash = String(cashEl?.value ?? '').trim();
+            const rawMfs = String(mfsEl?.value ?? '').trim();
+            finalCash = rawCash === '' ? 0 : Number(rawCash);
+            finalMfs = rawMfs === '' ? 0 : Number(rawMfs);
+            if (Number.isNaN(finalCash) || Number.isNaN(finalMfs) || finalCash < 0 || finalMfs < 0) {
+                markInputError(finalCash < 0 || Number.isNaN(finalCash) ? cashEl : mfsEl);
+                showAppAlert("Invalid Split", "Cash and MFS portions cannot be negative.");
+                return;
+            }
+            if (Math.abs((finalCash + finalMfs) - newAmount) > 0.01) {
+                markInputError(cashEl);
+                markInputError(mfsEl);
+                showAppAlert("Error", "Cash + MFS must equal Total Tk.");
+                return;
+            }
+            finalCash = Math.round(finalCash * 100) / 100;
+            finalMfs = Math.round(finalMfs * 100) / 100;
+        }
+
+        const nextNotes = notesEl ? notesEl.value.trim() : (tx.notes || '');
+        const hasOnboardingEditor = Boolean(
+            onboardingSection && onboardingSection.style.display !== 'none' && firstCallChk && appRegChk
+        );
+        const nextOnboarding = hasOnboardingEditor
+            ? { firstCall: Boolean(firstCallChk.checked), appReg: Boolean(appRegChk.checked) }
+            : tx.onboarding;
+
+        // Resolve Firestore docId if optimistic entry was just written
+        if (!tx.docId) {
+            try {
+                const lookupSnap = await getDocs(query(collection(db, 'transactions'), where('id', '==', tx.id)));
+                if (!lookupSnap.empty) {
+                    tx.docId = lookupSnap.docs[0].id;
+                    tx.isPending = false;
+                }
+            } catch (_) {}
+        }
+
+        if (!tx.docId) {
+            showAppAlert("Sync Pending", "This transaction is still syncing to the cloud. Please try again in a moment.");
+            return;
         }
         
         let prevTxState = {
@@ -574,31 +792,82 @@ export async function saveTxEdit() {
         };
         let updatedEditHistory = tx.editHistory ? [...tx.editHistory, prevTxState] : [prevTxState];
         
+        prevSnapshot = {
+            qty: tx.qty,
+            amount: tx.amount,
+            payment: tx.payment,
+            cashAmt: tx.cashAmt,
+            mfsAmt: tx.mfsAmt,
+            notes: tx.notes,
+            onboarding: tx.onboarding ? { ...tx.onboarding } : undefined,
+            isEdited: tx.isEdited,
+            editHistory: tx.editHistory ? [...tx.editHistory] : undefined
+        };
+
         setButtonLoading(submitBtn, true, 'Updating...');
 
         // --- OPTIMISTIC LOCAL UPDATE ---
         tx.qty = newQty;
         tx.amount = newAmount;
-        tx.payment = method === 'Split' ? 'Split' : method;
+        tx.payment = method;
         tx.cashAmt = finalCash;
         tx.mfsAmt = finalMfs;
+        tx.notes = nextNotes;
+        if (nextOnboarding !== undefined) tx.onboarding = nextOnboarding;
         tx.isEdited = true;
         tx.editHistory = updatedEditHistory;
 
-        if (typeof window.renderDeskDashboard === 'function') window.renderDeskDashboard(AppState.currentDeskId);
+        const targetDeskId = tx.deskId || AppState.currentDeskId;
+        if (targetDeskId && typeof window.renderDeskDashboard === 'function') window.renderDeskDashboard(targetDeskId);
         if (typeof window.renderPersonalReport === 'function') window.renderPersonalReport();
+        if (typeof window.renderAppUI === 'function') window.renderAppUI();
+
+        const updatePayload = {
+            qty: newQty,
+            amount: newAmount,
+            payment: method,
+            cashAmt: finalCash,
+            mfsAmt: finalMfs,
+            notes: nextNotes,
+            isEdited: true,
+            editHistory: updatedEditHistory
+        };
+        if (nextOnboarding !== undefined) {
+            updatePayload.onboarding = nextOnboarding;
+        }
 
         // --- FIRESTORE UPDATE ---
-        if (tx.docId) {
-            await updateDoc(doc(db, 'transactions', tx.docId), { qty: newQty, amount: newAmount, payment: method === 'Split' ? 'Split' : method, cashAmt: finalCash, mfsAmt: finalMfs, isEdited: true, editHistory: updatedEditHistory });
-            showFlashMessage(navigator.onLine ? `${tx.name} Updated!` : "Offline: Edit queued");
-        } else {
-            showFlashMessage("Updated locally (sync pending)");
+        await updateDoc(doc(db, 'transactions', tx.docId), updatePayload);
+        AppState.needsRender.floor = true;
+        if (typeof document !== 'undefined' && document.getElementById('tab-floor')?.classList.contains('active') && typeof window.renderLiveFloorTab === 'function') {
+            window.renderLiveFloorTab();
         }
+        showFlashMessage(navigator.onLine ? `${tx.name} Updated!` : "Offline: Edit queued");
         closeModal('modal-edit-tx');
         AppState.ui.currentEditTxId = null;
-    } catch(e) {
-        showAppAlert("Save Failed", "Could not save edit to database.");
+    } catch (e) {
+        if (tx && prevSnapshot) {
+            tx.qty = prevSnapshot.qty;
+            tx.amount = prevSnapshot.amount;
+            tx.payment = prevSnapshot.payment;
+            tx.cashAmt = prevSnapshot.cashAmt;
+            tx.mfsAmt = prevSnapshot.mfsAmt;
+            tx.notes = prevSnapshot.notes;
+            if (prevSnapshot.onboarding !== undefined) tx.onboarding = prevSnapshot.onboarding;
+            else delete tx.onboarding;
+            tx.isEdited = prevSnapshot.isEdited;
+            if (prevSnapshot.editHistory !== undefined) tx.editHistory = prevSnapshot.editHistory;
+            else delete tx.editHistory;
+
+            const targetDeskId = tx.deskId || AppState.currentDeskId;
+            if (targetDeskId && typeof window.renderDeskDashboard === 'function') window.renderDeskDashboard(targetDeskId);
+            if (typeof window.renderPersonalReport === 'function') window.renderPersonalReport();
+            if (typeof window.renderAppUI === 'function') window.renderAppUI();
+        }
+        const errMsg = e?.code === 'permission-denied'
+            ? "Permission Denied: Only managers, admins, or the agent who logged this transaction can edit it."
+            : "Could not save edit to database. Please check your connection and try again.";
+        showAppAlert("Save Failed", errMsg);
         console.error(e);
     } finally {
         isSaving = false;
@@ -607,10 +876,12 @@ export async function saveTxEdit() {
 }
 
 export function deleteTransaction(docId, localId) {
-    if(!AppState.currentUser) return;
+    if (!AppState.currentUser) return;
     
-    let tx = AppState.transactions.find(t => t.docId === docId || t.id === localId);
+    const resolvedDocId = normalizeDocIdParam(docId);
+    let tx = (resolvedDocId && AppState.transactions.find(t => t.docId === resolvedDocId)) || findTxById(AppState.transactions, localId);
     if (tx && !isTransactionModifiable(tx, 'delete')) return;
+    const finalDocId = resolvedDocId || tx?.docId || '';
 
     showAppAlert("Delete Item", tx && tx.transferGroupId ? "This is a transfer. Deleting it will delete both sending and receiving sides. Proceed?" : "Are you sure you want to move this transaction to the trash?", true, async () => {
         if (isSaving) return;
@@ -621,9 +892,10 @@ export function deleteTransaction(docId, localId) {
 
         // Optimistic local update
         if (tx) tx.isDeleted = true;
-        if (typeof window.renderDeskDashboard === 'function') window.renderDeskDashboard(AppState.currentDeskId);
+        const targetDeskId = tx?.deskId || AppState.currentDeskId;
+        if (targetDeskId && typeof window.renderDeskDashboard === 'function') window.renderDeskDashboard(targetDeskId);
 
-        if(docId) {
+        if (finalDocId) {
             try {
                 if (tx && tx.transferGroupId) {
                     const groupSnap = await getDocs(query(collection(db, 'transactions'), where('transferGroupId', '==', tx.transferGroupId)));
@@ -635,7 +907,7 @@ export function deleteTransaction(docId, localId) {
                     });
                     await batch.commit();
                 } else {
-                    await updateDoc(doc(db, 'transactions', docId), { isDeleted: true, deletedBy: agentStr, deletedByUid: AppState.currentUser.uid, deletedAt: nowStr });
+                    await updateDoc(doc(db, 'transactions', finalDocId), { isDeleted: true, deletedBy: agentStr, deletedByUid: AppState.currentUser.uid, deletedAt: nowStr });
                 }
 
                 // If this was a Recycle SIM sale transaction, revert the SIM status in Firestore back to its previous status (e.g. arrived)
@@ -709,15 +981,15 @@ export function renderTrash() {
                 <div style="border:1px solid var(--border-color); padding:12px; margin-bottom:8px; border-radius:8px; background: var(--surface-color);">
                     <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
                         <strong style="color: var(--text-primary); text-decoration: line-through;">${tx.qty}x ${escapeHtml(tx.name)}</strong> 
-                        <span style="font-weight:bold; color:#ef4444;">${tx.amount} Tk</span>
+                        <span class="tabular-nums" style="font-weight:bold; color: var(--danger-text);">${tx.amount} Tk</span>
                     </div>
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span style="font-size:0.8rem; color:var(--text-secondary);">${escapeHtml(tx.time)} | ${escapeHtml(tx.payment)}</span>
                         <div style="display:flex; gap: 8px;">
-                            <button class="btn-outline" style="padding:6px 12px; font-size:0.85rem; height:auto; color: #10b981; gap: 6px;" onclick="restoreTx(${safeDocId}, ${tx.id})">
+                            <button type="button" class="btn-outline" style="padding:6px 12px; font-size:0.85rem; height:auto; color: var(--success-text); border-color: var(--success-border); gap: 6px;" onclick="restoreTx(${safeDocId}, ${tx.id})">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg> Restore
                             </button>
-                            <button class="btn-outline" style="padding:6px 12px; font-size:0.85rem; height:auto; color: var(--danger-text); border-color: var(--danger-border); gap: 6px; background: var(--danger-bg);" onclick="permanentlyDeleteTx(${safeDocId}, ${tx.id})">
+                            <button type="button" class="btn-outline" style="padding:6px 12px; font-size:0.85rem; height:auto; color: var(--danger-text); border-color: var(--danger-border); gap: 6px; background: var(--danger-bg);" onclick="permanentlyDeleteTx(${safeDocId}, ${tx.id})">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg> Delete
                             </button>
                         </div>
@@ -783,11 +1055,13 @@ export async function restoreTx(docId, localId) {
 }
 
 export function permanentlyDeleteTx(docId, localId) {
-    let tx = AppState.trashTransactions.find(t => t.docId === docId || t.id === localId);
+    const resolvedDocId = normalizeDocIdParam(docId);
+    let tx = (resolvedDocId && AppState.trashTransactions.find(t => t.docId === resolvedDocId)) || findTxById(AppState.trashTransactions, localId);
+    const finalDocId = resolvedDocId || tx?.docId || '';
     showAppAlert("Permanent Delete", tx && tx.transferGroupId ? "This is a transfer. Permanently deleting it will erase both sides forever. Proceed?" : "This transaction will be permanently erased. This cannot be undone.", true, async () => {
         if (isSaving) return;
         isSaving = true;
-        if(docId) {
+        if (finalDocId) {
             try {
                 if (tx && tx.transferGroupId) {
                     const groupSnap = await getDocs(query(collection(db, 'transactions'), where('transferGroupId', '==', tx.transferGroupId)));
@@ -797,7 +1071,7 @@ export function permanentlyDeleteTx(docId, localId) {
                     });
                     await batch.commit();
                 } else {
-                    await deleteDoc(doc(db, 'transactions', docId));
+                    await deleteDoc(doc(db, 'transactions', finalDocId));
                 }
                 showFlashMessage(navigator.onLine ? "Permanently Deleted!" : "Offline: Delete queued");
             } catch(e) {

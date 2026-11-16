@@ -1,73 +1,104 @@
 // src/features/catalog.js
 import { AppState } from '../core/state.js';
-import { selectItem, instantSaveItem } from './transactions.js';
+import { selectItem, instantSaveItem, canSelectMultiQty } from './transactions.js';
 import { priorityItemSortOrder } from '../core/constants.js';
 import { getAvailableStock } from './inventory.js';
 import { escapeHtml } from '../utils/helpers.js';
 
-export function filterStoreCatalog() {
+let storeInStockOnly = false;
+
+export function toggleStoreInStockFilter() {
+    storeInStockOnly = !storeInStockOnly;
+    const btn = document.getElementById('store-instock-toggle');
+    if (btn) {
+        btn.classList.toggle('active', storeInStockOnly);
+        btn.setAttribute('aria-pressed', storeInStockOnly ? 'true' : 'false');
+    }
+    filterStoreCatalog();
+}
+
+export function resetStoreFilters() {
+    storeInStockOnly = false;
+    const btn = document.getElementById('store-instock-toggle');
+    if (btn) {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-pressed', 'false');
+    }
+    const searchInput = document.getElementById('store-search');
+    if (searchInput) searchInput.value = '';
+    const clearBtn = document.getElementById('store-search-clear');
+    if (clearBtn) {
+        clearBtn.classList.remove('visible');
+        clearBtn.style.display = 'none';
+    }
+    filterStoreCatalog();
+}
+
+export function filterStoreCatalog(overrideCatId = null) {
     const text = document.getElementById('store-search')?.value.toLowerCase().trim() || '';
     const pillsContainer = document.getElementById('store-pills-container');
     const noResults = document.getElementById('store-no-results');
     const clearBtn = document.getElementById('store-search-clear');
+    const countBar = document.getElementById('store-count-bar');
+    const activeCatEl = document.getElementById('store-active-category');
+    const selectedCat = overrideCatId || activeCatEl?.value || 'cat-new-sim';
 
     // Toggle X Clear Button visibility
     if (clearBtn) {
-        clearBtn.style.display = text.length > 0 ? 'flex' : 'none';
+        clearBtn.classList.toggle('visible', text.length > 0);
+        clearBtn.style.display = text.length > 0 ? 'inline-flex' : 'none';
     }
 
-    if (text.length > 0) {
-        // 1. Hide category pills container when searching
-        if (pillsContainer) {
-            pillsContainer.style.display = 'none';
-        }
+    const searchAcrossAll = text.length > 0 && !overrideCatId;
+    if (pillsContainer) {
+        pillsContainer.style.display = searchAcrossAll ? 'none' : 'flex';
+    }
 
-        // 2. Hide/show matching items globally across all categories
-        let hasAnyMatch = false;
+    let matchedCount = 0;
+    let totalInScope = 0;
 
-        document.querySelectorAll('.store-cat-group').forEach(group => {
-            let hasMatchInGroup = false;
+    document.querySelectorAll('.store-cat-group').forEach(group => {
+        const isGroupInScope = searchAcrossAll || selectedCat === 'cat-all' || group.id === selectedCat;
+        let hasMatchInGroup = false;
 
-            group.querySelectorAll('.store-item-row').forEach(card => {
-                const name = card.querySelector('.store-item-name')?.innerText.toLowerCase() || '';
-                if (name.includes(text)) {
-                    card.style.display = 'flex';
-                    hasMatchInGroup = true;
-                    hasAnyMatch = true;
-                } else {
-                    card.style.display = 'none';
-                }
-            });
+        group.querySelectorAll('.store-item-row').forEach(card => {
+            const displayName = card.querySelector('.store-item-name')?.innerText.toLowerCase() || '';
+            const rawName = (card.getAttribute('data-item-name') || '').toLowerCase();
+            const trackAs = (card.getAttribute('data-track-as') || '').toLowerCase();
+            const priceStr = (card.getAttribute('data-price') || '').toLowerCase();
+            const isOOS = card.classList.contains('is-locked');
 
-            // Show the group container only if it has at least one matching item
-            group.style.display = hasMatchInGroup ? 'block' : 'none';
+            const matchesSearch = !text || displayName.includes(text) || rawName.includes(text) || trackAs.includes(text) || priceStr.includes(text);
+            const matchesStock = !storeInStockOnly || !isOOS;
+
+            if (isGroupInScope) totalInScope++;
+
+            if (isGroupInScope && matchesSearch && matchesStock) {
+                card.style.display = 'flex';
+                hasMatchInGroup = true;
+                matchedCount++;
+            } else {
+                card.style.display = 'none';
+            }
         });
 
-        // 3. Toggle empty state
-        if (noResults) {
-            noResults.style.display = hasAnyMatch ? 'none' : 'block';
-        }
-    } else {
-        // 1. Restore pills container display
-        if (pillsContainer) {
-            pillsContainer.style.display = 'flex';
-        }
+        group.style.display = (isGroupInScope && hasMatchInGroup) ? 'block' : 'none';
+    });
 
-        // 2. Hide empty state
-        if (noResults) {
-            noResults.style.display = 'none';
-        }
+    if (noResults) {
+        noResults.style.display = matchedCount > 0 ? 'none' : 'block';
+    }
 
-        // 3. Restore all cards to display: flex
-        document.querySelectorAll('.store-item-row').forEach(card => {
-            card.style.display = 'flex';
-        });
-
-        // 4. Restore the active visible category tab
-        const visiblePills = Array.from(document.querySelectorAll('#store-pills-container .store-pill')).filter(p => p.style.display !== 'none');
-        const activePill = visiblePills.find(p => p.classList.contains('active')) || visiblePills[0];
-        if (activePill) {
-            activePill.click();
+    if (countBar) {
+        const showBar = text.length > 0 || storeInStockOnly || selectedCat === 'cat-all';
+        if (showBar) {
+            countBar.style.display = 'flex';
+            const scopeText = (text.length > 0 || storeInStockOnly)
+                ? `Showing ${matchedCount} of ${totalInScope} item${totalInScope === 1 ? '' : 's'}${storeInStockOnly ? ' (In Stock)' : ''}`
+                : `${matchedCount} catalog item${matchedCount === 1 ? '' : 's'}`;
+            countBar.innerHTML = `<span>${scopeText}</span>${(text.length > 0 || storeInStockOnly) ? '<button type="button" class="ledger-reset-link" onclick="resetStoreFilters()">Reset</button>' : ''}`;
+        } else {
+            countBar.style.display = 'none';
         }
     }
 }
@@ -76,6 +107,7 @@ export function clearStoreSearch() {
     const searchInput = document.getElementById('store-search');
     if (searchInput) {
         searchInput.value = '';
+        if (typeof searchInput.focus === 'function') searchInput.focus();
     }
     filterStoreCatalog();
 }
@@ -164,6 +196,14 @@ export function renderAppUI() {
 
             let row = document.createElement('div');
             row.className = `dynamic-item store-item-row is-${item.cat}${isOutOfStock ? ' is-locked' : ''}`;
+            if (typeof row.setAttribute === 'function') {
+                row.setAttribute('role', 'button');
+                row.setAttribute('tabindex', '0');
+                row.setAttribute('data-item-name', item.name || '');
+                row.setAttribute('data-track-as', item.trackAs || '');
+                row.setAttribute('data-price', String(safePrice));
+                row.setAttribute('aria-label', `${item.display || item.name}${safePrice > 0 ? `, ${safePrice} ${userCurrency}` : ', Free'}${isOutOfStock ? ', Out of stock' : ''}`);
+            }
             
             let pressTimer;
             let isLongPress = false;
@@ -171,6 +211,7 @@ export function renderAppUI() {
             let startY = 0; // Track finger start position to detect scrolls
 
             const startPress = (e) => {
+                if (e.target && typeof e.target.closest === 'function' && e.target.closest('.store-item-qty-btn')) return;
                 if (e.button && e.button !== 0) return;
                 // Record where the finger landed — decision is made on pointerup
                 startY = e.clientY;
@@ -198,6 +239,7 @@ export function renderAppUI() {
             const endPress = (e) => {
                 clearTimeout(pressTimer);
                 row.classList.remove('is-pressed');
+                if (e.target && typeof e.target.closest === 'function' && e.target.closest('.store-item-qty-btn')) return;
 
                 // If finger moved more than 8px vertically, it was a scroll — ignore entirely
                 const didScroll = Math.abs((e.clientY || startY) - startY) > 8;
@@ -205,7 +247,7 @@ export function renderAppUI() {
 
                 // Now it's confirmed to be a tap — show OOS alert here, not on pointerdown
                 if (isOutOfStock) {
-                    if (typeof window.showAppAlert === 'function') window.showAppAlert("Stock Alert", `⚠️ ${item.display || item.name} is currently out of stock in your drawer.`);
+                    if (typeof window.showAppAlert === 'function') window.showAppAlert("Stock Alert", `${item.display || item.name} is currently out of stock in your drawer.`);
                     return;
                 }
                 if (!isLongPress && !isCancelled) {
@@ -218,18 +260,34 @@ export function renderAppUI() {
             row.addEventListener('pointerup', endPress);
             row.addEventListener('pointerleave', cancelPress);
             row.addEventListener('pointercancel', cancelPress);
+            row.addEventListener('keydown', (e) => {
+                if (e.target !== row) return;
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    if (isOutOfStock) {
+                        if (typeof window.showAppAlert === 'function') window.showAppAlert("Stock Alert", `${item.display || item.name} is currently out of stock in your drawer.`);
+                        return;
+                    }
+                    instantSaveItem(item.name, safePrice);
+                }
+            });
             row.oncontextmenu = (e) => { e.preventDefault(); return false; };
             
             let priceDisplay = safePrice > 0 
                 ? `<span class="store-item-price">${safePrice} <span>${userCurrency}</span></span>` 
                 : `<span class="store-item-free">FREE</span>`;
             
+            const showQtyBtn = !isOutOfStock && canSelectMultiQty(item.name);
+            let qtyBtnHTML = showQtyBtn
+                ? `<button type="button" class="store-item-qty-btn" title="Select quantity" aria-label="Select quantity for ${escapeHtml(item.display || item.name)}">Qty</button>`
+                : '';
+
             let actionIcon = isOutOfStock
                 ? `<div class="store-item-action is-danger"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>`
                 : `<div class="store-item-action"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>`;
  
             let subText = isOutOfStock 
-                ? `<span style="font-size: 0.72rem; color: #ef4444; font-weight: 700; margin-top: 4px; display: block;">⚠️ Out of Stock</span>` 
+                ? `<span style="font-size: 0.72rem; color: var(--danger-text); font-weight: 700; margin-top: 4px; display: block;">Out of Stock</span>` 
                 : stockStatusHTML;
 
             row.innerHTML = `
@@ -242,9 +300,21 @@ export function renderAppUI() {
                 </div>
                 <div class="store-item-meta">
                     ${priceDisplay}
+                    ${qtyBtnHTML}
                     ${actionIcon}
                 </div>
             `;
+            if (showQtyBtn && typeof row.querySelector === 'function') {
+                const qtyBtn = row.querySelector('.store-item-qty-btn');
+                if (qtyBtn && typeof qtyBtn.addEventListener === 'function') {
+                    qtyBtn.addEventListener('pointerdown', (e) => { e.stopPropagation(); });
+                    qtyBtn.addEventListener('pointerup', (e) => { e.stopPropagation(); });
+                    qtyBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        selectItem(item.name, safePrice);
+                    });
+                }
+            }
             container.appendChild(row);
         });
 
@@ -252,7 +322,8 @@ export function renderAppUI() {
         document.querySelectorAll('.store-cat-group').forEach(group => {
             const containers = Array.from(group.querySelectorAll('[id^="container-"]'));
             const totalChildren = containers.reduce((sum, c) => sum + c.childElementCount, 0);
-            const pill = document.querySelector(`#store-pills-container .store-pill[onclick*="'${group.id}'"]`);
+            const pill = document.querySelector(`#store-pills-container .store-pill[data-store-cat="${group.id}"]`)
+                || document.querySelector(`#store-pills-container .store-pill[onclick*="'${group.id}'"]`);
             if (totalChildren === 0) {
                 group.style.display = 'none';
                 if (pill) pill.style.display = 'none';
@@ -265,6 +336,8 @@ export function renderAppUI() {
         if (activePill && activePill.style.display === 'none') {
             const firstVisiblePill = Array.from(document.querySelectorAll('#store-pills-container .store-pill')).find(p => p.style.display !== 'none');
             if (firstVisiblePill) firstVisiblePill.click();
+        } else {
+            filterStoreCatalog();
         }
     } catch (e) {
         console.error("Critical error in renderAppUI:", e);

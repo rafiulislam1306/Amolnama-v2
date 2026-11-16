@@ -79,14 +79,21 @@ export function passStockFirewall(itemName, requestedQty) {
 }
 
 export function switchStoreCategory(catId, btn) {
-    document.querySelectorAll('.store-pill').forEach(p => p.classList.remove('active'));
-    if (btn && btn.classList) {
-        btn.classList.add('active');
+    document.querySelectorAll('#store-pills-container .store-pill').forEach(p => {
+        const isActive = btn ? (p === btn) : p.getAttribute('data-store-cat') === catId;
+        p.classList.toggle('active', isActive);
+        p.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+
+    const activeCatEl = document.getElementById('store-active-category');
+    if (activeCatEl) activeCatEl.value = catId || 'cat-new-sim';
+
+    if (typeof window.filterStoreCatalog === 'function') {
+        window.filterStoreCatalog(catId);
+        return;
     }
-    
-    document.querySelectorAll('.store-cat-group').forEach(c => c.style.display = 'none');
-    const targetGroup = document.getElementById(catId);
-    if (targetGroup) {
-        targetGroup.style.display = 'block';
-    }
+
+    document.querySelectorAll('.store-cat-group').forEach(c => {
+        c.style.display = (catId === 'cat-all' || c.id === catId) ? 'block' : 'none';
+    });
 }

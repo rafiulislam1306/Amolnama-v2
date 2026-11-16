@@ -2,10 +2,19 @@ import { collection, query, where, getDocs, onSnapshot, doc, getDoc } from "fire
 import { renderLiveFloorTab } from './desk.js';
 import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
-import { getStrictDate, formatToGBDate, formatLocalISODate, escapeHtml, escapeJsSingleQuote } from '../utils/helpers.js';
+import { getStrictDate, formatToGBDate, formatLocalISODate, isViewingHistoricalDate, escapeHtml, escapeJsSingleQuote } from '../utils/helpers.js';
 import { showAppAlert, showFlashMessage, openModal } from '../utils/ui-helpers.js';
 import { getPhysicalItems, getNormalizedTrackAs } from './inventory.js';
 import { priorityItemSortOrder, priorityInventorySortOrder } from '../core/constants.js';
+import {
+    createDefaultLedgerFilters,
+    matchesLedgerFilters,
+    sortLedgerTransactions,
+    countActiveAdvancedFilters,
+    isLedgerFiltered,
+    computeFilteredLedgerTotal,
+    extractLedgerAgents
+} from '../utils/ledger-filters.js';
 
 const userCurrency = 'Tk';
 const fmt = (num) => Number(num || 0).toLocaleString('en-IN');
@@ -14,11 +23,11 @@ const getTsMillis = (ts, fallback = 0) => (ts && typeof ts.toMillis === 'functio
 function getOnboardingBadge(tx) {
     if (!tx.onboarding) return '';
     
-    const fc = tx.onboarding.firstCall ? '✅ FC' : '❌ FC';
+    const fc = tx.onboarding.firstCall ? '✓ FC' : '✕ FC';
     const listB = ['Skitto', 'eSIM Skitto'];
     const isSkitto = listB.includes(tx.name);
     const appLabel = isSkitto ? 'Skitto' : 'MyGP';
-    const app = tx.onboarding.appReg ? `✅ ${appLabel}` : `❌ ${appLabel}`;
+    const app = tx.onboarding.appReg ? `✓ ${appLabel}` : `✕ ${appLabel}`;
     
     return `
         <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: 2px;">
@@ -40,11 +49,15 @@ export function toggleCenterCashActions() {
     centerCashActionsExpanded = !centerCashActionsExpanded;
     const accordion = document.getElementById('center-cash-accordion');
     const chevron = document.getElementById('center-cash-chevron');
+    const trigger = document.querySelector('[onclick="toggleCenterCashActions()"]');
     if (accordion) {
         accordion.style.display = centerCashActionsExpanded ? 'flex' : 'none';
     }
     if (chevron) {
         chevron.style.transform = centerCashActionsExpanded ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+    if (trigger) {
+        trigger.setAttribute('aria-expanded', centerCashActionsExpanded ? 'true' : 'false');
     }
 }
 
@@ -52,11 +65,15 @@ export function toggleCenterCashCategory(catKey) {
     centerCashCategoriesExpanded[catKey] = !centerCashCategoriesExpanded[catKey];
     const drill = document.getElementById(`center-cat-${catKey}-drill`);
     const chevron = document.getElementById(`center-cat-${catKey}-chevron`);
+    const trigger = document.querySelector(`[onclick="toggleCenterCashCategory('${catKey}')"]`);
     if (drill) {
         drill.style.display = centerCashCategoriesExpanded[catKey] ? 'flex' : 'none';
     }
     if (chevron) {
         chevron.style.transform = centerCashCategoriesExpanded[catKey] ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+    if (trigger) {
+        trigger.setAttribute('aria-expanded', centerCashCategoriesExpanded[catKey] ? 'true' : 'false');
     }
 }
 
@@ -76,13 +93,129 @@ function classifyCashAction(tx) {
     return (tx.cashAmt !== undefined && tx.cashAmt >= 0) ? 'receive_float' : 'drop_manager';
 }
 
+const ledgerFiltersByScope = {
+    desk: createDefaultLedgerFilters(),
+    personal: createDefaultLedgerFilters()
+};
+
+function getScopeDomPrefix(scope) {
+    return scope === 'desk' ? 'desk' : 'personal';
+}
+
+export function getLedgerFilterState(scope = 'personal') {
+    const key = scope === 'desk' ? 'desk' : 'personal';
+    const base = ledgerFiltersByScope[key];
+    if (typeof document !== 'undefined') {
+        const hiddenCat = document.getElementById(`${key}-history-filter`)?.value;
+        if (hiddenCat) base.category = hiddenCat;
+    }
+    return { ...base };
+}
+
+export function syncLedgerFilterUI(scope = 'personal') {
+    if (typeof document === 'undefined') return;
+    const key = getScopeDomPrefix(scope);
+    const state = ledgerFiltersByScope[key];
+    const tabId = key === 'desk' ? 'tab-desk' : 'tab-report';
+    const tabEl = document.getElementById(tabId);
+
+    const hiddenCat = document.getElementById(`${key}-history-filter`);
+    if (hiddenCat) hiddenCat.value = state.category;
+
+    const searchInput = document.getElementById(`${key}-ledger-search`);
+    if (searchInput && searchInput.value !== state.search) {
+        searchInput.value = state.search;
+    }
+    const clearBtn = document.getElementById(`${key}-ledger-search-clear`);
+    if (clearBtn) {
+        clearBtn.classList.toggle('visible', (state.search || '').trim().length > 0);
+    }
+
+    if (tabEl) {
+        tabEl.querySelectorAll('.desk-filter-pill').forEach(p => {
+            const val = p.getAttribute('data-filter') || '';
+            const isActive = val === state.category;
+            p.classList.toggle('active', isActive);
+            p.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+        tabEl.querySelectorAll('[data-pay-filter]').forEach(btn => {
+            const isActive = btn.getAttribute('data-pay-filter') === state.payment;
+            btn.classList.toggle('active', isActive);
+            btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+        tabEl.querySelectorAll('[data-status-filter]').forEach(btn => {
+            const isActive = btn.getAttribute('data-status-filter') === state.status;
+            btn.classList.toggle('active', isActive);
+            btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+    }
+
+    const agentSelect = document.getElementById(`${key}-agent-filter`);
+    if (agentSelect && Array.from(agentSelect.options).some(o => o.value === state.agent)) {
+        agentSelect.value = state.agent;
+    }
+    const sortSelect = document.getElementById(`${key}-sort-filter`);
+    if (sortSelect) {
+        sortSelect.value = state.sort || 'newest';
+    }
+
+    const activeAdvCount = countActiveAdvancedFilters(state);
+    const badgeEl = document.getElementById(`${key}-filter-badge`);
+    if (badgeEl) {
+        badgeEl.innerText = String(activeAdvCount);
+        badgeEl.style.display = activeAdvCount > 0 ? 'inline-flex' : 'none';
+    }
+    const toggleBtn = document.getElementById(`${key}-filter-toggle`);
+    if (toggleBtn) {
+        toggleBtn.classList.toggle('has-active', activeAdvCount > 0);
+    }
+}
+
+export function setLedgerFilterField(scope, field, value) {
+    const key = getScopeDomPrefix(scope);
+    if (field in ledgerFiltersByScope[key]) {
+        ledgerFiltersByScope[key][field] = value;
+    }
+    syncLedgerFilterUI(key);
+}
+
+export function resetLedgerFilters(scope = 'personal') {
+    const key = getScopeDomPrefix(scope);
+    ledgerFiltersByScope[key] = createDefaultLedgerFilters();
+    syncLedgerFilterUI(key);
+}
+
+function populateLedgerAgentSelect(scope, scopeTxs) {
+    if (typeof document === 'undefined') return;
+    const key = getScopeDomPrefix(scope);
+    const selectEl = document.getElementById(`${key}-agent-filter`);
+    if (!selectEl) return;
+
+    const agents = extractLedgerAgents(scopeTxs);
+    const current = ledgerFiltersByScope[key].agent || 'all';
+    const options = [`<option value="all">All Agents</option>`];
+    agents.forEach(name => {
+        options.push(`<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`);
+    });
+    selectEl.innerHTML = options.join('');
+
+    const stillExists = agents.some(a => a.toLowerCase() === current.toLowerCase());
+    if (stillExists) {
+        const matched = agents.find(a => a.toLowerCase() === current.toLowerCase());
+        ledgerFiltersByScope[key].agent = matched;
+        selectEl.value = matched;
+    } else {
+        ledgerFiltersByScope[key].agent = 'all';
+        selectEl.value = 'all';
+    }
+}
+
 export async function renderPersonalReport() {
-    let filterVal = document.getElementById('personal-history-filter') ? document.getElementById('personal-history-filter').value : 'all';
-    
     let myCash = 0, myMfs = 0;
     let myErsCount = 0, myErsTotal = 0;
     let myItemsSold = {}; 
     let historyHTML = '';
+    const personalScopeTxs = [];
 
     let targetDateStr = formatToGBDate(document.getElementById('report-date-picker').value || getStrictDate());
 
@@ -173,42 +306,46 @@ export async function renderPersonalReport() {
             }
         }
         
-        let catItem = Object.values(AppState.globalCatalog).find(c => c.name === tx.name);
-        let txCat = catItem ? catItem.cat : null;
-        let showTx = false;
-        
-        // Skip the echo half of desk-to-desk transfers — the canonical side already tells the full story
-        if (tx.isRemoteTransfer) return;
-        
-        if (filterVal === 'all') showTx = true;
-        else if (filterVal === 'ers' && tx.name === 'ERS Flexiload') showTx = true;
-        else if (filterVal === 'cash_actions' && tx.type === 'adjustment') showTx = true;
-        else if (filterVal === 'transfers' && (tx.type === 'transfer_in' || tx.type === 'transfer_out')) showTx = true;
-        else if (filterVal === txCat) showTx = true;
+        if (!tx.isRemoteTransfer) {
+            personalScopeTxs.push(tx);
+        }
+    });
 
-        if (!showTx) return;
-        
+    populateLedgerAgentSelect('personal', personalScopeTxs);
+    syncLedgerFilterUI('personal');
+    const personalFilterState = getLedgerFilterState('personal');
+    const personalTotalCount = personalScopeTxs.length;
+    const filteredPersonalTxs = sortLedgerTransactions(
+        personalScopeTxs.filter(tx => matchesLedgerFilters(tx, personalFilterState, AppState.globalCatalog)),
+        personalFilterState.sort
+    );
+    const personalShownCount = filteredPersonalTxs.length;
+    const personalFilteredVolume = computeFilteredLedgerTotal(filteredPersonalTxs, personalFilterState.payment);
+    const personalIsFiltered = isLedgerFiltered(personalFilterState);
+
+    filteredPersonalTxs.forEach(tx => {
+        let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
+        let safeMfsAmt = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0);
         let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
         let badges = '';
         
         if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: rgba(245, 158, 11, 0.15); color: var(--warning-text, #b45309); padding: 2px 8px; border-radius: 10px; margin-left: 8px; font-weight: 700;">Pending</span>';
-        if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: rgba(139, 92, 246, 0.15); color: #8b5cf6; padding: 2px 8px; border-radius: 10px; margin-left: 8px; font-weight: 700; cursor: pointer;" onclick="showAuditTrail('${escapeJsSingleQuote(String(tx.id))}')">Edited</span>`;
+        if (tx.isEdited) badges += `<span role="button" tabindex="0" style="font-size: 0.7rem; background: rgba(139, 92, 246, 0.15); color: var(--purple-text, #6d28d9); padding: 2px 8px; border-radius: 10px; margin-left: 8px; font-weight: 700; cursor: pointer;" onclick="event.stopPropagation(); showAuditTrail('${escapeJsSingleQuote(String(tx.id))}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();showAuditTrail('${escapeJsSingleQuote(String(tx.id))}');}">Edited</span>`;
         
         let detailsHTML = '';
         if (tx.handsetModel) {
-            detailsHTML += `<div style="font-size: 0.8rem; color: var(--accent-color); font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">📱 Model: ${escapeHtml(tx.handsetModel)}</div>`;
+            detailsHTML += `<div style="font-size: 0.8rem; color: var(--accent-color); font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg><span>Model: ${escapeHtml(tx.handsetModel)}</span></div>`;
         }
         if (tx.notes) {
-            detailsHTML += `<div style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; margin-top: 2px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(tx.notes)}">💬 ${escapeHtml(tx.notes)}</div>`;
+            detailsHTML += `<div style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; margin-top: 2px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px;" title="${escapeHtml(tx.notes)}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>${escapeHtml(tx.notes)}</span></div>`;
         }
-        let agentBadge = ` &bull; <span style="color: var(--text-primary); font-weight: 600;">By ${escapeHtml((tx.agentName || 'Unknown').split(' ')[0])}</span>`;
 
         let actionBtns = `
                 <div class="tx-actions" style="display: none; width: 100%; padding-top: 12px; margin-top: 12px; border-top: 1px dashed var(--border-color); justify-content: flex-end; gap: 8px;">
-                    <button class="btn-outline" style="height: 36px; padding: 0 16px; font-size: 0.85rem; color: var(--accent-color); border-color: var(--accent-color); gap: 6px; border-radius: 10px; font-weight: 700;" onclick="event.stopPropagation(); openEditTx('${escapeJsSingleQuote(String(tx.id))}')">
+                    <button type="button" class="btn-outline" style="height: 36px; padding: 0 16px; font-size: 0.85rem; color: var(--accent-color); border-color: var(--accent-color); gap: 6px; border-radius: 10px; font-weight: 700;" onclick="event.stopPropagation(); openEditTx('${escapeJsSingleQuote(String(tx.id))}')">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> Edit
                     </button>
-                    <button class="btn-outline" style="height: 36px; padding: 0 16px; font-size: 0.85rem; color: #ef4444; border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.08); gap: 6px; border-radius: 10px; font-weight: 700;" onclick="event.stopPropagation(); deleteTransaction('${escapeJsSingleQuote(tx.docId)}', '${escapeJsSingleQuote(String(tx.id))}')">
+                    <button type="button" class="btn-outline" style="height: 36px; padding: 0 16px; font-size: 0.85rem; color: var(--danger-text); border-color: var(--danger-border); background: var(--danger-bg); gap: 6px; border-radius: 10px; font-weight: 700;" onclick="event.stopPropagation(); deleteTransaction('${escapeJsSingleQuote(tx.docId)}', '${escapeJsSingleQuote(String(tx.id))}')">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg> Trash
                     </button>
                 </div>
@@ -228,56 +365,40 @@ export async function renderPersonalReport() {
         let amtPrefix = isOutflow ? '− ' : '';
 
         historyHTML += `
-            <div class="history-item" style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-strong); border: 1px solid var(--border-color); border-radius: 18px; box-shadow: var(--shadow-soft); margin-bottom: 12px; cursor: pointer; transition: transform 0.4s var(--spring-physics), background-color 0.2s ease;" onpointerdown="this.style.transform='scale(0.975)'" onpointerup="this.style.transform='scale(1)'" onpointerleave="this.style.transform='scale(1)'" onclick="const actions = this.querySelector('.tx-actions'); const chv = this.querySelector('.tx-chevron svg'); if(actions) { const isExp = actions.style.display !== 'none'; actions.style.display = isExp ? 'none' : 'flex'; if(chv) chv.style.transform = isExp ? 'rotate(0deg)' : 'rotate(180deg)'; }">
+            <div class="history-item" role="button" tabindex="0" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();this.click();}" style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-strong); border: 1px solid var(--border-color); border-radius: 18px; box-shadow: var(--shadow-soft); margin-bottom: 12px; cursor: pointer; transition: transform 0.4s var(--spring-physics), background-color 0.2s ease;" onpointerdown="this.style.transform='scale(0.975)'" onpointerup="this.style.transform='scale(1)'" onpointerleave="this.style.transform='scale(1)'" onclick="const actions = this.querySelector('.tx-actions'); const chv = this.querySelector('.tx-chevron svg'); if(actions) { const isExp = actions.style.display !== 'none'; actions.style.display = isExp ? 'none' : 'flex'; if(chv) chv.style.transform = isExp ? 'rotate(0deg)' : 'rotate(180deg)'; }">
                 <div style="display: flex; width: 100%; align-items: center; gap: 14px;">
-                    <!-- Left: Tactile Qty Badge -->
                     <div style="width: 44px; height: 44px; border-radius: 12px; background: ${dotColor}0c; color: ${dotColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${dotColor}18; box-shadow: 0 2px 6px ${dotColor}08;">
                         <span style="font-size: 0.95rem; font-weight: 900;">${tx.qty}x</span>
                     </div>
-                    
-                    <!-- Middle: Title and Responsive Metadata Grid -->
                     <div style="flex: 1; min-width: 0;">
                         <div style="font-size: 1rem; color: var(--text-primary); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 2px;">
                             ${escapeHtml(tx.name)}
                         </div>
                         ${detailsHTML}
-                        
-                        <!-- Row 1: Receipt + Time (guaranteed single row) -->
                         <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1;">
-                            <!-- Receipt No -->
                             <div style="display: flex; align-items: center; background: var(--bg-color); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-primary); font-weight: 700; font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" title="${escapeHtml(tx.receiptNo || tx.id)}">
                                 ${escapeHtml(tx.receiptNo || tx.id)}
                             </div>
-                            <!-- Time -->
                             <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                                 <span style="margin-top: 1px;">${escapeHtml(tx.time)}</span>
                             </div>
                         </div>
-                        
-                        <!-- Row 2: Payment + Agent + Badges -->
                         <div style="display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1; flex-wrap: wrap;">
-                            <!-- Payment Mode -->
                             <div style="display: flex; align-items: center; gap: 4px; color: ${tx.payment === 'MFS' ? 'var(--success-text, #15803d)' : 'var(--text-secondary)'}; flex-shrink: 0;">
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
                                 <span style="margin-top: 1px;">${escapeHtml(payLabel)}</span>
                             </div>
-                            
-                            <!-- Agent Name -->
                             <div style="display: flex; align-items: center; gap: 4px; color: var(--text-primary); font-weight: 700; flex-shrink: 0;">
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                                 <span style="margin-top: 1px;">${escapeHtml((tx.agentName || 'Unknown').split(' ')[0])}</span>
                             </div>
-                            
                             ${getOnboardingBadge(tx)}
-                            
                             ${badges}
                         </div>
                     </div>
-                    
-                    <!-- Right: Amount display and expandable chevron affordance -->
                     <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 4px; flex-shrink: 0;">
-                        <div style="font-size: 1.25rem; font-weight: 900; color: ${amtColor}; text-align: right; font-family: monospace; display: flex; align-items: baseline; gap: 2px;">
+                        <div class="tabular-nums" style="font-size: 1.25rem; font-weight: 900; color: ${amtColor}; text-align: right; font-family: monospace; display: flex; align-items: baseline; gap: 2px;">
                             <span>${amtPrefix}${Math.abs(tx.amount || 0)}</span>
                             <span style="font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); font-family: inherit;">Tk</span>
                         </div>
@@ -311,7 +432,7 @@ export async function renderPersonalReport() {
         const catTotal = catData.total;
         const txList = catData.items;
         const isCatExpanded = Boolean(centerCashCategoriesExpanded[cfg.key]);
-        const catAmtColor = catTotal > 0 ? '#10b981' : (catTotal < 0 ? '#ef4444' : 'var(--text-secondary)');
+        const catAmtColor = catTotal > 0 ? 'var(--success-text)' : (catTotal < 0 ? 'var(--danger-text)' : 'var(--text-secondary)');
 
         let drillHTML = '';
         if (txList.length === 0) {
@@ -325,17 +446,18 @@ export async function renderPersonalReport() {
                 let safeCash = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
                 let safeMfs = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0);
                 let signedCashText = safeCash >= 0 ? `+${fmt(safeCash)} Tk` : `-${fmt(Math.abs(safeCash))} Tk`;
-                let signedCashColor = safeCash >= 0 ? '#10b981' : '#ef4444';
+                let signedCashColor = safeCash >= 0 ? 'var(--success-text)' : 'var(--danger-text)';
 
                 if (cfg.key === 'handset_cash') {
                     let splitText = tx.payment === 'Split' ? `<span style="opacity: 0.85; margin-left: 4px;">(Cash: ${fmt(safeCash)}, MFS: ${fmt(safeMfs)})</span>` : '';
                     return `
                         <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
-                                <div style="font-weight: 800; font-size: 0.85rem; color: var(--accent-color); word-break: break-word;">
-                                    📱 Model: ${escapeHtml(tx.handsetModel || 'Handset (Model Unspecified)')}
+                                <div style="font-weight: 800; font-size: 0.85rem; color: var(--accent-color); word-break: break-word; display: flex; align-items: center; gap: 4px;">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
+                                    <span>Model: ${escapeHtml(tx.handsetModel || 'Handset (Model Unspecified)')}</span>
                                 </div>
-                                <div style="font-weight: 800; font-size: 0.85rem; color: ${signedCashColor}; white-space: nowrap;">
+                                <div class="tabular-nums" style="font-weight: 800; font-size: 0.85rem; color: ${signedCashColor}; white-space: nowrap;">
                                     ${signedCashText}
                                 </div>
                             </div>
@@ -357,7 +479,7 @@ export async function renderPersonalReport() {
                                 <div style="font-weight: 700; font-size: 0.82rem; color: var(--text-primary); word-break: break-word;">
                                     ${escapeHtml(tx.name || cfg.title)}
                                 </div>
-                                <div style="font-weight: 800; font-size: 0.85rem; color: ${signedCashColor}; white-space: nowrap;">
+                                <div class="tabular-nums" style="font-weight: 800; font-size: 0.85rem; color: ${signedCashColor}; white-space: nowrap;">
                                     ${signedCashText}
                                 </div>
                             </div>
@@ -378,13 +500,13 @@ export async function renderPersonalReport() {
 
         return `
             <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px;">
-                <div onclick="toggleCenterCashCategory('${cfg.key}')" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none;">
+                <div role="button" tabindex="0" aria-expanded="${isCatExpanded ? 'true' : 'false'}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" onclick="toggleCenterCashCategory('${cfg.key}')" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span style="font-size: 0.82rem; font-weight: 700; color: var(--text-primary);">${cfg.title}</span>
                         <span style="font-size: 0.7rem; font-weight: 700; background: rgba(99, 102, 241, 0.08); color: #6366f1; padding: 2px 7px; border-radius: 9999px; border: 1px solid rgba(99, 102, 241, 0.2);">${txList.length}</span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 6px;">
-                        <span style="font-size: 0.95rem; font-weight: 800; color: ${catAmtColor};">${formatSignedTk(catTotal)}</span>
+                        <span class="tabular-nums" style="font-size: 0.95rem; font-weight: 800; color: ${catAmtColor};">${formatSignedTk(catTotal)}</span>
                         <svg id="center-cat-${cfg.key}-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-secondary); transition: transform 0.2s ease; transform: ${isCatExpanded ? 'rotate(180deg)' : 'rotate(0deg)'};"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
                 </div>
@@ -407,7 +529,7 @@ export async function renderPersonalReport() {
                         </div>
                         <h3 style="margin: 0; font-size: 1.25rem; font-weight: 900; color: var(--text-primary); letter-spacing: -0.2px;">Center Report</h3>
                     </div>
-                    <button onclick="downloadReportAsPDF('tab-report', 'Center_Report')" style="background: rgba(var(--accent-rgb, 51, 144, 236), 0.08); border: 1px solid rgba(var(--accent-rgb, 51, 144, 236), 0.25); border-radius: 12px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; color: var(--accent-color); cursor: pointer; transition: all 0.2s ease;" title="Download PDF" aria-label="Download PDF">
+                    <button type="button" onclick="downloadReportAsPDF('tab-report', 'Center_Report')" style="background: rgba(var(--accent-rgb, 51, 144, 236), 0.08); border: 1px solid rgba(var(--accent-rgb, 51, 144, 236), 0.25); border-radius: 12px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; color: var(--accent-color); cursor: pointer; transition: all 0.2s ease;" title="Download PDF" aria-label="Download PDF">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                     </button>
                 </div>
@@ -417,37 +539,37 @@ export async function renderPersonalReport() {
                     <!-- Opening Cash -->
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px;">Opening Cash</span>
-                        <span id="center-tot-opening" style="font-size: 1.4rem; font-weight: 800; color: var(--text-primary);">${fmt(floorOpeningCash)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Tk</span></span>
+                        <span id="center-tot-opening" class="tabular-nums" style="font-size: 1.4rem; font-weight: 800; color: var(--text-primary);">${fmt(floorOpeningCash)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Tk</span></span>
                     </div>
                     
                     <!-- Cash Sales -->
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px;">Cash Sales</span>
-                        <span style="font-size: 1.4rem; font-weight: 800; color: var(--success-text, #15803d);">+${fmt(myCash)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Tk</span></span>
+                        <span class="tabular-nums" style="font-size: 1.4rem; font-weight: 800; color: var(--success-text, #15803d);">+${fmt(myCash)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Tk</span></span>
                     </div>
                     
                     <!-- +/- Cash Actions (Interactive Accordion) -->
-                    <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; padding: 4px 0;" onclick="toggleCenterCashActions()">
+                    <div role="button" tabindex="0" aria-expanded="${centerCashActionsExpanded ? 'true' : 'false'}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; padding: 4px 0;" onclick="toggleCenterCashActions()">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px;">+/- Cash Actions</span>
                             <svg id="center-cash-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-secondary); transition: transform 0.2s ease; transform: ${centerCashActionsExpanded ? 'rotate(180deg)' : 'rotate(0deg)'};"><polyline points="6 9 12 15 18 9"/></svg>
                         </div>
-                        <span id="center-tot-drops" style="font-size: 1.4rem; font-weight: 800; color: ${floorManagerDrops >= 0 ? 'var(--success-text, #15803d)' : 'var(--danger-text, #b91c1c)'};">
+                        <span id="center-tot-drops" class="tabular-nums" style="font-size: 1.4rem; font-weight: 800; color: ${floorManagerDrops >= 0 ? 'var(--success-text, #15803d)' : 'var(--danger-text, #b91c1c)'};">
                             ${floorManagerDrops >= 0 ? '+' : ''}${fmt(floorManagerDrops)} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Tk</span>
                         </span>
                     </div>
 
                     <!-- Level 1: Inline Expandable Category Accordion -->
-                    <div id="center-cash-accordion" style="display: ${centerCashActionsExpanded ? 'flex' : 'none'}; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.02); border: 1px solid var(--border-color); border-radius: 14px; padding: 10px; margin-top: -4px;">
+                    <div id="center-cash-accordion" style="display: ${centerCashActionsExpanded ? 'flex' : 'none'}; flex-direction: column; gap: 8px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 14px; padding: 10px; margin-top: -4px;">
                         ${categoriesHTML}
                     </div>
 
                     <div style="border-top: 1px solid var(--border-color); margin: 6px 0;"></div>
 
                     <!-- Expected Cash Highlight Box -->
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--warning-bg, rgba(245, 158, 11, 0.05)); border-left: 4px solid var(--warning-text, #b45309); border-radius: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--warning-bg, rgba(245, 158, 11, 0.05)); border: 1.5px solid var(--warning-border); border-radius: 12px;">
                         <span style="font-weight: 900; color: var(--warning-text, #b45309); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.8px; white-space: nowrap; flex-shrink: 0;">Expected Cash</span>
-                        <span id="center-tot-expected" style="font-weight: 900; color: var(--warning-text, #b45309); font-size: 1.4rem; white-space: nowrap; display: inline-flex; align-items: baseline; gap: 4px;">${fmt(expectedCenterCash)} <span style="font-size: 0.9rem; font-weight: 800;">Tk</span></span>
+                        <span id="center-tot-expected" class="tabular-nums" style="font-weight: 900; color: var(--warning-text, #b45309); font-size: 1.4rem; white-space: nowrap; display: inline-flex; align-items: baseline; gap: 4px;">${fmt(expectedCenterCash)} <span style="font-size: 0.9rem; font-weight: 800;">Tk</span></span>
                     </div>
                 </div>
             </div>
@@ -457,15 +579,15 @@ export async function renderPersonalReport() {
     if(document.getElementById('report-total-all')) document.getElementById('report-total-all').innerText = (myCash + myMfs) + ' ' + userCurrency;
     if(document.getElementById('tot-cash-sales')) {
         document.getElementById('tot-cash-sales').innerText = fmt(myCash) + ' ' + userCurrency;
-        document.getElementById('tot-cash-sales').style.color = '#0ea5e9';
+        document.getElementById('tot-cash-sales').style.color = 'var(--info-text)';
     }
     if(document.getElementById('tot-mfs')) {
         document.getElementById('tot-mfs').innerText = fmt(myMfs) + ' ' + userCurrency;
-        document.getElementById('tot-mfs').style.color = '#10b981';
+        document.getElementById('tot-mfs').style.color = 'var(--success-text)';
     }
     if(document.getElementById('tot-ers')) {
         document.getElementById('tot-ers').innerText = fmt(myErsTotal) + ' ' + userCurrency;
-        document.getElementById('tot-ers').style.color = '#f59e0b';
+        document.getElementById('tot-ers').style.color = 'var(--warning-text)';
     }
 
 
@@ -484,7 +606,7 @@ export async function renderPersonalReport() {
         invHTML += `
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 4px; border-bottom: 1px solid var(--border-color);">
                 <span style="font-weight: 600; color: var(--text-primary); font-size: 1rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px;">${escapeHtml(name)}</span>
-                <span style="font-weight: 800; color: var(--text-secondary); font-size: 1.1rem; flex-shrink: 0;">${qty}x</span>
+                <span class="tabular-nums" style="font-weight: 800; color: var(--text-secondary); font-size: 1.1rem; flex-shrink: 0;">${qty}x</span>
             </div>
         `;
     }
@@ -500,7 +622,7 @@ export async function renderPersonalReport() {
                 <div style="text-align: center;">Start</div>
                 <div style="text-align: center;">In/Out</div>
                 <div style="text-align: center;">Sold</div>
-                <div style="text-align: center; color: #0ea5e9;">Exp.</div>
+                <div style="text-align: center; color: var(--info-text);">Exp.</div>
             </div>
         `;
         
@@ -517,16 +639,16 @@ export async function renderPersonalReport() {
         for (const [item, d] of sortedFloorInv) {
             hasLiveStock = true;
             
-            let inOutColor = d.inOut > 0 ? '#10b981' : (d.inOut < 0 ? '#ef4444' : 'var(--text-secondary)');
+            let inOutColor = d.inOut > 0 ? 'var(--success-text)' : (d.inOut < 0 ? 'var(--danger-text)' : 'var(--text-secondary)');
             let inOutStr = d.inOut > 0 ? `+${d.inOut}` : (d.inOut < 0 ? `${d.inOut}` : `0`);
 
             liveStockHTML += `
-                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; align-items: center; padding: 12px 4px; border-bottom: 1px dashed var(--border-color); font-size: 0.85rem;">
+                <div class="tabular-nums" style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; align-items: center; padding: 12px 4px; border-bottom: 1px dashed var(--border-color); font-size: 0.85rem;">
                     <div style="font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; cursor: pointer;" onclick="showTooltip(this, '${escapeJsSingleQuote(item)}')">${escapeHtml(item)}</div>
                     <div style="text-align: center; color: var(--text-secondary); font-weight: 600;">${d.open}</div>
                     <div style="text-align: center; color: ${inOutColor}; font-weight: 700;">${inOutStr}</div>
-                    <div style="text-align: center; color: #f59e0b; font-weight: 700;">${d.sold}</div>
-                    <div style="text-align: center; color: #0ea5e9; font-weight: 800; font-size: 1rem;">${d.rem}</div>
+                    <div style="text-align: center; color: var(--warning-text); font-weight: 700;">${d.sold}</div>
+                    <div style="text-align: center; color: var(--info-text); font-weight: 800; font-size: 1rem;">${d.rem}</div>
                 </div>
             `;
         }
@@ -537,17 +659,27 @@ export async function renderPersonalReport() {
             document.getElementById('floor-stock-list').innerHTML = liveStockHTML;
         }
     
-    const historyLogEl = document.getElementById('history-log');
-    if (historyLogEl) {
-        historyLogEl.innerHTML = historyHTML || `
+    const personalCountLabel = !personalIsFiltered
+        ? `Showing ${personalShownCount} transaction${personalShownCount === 1 ? '' : 's'} &middot; ${fmt(personalFilteredVolume)} Tk`
+        : `Showing ${personalShownCount} of ${personalTotalCount} &middot; ${fmt(personalFilteredVolume)} Tk`;
+    const personalCountBar = historyHTML
+        ? `<div class="ledger-count-bar"><span>${personalCountLabel}</span>${personalIsFiltered ? '<button type="button" class="ledger-reset-link" onclick="resetPersonalFilter()">Reset Filters</button>' : ''}</div>`
+        : '';
+
+    const personalEmptyHTML = `
             <div class="empty-state">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                     <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>
                     <line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
                 </svg>
-                <p>No transactions found</p>
+                <p>${personalIsFiltered ? 'No matching transactions' : 'No transactions found'}</p>
+                ${personalIsFiltered ? '<button type="button" class="btn-outline" style="margin-top:12px;width:auto;height:auto;padding:8px 16px;font-size:0.82rem;color:var(--accent-color);border-color:var(--accent-color);" onclick="resetPersonalFilter()">Reset All Filters</button>' : ''}
             </div>`;
+
+    const historyLogEl = document.getElementById('history-log');
+    if (historyLogEl) {
+        historyLogEl.innerHTML = historyHTML ? (personalCountBar + historyHTML) : personalEmptyHTML;
     }
 }
 
@@ -646,7 +778,7 @@ async function executeDownloadReportAsPDF(mode, prefix) {
         <div style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 24px; padding: 40px; display: flex; flex-direction: column; align-items: center; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); max-width: 90%; width: 340px; text-align: center;">
             <div class="pdf-spinner" style="width: 50px; height: 50px; border: 4px solid rgba(255, 255, 255, 0.1); border-left-color: #0ea5e9; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
             <h3 style="margin: 0 0 8px 0; font-size: 1.25rem; font-weight: 700; color: #ffffff;">Generating Ledger</h3>
-            <p style="margin: 0; font-size: 0.9rem; color: rgba(255, 255, 255, 0.7); line-height: 1.4;">📄 Preparing continuous PDF ledger... Please wait.</p>
+            <p style="margin: 0; font-size: 0.9rem; color: rgba(255, 255, 255, 0.7); line-height: 1.4;">Preparing continuous PDF ledger... Please wait.</p>
         </div>
     `;
     document.body.appendChild(loader);
@@ -900,10 +1032,10 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
         if (d.open === 0 && d.inOut === 0 && d.sold === 0 && d.rem === 0) continue;
         activeItemCount++;
                   
-        let inOutColor = d.inOut > 0 ? '#10b981' : (d.inOut < 0 ? '#ef4444' : 'var(--text-secondary)');
+        let inOutColor = d.inOut > 0 ? 'var(--success-text)' : (d.inOut < 0 ? 'var(--danger-text)' : 'var(--text-secondary)');
         let inOutStr = d.inOut > 0 ? `+${d.inOut}` : (d.inOut < 0 ? `${d.inOut}` : `0`);
         invRows += `
-            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-color); font-size: 0.85rem;">
+            <div class="tabular-nums" style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr; gap: 4px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-color); font-size: 0.85rem;">
                 <div style="font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; cursor: pointer;" onclick="showTooltip(this, '${escapeJsSingleQuote(item)}')">${escapeHtml(item)}</div>
                 <div style="text-align: center; color: var(--text-secondary); font-weight: 500;">${d.open}</div>
                 <div style="text-align: center; color: ${inOutColor}; font-weight: 600;">${inOutStr}</div>
@@ -945,7 +1077,7 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
             adjBreakdownHTML += `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding-left: 12px; font-size: 0.85rem;">
                     <span style="color: var(--text-secondary);">${escapeHtml(name)}</span>
-                    <strong style="color: ${val < 0 ? '#ef4444' : '#10b981'}; font-weight: 500;">${val > 0 ? '+' : ''}${fmt(val)} Tk</strong>
+                    <strong style="color: ${val < 0 ? 'var(--danger-text)' : 'var(--success-text)'}; font-weight: 500;">${val > 0 ? '+' : ''}${fmt(val)} Tk</strong>
                 </div>
             `;
         }
@@ -954,7 +1086,7 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
     // Expected Cash Drawer Gauge Calculation
     let totalAdded = sales + adjustments;
     let pct = expected > 0 ? Math.min(100, Math.max(0, (totalAdded / Math.max(1, opening)) * 100)) : 0;
-    let barColor = totalAdded >= 0 ? '#10b981' : '#ef4444';
+    let barColor = totalAdded >= 0 ? '#059669' : '#dc2626';
 
 
 
@@ -962,19 +1094,19 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
         <div class="admin-form-card" style="padding: 0; margin-bottom: 16px; background: var(--surface-strong); border: 1px solid var(--hairline); box-shadow: var(--shadow-card); overflow: hidden; border-radius: var(--radius-card);">
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--hairline);">
                 <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 600;">Opening Cash</span>
-                <span id="desk-tot-opening" style="font-size: 1rem; color: var(--text-primary); font-weight: 800;">${fmt(opening)} <span style="font-size: 0.75rem; color: var(--text-secondary);">Tk</span></span>
+                <span id="desk-tot-opening" class="tabular-nums" style="font-size: 1rem; color: var(--text-primary); font-weight: 800;">${fmt(opening)} <span style="font-size: 0.75rem; color: var(--text-secondary);">Tk</span></span>
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--hairline);">
                 <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 600;">+ Cash Sales</span>
-                <span id="desk-tot-cash-sales" style="font-size: 1rem; color: var(--success-text); font-weight: 800;">+${fmt(sales)} <span style="font-size: 0.75rem; color: var(--text-secondary);">Tk</span></span>
+                <span id="desk-tot-cash-sales" class="tabular-nums" style="font-size: 1rem; color: var(--success-text); font-weight: 800;">+${fmt(sales)} <span style="font-size: 0.75rem; color: var(--text-secondary);">Tk</span></span>
             </div>
             <div style="padding: 12px 18px; border-bottom: 1px solid var(--hairline);">
-                <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="const breakdown = this.nextElementSibling; const icon = this.querySelector('svg'); if(breakdown.style.display === 'none') { breakdown.style.display = 'block'; icon.style.transform = 'rotate(180deg)'; } else { breakdown.style.display = 'none'; icon.style.transform = 'rotate(0deg)'; }">
+                <div role="button" tabindex="0" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="const breakdown = this.nextElementSibling; const icon = this.querySelector('svg'); const expand = breakdown.style.display === 'none'; breakdown.style.display = expand ? 'block' : 'none'; icon.style.transform = expand ? 'rotate(180deg)' : 'rotate(0deg)'; this.setAttribute('aria-expanded', expand ? 'true' : 'false');">
                     <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 600; display: flex; align-items: center; gap: 6px;">
                         +/- Cash Actions
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
                     </span>
-                    <span id="desk-tot-manager" style="font-size: 1rem; font-weight: 800; color: ${adjustments < 0 ? '#ef4444' : 'var(--text-primary)'};">${formattedAdjustments} <span style="font-size: 0.75rem; color: var(--text-secondary);">Tk</span></span>
+                    <span id="desk-tot-manager" class="tabular-nums" style="font-size: 1rem; font-weight: 800; color: ${adjustments < 0 ? 'var(--danger-text)' : 'var(--text-primary)'};">${formattedAdjustments} <span style="font-size: 0.75rem; color: var(--text-secondary);">Tk</span></span>
                 </div>
                 <div style="display: none; padding-top: 8px; border-top: 1px dashed var(--hairline); margin-top: 8px;">
                     ${adjBreakdownHTML || '<div style="font-size: 0.85rem; color: var(--text-secondary); text-align: right; font-style: italic;">No actions recorded</div>'}
@@ -983,7 +1115,7 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
             <div style="display: flex; flex-direction: column; padding: 14px 18px; background: linear-gradient(135deg, rgba(124, 58, 237, 0.05), rgba(124, 58, 237, 0.12));">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span style="font-size: 0.75rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Expected Cash</span>
-                    <span id="desk-tot-expected-cash" style="font-size: 1.55rem; font-weight: 900; color: var(--accent-color); letter-spacing: -0.5px;">${fmt(expected)} <span style="font-size: 1rem; font-weight: 700;">Tk</span></span>
+                    <span id="desk-tot-expected-cash" class="tabular-nums" style="font-size: 1.55rem; font-weight: 900; color: var(--accent-color); letter-spacing: -0.5px;">${fmt(expected)} <span style="font-size: 1rem; font-weight: 700;">Tk</span></span>
                 </div>
                 <div style="width: 100%; height: 6px; background: var(--border-color); border-radius: 99px; overflow: hidden; margin-top: 10px;">
                     <div style="width: ${pct}%; height: 100%; background: ${barColor}; border-radius: 99px; transition: width 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);"></div>
@@ -996,16 +1128,16 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; border: none !important; box-shadow: none !important; background: transparent !important;">
             <div style="background: var(--surface-strong); border: 1px solid var(--hairline); box-shadow: var(--shadow-soft); padding: 16px; border-radius: var(--radius-card); text-align: left;">
                 <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Total MFS</div>
-                <div id="desk-tot-mfs" style="font-size: 1.35rem; font-weight: 900; color: var(--text-primary);">${fmt(mfsTotal)} <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 700;">Tk</span></div>
+                <div id="desk-tot-mfs" class="tabular-nums" style="font-size: 1.35rem; font-weight: 900; color: var(--text-primary);">${fmt(mfsTotal)} <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 700;">Tk</span></div>
             </div>
             <div style="background: var(--surface-strong); border: 1px solid var(--hairline); box-shadow: var(--shadow-soft); padding: 16px; border-radius: var(--radius-card); text-align: left;">
                 <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">ERS Sent (${fmt(ersData.count)}x)</div>
-                <div id="desk-tot-ers" style="font-size: 1.35rem; font-weight: 900; color: var(--text-primary);">${fmt(ersData.total)} <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 700;">Tk</span></div>
+                <div id="desk-tot-ers" class="tabular-nums" style="font-size: 1.35rem; font-weight: 900; color: var(--text-primary);">${fmt(ersData.total)} <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 700;">Tk</span></div>
             </div>
         </div>
 
         <div style="background: var(--surface-strong); border-radius: var(--radius-card); border: 1px solid var(--hairline); box-shadow: var(--shadow-soft); margin-bottom: 16px; overflow: hidden;">
-            <div style="padding: 14px 18px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="const c = this.nextElementSibling; const i = this.querySelector('svg'); if(c.style.display==='none'){c.style.display='block'; i.style.transform='rotate(180deg)';}else{c.style.display='none'; i.style.transform='rotate(0deg)';}">
+            <div role="button" tabindex="0" aria-expanded="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" style="padding: 14px 18px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="const c = this.nextElementSibling; const i = this.querySelector('svg'); const expand = c.style.display==='none'; c.style.display = expand ? 'block' : 'none'; i.style.transform = expand ? 'rotate(180deg)' : 'rotate(0deg)'; this.setAttribute('aria-expanded', expand ? 'true' : 'false');">
                 <div style="display: flex; align-items: flex-start; gap: 10px;">
                     <div style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; margin-top: 6px; flex-shrink: 0; box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);"></div>
                     <div style="display: flex; flex-direction: column;">
@@ -1041,8 +1173,8 @@ export function generateDashboardHTML(cashMath, mfsTotal, ersData, invStats, des
 
 export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId) {
     if (!targetDeskId) return;
-    let filterVal = document.getElementById('desk-history-filter') ? document.getElementById('desk-history-filter').value : 'all';
     let historyHTML = '';
+    const deskScopeTxs = [];
          
     let deskOpeningCash = 0;
     let activeSessionId = null;
@@ -1093,6 +1225,7 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
     [...AppState.transactions].reverse().forEach(tx => {
         if (tx.isDeleted) return;
         if (tx.sessionId !== activeSessionId) return;
+        deskScopeTxs.push(tx);
         
         let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
         let safeMfsAmt = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0);
@@ -1125,46 +1258,50 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
             }
         }
         
-        let catItem = Object.values(AppState.globalCatalog).find(c => c.name === tx.name);
-        let txCat = catItem ? catItem.cat : null;
-        let showTx = false;
-        
-        if (filterVal === 'all') showTx = true;
-        else if (filterVal === 'ers' && tx.name === 'ERS Flexiload') showTx = true;
-        else if (filterVal === 'cash_actions' && tx.type === 'adjustment') showTx = true;
-        else if (filterVal === 'transfers' && (tx.type === 'transfer_in' || tx.type === 'transfer_out')) showTx = true;
-        else if (filterVal === txCat) showTx = true;
-        
-        if (!showTx) return;
-        
+    });
+
+    populateLedgerAgentSelect('desk', deskScopeTxs);
+    syncLedgerFilterUI('desk');
+    const deskFilterState = getLedgerFilterState('desk');
+    const deskTotalCount = deskScopeTxs.length;
+    const filteredDeskTxs = sortLedgerTransactions(
+        deskScopeTxs.filter(tx => matchesLedgerFilters(tx, deskFilterState, AppState.globalCatalog)),
+        deskFilterState.sort
+    );
+    const deskShownCount = filteredDeskTxs.length;
+    const deskFilteredVolume = computeFilteredLedgerTotal(filteredDeskTxs, deskFilterState.payment);
+    const deskIsFiltered = isLedgerFiltered(deskFilterState);
+
+    filteredDeskTxs.forEach(tx => {
+        let safeCashAmt = tx.cashAmt !== undefined ? tx.cashAmt : (tx.payment === 'Cash' ? tx.amount : 0);
+        let safeMfsAmt = tx.mfsAmt !== undefined ? tx.mfsAmt : (tx.payment === 'MFS' ? tx.amount : 0);
         let payLabel = tx.payment === 'Split' ? `Split (C:${safeCashAmt}/M:${safeMfsAmt})` : tx.payment;
         let badges = '';
         if (tx.isPending) badges += '<span style="font-size: 0.7rem; background: var(--warning-bg); color: var(--warning-text); padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold;">Pending</span>';
-        if (tx.isEdited) badges += `<span style="font-size: 0.7rem; background: var(--purple-bg); color: var(--purple-text); padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="showAuditTrail('${escapeJsSingleQuote(String(tx.id))}')">Edited</span>`;
+        if (tx.isEdited) badges += `<span role="button" tabindex="0" style="font-size: 0.7rem; background: var(--purple-bg); color: var(--purple-text); padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: bold; cursor: pointer;" onclick="event.stopPropagation(); showAuditTrail('${escapeJsSingleQuote(String(tx.id))}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();showAuditTrail('${escapeJsSingleQuote(String(tx.id))}');}">Edited</span>`;
 
         let detailsHTML = '';
         if (tx.handsetModel) {
-            detailsHTML += `<div style="font-size: 0.8rem; color: var(--accent-color); font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">📱 Model: ${escapeHtml(tx.handsetModel)}</div>`;
+            detailsHTML += `<div style="font-size: 0.8rem; color: var(--accent-color); font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg><span>Model: ${escapeHtml(tx.handsetModel)}</span></div>`;
         }
         if (tx.notes) {
-            detailsHTML += `<div style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; margin-top: 2px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(tx.notes)}">💬 ${escapeHtml(tx.notes)}</div>`;
+            detailsHTML += `<div style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; margin-top: 2px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px;" title="${escapeHtml(tx.notes)}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>${escapeHtml(tx.notes)}</span></div>`;
         }
         
         let actionBtns = '';
         if (targetDeskId === AppState.currentDeskId || ['admin', 'owner', 'manager', 'center_manager'].includes(AppState.currentUserRole)) {
             actionBtns = `
                 <div class="tx-actions" style="display: none; width: 100%; padding-top: 12px; margin-top: 12px; border-top: 1px dashed var(--border-color); justify-content: flex-end; gap: 8px;">
-                    <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: var(--accent-color); border-color: var(--accent-color); gap: 6px;" onclick="event.stopPropagation(); openEditTx('${escapeJsSingleQuote(String(tx.id))}')">
+                    <button type="button" class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: var(--accent-color); border-color: var(--accent-color); gap: 6px;" onclick="event.stopPropagation(); openEditTx('${escapeJsSingleQuote(String(tx.id))}')">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> Edit
                     </button>
-                    <button class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: var(--danger-text); border-color: var(--danger-border); background: rgba(239, 68, 68, 0.08); gap: 6px;" onclick="event.stopPropagation(); deleteTransaction('${escapeJsSingleQuote(tx.docId)}', '${escapeJsSingleQuote(String(tx.id))}')">
+                    <button type="button" class="btn-outline" style="height: auto; padding: 6px 16px; font-size: 0.85rem; color: var(--danger-text); border-color: var(--danger-border); background: rgba(239, 68, 68, 0.08); gap: 6px;" onclick="event.stopPropagation(); deleteTransaction('${escapeJsSingleQuote(tx.docId)}', '${escapeJsSingleQuote(String(tx.id))}')">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg> Trash
                     </button>
                 </div>
             `;
         }
 
-        // --- NEW LEDGER ITEM UI (Safely inside the loop!) ---
         let isOutflow = (tx.type === 'adjustment' && (tx.cashAmt !== undefined ? tx.cashAmt < 0 : true)) || tx.type === 'transfer_out';
         let dotColor = '#10b981'; // Default Green (ERS)
         if (tx.type === 'adjustment') {
@@ -1179,56 +1316,40 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
         let amtPrefix = isOutflow ? '− ' : '';
 
         historyHTML += `
-            <div class="history-item" style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-strong); border: 1px solid var(--border-color); border-radius: 18px; box-shadow: var(--shadow-soft); margin-bottom: 12px; cursor: pointer; transition: transform 0.4s var(--spring-physics), background-color 0.2s ease;" onpointerdown="this.style.transform='scale(0.975)'" onpointerup="this.style.transform='scale(1)'" onpointerleave="this.style.transform='scale(1)'" onclick="const actions = this.querySelector('.tx-actions'); const chv = this.querySelector('.tx-chevron svg'); if(actions) { const isExp = actions.style.display !== 'none'; actions.style.display = isExp ? 'none' : 'flex'; if(chv) chv.style.transform = isExp ? 'rotate(0deg)' : 'rotate(180deg)'; }">
+            <div class="history-item" role="button" tabindex="0" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();this.click();}" style="display: flex; flex-direction: column; padding: 16px; background: var(--surface-strong); border: 1px solid var(--border-color); border-radius: 18px; box-shadow: var(--shadow-soft); margin-bottom: 12px; cursor: pointer; transition: transform 0.4s var(--spring-physics), background-color 0.2s ease;" onpointerdown="this.style.transform='scale(0.975)'" onpointerup="this.style.transform='scale(1)'" onpointerleave="this.style.transform='scale(1)'" onclick="const actions = this.querySelector('.tx-actions'); const chv = this.querySelector('.tx-chevron svg'); if(actions) { const isExp = actions.style.display !== 'none'; actions.style.display = isExp ? 'none' : 'flex'; if(chv) chv.style.transform = isExp ? 'rotate(0deg)' : 'rotate(180deg)'; }">
                 <div style="display: flex; width: 100%; align-items: center; gap: 14px;">
-                    <!-- Left: Tactile Qty Badge -->
                     <div style="width: 44px; height: 44px; border-radius: 12px; background: ${dotColor}0c; color: ${dotColor}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid ${dotColor}18; box-shadow: 0 2px 6px ${dotColor}08;">
                         <span style="font-size: 0.95rem; font-weight: 900;">${tx.qty}x</span>
                     </div>
-                    
-                    <!-- Middle: Title and Responsive Metadata Grid -->
                     <div style="flex: 1; min-width: 0;">
                         <div style="font-size: 1rem; color: var(--text-primary); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 2px;">
                             ${escapeHtml(tx.name)}
                         </div>
                         ${detailsHTML}
-                        
-                        <!-- Row 1: Receipt + Time (guaranteed single row) -->
                         <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1;">
-                            <!-- Receipt No -->
                             <div style="display: flex; align-items: center; background: var(--bg-color); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; color: var(--text-primary); font-weight: 700; font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;" title="${escapeHtml(tx.receiptNo || tx.id)}">
                                 ${escapeHtml(tx.receiptNo || tx.id)}
                             </div>
-                            <!-- Time -->
                             <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                                 <span style="margin-top: 1px;">${escapeHtml(tx.time)}</span>
                             </div>
                         </div>
-                        
-                        <!-- Row 2: Payment + Agent + Badges -->
                         <div style="display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1; flex-wrap: wrap;">
-                            <!-- Payment Mode -->
                             <div style="display: flex; align-items: center; gap: 4px; color: ${tx.payment === 'MFS' ? 'var(--success-text, #15803d)' : 'var(--text-secondary)'}; flex-shrink: 0;">
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
                                 <span style="margin-top: 1px;">${escapeHtml(payLabel)}</span>
                             </div>
-                            
-                            <!-- Agent Name -->
                             <div style="display: flex; align-items: center; gap: 4px; color: var(--text-primary); font-weight: 700; flex-shrink: 0;">
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                                 <span style="margin-top: 1px;">${escapeHtml((tx.agentName || 'Unknown').split(' ')[0])}</span>
                             </div>
-                            
                             ${getOnboardingBadge(tx)}
-                            
                             ${badges}
                         </div>
                     </div>
-                    
-                    <!-- Right: Amount display and expandable chevron affordance -->
                     <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 4px; flex-shrink: 0;">
-                        <div style="font-size: 1.25rem; font-weight: 900; color: ${amtColor}; text-align: right; font-family: monospace; display: flex; align-items: baseline; gap: 2px;">
+                        <div class="tabular-nums" style="font-size: 1.25rem; font-weight: 900; color: ${amtColor}; text-align: right; font-family: monospace; display: flex; align-items: baseline; gap: 2px;">
                             <span>${amtPrefix}${Math.abs(tx.amount || 0)}</span>
                             <span style="font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); font-family: inherit;">Tk</span>
                         </div>
@@ -1240,22 +1361,28 @@ export async function renderDeskDashboard(targetDeskId = AppState.currentDeskId)
                 ${actionBtns}
             </div>
         `;
-    }); // <-- END OF TRANSACTION LOOP
+    });
 
     let cashMath = { opening: deskOpeningCash, sales: deskCashSales, adjustments: deskAdjustments, adjustmentLog: deskAdjustmentLog, expected: (deskOpeningCash + deskCashSales + deskAdjustments) };
     let ersData = { count: deskErsCount, total: deskErsTotal };
     
     document.getElementById('live-dashboard-wrapper').innerHTML = generateDashboardHTML(cashMath, deskMfs, ersData, invStats, deskItemsSold);
     
+    const deskCountLabel = !deskIsFiltered
+        ? `Showing ${deskShownCount} transaction${deskShownCount === 1 ? '' : 's'} &middot; ${fmt(deskFilteredVolume)} Tk`
+        : `Showing ${deskShownCount} of ${deskTotalCount} &middot; ${fmt(deskFilteredVolume)} Tk`;
+    const deskCountBar = historyHTML
+        ? `<div class="ledger-count-bar"><span>${deskCountLabel}</span>${deskIsFiltered ? '<button type="button" class="ledger-reset-link" onclick="resetDeskFilter()">Reset Filters</button>' : ''}</div>`
+        : '';
+
     let emptyState = `
-        <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary);">
-            <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--bg-color); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px auto;">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-            </div>
-            <div style="font-size: 0.9rem; font-weight: 500;">No transactions yet</div>
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <p>${deskIsFiltered ? 'No matching transactions' : 'No transactions yet'}</p>
+            ${deskIsFiltered ? '<button type="button" class="btn-outline" style="margin-top:12px;width:auto;height:auto;padding:8px 16px;font-size:0.82rem;color:var(--accent-color);border-color:var(--accent-color);" onclick="resetDeskFilter()">Reset All Filters</button>' : ''}
         </div>`;
 
-    document.getElementById('desk-history-log').innerHTML = historyHTML || emptyState;
+    document.getElementById('desk-history-log').innerHTML = historyHTML ? (deskCountBar + historyHTML) : emptyState;
 
     try {
         const agentsSnap = await getDocs(query(collection(db, 'users'), where('assignedDeskId', '==', targetDeskId)));
@@ -1272,6 +1399,36 @@ let txListenerUnsubscribe = null;
 
 export function getTxListenerUnsubscribe() { return txListenerUnsubscribe; }
 export function setTxListenerUnsubscribe(val) { txListenerUnsubscribe = val; }
+
+export function syncHistoricalDateBanner() {
+    if (typeof document === 'undefined') return;
+    const picker = document.getElementById('report-date-picker');
+    const banner = document.getElementById('historical-date-banner');
+    const bannerText = document.getElementById('historical-date-text');
+    const todayBtn = document.getElementById('report-today-btn');
+    const isHistorical = Boolean(picker && picker.value && isViewingHistoricalDate());
+
+    if (banner) {
+        banner.style.display = isHistorical ? 'flex' : 'none';
+    }
+    if (bannerText && isHistorical) {
+        bannerText.innerText = `Viewing past date (${formatToGBDate(picker.value)}) — Read-only`;
+    }
+    if (todayBtn) {
+        todayBtn.style.display = isHistorical ? 'inline-flex' : 'none';
+    }
+}
+
+export function returnToToday() {
+    if (typeof document === 'undefined') return;
+    const picker = document.getElementById('report-date-picker');
+    if (picker) {
+        picker.value = formatLocalISODate(new Date());
+    }
+    syncHistoricalDateBanner();
+    fetchTransactionsForDate();
+    showFlashMessage("Switched to Today");
+}
 
 export async function fetchTransactionsForDate() {
     if (!AppState.currentUser) return;
@@ -1308,6 +1465,7 @@ export async function fetchTransactionsForDate() {
 
             const financialLabel = document.getElementById('financial-date-label');
             if (financialLabel) financialLabel.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg> ${dateLabel}`;
+            syncHistoricalDateBanner();
         };
 
         txListenerUnsubscribe = onSnapshot(
@@ -1384,7 +1542,7 @@ export async function openHistoricalSession(sessionId) {
     try {
         const sessionSnap = await getDoc(doc(db, 'sessions', sessionId));
         if (!sessionSnap.exists()) {
-            container.innerHTML = '<p class="placeholder-text" style="color: #ef4444;">Session not found.</p>';
+            container.innerHTML = '<p class="placeholder-text" style="color: var(--danger-text);">Session not found.</p>';
             return;
         }
 
@@ -1477,10 +1635,10 @@ export async function openHistoricalSession(sessionId) {
 
             let detailsHTML = '';
             if (tx.handsetModel) {
-                detailsHTML += `<div style="font-size: 0.8rem; color: var(--accent-color); font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">📱 Model: ${escapeHtml(tx.handsetModel)}</div>`;
+                detailsHTML += `<div style="font-size: 0.8rem; color: var(--accent-color); font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg><span>Model: ${escapeHtml(tx.handsetModel)}</span></div>`;
             }
             if (tx.notes) {
-                detailsHTML += `<div style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; margin-top: 2px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(tx.notes)}">💬 ${escapeHtml(tx.notes)}</div>`;
+                detailsHTML += `<div style="font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; margin-top: 2px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px;" title="${escapeHtml(tx.notes)}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>${escapeHtml(tx.notes)}</span></div>`;
             }
 
             historyHTML += `
@@ -1513,7 +1671,7 @@ export async function openHistoricalSession(sessionId) {
                             <!-- Row 2: Payment + Agent + Badges -->
                             <div style="display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; line-height: 1; flex-wrap: wrap;">
                                 <!-- Payment Mode -->
-                                <div style="display: flex; align-items: center; gap: 4px; color: ${tx.payment === 'MFS' ? '#10b981' : 'var(--text-secondary)'}; flex-shrink: 0;">
+                                <div style="display: flex; align-items: center; gap: 4px; color: ${tx.payment === 'MFS' ? 'var(--success-text)' : 'var(--text-secondary)'}; flex-shrink: 0;">
                                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.7;"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
                                     <span style="margin-top: 1px;">${escapeHtml(payLabel)}</span>
                                 </div>
@@ -1531,7 +1689,7 @@ export async function openHistoricalSession(sessionId) {
                         </div>
 
                         <!-- Right: Amount -->
-                        <div style="font-size: 1.25rem; font-weight: 900; color: ${amtColor}; flex-shrink: 0; text-align: right; font-family: monospace; display: flex; align-items: baseline; gap: 2px;">
+                        <div class="tabular-nums" style="font-size: 1.25rem; font-weight: 900; color: ${amtColor}; flex-shrink: 0; text-align: right; font-family: monospace; display: flex; align-items: baseline; gap: 2px;">
                             <span>${amtPrefix}${Math.abs(tx.amount || 0)}</span>
                             <span style="font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); font-family: inherit;">Tk</span>
                         </div>
@@ -1574,20 +1732,20 @@ export async function openHistoricalSession(sessionId) {
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                             <div style="background: var(--surface-color); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
                                 <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">System Expected</div>
-                                <div style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">${eodData.expectedClosing.cash} Tk</div>
+                                <div class="tabular-nums" style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">${eodData.expectedClosing.cash} Tk</div>
                             </div>
                             <div style="background: var(--surface-color); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
                                 <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Actual Counted</div>
-                                <div style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">${eodData.actualClosing.cash} Tk</div>
+                                <div class="tabular-nums" style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary);">${eodData.actualClosing.cash} Tk</div>
                             </div>
                         </div>
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: var(--surface-color); border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 12px;">
                             <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase;">Manager Drop</span>
-                            <span style="font-weight: 800; font-size: 1.1rem; color: var(--purple-text);">${eodData.managerDrop || 0} Tk</span>
+                            <span class="tabular-nums" style="font-weight: 800; font-size: 1.1rem; color: var(--purple-text);">${eodData.managerDrop || 0} Tk</span>
                         </div>
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: var(--surface-color); border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: ${invDiffHTML ? '12px' : '0'};">
                             <span style="font-weight: 700; font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase;">Cash Variance</span>
-                            <span style="font-weight: 800; font-size: 1.1rem; color: ${varianceColor};">${variancePrefix}${eodData.variance} Tk</span>
+                            <span class="tabular-nums" style="font-weight: 800; font-size: 1.1rem; color: ${varianceColor};">${variancePrefix}${eodData.variance} Tk</span>
                         </div>
                         ${invDiffHTML ? `<div style="background: var(--surface-color); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color);"><div style="font-size: 0.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 8px;">STOCK VARIANCES</div>${invDiffHTML}</div>` : ''}
                     </div>
@@ -1609,6 +1767,6 @@ export async function openHistoricalSession(sessionId) {
         `;
     } catch (error) {
         console.error(error);
-        container.innerHTML = '<p class="placeholder-text" style="color: #ef4444;">Error loading session data.</p>';
+        container.innerHTML = '<p class="placeholder-text" style="color: var(--danger-text);">Error loading session data.</p>';
     }
 }

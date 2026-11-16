@@ -2,7 +2,7 @@
 import { collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, serverTimestamp, getDocs } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
-import { showAppAlert, showFlashMessage, openModal, closeModal, refreshCustomDropdowns, setButtonLoading } from '../utils/ui-helpers.js';
+import { showAppAlert, showFlashMessage, openModal, closeModal, refreshCustomDropdowns, setButtonLoading, markInputError, clearInputError } from '../utils/ui-helpers.js';
 import { addTransactionToCloud } from './transactions.js';
 import { getStrictDate, generateReceiptNo, formatToGBDate, formatLocalISODate, escapeHtml, escapeJsSingleQuote } from '../utils/helpers.js';
 import { passStockFirewall } from './inventory.js';
@@ -103,6 +103,16 @@ function getDaysDifference(dateStr) {
     return diffDays;
 }
 
+export function getRecycleAttentionCount(list = recycleSimsList) {
+    if (!Array.isArray(list) || list.length === 0) return 0;
+    return list.filter(sim => {
+        if (!sim) return false;
+        if (sim.status === 'arrived') return true;
+        if (sim.status === 'scheduled' && (!sim.followUpDate || getDaysDifference(sim.followUpDate) <= 0)) return true;
+        return simNeedsCall(sim);
+    }).length;
+}
+
 export function openRecycleTracker() {
     openModal('modal-recycle-tracker');
     initRecycleListener();
@@ -144,20 +154,27 @@ export function renderRecycleSummary() {
     let pending = 0;
     let arrived = 0;
     let scheduled = 0;
+    let needsFollowUp = 0;
 
     recycleSimsList.forEach(sim => {
         if (sim.status === 'applied') pending++;
         else if (sim.status === 'arrived') arrived++;
         else if (sim.status === 'scheduled') scheduled++;
+        if (simNeedsCall(sim)) needsFollowUp++;
     });
 
     const pendingEl = document.getElementById('recycle-summary-pending');
     const arrivedEl = document.getElementById('recycle-summary-arrived');
     const scheduledEl = document.getElementById('recycle-summary-scheduled');
+    const followUpCountEl = document.getElementById('recycle-followup-count');
 
     if (pendingEl) pendingEl.innerText = pending;
     if (arrivedEl) arrivedEl.innerText = arrived;
     if (scheduledEl) scheduledEl.innerText = scheduled;
+    if (followUpCountEl) {
+        followUpCountEl.innerText = needsFollowUp > 0 ? String(needsFollowUp) : '';
+        followUpCountEl.style.display = needsFollowUp > 0 ? 'inline-flex' : 'none';
+    }
 }
 
 // Helper to get the last confirmed customer contact time
@@ -229,55 +246,75 @@ export function renderRecycleList() {
     const container = document.getElementById('recycle-list-container');
     if (!container) return;
 
-    const searchQuery = document.getElementById('recycle-search')?.value.toLowerCase().trim() || '';
+    const searchInput = document.getElementById('recycle-search');
+    const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const clearBtn = document.getElementById('recycle-search-clear');
+    if (clearBtn) {
+        clearBtn.classList.toggle('visible', searchQuery.length > 0);
+    }
     
-    let filteredList = recycleSimsList.filter(sim => {
-        const matchesStatus = (activeFilterStatus === 'all' || sim.status === activeFilterStatus);
+    const filteredList = recycleSimsList.filter(sim => {
+        const matchesStatus = activeFilterStatus === 'all'
+            ? true
+            : (activeFilterStatus === 'needs_call' ? simNeedsCall(sim) : sim.status === activeFilterStatus);
+        const statusLabel = simNeedsCall(sim) ? `${sim.status || ''} follow up needs call` : (sim.status || '');
         const matchesSearch = (
+            !searchQuery ||
             sim.recycledNumber?.toLowerCase().includes(searchQuery) ||
             sim.alternativeNumber?.toLowerCase().includes(searchQuery) ||
-            sim.notes?.toLowerCase().includes(searchQuery)
+            sim.notes?.toLowerCase().includes(searchQuery) ||
+            sim.appliedBy?.toLowerCase().includes(searchQuery) ||
+            sim.lastContactedBy?.toLowerCase().includes(searchQuery) ||
+            sim.soldBy?.toLowerCase().includes(searchQuery) ||
+            statusLabel.toLowerCase().includes(searchQuery)
         );
         return matchesStatus && matchesSearch;
     });
 
+    const isFiltered = activeFilterStatus !== 'all' || searchQuery.length > 0;
+    const countBar = document.getElementById('recycle-count-bar');
+    if (countBar) {
+        if (recycleSimsList.length === 0) {
+            countBar.style.display = 'none';
+        } else {
+            countBar.style.display = 'flex';
+            countBar.innerHTML = isFiltered
+                ? `<span>Showing ${filteredList.length} of ${recycleSimsList.length} entries</span><button type="button" class="ledger-reset-link" onclick="Amolnama.resetRecycleFilters()">Reset</button>`
+                : `<span>${recycleSimsList.length} tracked SIM${recycleSimsList.length === 1 ? '' : 's'}</span>`;
+        }
+    }
+
     if (filteredList.length === 0) {
-        container.innerHTML = `
+        container.innerHTML = isFiltered ? `
+            <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <p>No matching recycle entries</p>
+                <span>No SIM records matched the active status filter or search query.</span>
+                <button type="button" class="btn-outline" style="height: auto; padding: 8px 16px; font-size: 0.82rem; margin-top: 12px;" onclick="Amolnama.resetRecycleFilters()">Reset Filters</button>
+            </div>` : `
             <div class="empty-state">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-                <p>No matching recycle entries</p>
-                <span>Use the filters above or tap + Add SIM to log a new application.</span>
+                <p>No recycle SIM entries yet</p>
+                <span>Tap + Add SIM to log your first recycled number application.</span>
+                <button type="button" class="btn-primary-full" style="width: auto; min-height: 40px; padding: 8px 18px; margin-top: 12px;" onclick="Amolnama.openAddRecycleModal()">+ Add SIM</button>
             </div>`;
         return;
     }
 
+    const validStatuses = ['applied', 'arrived', 'scheduled', 'completed', 'cancelled'];
+    const statusLabels = {
+        applied: 'Applied',
+        arrived: 'Arrived',
+        scheduled: 'Scheduled',
+        completed: 'Completed',
+        cancelled: 'Cancelled'
+    };
+
     let html = '';
     filteredList.forEach(sim => {
-        let statusBadge = '';
-        let dotColor = '#3390ec';
-        
-        switch (sim.status) {
-            case 'applied':
-                statusBadge = `<span style="font-size: 0.72rem; font-weight: 700; background: rgba(51, 144, 236, 0.08); color: var(--accent-color); padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(51, 144, 236, 0.15);">Applied</span>`;
-                dotColor = '#3390ec';
-                break;
-            case 'arrived':
-                statusBadge = `<span style="font-size: 0.72rem; font-weight: 700; background: var(--success-bg); color: var(--success-text); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--success-border);">Arrived</span>`;
-                dotColor = '#10b981';
-                break;
-            case 'scheduled':
-                statusBadge = `<span style="font-size: 0.72rem; font-weight: 700; background: var(--purple-bg); color: var(--purple-text); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--purple-border);">Scheduled</span>`;
-                dotColor = '#7c3aed';
-                break;
-            case 'completed':
-                statusBadge = `<span style="font-size: 0.72rem; font-weight: 700; background: var(--border-color); color: var(--text-secondary); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border-color);">Completed</span>`;
-                dotColor = '#64748b';
-                break;
-            case 'cancelled':
-                statusBadge = `<span style="font-size: 0.72rem; font-weight: 700; background: var(--danger-bg); color: var(--danger-text); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--danger-border);">Cancelled</span>`;
-                dotColor = '#ef4444';
-                break;
-        }
+        const safeStatus = validStatuses.includes(sim.status) ? sim.status : 'applied';
+        const statusLabel = statusLabels[safeStatus] || 'Applied';
+        const statusBadge = `<span class="recycle-status-chip is-${safeStatus}">${statusLabel}</span>`;
 
         // Calculate expected arrival date or scheduled pickup countdown
         let dateMsg = '';
@@ -288,56 +325,56 @@ export function renderRecycleList() {
             const daysLeft = Math.ceil((expectedDate - new Date()) / (1000 * 60 * 60 * 24));
             
             if (daysLeft > 0) {
-                dateMsg = `<span style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">⏳ Expected in ~${daysLeft} days (${expectedDate.toLocaleDateString('en-GB', {day: 'numeric', month:'short'})})</span>`;
+                dateMsg = `<span style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">Expected in ~${daysLeft} days (${expectedDate.toLocaleDateString('en-GB', {day: 'numeric', month:'short'})})</span>`;
             } else {
-                dateMsg = `<span style="font-size: 0.75rem; font-weight: 700; color: #f59e0b;">⏳ Pending pickup (overdue)</span>`;
+                dateMsg = `<span style="font-size: 0.75rem; font-weight: 700; color: var(--warning-text);">Arrival window reached — follow up</span>`;
             }
         } else if (sim.status === 'scheduled' && sim.followUpDate) {
             const days = getDaysDifference(sim.followUpDate);
             const dateStr = formatDate(sim.followUpDate);
             if (days === 0) {
-                dateMsg = `<span style="font-size: 0.75rem; font-weight: 800; color: #7c3aed;">🔔 Scheduled pickup is TODAY (${dateStr})</span>`;
+                dateMsg = `<span style="font-size: 0.75rem; font-weight: 800; color: var(--purple-text);">Scheduled pickup is TODAY (${dateStr})</span>`;
             } else if (days > 0) {
-                dateMsg = `<span style="font-size: 0.75rem; font-weight: 600; color: var(--purple-text);">🗓️ Pickup scheduled in ${days} days (${dateStr})</span>`;
+                dateMsg = `<span style="font-size: 0.75rem; font-weight: 600; color: var(--purple-text);">Pickup scheduled in ${days} day${days === 1 ? '' : 's'} (${dateStr})</span>`;
             } else {
-                dateMsg = `<span style="font-size: 0.75rem; font-weight: 800; color: #ef4444;">⚠️ Overdue pickup by ${Math.abs(days)} days (${dateStr})</span>`;
+                dateMsg = `<span style="font-size: 0.75rem; font-weight: 800; color: var(--danger-text);">Overdue pickup by ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} (${dateStr})</span>`;
             }
         } else if (sim.status === 'completed' && sim.completedAt) {
             dateMsg = `<span style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">Sold on ${formatTimestamp(sim.completedAt)}</span>`;
-        } else {
-            dateMsg = '';
         }
 
-        let detailNotes = sim.notes ? `<div class="rate-note-banner" style="margin-top: 4px; border-left-color: ${dotColor};">💬 ${escapeHtml(sim.notes)}</div>` : '';
+        const detailNotes = sim.notes ? `<div class="rate-note-banner" style="margin-top: 4px;">${escapeHtml(sim.notes)}</div>` : '';
         
         let callButton = '';
         if (sim.alternativeNumber) {
             const pulseClass = simNeedsCall(sim) ? ' new-pulse' : '';
             callButton = `
-                <a href="tel:${escapeHtml(sim.alternativeNumber)}" onclick="event.stopPropagation();" class="recycle-call-action-btn${pulseClass}" title="Call Customer">
+                <a href="tel:${escapeHtml(sim.alternativeNumber)}" onclick="event.stopPropagation();" onkeydown="event.stopPropagation();" class="recycle-call-action-btn${pulseClass}" title="Call Customer" aria-label="Call customer ${escapeHtml(sim.alternativeNumber)}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                 </a>
             `;
         }
 
+        const safeIdJs = escapeJsSingleQuote(sim.id);
+
         html += `
-            <div class="recycle-card" onclick="Amolnama.openUpdateRecycleStatusModal('${escapeJsSingleQuote(sim.id)}')">
+            <div class="recycle-card" role="button" tabindex="0" onclick="Amolnama.openUpdateRecycleStatusModal('${safeIdJs}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();Amolnama.openUpdateRecycleStatusModal('${safeIdJs}');}">
                 <!-- Card Header -->
                 <div class="recycle-card-header">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <div class="hub-menu-icon-wrapper" style="width: 34px; height: 34px; border-radius: 10px; background: ${dotColor}0c; color: ${dotColor}; display: flex; align-items: center; justify-content: center;">
+                    <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+                        <div class="recycle-sim-icon is-${safeStatus}">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
                         </div>
-                        <span class="recycle-phone-num">${escapeHtml(sim.recycledNumber)}</span>
+                        <span class="recycle-phone-num tabular-nums">${escapeHtml(sim.recycledNumber)}</span>
                     </div>
                     ${statusBadge}
                 </div>
 
                 <!-- Contact & Direct Call Strip -->
                 <div class="recycle-contact-strip">
-                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
                         <span class="recycle-grid-label">Alternative Contact</span>
-                        <span class="recycle-phone-alt">${escapeHtml(sim.alternativeNumber || 'None provided')}</span>
+                        <span class="recycle-phone-alt tabular-nums">${escapeHtml(sim.alternativeNumber || 'None provided')}</span>
                     </div>
                     ${callButton}
                 </div>
@@ -385,15 +422,46 @@ export function filterRecycleList() {
     renderRecycleList();
 }
 
+export function clearRecycleSearch() {
+    const input = document.getElementById('recycle-search');
+    if (input) {
+        input.value = '';
+        if (typeof input.focus === 'function') input.focus();
+    }
+    const clearBtn = document.getElementById('recycle-search-clear');
+    if (clearBtn) clearBtn.classList.remove('visible');
+    renderRecycleList();
+}
+
+export function resetRecycleFilters() {
+    const input = document.getElementById('recycle-search');
+    if (input) input.value = '';
+    const clearBtn = document.getElementById('recycle-search-clear');
+    if (clearBtn) clearBtn.classList.remove('visible');
+    activeFilterStatus = 'all';
+    document.querySelectorAll('#modal-recycle-tracker .store-pill').forEach(p => {
+        const isAll = p.id === 'recycle-pill-all' || p.getAttribute('data-recycle-status') === 'all';
+        p.classList.toggle('active', isAll);
+        p.setAttribute('aria-pressed', isAll ? 'true' : 'false');
+    });
+    renderRecycleList();
+}
+
 export function filterRecycleByStatus(status, pill) {
-    activeFilterStatus = status;
-    document.querySelectorAll('#modal-recycle-tracker .store-pill').forEach(p => p.classList.remove('active'));
-    if (pill) pill.classList.add('active');
+    activeFilterStatus = status || 'all';
+    document.querySelectorAll('#modal-recycle-tracker .store-pill').forEach(p => {
+        const isMatch = pill ? (p === pill) : (p.getAttribute('data-recycle-status') === activeFilterStatus);
+        p.classList.toggle('active', isMatch);
+        p.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
+    });
     renderRecycleList();
 }
 
 // Add Application
 export function openAddRecycleModal() {
+    clearInputError('add-recycle-number');
+    clearInputError('add-recycle-alt');
+    clearInputError('add-recycle-date');
     document.getElementById('add-recycle-number').value = '';
     document.getElementById('add-recycle-alt').value = '';
     document.getElementById('add-recycle-notes').value = '';
@@ -426,19 +494,26 @@ export async function submitRecycleApplication() {
     const numberEl = document.getElementById('add-recycle-number');
     const altEl = document.getElementById('add-recycle-alt');
     const notesEl = document.getElementById('add-recycle-notes');
+    const dateEl = document.getElementById('add-recycle-date');
+    clearInputError(numberEl);
+    clearInputError(altEl);
+    clearInputError(dateEl);
 
     const number = numberEl.value.trim();
     const alt = altEl.value.trim();
     const notes = notesEl.value.trim();
     const initialStatus = document.getElementById('add-recycle-status')?.value || 'applied';
-    const followUpDate = document.getElementById('add-recycle-date')?.value || null;
+    const followUpDate = dateEl?.value || null;
 
     if (!number || !alt) {
+        if (!number) markInputError(numberEl);
+        if (!alt) markInputError(altEl);
         showAppAlert("Missing Input", "Both Recycled Number and Alternative Contact Number are required.");
         return;
     }
 
     if (initialStatus === 'scheduled' && !followUpDate) {
+        markInputError(dateEl);
         showAppAlert("Missing Input", "Please select a scheduled pickup date.");
         return;
     }
@@ -446,10 +521,12 @@ export async function submitRecycleApplication() {
     // Basic Validation: must be valid mobile numbers (e.g. 11 digits)
     const mobileRegex = /^01[3-9]\d{8}$/;
     if (!mobileRegex.test(number)) {
+        markInputError(numberEl);
         showAppAlert("Invalid Number", "The recycled SIM number must be a valid 11-digit mobile number starting with 01.");
         return;
     }
     if (!mobileRegex.test(alt)) {
+        markInputError(altEl);
         showAppAlert("Invalid Number", "The alternative contact number must be a valid 11-digit mobile number starting with 01.");
         return;
     }
@@ -493,18 +570,62 @@ export async function submitRecycleApplication() {
     }
 }
 
+function renderRecycleHistoryTimeline(sim) {
+    const historySection = document.getElementById('status-update-history-section');
+    const historyListEl = document.getElementById('status-update-history-list');
+    if (!historySection || !historyListEl) return;
+
+    const history = Array.isArray(sim?.history) ? sim.history : [];
+    if (history.length === 0) {
+        historySection.style.display = 'none';
+        historyListEl.innerHTML = '';
+        return;
+    }
+
+    const itemsHtml = [...history].reverse().map(entry => {
+        const timeText = entry?.timestamp ? formatTimestamp(entry.timestamp) : '';
+        const statusText = entry?.status ? String(entry.status).toUpperCase() : 'UPDATE';
+        const byText = entry?.by || 'System';
+        const noteText = entry?.note || '';
+        return `
+            <div class="recycle-history-item">
+                <div class="recycle-history-meta">
+                    <span>${escapeHtml(statusText)} · ${escapeHtml(byText)}</span>
+                    <span>${escapeHtml(timeText)}</span>
+                </div>
+                ${noteText ? `<div style="color: var(--text-primary); line-height: 1.35;">${escapeHtml(noteText)}</div>` : ''}
+            </div>
+        `;
+    }).join('');
+
+    historyListEl.innerHTML = itemsHtml;
+    historySection.style.display = 'block';
+}
+
 // Update Status Modal
 export function openUpdateRecycleStatusModal(id) {
     const sim = recycleSimsList.find(s => s.id === id);
     if (!sim) return;
 
     recycleContactTimeWasTouched = false;
+    clearInputError('status-update-date');
 
     document.getElementById('status-update-id').value = id;
     const phoneEl = document.getElementById('status-update-number');
     if (phoneEl) phoneEl.innerText = sim.recycledNumber;
     const altEl = document.getElementById('status-update-alt-number');
     if (altEl) altEl.innerText = sim.alternativeNumber || 'None';
+    const callLink = document.getElementById('status-update-call-link');
+    if (callLink) {
+        if (sim.alternativeNumber) {
+            callLink.href = `tel:${sim.alternativeNumber}`;
+            callLink.setAttribute('aria-label', `Call customer ${sim.alternativeNumber}`);
+            callLink.style.display = 'inline-flex';
+        } else {
+            callLink.style.display = 'none';
+        }
+    }
+
     const statusSelect = document.getElementById('status-update-select');
     if (statusSelect) {
         statusSelect.value = sim.status;
@@ -541,6 +662,7 @@ export function openUpdateRecycleStatusModal(id) {
     }
 
     onRecycleStatusChangeSelect();
+    renderRecycleHistoryTimeline(sim);
     
     const deleteBtn = document.getElementById('btn-delete-recycle-sim');
     if (deleteBtn) {
@@ -613,7 +735,7 @@ function updateContactTimeIndicator() {
     const hintEl = document.getElementById('status-update-contact-hint');
     if (!hintEl) return;
     if (recycleContactTimeWasTouched) {
-        hintEl.innerHTML = `<span style="color: #10b981; font-weight: 700;">✓ Will update contact time & agent on save</span> <a href="javascript:void(0)" onclick="Amolnama.resetRecycleContactTimeToPrevious()" style="color: var(--text-secondary); text-decoration: underline; margin-left: 8px; font-weight: normal; cursor: pointer;">(Revert)</a>`;
+        hintEl.innerHTML = `<span style="color: var(--success-text); font-weight: 700;">✓ Will update contact time & agent on save</span> <a href="javascript:void(0)" onclick="Amolnama.resetRecycleContactTimeToPrevious()" style="color: var(--text-secondary); text-decoration: underline; margin-left: 8px; font-weight: normal; cursor: pointer;">(Revert)</a>`;
     } else {
         const timeInput = document.getElementById('status-update-contacted-at');
         if (timeInput && timeInput.value) {
@@ -633,13 +755,29 @@ export function onRecycleStatusChangeSelect() {
 }
 
 export async function saveRecycleStatusUpdate() {
+    if (isSavingRecycle) return;
     const id = document.getElementById('status-update-id').value;
     const newStatus = document.getElementById('status-update-select').value;
-    const followUpDate = document.getElementById('status-update-date').value;
+    const dateInput = document.getElementById('status-update-date');
+    const followUpDate = dateInput ? dateInput.value : '';
     const note = document.getElementById('status-update-note').value.trim();
+    clearInputError(dateInput);
     
     const sim = recycleSimsList.find(s => s.id === id);
     if (!sim) return;
+
+    if (newStatus === 'scheduled' && !followUpDate) {
+        markInputError(dateInput);
+        showAppAlert("Missing Input", "Please select a follow-up/pickup date.");
+        return;
+    }
+
+    if (newStatus === 'completed') {
+        // Direct checkout to prevent status mismatch
+        closeModal('modal-recycle-status-update');
+        openRecycleSaleCheckoutForSIM(sim.id);
+        return;
+    }
 
     const currentAgentName = AppState.userNickname || AppState.userDisplayName || 'Agent';
     const agentSelect = document.getElementById('status-update-agent');
@@ -692,22 +830,15 @@ export async function saveRecycleStatusUpdate() {
     }
 
     if (newStatus === 'scheduled') {
-        if (!followUpDate) {
-            showAppAlert("Missing Input", "Please select a follow-up/pickup date.");
-            return;
-        }
         updateData.followUpDate = followUpDate;
     } else {
         // If status changed from scheduled, delete followUpDate
         updateData.followUpDate = null;
     }
 
-    if (newStatus === 'completed') {
-        // Direct checkout to prevent status mismatch
-        closeModal('modal-recycle-status-update');
-        openRecycleSaleCheckoutForSIM(sim.id);
-        return;
-    }
+    const saveBtn = document.getElementById('btn-save-recycle-status');
+    isSavingRecycle = true;
+    setButtonLoading(saveBtn, true, 'Saving...');
 
     try {
         await updateDoc(doc(db, 'recycle_sims', id), updateData);
@@ -716,6 +847,9 @@ export async function saveRecycleStatusUpdate() {
     } catch (e) {
         console.error("Error updating status:", e);
         showAppAlert("Save Failed", "Could not update status in cloud.");
+    } finally {
+        isSavingRecycle = false;
+        setButtonLoading(saveBtn, false);
     }
 }
 
@@ -826,13 +960,17 @@ export async function confirmRecycleSimSale() {
     let simId = null;
 
     if (selectVal === 'untracked') {
-        const manualNum = document.getElementById('recycle-sale-untracked-number').value.trim();
+        const manualEl = document.getElementById('recycle-sale-untracked-number');
+        clearInputError(manualEl);
+        const manualNum = manualEl ? manualEl.value.trim() : '';
         if (!manualNum) {
+            markInputError(manualEl);
             showAppAlert("Missing Input", "Please enter the Recycled SIM Number.");
             return;
         }
         const mobileRegex = /^01[3-9]\d{8}$/;
         if (!mobileRegex.test(manualNum)) {
+            markInputError(manualEl);
             showAppAlert("Invalid Number", "The SIM number must be a valid 11-digit mobile number starting with 01.");
             return;
         }

@@ -1,6 +1,102 @@
 // src/utils/ui-helpers.js
 
 let alertConfirmCallback = null;
+const modalOpenerMap = new Map();
+
+function getFocusableInModal(container) {
+    if (!container || typeof container.querySelectorAll !== 'function') return [];
+    const selector = 'button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
+    return Array.from(container.querySelectorAll(selector)).filter(el => {
+        if (!el) return false;
+        if (el.style && el.style.display === 'none') return false;
+        if (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function') {
+            try {
+                const cs = window.getComputedStyle(el);
+                if (cs && (cs.display === 'none' || cs.visibility === 'hidden')) return false;
+            } catch (_) {}
+        }
+        return true;
+    });
+}
+
+function ensureModalFocusTrap() {
+    if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') return;
+    if (document._amolnamaFocusTrapBound) return;
+    document._amolnamaFocusTrapBound = true;
+
+    document.addEventListener('keydown', (e) => {
+        if (typeof document.querySelectorAll !== 'function') return;
+        const activeModals = Array.from(document.querySelectorAll('.modal-overlay.active'));
+        if (activeModals.length === 0) return;
+
+        const topModal = activeModals[activeModals.length - 1];
+        if (e.key === 'Tab') {
+            const focusable = getFocusableInModal(topModal);
+            if (focusable.length === 0) return;
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            const active = document.activeElement;
+
+            if (e.shiftKey) {
+                if (!active || active === first || (typeof topModal.contains === 'function' && !topModal.contains(active))) {
+                    e.preventDefault();
+                    if (typeof last.focus === 'function') last.focus();
+                }
+            } else {
+                if (!active || active === last || (typeof topModal.contains === 'function' && !topModal.contains(active))) {
+                    e.preventDefault();
+                    if (typeof first.focus === 'function') first.focus();
+                }
+            }
+        } else if (e.key === 'Enter' && topModal.id === 'modal-app-alert' && document.activeElement === document.body) {
+            e.preventDefault();
+            executeAlertConfirm();
+        }
+    });
+}
+
+export function markInputError(elOrId) {
+    if (typeof document === 'undefined') return null;
+    const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+    if (!el) return null;
+    if (el.classList && typeof el.classList.add === 'function') {
+        el.classList.add('input-error');
+    }
+    const wrapper = typeof el.closest === 'function' ? el.closest('.custom-select-wrapper') : null;
+    const customTrigger = wrapper && typeof wrapper.querySelector === 'function'
+        ? wrapper.querySelector('.custom-select-trigger')
+        : null;
+    if (customTrigger && customTrigger.classList && typeof customTrigger.classList.add === 'function') {
+        customTrigger.classList.add('input-error');
+        if (typeof customTrigger.focus === 'function') {
+            try { customTrigger.focus(); } catch (_) {}
+        }
+    } else if (typeof el.focus === 'function') {
+        try { el.focus(); } catch (_) {}
+    }
+    if (el.dataset && !el.dataset.errBound && typeof el.addEventListener === 'function') {
+        const clearHandler = () => clearInputError(el);
+        el.addEventListener('input', clearHandler);
+        el.addEventListener('change', clearHandler);
+        el.dataset.errBound = 'true';
+    }
+    return el;
+}
+
+export function clearInputError(elOrId) {
+    if (typeof document === 'undefined') return;
+    const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
+    if (el && el.classList && typeof el.classList.remove === 'function') {
+        el.classList.remove('input-error');
+    }
+    const wrapper = el && typeof el.closest === 'function' ? el.closest('.custom-select-wrapper') : null;
+    const customTrigger = wrapper && typeof wrapper.querySelector === 'function'
+        ? wrapper.querySelector('.custom-select-trigger')
+        : null;
+    if (customTrigger && customTrigger.classList && typeof customTrigger.classList.remove === 'function') {
+        customTrigger.classList.remove('input-error');
+    }
+}
 
 export function showAppAlert(title, message, isConfirm = false, confirmCallback = null, confirmText = "OK") {
     if (navigator.vibrate) navigator.vibrate([50, 50, 50]); 
@@ -16,14 +112,14 @@ export function showAppAlert(title, message, isConfirm = false, confirmCallback 
     
     if (isConfirm) {
         cancelBtn.style.display = 'block';
-        iconBox.style.color = '#f59e0b'; 
+        iconBox.style.color = 'var(--warning-text, #b45309)'; 
         iconBox.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>';
         confirmBtn.style.background = 'var(--accent-color)';
     } else {
         cancelBtn.style.display = 'none';
-        iconBox.style.color = '#ef4444'; 
+        iconBox.style.color = 'var(--danger-text, #dc2626)'; 
         iconBox.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>';
-        confirmBtn.style.background = '#ef4444'; 
+        confirmBtn.style.background = '#dc2626'; 
     }
     
     alertConfirmCallback = confirmCallback;
@@ -96,11 +192,34 @@ export function showFlashMessage(text) {
 }
 
 export function openModal(modalId) { 
+    if (typeof document === 'undefined') return;
+    ensureModalFocusTrap();
     const modalEl = document.getElementById(modalId);
-    if (modalEl) modalEl.classList.add('active'); 
+    if (!modalEl) return;
+
+    const currentActive = document.activeElement;
+    if (currentActive && typeof modalEl.contains === 'function' && !modalEl.contains(currentActive)) {
+        modalOpenerMap.set(modalId, currentActive);
+    } else if (currentActive && !modalOpenerMap.has(modalId)) {
+        modalOpenerMap.set(modalId, currentActive);
+    }
+
+    modalEl.classList.add('active');
+
+    const scheduleFocus = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (fn) => setTimeout(fn, 0);
+    scheduleFocus(() => {
+        if (!modalEl.classList.contains('active')) return;
+        const preferred = modalId === 'modal-app-alert'
+            ? document.getElementById('app-alert-confirm')
+            : getFocusableInModal(modalEl)[0];
+        if (preferred && typeof preferred.focus === 'function') {
+            try { preferred.focus(); } catch (_) {}
+        }
+    });
 }
 
 export function closeModal(modalId) { 
+    if (typeof document === 'undefined') return;
     const overlay = document.getElementById(modalId);
     if (!overlay) return;
     overlay.classList.remove('active');
@@ -110,6 +229,11 @@ export function closeModal(modalId) {
         content.style.transform = '';
         content.style.transition = '';
         content.style.opacity = '';
+    }
+    const opener = modalOpenerMap.get(modalId);
+    modalOpenerMap.delete(modalId);
+    if (opener && typeof opener.focus === 'function' && opener.isConnected !== false) {
+        try { opener.focus(); } catch (_) {}
     }
 }
 
@@ -166,11 +290,11 @@ export function initNetworkStatus() {
         }
 
         if (!navigator.onLine) {
-            banner.style.background = count > 0 ? '#f59e0b' : '#ef4444';
-            banner.style.boxShadow = count > 0 ? '0 4px 12px rgba(245, 158, 11, 0.3)' : '0 4px 12px rgba(239, 68, 68, 0.3)';
+            banner.style.background = count > 0 ? '#b45309' : '#dc2626';
+            banner.style.boxShadow = count > 0 ? '0 4px 12px rgba(180, 83, 9, 0.3)' : '0 4px 12px rgba(220, 38, 38, 0.3)';
             
             banner.innerHTML = count > 0 
-                ? `<span>⚠️ Offline: ${count} pending sales queued</span> <span style="font-size: 0.72rem; opacity: 0.9; font-weight: 700;">Reconnect to sync</span>`
+                ? `<span style="display: inline-flex; align-items: center; gap: 6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Offline: ${count} pending sales queued</span> <span style="font-size: 0.72rem; opacity: 0.9; font-weight: 700;">Reconnect to sync</span>`
                 : `<div style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m2 2 20 20"/><path d="M8.53 8.53a9 9 0 0 1 11.23 3.86"/><path d="M4.68 4.68a13 13 0 0 0-2.6 1.74"/><path d="M2.08 9.5A13 13 0 0 1 4.5 7.1"/></svg>
                     OFFLINE - Changes Queued Locally
@@ -179,15 +303,15 @@ export function initNetworkStatus() {
             banner.style.display = 'flex';
             document.body.style.paddingTop = '44px';
         } else if (count > 0) {
-            banner.style.background = '#0ea5e9';
-            banner.style.boxShadow = '0 4px 12px rgba(14, 165, 233, 0.3)';
+            banner.style.background = '#0369a1';
+            banner.style.boxShadow = '0 4px 12px rgba(3, 105, 161, 0.3)';
             banner.innerHTML = `
                 <span style="display: flex; align-items: center; gap: 6px;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="animation: spin 1s linear infinite;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
                     Syncing Queue: ${count} pending sales...
                 </span>
                 <button onclick="if(window.syncOfflineTransactions) window.syncOfflineTransactions()" 
-                        style="background: #fff; color: #0ea5e9; border: none; padding: 4px 10px; border-radius: 4px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 0.75rem;">
+                        style="background: #fff; color: #0369a1; border: none; padding: 4px 10px; border-radius: 4px; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 0.75rem;">
                     SYNC NOW
                 </button>
             `;

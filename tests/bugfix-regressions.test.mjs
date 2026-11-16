@@ -81,11 +81,17 @@ test('Suite: Bugfix & Security Regression Verification', async (t) => {
         assert.match(transfersCode, /let suggestion = Math\.min\(maxSendable,\s*Math\.max\(0,\s*targetPerAgent - targetCurrentStock\)\)/);
     });
 
-    await t.test('6. reports.js cash_actions filter and XPath removal', () => {
+    await t.test('6. reports.js / ledger-filters.js cash_actions filter and XPath removal', async () => {
         const reportsCode = readSrc('src', 'features', 'reports.js');
+        const ledgerFiltersCode = readSrc('src', 'utils', 'ledger-filters.js');
+        const { matchesLedgerCategory } = await import('../src/utils/ledger-filters.js');
+
         assert.doesNotMatch(reportsCode, /document\.evaluate\s*\(/);
-        assert.match(reportsCode, /filterVal === 'cash_actions' && tx\.type === 'adjustment'\)\s*showTx = true/);
-        assert.doesNotMatch(reportsCode, /filterVal === 'cash_actions' && tx\.type === 'adjustment' && tx\.name === 'Physical Cash'/);
+        assert.match(reportsCode, /matchesLedgerFilters\(/);
+        assert.match(ledgerFiltersCode, /category === 'cash_actions'\)\s*return tx\.type === 'adjustment'/);
+        assert.doesNotMatch(reportsCode, /cash_actions' && tx\.type === 'adjustment' && tx\.name === 'Physical Cash'/);
+        assert.equal(matchesLedgerCategory({ type: 'adjustment', name: 'Handset Cash Collection' }, 'cash_actions'), true);
+        assert.equal(matchesLedgerCategory({ type: 'adjustment', name: 'Physical Cash' }, 'cash_actions'), true);
     });
 
     await t.test('7. desk.js and admin.js avoid invalid merge options on updateDoc/batch.update and normalize trackAs', () => {

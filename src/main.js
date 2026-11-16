@@ -2,20 +2,20 @@
 // ==========================================
 //    1. IMPORTS & CONFIGURATION
 // ==========================================
-import { showAppAlert, executeAlertConfirm, showFlashMessage, openModal, closeModal, showTooltip, initNetworkStatus, setupBottomSheetDrag, initCustomDropdowns } from './utils/ui-helpers.js';
+import { showAppAlert, executeAlertConfirm, showFlashMessage, openModal, closeModal, showTooltip, initNetworkStatus, setupBottomSheetDrag, initCustomDropdowns, markInputError, clearInputError } from './utils/ui-helpers.js';
 import { initPWA, installPWA } from './features/pwa.js';
-import { initAuth, signInWithGoogle, logout, openProfileHub, showPhoneLoginView, hidePhoneLoginView, resetPhoneLoginView, signInWithPhoneAndPin, openLinkPhoneModal, linkPhoneAndPin } from './features/auth.js';
+import { initAuth, signInWithGoogle, logout, openProfileHub, copyActiveSessionId, showPhoneLoginView, hidePhoneLoginView, resetPhoneLoginView, signInWithPhoneAndPin, openLinkPhoneModal, linkPhoneAndPin, togglePinVisibility, initTheme, toggleDarkMode, applyTheme, isDarkModeActive } from './features/auth.js';
 import { AppState } from './core/state.js';
-import { ersKeyPress, ersBackspace, saveErs, selectItem, stepQty, onQtySliderChange, onQtyInputChange, saveQuantity, openEditTx, saveTxEdit, toggleEditSplitFields, updateSplitTotal, cancelTxEdit, autoCalcEditTotal, deleteTransaction, openTrash, restoreTx, permanentlyDeleteTx, emptyTrash, showAuditTrail, promptSimOnboarding, confirmSimOnboarding, cancelSimOnboarding, toggleOnboardingRow, syncOnboardingCheck } from './features/transactions.js';
+import { ersKeyPress, ersBackspace, ersClear, ersAddPreset, saveErs, selectItem, stepQty, onQtySliderChange, onQtyInputChange, saveQuantity, openEditTx, saveTxEdit, setEditPaymentMethod, toggleEditSplitFields, updateSplitTotal, cancelTxEdit, autoCalcEditTotal, deleteTransaction, openTrash, restoreTx, permanentlyDeleteTx, emptyTrash, showAuditTrail, promptSimOnboarding, confirmSimOnboarding, cancelSimOnboarding, toggleOnboardingRow, syncOnboardingCheck } from './features/transactions.js';
 import { getPhysicalItems, getInventoryChange, passStockFirewall, switchStoreCategory } from './features/inventory.js';
 import { loadFloorMap, handleDeskSelect, executeHandleDeskSelect, renderLiveFloorTab, openMyDeskDashboard, peekAtDesk, handleMyDrawerNav, initiateCloseDesk, submitClosingReport } from './features/desk.js';
 import { canUserPerformCashActions, openManagerCashModal, saveManagerCash, openMainStockModal, saveMainStock, openReturnStockModal, saveReturnStock, openDeskTransfer, executeDeskTransfer, openTransferModal, executeTransfer, toggleMgrCashPaymentFields, validateMgrCashSplit } from './features/transfers.js';
-import { filterAdminCatalog, toggleAddForm, addInventoryGroup, removeInventoryGroup, openSettings, removeRow, addNewItem, saveSettings, openNicknameManager, saveAdminNickname, saveUserConfig, kickAgent, nukeAgent, resetMyDeskLock, forceCloseAllDesks, nukeTodaysLedger, fixPastManagerDrops, openAuditModal, fetchAuditLogs, healTodaysOpeningStock, runLedgerDiagnostic, healDeskTransfers, executeAdminDrawerTransfer, deleteAgentDateData, healDuplicateSessions } from './features/admin.js';
-import { renderAppUI, filterStoreCatalog, clearStoreSearch } from './features/catalog.js';
+import { filterAdminCatalog, filterAdminCatalogByCategory, resetAdminCatalogFilters, clearAdminSearch, toggleAddForm, addInventoryGroup, removeInventoryGroup, openSettings, removeRow, addNewItem, saveSettings, openNicknameManager, filterUsersList, clearUsersSearch, filterUsersByRole, resetUsersFilters, saveAdminNickname, saveUserConfig, kickAgent, nukeAgent, resetMyDeskLock, forceCloseAllDesks, nukeTodaysLedger, fixPastManagerDrops, openAuditModal, fetchAuditLogs, healTodaysOpeningStock, runLedgerDiagnostic, healDeskTransfers, executeAdminDrawerTransfer, deleteAgentDateData, healDuplicateSessions } from './features/admin.js';
+import { renderAppUI, filterStoreCatalog, clearStoreSearch, toggleStoreInStockFilter, resetStoreFilters } from './features/catalog.js';
 import { initUserData } from './core/app-init.js';
-import { renderPersonalReport, renderDeskDashboard, fetchTransactionsForDate, getTxListenerUnsubscribe, setTxListenerUnsubscribe, downloadReportAsPDF, toggleCenterCashActions, toggleCenterCashCategory } from './features/reports.js';
-import { openRecycleTracker, filterRecycleList, filterRecycleByStatus, openAddRecycleModal, submitRecycleApplication, openUpdateRecycleStatusModal, onRecycleStatusChangeSelect, onAddRecycleStatusChange, saveRecycleStatusUpdate, deleteRecycleSimEntry, triggerStoreRecycleSale, populateStoreRecycleSaleOptions, onSelectRecycleSaleNumberChange, confirmRecycleSimSale, setRecycleContactTimeToNow, onRecycleContactTimeClick, onRecycleContactTimeManualChange, onRecycleAgentChange, resetRecycleContactTimeToPrevious } from './features/recycle.js';
-import { openCallRates, closeCallRates, filterRatesList, openManageRates, closeManageRates, openPackageForm, closePackageForm, addRateRow, savePackageData, deletePackage, autoCalcRateTax } from './features/rates.js';
+import { renderPersonalReport, renderDeskDashboard, fetchTransactionsForDate, getTxListenerUnsubscribe, setTxListenerUnsubscribe, downloadReportAsPDF, toggleCenterCashActions, toggleCenterCashCategory, syncHistoricalDateBanner, returnToToday, setLedgerFilterField, resetLedgerFilters } from './features/reports.js';
+import { openRecycleTracker, filterRecycleList, clearRecycleSearch, filterRecycleByStatus, resetRecycleFilters, openAddRecycleModal, submitRecycleApplication, openUpdateRecycleStatusModal, onRecycleStatusChangeSelect, onAddRecycleStatusChange, saveRecycleStatusUpdate, deleteRecycleSimEntry, triggerStoreRecycleSale, populateStoreRecycleSaleOptions, onSelectRecycleSaleNumberChange, confirmRecycleSimSale, setRecycleContactTimeToNow, onRecycleContactTimeClick, onRecycleContactTimeManualChange, onRecycleAgentChange, resetRecycleContactTimeToPrevious } from './features/recycle.js';
+import { openCallRates, closeCallRates, filterRatesList, filterRatesByType, resetRatesFilters, clearRatesSearch, openManageRates, closeManageRates, renderManageRatesDashboard, clearManageRatesSearch, openPackageForm, closePackageForm, addRateRow, savePackageData, deletePackage, autoCalcRateTax } from './features/rates.js';
 
 // ==========================================
 //    TEMPORARY REFACTORING BRIDGE
@@ -38,35 +38,38 @@ Object.defineProperties(window, {
     isMfs: { get: () => AppState.isMfs, set: (v) => AppState.isMfs = v }
 });
 
+initTheme();
 initPWA();
 
 // ==========================================
 //   GLOBAL NAMESPACE & UI BINDINGS
 // ==========================================
 window.Amolnama = {
-    signInWithGoogle, logout, openProfileHub, executeAlertConfirm, showTooltip,
-    openModal, closeModal, showAppAlert, showFlashMessage, switchTab,
-    handleMyDrawerNav, ersKeyPress, ersBackspace, saveErs, selectItem,
+    signInWithGoogle, logout, openProfileHub, copyActiveSessionId, toggleDarkMode, applyTheme, isDarkModeActive, executeAlertConfirm, showTooltip,
+    openModal, closeModal, showAppAlert, showFlashMessage, switchTab, markInputError, clearInputError,
+    handleMyDrawerNav, ersKeyPress, ersBackspace, ersClear, ersAddPreset, saveErs, selectItem,
     stepQty, onQtySliderChange, onQtyInputChange, saveQuantity, toggleMFS, getPhysicalItems,
     getInventoryChange, passStockFirewall, switchStoreCategory, loadFloorMap,
     handleDeskSelect, executeHandleDeskSelect, renderPersonalReport,
-    renderDeskDashboard, canUserPerformCashActions, openManagerCashModal, saveManagerCash, openMainStockModal, toggleMgrCashPaymentFields, validateMgrCashSplit,
+    renderDeskDashboard, applyDeskFilter, resetDeskFilter, applyPersonalFilter, resetPersonalFilter, syncHistoricalDateBanner, returnToToday,
+    setLedgerSearch, clearLedgerSearch, toggleLedgerFilters, setLedgerPaymentFilter, setLedgerStatusFilter, setLedgerAgentFilter, setLedgerSortFilter,
+    canUserPerformCashActions, openManagerCashModal, saveManagerCash, openMainStockModal, toggleMgrCashPaymentFields, validateMgrCashSplit,
     saveMainStock, openReturnStockModal, saveReturnStock, openDeskTransfer,
-    executeDeskTransfer, openTransferModal, executeTransfer, filterAdminCatalog,
+    executeDeskTransfer, openTransferModal, executeTransfer, filterAdminCatalog, filterAdminCatalogByCategory, resetAdminCatalogFilters, clearAdminSearch,
     toggleAddForm, addInventoryGroup, removeInventoryGroup, openSettings,
-    removeRow, addNewItem, saveSettings, openNicknameManager, saveAdminNickname, saveUserConfig,
+    removeRow, addNewItem, saveSettings, openNicknameManager, filterUsersList, clearUsersSearch, filterUsersByRole, resetUsersFilters, saveAdminNickname, saveUserConfig,
     kickAgent, nukeAgent, resetMyDeskLock, forceCloseAllDesks, nukeTodaysLedger,
     fixPastManagerDrops, openAuditModal, fetchAuditLogs,
     renderLiveFloorTab, openMyDeskDashboard, peekAtDesk, initiateCloseDesk,
-    installPWA, submitClosingReport, renderAppUI, filterStoreCatalog, clearStoreSearch, fetchTransactionsForDate,
-    openEditTx, saveTxEdit, toggleEditSplitFields, updateSplitTotal, cancelTxEdit,
+    installPWA, submitClosingReport, renderAppUI, filterStoreCatalog, clearStoreSearch, toggleStoreInStockFilter, resetStoreFilters, fetchTransactionsForDate,
+    openEditTx, saveTxEdit, setEditPaymentMethod, toggleEditSplitFields, updateSplitTotal, cancelTxEdit,
     autoCalcEditTotal, deleteTransaction, openTrash, restoreTx, permanentlyDeleteTx,
     emptyTrash, showAuditTrail, healTodaysOpeningStock,
     runLedgerDiagnostic, downloadReportAsPDF, initCustomDropdowns, healDeskTransfers, executeAdminDrawerTransfer, deleteAgentDateData, healDuplicateSessions,
-    openRecycleTracker, filterRecycleList, filterRecycleByStatus, openAddRecycleModal, submitRecycleApplication, openUpdateRecycleStatusModal, onRecycleStatusChangeSelect, onAddRecycleStatusChange, saveRecycleStatusUpdate, deleteRecycleSimEntry, triggerStoreRecycleSale, populateStoreRecycleSaleOptions, onSelectRecycleSaleNumberChange, confirmRecycleSimSale, setRecycleContactTimeToNow, onRecycleContactTimeClick, onRecycleContactTimeManualChange, onRecycleAgentChange, resetRecycleContactTimeToPrevious,
+    openRecycleTracker, filterRecycleList, clearRecycleSearch, filterRecycleByStatus, resetRecycleFilters, openAddRecycleModal, submitRecycleApplication, openUpdateRecycleStatusModal, onRecycleStatusChangeSelect, onAddRecycleStatusChange, saveRecycleStatusUpdate, deleteRecycleSimEntry, triggerStoreRecycleSale, populateStoreRecycleSaleOptions, onSelectRecycleSaleNumberChange, confirmRecycleSimSale, setRecycleContactTimeToNow, onRecycleContactTimeClick, onRecycleContactTimeManualChange, onRecycleAgentChange, resetRecycleContactTimeToPrevious,
     promptSimOnboarding, confirmSimOnboarding, cancelSimOnboarding, toggleOnboardingRow, syncOnboardingCheck,
-    openCallRates, closeCallRates, filterRatesList, openManageRates, closeManageRates, openPackageForm, closePackageForm, addRateRow, savePackageData, deletePackage, autoCalcRateTax,
-    showPhoneLoginView, hidePhoneLoginView, resetPhoneLoginView, signInWithPhoneAndPin, openLinkPhoneModal, linkPhoneAndPin,
+    openCallRates, closeCallRates, filterRatesList, filterRatesByType, resetRatesFilters, clearRatesSearch, openManageRates, closeManageRates, renderManageRatesDashboard, clearManageRatesSearch, openPackageForm, closePackageForm, addRateRow, savePackageData, deletePackage, autoCalcRateTax,
+    showPhoneLoginView, hidePhoneLoginView, resetPhoneLoginView, signInWithPhoneAndPin, openLinkPhoneModal, linkPhoneAndPin, togglePinVisibility,
     toggleCenterCashActions, toggleCenterCashCategory
 };
 
@@ -135,6 +138,7 @@ export function switchTab(tabId, title) {
     
     const activeDeskName = (AppState.currentDeskName && AppState.currentDeskName !== 'undefined') ? AppState.currentDeskName : '';
     document.getElementById('header-title').innerText = tabId === 'ers' ? (activeDeskName || AppState.userNickname || AppState.userDisplayName) : title;
+    syncHistoricalDateBanner();
     
     // Switch to floor ensures the live floor map renders fresh data reliably
     if (tabId === 'floor') {
@@ -161,29 +165,125 @@ function toggleMFS() {
     AppState.isMfs = !AppState.isMfs;
     document.querySelectorAll('.sync-cash').forEach(el => el.classList.toggle('active', !AppState.isMfs));
     document.querySelectorAll('.sync-mfs').forEach(el => el.classList.toggle('active', AppState.isMfs));
+    document.getElementById('tab-store')?.classList.toggle('is-mfs-active', AppState.isMfs);
+    document.querySelector('#tab-store .toggle-switch')?.setAttribute('aria-checked', AppState.isMfs ? 'true' : 'false');
+}
+
+function rerenderLedgerScope(scope) {
+    if (scope === 'desk') {
+        if (typeof window.renderDeskDashboard === 'function') window.renderDeskDashboard();
+    } else {
+        if (typeof window.renderPersonalReport === 'function') window.renderPersonalReport();
+    }
 }
 
 function applyDeskFilter(pill, value) {
-    // Update the hidden value store
-    const hidden = document.getElementById('desk-history-filter');
-    if (hidden) hidden.value = value;
-    // Swap active state on pills inside its own container
-    pill.parentNode.querySelectorAll('.desk-filter-pill').forEach(p => p.classList.toggle('active', p === pill));
-    // Re-render
-    if (typeof window.renderDeskDashboard === 'function') window.renderDeskDashboard();
+    setLedgerFilterField('desk', 'category', value || 'all');
+    if (pill && pill.parentNode) {
+        pill.parentNode.querySelectorAll('.desk-filter-pill').forEach(p => {
+            const isMatch = p === pill;
+            p.classList.toggle('active', isMatch);
+            p.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
+        });
+    }
+    rerenderLedgerScope('desk');
 }
 window.applyDeskFilter = applyDeskFilter;
 
+function resetDeskFilter() {
+    resetLedgerFilters('desk');
+    rerenderLedgerScope('desk');
+}
+window.resetDeskFilter = resetDeskFilter;
+
 function applyPersonalFilter(pill, value) {
-    // Update the hidden value store
-    const hidden = document.getElementById('personal-history-filter');
-    if (hidden) hidden.value = value;
-    // Swap active state on pills inside its own container
-    pill.parentNode.querySelectorAll('.desk-filter-pill').forEach(p => p.classList.toggle('active', p === pill));
-    // Re-render
-    if (typeof window.renderPersonalReport === 'function') window.renderPersonalReport();
+    setLedgerFilterField('personal', 'category', value || 'all');
+    if (pill && pill.parentNode) {
+        pill.parentNode.querySelectorAll('.desk-filter-pill').forEach(p => {
+            const isMatch = p === pill;
+            p.classList.toggle('active', isMatch);
+            p.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
+        });
+    }
+    rerenderLedgerScope('personal');
 }
 window.applyPersonalFilter = applyPersonalFilter;
+
+function resetPersonalFilter() {
+    resetLedgerFilters('personal');
+    rerenderLedgerScope('personal');
+}
+window.resetPersonalFilter = resetPersonalFilter;
+
+function setLedgerSearch(scope, value) {
+    setLedgerFilterField(scope, 'search', value || '');
+    rerenderLedgerScope(scope);
+}
+window.setLedgerSearch = setLedgerSearch;
+
+function clearLedgerSearch(scope) {
+    const key = scope === 'desk' ? 'desk' : 'personal';
+    const input = document.getElementById(`${key}-ledger-search`);
+    if (input) {
+        input.value = '';
+        if (typeof input.focus === 'function') input.focus();
+    }
+    setLedgerFilterField(key, 'search', '');
+    rerenderLedgerScope(key);
+}
+window.clearLedgerSearch = clearLedgerSearch;
+
+function toggleLedgerFilters(scope) {
+    const key = scope === 'desk' ? 'desk' : 'personal';
+    const panel = document.getElementById(`${key}-advanced-filters`);
+    const btn = document.getElementById(`${key}-filter-toggle`);
+    if (!panel) return;
+    const isHidden = panel.style.display === 'none' || !panel.style.display;
+    panel.style.display = isHidden ? 'block' : 'none';
+    if (btn) {
+        btn.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+        btn.classList.toggle('is-open', isHidden);
+    }
+}
+window.toggleLedgerFilters = toggleLedgerFilters;
+
+function setLedgerPaymentFilter(scope, payment, btn = null) {
+    setLedgerFilterField(scope, 'payment', payment || 'all');
+    if (btn && btn.parentNode) {
+        btn.parentNode.querySelectorAll('[data-pay-filter]').forEach(el => {
+            const isMatch = el === btn;
+            el.classList.toggle('active', isMatch);
+            el.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
+        });
+    }
+    rerenderLedgerScope(scope);
+}
+window.setLedgerPaymentFilter = setLedgerPaymentFilter;
+
+function setLedgerStatusFilter(scope, status, btn = null) {
+    setLedgerFilterField(scope, 'status', status || 'all');
+    if (btn && btn.parentNode) {
+        btn.parentNode.querySelectorAll('[data-status-filter]').forEach(el => {
+            const isMatch = el === btn;
+            el.classList.toggle('active', isMatch);
+            el.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
+        });
+    }
+    rerenderLedgerScope(scope);
+}
+window.setLedgerStatusFilter = setLedgerStatusFilter;
+
+function setLedgerAgentFilter(scope, agent) {
+    setLedgerFilterField(scope, 'agent', agent || 'all');
+    rerenderLedgerScope(scope);
+}
+window.setLedgerAgentFilter = setLedgerAgentFilter;
+
+function setLedgerSortFilter(scope, sort) {
+    setLedgerFilterField(scope, 'sort', sort || 'newest');
+    rerenderLedgerScope(scope);
+}
+window.setLedgerSortFilter = setLedgerSortFilter;
 
 window.addEventListener('click', (event) => {
     if (event.target.classList.contains('modal-overlay') && !['modal-auth', 'splash-screen', 'modal-desk-select', 'modal-nicknames', 'modal-app-alert', 'modal-close-desk', 'modal-edit-tx', 'modal-sim-onboarding', 'modal-select-recycle-sim'].includes(event.target.id)) {
@@ -253,6 +353,33 @@ document.addEventListener('keydown', (event) => {
             showFlashMessage(`Mode: ${AppState.isMfs ? 'MFS (Mobile Financial Services)' : 'Cash'}`);
         }
         event.preventDefault();
+        return;
+    }
+
+    // 4. Desktop numeric keypad shortcuts for active ERS tab (with no modal or input focused)
+    const activeEl = document.activeElement;
+    const activeTag = activeEl?.tagName || '';
+    const activeRole = activeEl?.getAttribute?.('role');
+    const isInputFocused = ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag) || activeRole === 'combobox';
+    const hasActiveModal = document.querySelectorAll('.modal-overlay.active').length > 0;
+    const isErsActive = document.getElementById('tab-ers')?.classList.contains('active');
+
+    if (isErsActive && !hasActiveModal && !isInputFocused && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        if (/^[0-9]$/.test(event.key)) {
+            event.preventDefault();
+            ersKeyPress(event.key);
+        } else if (event.key === 'Backspace') {
+            event.preventDefault();
+            ersBackspace();
+        } else if (event.key === 'Delete' || event.key.toLowerCase() === 'c') {
+            event.preventDefault();
+            ersClear();
+        } else if (event.key === 'Enter') {
+            if ((parseInt(AppState.ui.currentErsAmount, 10) || 0) > 0) {
+                event.preventDefault();
+                saveErs('Cash');
+            }
+        }
     }
 });
 

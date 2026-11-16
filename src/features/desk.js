@@ -183,7 +183,7 @@ export async function loadFloorMap() {
             const desk = docSnap.data();
             // Desks are now universally active
             const statusDot = '<div style="width: 10px; height: 10px; border-radius: 50%; background-color: #10b981; box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);"></div>';
-            const statusText = '<span style="color: #10b981; font-size: 0.8rem; font-weight: 600;">Active</span>';
+            const statusText = '<span style="color: var(--success-text); font-size: 0.8rem; font-weight: 600;">Active</span>';
             
             if (docSnap.id === personalDeskId) {
                 foundPersonal = true;
@@ -196,7 +196,7 @@ export async function loadFloorMap() {
                 personalDeskHTML = `
                     <div style="margin-bottom: 32px;">
                         <div style="font-size: 0.75rem; font-weight: 800; color: var(--accent-color); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; margin-left: 4px;">My Workspace</div>
-                        <div class="admin-form-card" style="padding: 16px; margin-bottom: 0; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);" onclick="handleDeskSelect('${escapeJsSingleQuote(docSnap.id)}', '${safeDrawerName}', '${escapeJsSingleQuote(desk.status)}', '${escapeJsSingleQuote(desk.currentSessionId)}')">
+                        <div class="admin-form-card floor-desk-select-card" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" style="padding: 16px; margin-bottom: 0; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);" onclick="handleDeskSelect('${escapeJsSingleQuote(docSnap.id)}', '${safeDrawerName}', '${escapeJsSingleQuote(desk.status)}', '${escapeJsSingleQuote(desk.currentSessionId)}')">
                             <div style="display: flex; align-items: center; gap: 16px;">
                                 <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(139, 92, 246, 0.12); color: #8b5cf6; display: flex; align-items: center; justify-content: center;">
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
@@ -214,7 +214,7 @@ export async function loadFloorMap() {
                 `;
             } else if (!desk.isPersonal) {
                 sharedDesksHTML += `
-                    <div class="admin-form-card" style="padding: 16px; margin-bottom: 12px; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);" onclick="handleDeskSelect('${escapeJsSingleQuote(docSnap.id)}', '${escapeJsSingleQuote(desk.name)}', '${escapeJsSingleQuote(desk.status)}', '${escapeJsSingleQuote(desk.currentSessionId)}')">
+                    <div class="admin-form-card floor-desk-select-card" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" style="padding: 16px; margin-bottom: 12px; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);" onclick="handleDeskSelect('${escapeJsSingleQuote(docSnap.id)}', '${escapeJsSingleQuote(desk.name)}', '${escapeJsSingleQuote(desk.status)}', '${escapeJsSingleQuote(desk.currentSessionId)}')">
                         <div style="display: flex; align-items: center; gap: 16px;">
                             <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(14, 165, 233, 0.1); color: var(--accent-color); display: flex; align-items: center; justify-content: center;">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
@@ -237,7 +237,7 @@ export async function loadFloorMap() {
             personalDeskHTML = `
                 <div style="margin-bottom: 32px;">
                     <div style="font-size: 0.75rem; font-weight: 800; color: var(--accent-color); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; margin-left: 4px;">My Workspace</div>
-                    <div class="admin-form-card" style="padding: 16px; margin-bottom: 0; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);" onclick="handleDeskSelect('${escapeJsSingleQuote(personalDeskId)}', '${safeDrawerName}', 'closed', 'null')">
+                    <div class="admin-form-card floor-desk-select-card" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" style="padding: 16px; margin-bottom: 0; cursor: pointer; transition: transform 0.1s; display: flex; justify-content: space-between; align-items: center; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);" onclick="handleDeskSelect('${escapeJsSingleQuote(personalDeskId)}', '${safeDrawerName}', 'closed', 'null')">
                         <div style="display: flex; align-items: center; gap: 16px;">
                             <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(139, 92, 246, 0.12); color: #8b5cf6; display: flex; align-items: center; justify-content: center;">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
@@ -265,7 +265,7 @@ export async function loadFloorMap() {
         }
         
         container.innerHTML = personalDeskHTML + sharedDesksHTML;
-    } catch (e) { container.innerHTML = `<div style="color:#ef4444; padding:16px;">Error loading map. Refresh app.</div>`; }
+    } catch (e) { container.innerHTML = `<div style="color: var(--danger-text); padding:16px;">Error loading map. Refresh app.</div>`; }
 }
 
 export function handleDeskSelect(deskId, deskName, status, sessionId) {
@@ -479,8 +479,8 @@ export function generateFloorDeskCard({ session, isMyDesk, liveCash, invDisplay,
 
     let safeDeskName = escapeJsSingleQuote(displayDeskName || '');
     let actionBtn = isMyDesk 
-        ? `<button class="btn-primary-full" style="width: 100%; margin-top: 8px; border-radius: 14px;" onpointerdown="this.style.transform='scale(0.96)'" onpointerup="this.style.transform='scale(1)'" onclick="openMyDeskDashboard()">Open My Drawer</button>`
-        : `<button class="btn-outline" style="width: 100%; color: var(--purple-text); border-color: var(--purple-border); padding: 14px; margin-top: 8px; border-radius: 14px; font-weight: 700;" onpointerdown="this.style.transform='scale(0.95)'" onpointerup="this.style.transform='scale(1)'" onclick="peekAtDesk('${escapeJsSingleQuote(session.deskId)}', '${safeDeskName}')">View Details</button>`;
+        ? `<button type="button" class="btn-primary-full" style="width: 100%; margin-top: 8px; border-radius: 14px;" onpointerdown="this.style.transform='scale(0.96)'" onpointerup="this.style.transform='scale(1)'" onclick="openMyDeskDashboard()">Open My Drawer</button>`
+        : `<button type="button" class="btn-outline" style="width: 100%; color: var(--purple-text); border-color: var(--purple-border); padding: 14px; margin-top: 8px; border-radius: 14px; font-weight: 700;" onpointerdown="this.style.transform='scale(0.95)'" onpointerup="this.style.transform='scale(1)'" onclick="peekAtDesk('${escapeJsSingleQuote(session.deskId)}', '${safeDeskName}')">View Details</button>`;
 
     let agentIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.7;"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
 
@@ -502,7 +502,7 @@ export function generateFloorDeskCard({ session, isMyDesk, liveCash, invDisplay,
             
             <div style="background: ${isMyDesk ? 'var(--surface-color)' : 'var(--bg-color)'}; border-radius: 12px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border: 1px solid var(--border-color);">
                 <span style="font-size: 0.85rem; font-weight: 700; color: ${isMyDesk ? 'var(--info-text)' : 'var(--text-secondary)'}; text-transform: uppercase; letter-spacing: 0.5px;">Live Cash</span>
-                <span style="font-size: 1.35rem; font-weight: 800; color: var(--success-text); letter-spacing: -0.5px;">${liveCash} <span style="font-size: 0.9rem; opacity: 0.8;">Tk</span></span>
+                <span class="tabular-nums" style="font-size: 1.35rem; font-weight: 800; color: var(--success-text); letter-spacing: -0.5px;">${liveCash} <span style="font-size: 0.9rem; opacity: 0.8;">Tk</span></span>
             </div>
 
             <div style="margin-bottom: ${isMyDesk ? '8px' : '16px'};">
@@ -717,14 +717,16 @@ export async function renderLiveFloorTab() {
 
         container.innerHTML = `
             <div style="padding: 40px 20px; text-align: center;">
-                <div style="font-size: 3rem; margin-bottom: 16px; opacity: 0.8;">📶</div>
-                <h3 style="color: #ef4444; margin-bottom: 8px;">Floor Map Offline</h3>
+                <div class="empty-state-icon" style="margin: 0 auto 16px auto;">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2l20 20"/><path d="M8.53 8.53A9 9 0 0 1 19.76 12.4"/><path d="M4.68 4.68A13 13 0 0 0 2.08 9.5"/><path d="M12 20h.01"/></svg>
+                </div>
+                <h3 style="color: var(--danger-text); margin-bottom: 8px;">Floor Map Offline</h3>
                 <p style="color: var(--text-secondary); margin-bottom: 24px; font-size: 0.95rem;">Cannot sync with other agents on the floor due to connection issues.</p>
                 
                 <div style="padding: 20px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; text-align: left; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
                     <h4 style="margin: 0 0 8px 0; font-size: 1.1rem; color: var(--text-primary);">My Workspace</h4>
                     <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 0.85rem; line-height: 1.4;">You can still open your personal drawer to record sales offline. Sales will be saved locally.</p>
-                    <button class="btn-primary-full" style="width: 100%; border-radius: 12px; font-weight: 800; padding: 14px;" onpointerdown="this.style.transform='scale(0.96)'" onpointerup="this.style.transform='scale(1)'" onclick="handleDeskSelect('${escapeJsSingleQuote(personalDeskId)}', '${safeDrawerName}', 'closed', 'null')">
+                    <button type="button" class="btn-primary-full" style="width: 100%; border-radius: 12px; font-weight: 800; padding: 14px;" onpointerdown="this.style.transform='scale(0.96)'" onpointerup="this.style.transform='scale(1)'" onclick="handleDeskSelect('${escapeJsSingleQuote(personalDeskId)}', '${safeDrawerName}', 'closed', 'null')">
                         Open My Drawer
                     </button>
                 </div>
@@ -832,7 +834,7 @@ export async function initiateCloseDesk() {
                     invHTML += `
                         <div style="display:flex; justify-content:space-between; align-items:center; padding: 6px 0; border-bottom:1px dashed var(--border-color); font-size: 0.9rem;">
                             <span style="color:var(--text-secondary); font-weight: 600;">${escapeHtml(itemName)}</span>
-                            <span style="color:var(--text-primary); font-weight: 800;">${qty}</span>
+                            <span class="tabular-nums" style="color:var(--text-primary); font-weight: 800;">${qty}</span>
                         </div>
                     `;
                 }
@@ -843,16 +845,16 @@ export async function initiateCloseDesk() {
         const modalContent = `
             <div style="background-color: var(--surface-color); padding: calc(16px + env(safe-area-inset-top)) 20px 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 10;">
                 <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-primary);">Close Shift</h3>
-                <button style="background: none; border: none; color: #ef4444; font-weight: 600; font-size: 1rem; padding: 4px 0; cursor: pointer;" onclick="closeModal('modal-close-desk')">Cancel</button>
+                <button type="button" style="background: none; border: none; color: var(--danger-text); font-weight: 600; font-size: 1rem; padding: 4px 0; cursor: pointer;" onclick="closeModal('modal-close-desk')">Cancel</button>
             </div>
 
             <div style="flex: 1; overflow-y: auto; padding: 24px 20px; padding-bottom: calc(24px + env(safe-area-inset-bottom));">
                 <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 24px; line-height: 1.5;">Please hand over the following expected cash and items to your manager. This will permanently seal your shift.</p>
           
-                <div class="admin-form-card" style="margin-bottom: 24px; padding: 20px; border: 2px solid #10b981; background: var(--success-bg);">
+                <div class="admin-form-card" style="margin-bottom: 24px; padding: 20px; border: 2px solid var(--success-border); background: var(--success-bg);">
                     <label style="display: block; font-size: 0.8rem; font-weight: 800; color: var(--success-text); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Expected Cash Handover</label>
-                    <div style="font-size: 2rem; font-weight: 900; color: var(--success-text);">${expectedCash} Tk</div>
-                    <div style="font-size: 0.85rem; font-weight: 600; color: var(--success-text); margin-top: 4px;">Expected MFS: ${expectedMfs} Tk</div>
+                    <div class="tabular-nums" style="font-size: 2rem; font-weight: 900; color: var(--success-text);">${expectedCash} Tk</div>
+                    <div class="tabular-nums" style="font-size: 0.85rem; font-weight: 600; color: var(--success-text); margin-top: 4px;">Expected MFS: ${expectedMfs} Tk</div>
                 </div>
 
                 <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Expected Physical Stock</div>
@@ -860,7 +862,7 @@ export async function initiateCloseDesk() {
                     ${invHTML}
                 </div>
 
-                <button class="btn-primary-full" style="padding: 16px; font-size: 1.1rem; background-color: #ef4444; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 4px 16px rgba(239,68,68,0.3);" onclick="submitClosingReport()">
+                <button type="button" class="btn-primary-full" style="padding: 16px; font-size: 1.1rem; background: #dc2626; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 4px 16px rgba(220,38,38,0.3);" onclick="submitClosingReport()">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     CONFIRM & SEAL DESK
                 </button>
