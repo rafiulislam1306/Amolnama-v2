@@ -18,6 +18,7 @@ const INITIAL_STATE = {
     globalCatalog: {},
     globalInventoryGroups: [],
     globalTransferAgentsCount: 6,
+    globalLowStockThreshold: 5,
     
     transactions: [],
     trashTransactions: [],

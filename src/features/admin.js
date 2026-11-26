@@ -5,6 +5,7 @@ import { AppState } from '../core/state.js';
 import { getStrictDate, formatToGBDate, generateReceiptNo, formatLocalISODate, escapeHtml, escapeJsSingleQuote, formatUserIdentifier } from '../utils/helpers.js';
 import { showAppAlert, showFlashMessage, openModal, closeModal, refreshCustomDropdowns, setButtonLoading, markInputError, clearInputError, scrollPillIntoView } from '../utils/ui-helpers.js';
 import { getPhysicalItems, getInventoryChange, getNormalizedTrackAs } from './inventory.js';
+import { DEFAULT_LOW_STOCK_THRESHOLD, normalizeThreshold, parseOptionalItemThreshold } from '../utils/stock-alerts.js';
 
 let isSaving = false;
 let cachedUsersForManagement = [];
@@ -28,6 +29,15 @@ function syncCatalogDraftFromDom() {
                 AppState.globalCatalog[key].price = parseFloat(row.querySelector('.i-price')?.value) || 0;
                 AppState.globalCatalog[key].cat = row.querySelector('.i-cat')?.value || AppState.globalCatalog[key].cat;
                 AppState.globalCatalog[key].trackAs = row.querySelector('.i-track')?.value ?? AppState.globalCatalog[key].trackAs;
+                const lowStockEl = row.querySelector('.i-low-stock');
+                if (lowStockEl) {
+                    const parsedThresh = parseOptionalItemThreshold(lowStockEl.value);
+                    if (parsedThresh === null) {
+                        delete AppState.globalCatalog[key].lowStockThreshold;
+                    } else if (!Number.isNaN(parsedThresh)) {
+                        AppState.globalCatalog[key].lowStockThreshold = parsedThresh;
+                    }
+                }
                 AppState.globalCatalog[key].managerOnly = row.querySelector('.i-manager-only') ? row.querySelector('.i-manager-only').checked : false;
                 AppState.globalCatalog[key].order = orderCounter++;
             }
@@ -236,6 +246,22 @@ export function openSettings() {
     const agentsCountInput = document.getElementById('admin-transfer-agents-count');
     if (agentsCountInput) agentsCountInput.value = AppState.globalTransferAgentsCount || 6;
 
+    const currentGlobalThreshold = normalizeThreshold(AppState.globalLowStockThreshold, DEFAULT_LOW_STOCK_THRESHOLD);
+    const lowStockInput = document.getElementById('admin-low-stock-threshold');
+    if (lowStockInput) {
+        clearInputError(lowStockInput);
+        lowStockInput.value = String(currentGlobalThreshold);
+        if (!lowStockInput.dataset.boundLowStockSync) {
+            lowStockInput.dataset.boundLowStockSync = '1';
+            lowStockInput.addEventListener('input', () => {
+                const liveVal = normalizeThreshold(lowStockInput.value, DEFAULT_LOW_STOCK_THRESHOLD);
+                document.querySelectorAll('#settings-list-container .i-low-stock').forEach(el => {
+                    el.placeholder = `Default (${liveVal})`;
+                });
+            });
+        }
+    }
+
     const categories = [
         { id: 'new-sim', title: 'New SIMs', color: 'var(--success-text)' },
         { id: 'paid-rep', title: 'Paid Replacements', color: 'var(--warning-text)' },
@@ -289,11 +315,15 @@ export function openSettings() {
                                 <option value="free-action" ${item.cat==='free-action'?'selected':''}>Free Action</option>
                             </select>
                         </div>
-                        <div style="grid-column: 1 / -1;">
+                        <div style="min-width: 0;">
                             <label class="admin-label">Deducts from Physical Inventory:</label>
                             <select class="settings-input i-track" style="padding: 10px 12px; width: 100%; box-sizing: border-box; border-radius: 12px;">
                                 ${trackOptions}
                             </select>
+                        </div>
+                        <div style="min-width: 0;">
+                            <label class="admin-label">Low-Stock Alert (&lt; Qty)</label>
+                            <input type="number" min="0" step="1" inputmode="numeric" class="settings-input i-low-stock" style="padding: 10px 12px; width: 100%; box-sizing: border-box; border-radius: 12px;" placeholder="Default (${currentGlobalThreshold})" value="${item.lowStockThreshold !== undefined && item.lowStockThreshold !== null ? escapeHtml(item.lowStockThreshold) : ''}">
                         </div>
                         <div style="grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin-top: 4px; padding-top: 8px; border-top: 1px dashed var(--border-color);">
                             <input type="checkbox" class="i-manager-only" id="mgr_${safeKey}" ${item.managerOnly ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--danger-text);">
@@ -352,13 +382,16 @@ export function removeRow(btn) {
 export function addNewItem() {
     const nameInput = document.getElementById('new-item-name');
     const priceInput = document.getElementById('new-item-price');
+    const lowStockInput = document.getElementById('new-item-low-stock');
     clearInputError(nameInput);
     clearInputError(priceInput);
+    clearInputError(lowStockInput);
 
     const nameVal = nameInput ? nameInput.value.trim() : '';
     const priceVal = parseFloat(priceInput ? priceInput.value : '');
     const catVal = document.getElementById('new-item-category').value;
     const trackVal = document.getElementById('new-item-track').value;
+    const lowStockVal = parseOptionalItemThreshold(lowStockInput ? lowStockInput.value : '');
 
     if (!nameVal || isNaN(priceVal) || priceVal < 0) {
         if (!nameVal) markInputError(nameInput);
@@ -367,12 +400,23 @@ export function addNewItem() {
         return;
     }
 
+    if (Number.isNaN(lowStockVal)) {
+        markInputError(lowStockInput);
+        showAppAlert("Invalid Threshold", "Low-stock alert threshold must be 0 or greater (leave blank to use default).");
+        return;
+    }
+
     syncCatalogDraftFromDom();
     const newKey = "item_" + Date.now();
     const newOrder = Object.keys(AppState.globalCatalog).length + 1;
-    AppState.globalCatalog[newKey] = { name: nameVal, display: nameVal, price: priceVal, cat: catVal, trackAs: trackVal, isActive: true, order: newOrder };
+    const newItemObj = { name: nameVal, display: nameVal, price: priceVal, cat: catVal, trackAs: trackVal, isActive: true, order: newOrder };
+    if (lowStockVal !== null) {
+        newItemObj.lowStockThreshold = lowStockVal;
+    }
+    AppState.globalCatalog[newKey] = newItemObj;
     if (nameInput) nameInput.value = '';
     if (priceInput) priceInput.value = '';
+    if (lowStockInput) lowStockInput.value = '';
     if (typeof window.renderAppUI === 'function') window.renderAppUI(); 
     openSettings();
     showFlashMessage("Item Added! Click Publish to save.");
@@ -380,6 +424,30 @@ export function addNewItem() {
 
 export async function saveSettings() {
     if (!AppState.currentUser) return;
+
+    const thresholdInput = document.getElementById('admin-low-stock-threshold');
+    clearInputError(thresholdInput);
+    let nextGlobalThreshold = normalizeThreshold(AppState.globalLowStockThreshold, DEFAULT_LOW_STOCK_THRESHOLD);
+    if (thresholdInput) {
+        const parsedGlobal = parseOptionalItemThreshold(thresholdInput.value);
+        if (Number.isNaN(parsedGlobal)) {
+            markInputError(thresholdInput);
+            showAppAlert("Invalid Threshold", "Default low-stock threshold must be 0 or greater.");
+            return;
+        }
+        nextGlobalThreshold = parsedGlobal === null ? DEFAULT_LOW_STOCK_THRESHOLD : parsedGlobal;
+    }
+
+    const invalidItemInput = Array.from(document.querySelectorAll('.admin-row:not(.deleted-row) .i-low-stock')).find(el => {
+        clearInputError(el);
+        return Number.isNaN(parseOptionalItemThreshold(el.value));
+    });
+    if (invalidItemInput) {
+        markInputError(invalidItemInput);
+        showAppAlert("Invalid Threshold", "Item low-stock thresholds must be 0 or greater (or blank to use default).");
+        return;
+    }
+
     syncCatalogDraftFromDom();
     const saveBtn = document.getElementById('admin-save-settings-btn');
     setButtonLoading(saveBtn, true, 'Publishing...');
@@ -388,14 +456,22 @@ export async function saveSettings() {
         if (agentsCountInput) {
             AppState.globalTransferAgentsCount = parseInt(agentsCountInput.value, 10) || 6;
         }
+        AppState.globalLowStockThreshold = nextGlobalThreshold;
 
         if (['admin', 'owner'].includes(AppState.currentUserRole)) {
             await setDoc(doc(db, 'global', 'settings'), {
                 catalog: AppState.globalCatalog,
                 inventoryGroups: AppState.globalInventoryGroups,
-                transferAgentsCount: AppState.globalTransferAgentsCount
+                transferAgentsCount: AppState.globalTransferAgentsCount,
+                lowStockThreshold: AppState.globalLowStockThreshold
             }, { merge: true });
         }
+        localStorage.setItem('amolnama_cache_global', JSON.stringify({
+            catalog: AppState.globalCatalog,
+            inventoryGroups: AppState.globalInventoryGroups,
+            transferAgentsCount: AppState.globalTransferAgentsCount,
+            lowStockThreshold: AppState.globalLowStockThreshold
+        }));
         if (typeof window.renderAppUI === 'function') window.renderAppUI(); 
         closeModal('modal-settings');
         showFlashMessage("Settings Saved & Synced!");

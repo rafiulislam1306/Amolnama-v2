@@ -33,6 +33,7 @@ Object.defineProperties(window, {
     currentOpeningInv: { get: () => AppState.currentOpeningInv, set: (v) => AppState.currentOpeningInv = v },
     globalCatalog: { get: () => AppState.globalCatalog, set: (v) => AppState.globalCatalog = v },
     globalInventoryGroups: { get: () => AppState.globalInventoryGroups, set: (v) => AppState.globalInventoryGroups = v },
+    globalLowStockThreshold: { get: () => AppState.globalLowStockThreshold, set: (v) => AppState.globalLowStockThreshold = v },
     transactions: { get: () => AppState.transactions, set: (v) => AppState.transactions = v },
     trashTransactions: { get: () => AppState.trashTransactions, set: (v) => AppState.trashTransactions = v },
     isMfs: { get: () => AppState.isMfs, set: (v) => AppState.isMfs = v }

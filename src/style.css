@@ -1680,6 +1680,76 @@ header {
     box-shadow: none;
 }
 
+/* Low-Stock Warning Card State (Light & Dark Mode WCAG Contrast) */
+#tab-store .store-item-row.is-low-stock {
+    background: linear-gradient(135deg, var(--surface-strong) 0%, rgba(245, 158, 11, 0.11) 100%);
+    border-color: var(--warning-border);
+    box-shadow: 0 4px 14px rgba(217, 119, 6, 0.10);
+}
+
+:root[data-theme="dark"] #tab-store .store-item-row.is-low-stock {
+    background: linear-gradient(135deg, var(--surface-strong) 0%, rgba(245, 158, 11, 0.16) 100%);
+    border-color: rgba(245, 158, 11, 0.44);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) #tab-store .store-item-row.is-low-stock {
+        background: linear-gradient(135deg, var(--surface-strong) 0%, rgba(245, 158, 11, 0.16) 100%);
+        border-color: rgba(245, 158, 11, 0.44);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+    }
+}
+
+#tab-store .store-item-row.is-low-stock .store-item-icon {
+    background: var(--warning-bg);
+    color: var(--warning-text);
+    box-shadow: inset 0 0 0 1px var(--warning-border);
+}
+
+#tab-store .store-item-row.is-low-stock .store-item-action {
+    background: linear-gradient(135deg, #d97706, #b45309);
+    color: #ffffff;
+    box-shadow: 0 4px 10px rgba(180, 83, 9, 0.28);
+}
+
+:root[data-theme="dark"] #tab-store .store-item-row.is-low-stock .store-item-action {
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    color: #0f172a;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.28);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) #tab-store .store-item-row.is-low-stock .store-item-action {
+        background: linear-gradient(135deg, #fbbf24, #f59e0b);
+        color: #0f172a;
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.28);
+    }
+}
+
+.store-stock-note {
+    font-size: 0.72rem;
+    font-weight: 700;
+    margin-top: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    line-height: 1.2;
+}
+
+.store-stock-note.is-ok {
+    color: var(--success-text, #15803d);
+}
+
+.store-stock-note.is-low {
+    color: var(--warning-text, #b45309);
+    font-weight: 800;
+}
+
+.store-stock-note.is-out {
+    color: var(--danger-text);
+}
+
 /* Dynamic Live Stock Badges */
 .store-stock-badge {
     position: absolute;

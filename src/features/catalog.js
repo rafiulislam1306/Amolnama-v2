@@ -4,6 +4,7 @@ import { selectItem, instantSaveItem, canSelectMultiQty } from './transactions.j
 import { priorityItemSortOrder } from '../core/constants.js';
 import { getAvailableStock } from './inventory.js';
 import { escapeHtml } from '../utils/helpers.js';
+import { resolveItemLowStockThreshold, getItemStockStatus } from '../utils/stock-alerts.js';
 
 let storeInStockOnly = false;
 
@@ -192,27 +193,43 @@ export function renderAppUI() {
             // --- REAL-TIME LIVE STOCK CALCULATION ---
             let stockStatusHTML = '';
             let isOutOfStock = false;
+            let isLowStock = false;
+            let stockLevel = 'untracked';
+            let currentStockCount = Infinity;
+            let resolvedThreshold = null;
             
             if (item.trackAs && AppState.globalInventoryGroups.includes(item.trackAs)) {
-                let stock = getAvailableStock(item.name);
-                if (stock <= 0) {
-                    isOutOfStock = true;
-                } else if (stock <= 5) {
-                    stockStatusHTML = `<span style="font-size: 0.72rem; color: var(--warning-text, #b45309); font-weight: 700; margin-top: 4px; display: block;">${stock} left!</span>`;
-                } else {
-                    stockStatusHTML = `<span style="font-size: 0.72rem; color: var(--success-text, #15803d); font-weight: 700; margin-top: 4px; display: block;">${stock} left</span>`;
+                currentStockCount = getAvailableStock(item.name);
+                resolvedThreshold = resolveItemLowStockThreshold(item, AppState.globalLowStockThreshold);
+                const status = getItemStockStatus(currentStockCount, resolvedThreshold);
+                stockLevel = status.level;
+                isOutOfStock = status.isOutOfStock;
+                isLowStock = status.isLowStock;
+
+                if (status.level === 'low') {
+                    stockStatusHTML = `<span class="store-stock-note is-low tabular-nums"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Low stock · ${currentStockCount} left</span>`;
+                } else if (status.level === 'ok') {
+                    stockStatusHTML = `<span class="store-stock-note is-ok tabular-nums">${currentStockCount} left</span>`;
                 }
             }
 
             let row = document.createElement('div');
-            row.className = `dynamic-item store-item-row is-${item.cat}${isOutOfStock ? ' is-locked' : ''}`;
+            const stateClass = isOutOfStock ? ' is-locked' : (isLowStock ? ' is-low-stock' : '');
+            row.className = `dynamic-item store-item-row is-${item.cat}${stateClass}`;
             if (typeof row.setAttribute === 'function') {
                 row.setAttribute('role', 'button');
                 row.setAttribute('tabindex', '0');
                 row.setAttribute('data-item-name', item.name || '');
                 row.setAttribute('data-track-as', item.trackAs || '');
                 row.setAttribute('data-price', String(safePrice));
-                row.setAttribute('aria-label', `${item.display || item.name}${safePrice > 0 ? `, ${safePrice} ${userCurrency}` : ', Free'}${isOutOfStock ? ', Out of stock' : ''}`);
+                row.setAttribute('data-stock-status', stockLevel);
+                if (resolvedThreshold !== null) {
+                    row.setAttribute('data-low-stock-threshold', String(resolvedThreshold));
+                }
+                const stockAriaSuffix = isOutOfStock
+                    ? ', Out of stock'
+                    : (isLowStock ? `, Low stock, ${currentStockCount} left` : '');
+                row.setAttribute('aria-label', `${item.display || item.name}${safePrice > 0 ? `, ${safePrice} ${userCurrency}` : ', Free'}${stockAriaSuffix}`);
             }
             
             let pressTimer;
@@ -297,7 +314,7 @@ export function renderAppUI() {
                 : `<div class="store-item-action"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>`;
  
             let subText = isOutOfStock 
-                ? `<span style="font-size: 0.72rem; color: var(--danger-text); font-weight: 700; margin-top: 4px; display: block;">Out of Stock</span>` 
+                ? `<span class="store-stock-note is-out">Out of Stock</span>` 
                 : stockStatusHTML;
 
             row.innerHTML = `

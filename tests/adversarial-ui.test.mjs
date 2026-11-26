@@ -381,10 +381,12 @@ test('Suite: Adversarial UI/UX & Layout Stress Testing', async (t) => {
         assert.match(styleCss, /button:disabled[^}]*pointer-events:\s*none\s*!important;/, 'Disabled buttons must have pointer-events: none !important');
         assert.match(styleCss, /button:disabled[^}]*cursor:\s*not-allowed\s*!important;/, 'Disabled buttons must have cursor: not-allowed !important');
 
-        // Check catalog.js WCAG AA tokens
+        // Check Store stock labels use semantic CSS classes backed by WCAG AA tokens
         const catalogCode = fs.readFileSync(path.join(rootDir, 'src', 'features', 'catalog.js'), 'utf-8');
-        assert.match(catalogCode, /var\(--warning-text/, 'catalog.js must use var(--warning-text) instead of raw low-contrast hex');
-        assert.match(catalogCode, /var\(--success-text/, 'catalog.js must use var(--success-text) instead of raw low-contrast hex');
+        assert.match(catalogCode, /store-stock-note is-low/, 'catalog.js must use .store-stock-note.is-low for low-stock labels');
+        assert.match(catalogCode, /store-stock-note is-ok/, 'catalog.js must use .store-stock-note.is-ok for healthy stock labels');
+        assert.match(styleCss, /\.store-stock-note\.is-low\s*\{[^}]*var\(--warning-text/, '.store-stock-note.is-low must use var(--warning-text)');
+        assert.match(styleCss, /\.store-stock-note\.is-ok\s*\{[^}]*var\(--success-text/, '.store-stock-note.is-ok must use var(--success-text)');
     });
 
     await t.test('9. Mobile Touch Ergonomics & Form Attribute Verification', async (st) => {

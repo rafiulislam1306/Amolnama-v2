@@ -8,6 +8,7 @@ import { performLazyAutoClose, loadFloorMap, executeHandleDeskSelect } from '../
 import { fetchTransactionsForDate } from '../features/reports.js';
 import { setupBottomSheetDrag, showAppAlert } from '../utils/ui-helpers.js';
 import { initRecycleListener } from '../features/recycle.js';
+import { DEFAULT_LOW_STOCK_THRESHOLD, normalizeThreshold } from '../utils/stock-alerts.js';
 
 export function updateCurrencyUI() { 
     const userCurrency = 'Tk';
@@ -60,15 +61,30 @@ export async function initUserData(onComplete) {
         try {
             const globalDoc = await getDoc(doc(db, 'global', 'settings'));
             if (globalDoc.exists() && globalDoc.data().catalog) {
-                AppState.globalCatalog = globalDoc.data().catalog;
-                AppState.globalInventoryGroups = globalDoc.data().inventoryGroups || defaultInventoryGroups;
-                AppState.globalTransferAgentsCount = globalDoc.data().transferAgentsCount || 6;
-                localStorage.setItem('amolnama_cache_global', JSON.stringify({ catalog: AppState.globalCatalog, inventoryGroups: AppState.globalInventoryGroups, transferAgentsCount: AppState.globalTransferAgentsCount }));
+                const gData = globalDoc.data();
+                AppState.globalCatalog = gData.catalog;
+                AppState.globalInventoryGroups = gData.inventoryGroups || defaultInventoryGroups;
+                AppState.globalTransferAgentsCount = gData.transferAgentsCount || 6;
+                AppState.globalLowStockThreshold = normalizeThreshold(gData.lowStockThreshold, DEFAULT_LOW_STOCK_THRESHOLD);
+                localStorage.setItem('amolnama_cache_global', JSON.stringify({
+                    catalog: AppState.globalCatalog,
+                    inventoryGroups: AppState.globalInventoryGroups,
+                    transferAgentsCount: AppState.globalTransferAgentsCount,
+                    lowStockThreshold: AppState.globalLowStockThreshold
+                }));
             } else {
                 AppState.globalCatalog = defaultCatalog;
                 AppState.globalInventoryGroups = defaultInventoryGroups;
                 AppState.globalTransferAgentsCount = 6;
-                if (AppState.currentUserRole === 'admin') await setDoc(doc(db, 'global', 'settings'), { catalog: AppState.globalCatalog, inventoryGroups: AppState.globalInventoryGroups, transferAgentsCount: AppState.globalTransferAgentsCount }, { merge: true });
+                AppState.globalLowStockThreshold = DEFAULT_LOW_STOCK_THRESHOLD;
+                if (AppState.currentUserRole === 'admin') {
+                    await setDoc(doc(db, 'global', 'settings'), {
+                        catalog: AppState.globalCatalog,
+                        inventoryGroups: AppState.globalInventoryGroups,
+                        transferAgentsCount: AppState.globalTransferAgentsCount,
+                        lowStockThreshold: AppState.globalLowStockThreshold
+                    }, { merge: true });
+                }
             }
         } catch (err) {
             console.warn("Offline Mode: Loading global catalog from cache", err);
@@ -77,10 +93,12 @@ export async function initUserData(onComplete) {
                 AppState.globalCatalog = cachedGlobal.catalog;
                 AppState.globalInventoryGroups = cachedGlobal.inventoryGroups;
                 AppState.globalTransferAgentsCount = cachedGlobal.transferAgentsCount || 6;
+                AppState.globalLowStockThreshold = normalizeThreshold(cachedGlobal.lowStockThreshold, DEFAULT_LOW_STOCK_THRESHOLD);
             } else {
                 AppState.globalCatalog = defaultCatalog;
                 AppState.globalInventoryGroups = defaultInventoryGroups;
                 AppState.globalTransferAgentsCount = 6;
+                AppState.globalLowStockThreshold = DEFAULT_LOW_STOCK_THRESHOLD;
             }
         }
 
