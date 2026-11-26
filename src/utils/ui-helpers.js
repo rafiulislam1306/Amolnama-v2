@@ -98,6 +98,15 @@ export function clearInputError(elOrId) {
     }
 }
 
+export function scrollPillIntoView(pillEl) {
+    if (!pillEl || typeof pillEl.scrollIntoView !== 'function') return;
+    try {
+        pillEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    } catch (_) {
+        try { pillEl.scrollIntoView(); } catch (__) {}
+    }
+}
+
 export function showAppAlert(title, message, isConfirm = false, confirmCallback = null, confirmText = "OK") {
     if (navigator.vibrate) navigator.vibrate([50, 50, 50]); 
     

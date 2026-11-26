@@ -12,6 +12,7 @@ import {
     sortLedgerTransactions,
     countActiveAdvancedFilters,
     isLedgerFiltered,
+    getActiveLedgerFilterChips,
     computeFilteredLedgerTotal,
     extractLedgerAgents
 } from '../utils/ledger-filters.js';
@@ -151,7 +152,7 @@ export function syncLedgerFilterUI(scope = 'personal') {
     }
 
     const agentSelect = document.getElementById(`${key}-agent-filter`);
-    if (agentSelect && Array.from(agentSelect.options).some(o => o.value === state.agent)) {
+    if (agentSelect && Array.from(agentSelect.options || []).some(o => o.value === state.agent)) {
         agentSelect.value = state.agent;
     }
     const sortSelect = document.getElementById(`${key}-sort-filter`);
@@ -169,12 +170,38 @@ export function syncLedgerFilterUI(scope = 'personal') {
     if (toggleBtn) {
         toggleBtn.classList.toggle('has-active', activeAdvCount > 0);
     }
+
+    const chipsEl = document.getElementById(`${key}-active-filters`);
+    if (chipsEl) {
+        const chips = getActiveLedgerFilterChips(state);
+        if (chips.length > 0) {
+            chipsEl.style.display = 'flex';
+            chipsEl.innerHTML = chips.map(chip => `
+                <button type="button" class="ledger-active-chip" aria-label="Remove filter ${escapeHtml(chip.label)}" onclick="clearLedgerFacet('${key}', '${escapeJsSingleQuote(chip.field)}')">
+                    <span class="ledger-active-chip-label">${escapeHtml(chip.label)}</span>
+                    <span class="ledger-active-chip-x" aria-hidden="true">✕</span>
+                </button>
+            `).join('');
+        } else {
+            chipsEl.style.display = 'none';
+            chipsEl.innerHTML = '';
+        }
+    }
 }
 
 export function setLedgerFilterField(scope, field, value) {
     const key = getScopeDomPrefix(scope);
     if (field in ledgerFiltersByScope[key]) {
         ledgerFiltersByScope[key][field] = value;
+    }
+    syncLedgerFilterUI(key);
+}
+
+export function clearSingleLedgerFilter(scope, field) {
+    const key = getScopeDomPrefix(scope);
+    const defaults = createDefaultLedgerFilters();
+    if (field in defaults) {
+        ledgerFiltersByScope[key][field] = defaults[field];
     }
     syncLedgerFilterUI(key);
 }

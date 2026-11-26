@@ -2,7 +2,7 @@
 // ==========================================
 //    1. IMPORTS & CONFIGURATION
 // ==========================================
-import { showAppAlert, executeAlertConfirm, showFlashMessage, openModal, closeModal, showTooltip, initNetworkStatus, setupBottomSheetDrag, initCustomDropdowns, markInputError, clearInputError } from './utils/ui-helpers.js';
+import { showAppAlert, executeAlertConfirm, showFlashMessage, openModal, closeModal, showTooltip, initNetworkStatus, setupBottomSheetDrag, initCustomDropdowns, markInputError, clearInputError, scrollPillIntoView } from './utils/ui-helpers.js';
 import { initPWA, installPWA } from './features/pwa.js';
 import { initAuth, signInWithGoogle, logout, openProfileHub, copyActiveSessionId, showPhoneLoginView, hidePhoneLoginView, resetPhoneLoginView, signInWithPhoneAndPin, openLinkPhoneModal, linkPhoneAndPin, togglePinVisibility, initTheme, toggleDarkMode, applyTheme, isDarkModeActive } from './features/auth.js';
 import { AppState } from './core/state.js';
@@ -13,7 +13,7 @@ import { canUserPerformCashActions, openManagerCashModal, saveManagerCash, openM
 import { filterAdminCatalog, filterAdminCatalogByCategory, resetAdminCatalogFilters, clearAdminSearch, toggleAddForm, addInventoryGroup, removeInventoryGroup, openSettings, removeRow, addNewItem, saveSettings, openNicknameManager, filterUsersList, clearUsersSearch, filterUsersByRole, resetUsersFilters, saveAdminNickname, saveUserConfig, kickAgent, nukeAgent, resetMyDeskLock, forceCloseAllDesks, nukeTodaysLedger, fixPastManagerDrops, openAuditModal, fetchAuditLogs, healTodaysOpeningStock, runLedgerDiagnostic, healDeskTransfers, executeAdminDrawerTransfer, deleteAgentDateData, healDuplicateSessions } from './features/admin.js';
 import { renderAppUI, filterStoreCatalog, clearStoreSearch, toggleStoreInStockFilter, resetStoreFilters } from './features/catalog.js';
 import { initUserData } from './core/app-init.js';
-import { renderPersonalReport, renderDeskDashboard, fetchTransactionsForDate, getTxListenerUnsubscribe, setTxListenerUnsubscribe, downloadReportAsPDF, toggleCenterCashActions, toggleCenterCashCategory, syncHistoricalDateBanner, returnToToday, setLedgerFilterField, resetLedgerFilters } from './features/reports.js';
+import { renderPersonalReport, renderDeskDashboard, fetchTransactionsForDate, getTxListenerUnsubscribe, setTxListenerUnsubscribe, downloadReportAsPDF, toggleCenterCashActions, toggleCenterCashCategory, syncHistoricalDateBanner, returnToToday, setLedgerFilterField, clearSingleLedgerFilter, resetLedgerFilters } from './features/reports.js';
 import { openRecycleTracker, filterRecycleList, clearRecycleSearch, filterRecycleByStatus, resetRecycleFilters, openAddRecycleModal, submitRecycleApplication, openUpdateRecycleStatusModal, onRecycleStatusChangeSelect, onAddRecycleStatusChange, saveRecycleStatusUpdate, deleteRecycleSimEntry, triggerStoreRecycleSale, populateStoreRecycleSaleOptions, onSelectRecycleSaleNumberChange, confirmRecycleSimSale, setRecycleContactTimeToNow, onRecycleContactTimeClick, onRecycleContactTimeManualChange, onRecycleAgentChange, resetRecycleContactTimeToPrevious } from './features/recycle.js';
 import { openCallRates, closeCallRates, filterRatesList, filterRatesByType, resetRatesFilters, clearRatesSearch, openManageRates, closeManageRates, renderManageRatesDashboard, clearManageRatesSearch, openPackageForm, closePackageForm, addRateRow, savePackageData, deletePackage, autoCalcRateTax } from './features/rates.js';
 
@@ -52,7 +52,7 @@ window.Amolnama = {
     getInventoryChange, passStockFirewall, switchStoreCategory, loadFloorMap,
     handleDeskSelect, executeHandleDeskSelect, renderPersonalReport,
     renderDeskDashboard, applyDeskFilter, resetDeskFilter, applyPersonalFilter, resetPersonalFilter, syncHistoricalDateBanner, returnToToday,
-    setLedgerSearch, clearLedgerSearch, toggleLedgerFilters, setLedgerPaymentFilter, setLedgerStatusFilter, setLedgerAgentFilter, setLedgerSortFilter,
+    setLedgerSearch, clearLedgerSearch, toggleLedgerFilters, setLedgerPaymentFilter, setLedgerStatusFilter, setLedgerAgentFilter, setLedgerSortFilter, clearLedgerFacet,
     canUserPerformCashActions, openManagerCashModal, saveManagerCash, openMainStockModal, toggleMgrCashPaymentFields, validateMgrCashSplit,
     saveMainStock, openReturnStockModal, saveReturnStock, openDeskTransfer,
     executeDeskTransfer, openTransferModal, executeTransfer, filterAdminCatalog, filterAdminCatalogByCategory, resetAdminCatalogFilters, clearAdminSearch,
@@ -185,6 +185,7 @@ function applyDeskFilter(pill, value) {
             p.classList.toggle('active', isMatch);
             p.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
         });
+        scrollPillIntoView(pill);
     }
     rerenderLedgerScope('desk');
 }
@@ -204,6 +205,7 @@ function applyPersonalFilter(pill, value) {
             p.classList.toggle('active', isMatch);
             p.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
         });
+        scrollPillIntoView(pill);
     }
     rerenderLedgerScope('personal');
 }
@@ -284,6 +286,12 @@ function setLedgerSortFilter(scope, sort) {
     rerenderLedgerScope(scope);
 }
 window.setLedgerSortFilter = setLedgerSortFilter;
+
+function clearLedgerFacet(scope, field) {
+    clearSingleLedgerFilter(scope, field);
+    rerenderLedgerScope(scope);
+}
+window.clearLedgerFacet = clearLedgerFacet;
 
 window.addEventListener('click', (event) => {
     if (event.target.classList.contains('modal-overlay') && !['modal-auth', 'splash-screen', 'modal-desk-select', 'modal-nicknames', 'modal-app-alert', 'modal-close-desk', 'modal-edit-tx', 'modal-sim-onboarding', 'modal-select-recycle-sim'].includes(event.target.id)) {

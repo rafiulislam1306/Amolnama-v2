@@ -87,6 +87,16 @@ export function filterStoreCatalog(overrideCatId = null) {
 
     if (noResults) {
         noResults.style.display = matchedCount > 0 ? 'none' : 'block';
+        const hintEl = document.getElementById('store-no-results-hint');
+        if (hintEl && matchedCount === 0) {
+            if (storeInStockOnly && text.length === 0) {
+                hintEl.innerText = 'No in-stock items in this category right now. Reset filters to view all items.';
+            } else if (storeInStockOnly && text.length > 0) {
+                hintEl.innerText = 'No in-stock items matched your search. Try resetting filters.';
+            } else {
+                hintEl.innerText = 'Double check your spelling or try another keyword.';
+            }
+        }
     }
 
     if (countBar) {

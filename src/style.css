@@ -1313,13 +1313,32 @@ header {
 }
 
 #tab-store > div:first-child {
-    top: -16px !important;
-    padding: 16px 16px 4px 16px !important;
-    margin: -16px -16px 16px -16px !important;
-    max-width: calc(100% + 32px) !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 45 !important;
+    padding: 12px 12px 4px 12px !important;
+    margin: 0 0 14px 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
     box-sizing: border-box;
-    border-bottom-color: var(--hairline) !important;
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08) !important;
+    border: 1px solid var(--hairline) !important;
+    border-radius: 18px !important;
+    background: rgba(255, 255, 255, 0.92) !important;
+    backdrop-filter: blur(18px) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08) !important;
+}
+
+:root[data-theme="dark"] #tab-store > div:first-child {
+    background: rgba(23, 33, 43, 0.92) !important;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) #tab-store > div:first-child {
+        background: rgba(23, 33, 43, 0.92) !important;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34) !important;
+    }
 }
 
 #tab-store > div:nth-child(2) {
@@ -1334,7 +1353,8 @@ header {
     max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
-    padding: 4px 4px 14px 4px !important;
+    padding: 4px 0 10px 0 !important;
+    scroll-padding-inline: 12px;
 }
 
 .toggle-switch {
@@ -1404,28 +1424,46 @@ header {
 
 .ledger-filter-bar {
     position: sticky;
-    top: -16px;
-    z-index: 10;
-    background: rgba(var(--bg-rgb, 240, 242, 245), 0.88);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border-bottom: 1px solid var(--border-color);
-    margin: -16px -16px 12px -16px;
-    width: auto;
-    max-width: calc(100% + 32px);
+    top: 0;
+    z-index: 40;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    border: 1px solid var(--hairline);
+    border-radius: 18px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    margin: 0 0 14px 0;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     box-sizing: border-box;
     padding: 0;
+    overflow: hidden;
+}
+
+:root[data-theme="dark"] .ledger-filter-bar {
+    background: rgba(23, 33, 43, 0.92);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .ledger-filter-bar {
+        background: rgba(23, 33, 43, 0.92);
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34);
+    }
 }
 
 .ledger-filter-pills-scroll {
     display: flex;
+    align-items: center;
     gap: 8px;
     width: 100%;
     max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
     overflow-x: auto;
-    padding: 10px 16px;
+    padding: 10px 12px 12px 12px;
+    scroll-padding-inline: 12px;
     scrollbar-width: none;
     -ms-overflow-style: none;
     -webkit-overflow-scrolling: touch;
@@ -1793,17 +1831,17 @@ header {
     }
 
     .ledger-filter-bar {
-        top: 0px !important;
-        margin: 0 0 12px 0 !important;
+        top: 0 !important;
+        margin: 0 0 14px 0 !important;
         max-width: 100% !important;
-        border-radius: 16px !important;
+        border-radius: 18px !important;
         border: 1px solid var(--hairline) !important;
     }
 
     .ledger-filter-pills-scroll {
         flex-wrap: wrap;
         overflow-x: visible;
-        padding: 12px 14px;
+        padding: 10px 14px 12px 14px;
     }
 
     /* Constrain ERS Keypad on Desktop/Tablet */
@@ -1879,7 +1917,11 @@ header {
    ========================================== */
 .desk-filter-pill {
     flex-shrink: 0;
-    padding: 6px 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    padding: 7px 14px;
     border-radius: 999px;
     border: 1.5px solid var(--border-color);
     background: var(--surface-strong);
@@ -1903,7 +1945,23 @@ header {
     background: var(--accent-color);
     color: #fff;
     border-color: var(--accent-color);
-    box-shadow: 0 4px 12px rgba(var(--accent-rgb, 99,102,241), 0.35);
+    box-shadow: 0 4px 12px rgba(var(--accent-rgb, 51, 144, 236), 0.3);
+}
+
+:root[data-theme="dark"] .desk-filter-pill.active {
+    background: #38bdf8;
+    color: #0f172a;
+    border-color: #38bdf8;
+    box-shadow: 0 4px 14px rgba(56, 189, 248, 0.28);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .desk-filter-pill.active {
+        background: #38bdf8;
+        color: #0f172a;
+        border-color: #38bdf8;
+        box-shadow: 0 4px 14px rgba(56, 189, 248, 0.28);
+    }
 }
 
 /* Hide scrollbar on the pill row across all browsers */
@@ -3303,14 +3361,16 @@ div:has(> .desk-filter-pill)::-webkit-scrollbar { display: none; }
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 10px 0 10px;
+    padding: 10px 12px 0 12px;
+    min-width: 0;
+    box-sizing: border-box;
 }
 
 .ledger-search-row .search-bar {
     height: 38px;
     font-size: 0.85rem;
     border-radius: 12px;
-    background: var(--surface-strong);
+    background: var(--bg-color);
 }
 
 .ledger-filter-toggle-btn {
@@ -3371,9 +3431,101 @@ div:has(> .desk-filter-pill)::-webkit-scrollbar { display: none; }
 }
 
 .ledger-advanced-panel {
-    padding: 10px 10px 4px 10px;
+    padding: 10px 12px 10px 12px;
     border-bottom: 1px dashed var(--border-color);
-    margin-bottom: 2px;
+    margin-bottom: 0;
+    max-height: 48dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    box-sizing: border-box;
+}
+
+.ledger-advanced-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 8px;
+    margin-top: 2px;
+    border-top: 1px solid var(--hairline);
+}
+
+.ledger-done-btn {
+    min-height: 32px;
+    padding: 5px 14px;
+    border-radius: 10px;
+    border: none;
+    background: var(--accent-color);
+    color: #ffffff;
+    font-size: 0.76rem;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+:root[data-theme="dark"] .ledger-done-btn {
+    background: #38bdf8;
+    color: #0f172a;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .ledger-done-btn {
+        background: #38bdf8;
+        color: #0f172a;
+    }
+}
+
+.ledger-active-chips {
+    display: none;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px 10px 12px;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.ledger-active-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 28px;
+    max-width: 100%;
+    padding: 3px 8px 3px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(var(--accent-rgb, 51, 144, 236), 0.28);
+    background: rgba(var(--accent-rgb, 51, 144, 236), 0.1);
+    color: var(--accent-color);
+    font-size: 0.73rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.14s ease, transform 0.12s ease;
+}
+
+.ledger-active-chip:active {
+    transform: scale(0.95);
+}
+
+.ledger-active-chip-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ledger-active-chip-x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(var(--accent-rgb, 51, 144, 236), 0.18);
+    font-size: 0.65rem;
+    font-weight: 900;
+    line-height: 1;
+    flex-shrink: 0;
 }
 
 .ledger-filter-grid {
@@ -3515,14 +3667,17 @@ div:has(> .desk-filter-pill)::-webkit-scrollbar { display: none; }
 
 .modal-filter-pills-row {
     display: flex;
+    align-items: center;
     gap: 8px;
     width: 100%;
     max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
     overflow-x: auto;
+    scroll-padding-inline: 12px;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
     padding-bottom: 2px;
 }
 

@@ -1,6 +1,6 @@
 // src/features/inventory.js
 import { AppState } from '../core/state.js';
-import { showAppAlert } from '../utils/ui-helpers.js';
+import { showAppAlert, scrollPillIntoView } from '../utils/ui-helpers.js';
 
 export function isTrackingGroup(groupName) {
     if (!groupName) return false;
@@ -84,6 +84,7 @@ export function switchStoreCategory(catId, btn) {
         p.classList.toggle('active', isActive);
         p.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     });
+    if (btn) scrollPillIntoView(btn);
 
     const activeCatEl = document.getElementById('store-active-category');
     if (activeCatEl) activeCatEl.value = catId || 'cat-new-sim';

@@ -2,7 +2,7 @@
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
-import { showAppAlert, showFlashMessage, openModal, closeModal, refreshCustomDropdowns, setButtonLoading, markInputError, clearInputError } from '../utils/ui-helpers.js';
+import { showAppAlert, showFlashMessage, openModal, closeModal, refreshCustomDropdowns, setButtonLoading, markInputError, clearInputError, scrollPillIntoView } from '../utils/ui-helpers.js';
 import { escapeHtml } from '../utils/helpers.js';
 
 // Default static fallback packages (64 rows grouped under 15 packages)
@@ -797,6 +797,7 @@ export function filterRatesByType(typeKey = 'all', pillEl = null) {
         p.classList.toggle('active', isMatch);
         p.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
     });
+    if (pillEl) scrollPillIntoView(pillEl);
     renderRatesList();
 }
 

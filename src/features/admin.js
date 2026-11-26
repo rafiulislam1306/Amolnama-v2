@@ -3,7 +3,7 @@ import { collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, query, 
 import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
 import { getStrictDate, formatToGBDate, generateReceiptNo, formatLocalISODate, escapeHtml, escapeJsSingleQuote, formatUserIdentifier } from '../utils/helpers.js';
-import { showAppAlert, showFlashMessage, openModal, closeModal, refreshCustomDropdowns, setButtonLoading, markInputError, clearInputError } from '../utils/ui-helpers.js';
+import { showAppAlert, showFlashMessage, openModal, closeModal, refreshCustomDropdowns, setButtonLoading, markInputError, clearInputError, scrollPillIntoView } from '../utils/ui-helpers.js';
 import { getPhysicalItems, getInventoryChange, getNormalizedTrackAs } from './inventory.js';
 
 let isSaving = false;
@@ -53,6 +53,7 @@ export function filterAdminCatalogByCategory(cat = 'all', pillEl = null) {
         p.classList.toggle('active', isMatch);
         p.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
     });
+    if (pillEl) scrollPillIntoView(pillEl);
     filterAdminCatalog();
 }
 
@@ -434,9 +435,11 @@ export function clearUsersSearch() {
 export function filterUsersByRole(roleFilter = 'all', pillEl = null) {
     activeUserRoleFilter = roleFilter || 'all';
     document.querySelectorAll('#modal-nicknames [data-role-filter]').forEach(p => {
-        p.classList.toggle('active', p.getAttribute('data-role-filter') === activeUserRoleFilter);
+        const isMatch = pillEl ? (p === pillEl) : (p.getAttribute('data-role-filter') === activeUserRoleFilter);
+        p.classList.toggle('active', isMatch);
+        p.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
     });
-    if (pillEl) pillEl.classList.add('active');
+    if (pillEl) scrollPillIntoView(pillEl);
     renderUsersList();
 }
 
@@ -483,7 +486,7 @@ export function renderUsersList(usersOverride = null) {
         } else {
             countBar.style.display = 'flex';
             countBar.innerHTML = isFiltered
-                ? `<span>Showing ${filteredUsers.length} of ${cachedUsersForManagement.length} staff</span><button type="button" class="ledger-reset-link" onclick="Amolnama.filterUsersByRole('all'); Amolnama.clearUsersSearch();">Reset</button>`
+                ? `<span>Showing ${filteredUsers.length} of ${cachedUsersForManagement.length} staff</span><button type="button" class="ledger-reset-link" onclick="Amolnama.resetUsersFilters()">Reset</button>`
                 : `<span>${cachedUsersForManagement.length} registered staff</span>`;
         }
     }
@@ -504,7 +507,7 @@ export function renderUsersList(usersOverride = null) {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
                 <p>No matching staff found</p>
                 <span>No accounts matched your search or selected role filter.</span>
-                <button type="button" class="btn-outline" style="height: auto; padding: 8px 16px; font-size: 0.82rem; margin-top: 10px;" onclick="document.getElementById('users-search').value=''; Amolnama.filterUsersByRole('all');">Reset Filters</button>
+                <button type="button" class="btn-outline" style="height: auto; padding: 8px 16px; font-size: 0.82rem; margin-top: 10px;" onclick="Amolnama.resetUsersFilters()">Reset Filters</button>
             </div>
         `;
         return;
@@ -608,7 +611,9 @@ export async function openNicknameManager() {
   if (clearBtn) clearBtn.classList.remove('visible');
   activeUserRoleFilter = 'all';
   document.querySelectorAll('#modal-nicknames [data-role-filter]').forEach(p => {
-      p.classList.toggle('active', p.getAttribute('data-role-filter') === 'all');
+      const isAll = p.getAttribute('data-role-filter') === 'all';
+      p.classList.toggle('active', isAll);
+      p.setAttribute('aria-pressed', isAll ? 'true' : 'false');
   });
 
   openModal('modal-nicknames');

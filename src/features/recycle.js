@@ -2,7 +2,7 @@
 import { collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, serverTimestamp, getDocs } from "firebase/firestore";
 import { db } from '../config/firebase.js';
 import { AppState } from '../core/state.js';
-import { showAppAlert, showFlashMessage, openModal, closeModal, refreshCustomDropdowns, setButtonLoading, markInputError, clearInputError } from '../utils/ui-helpers.js';
+import { showAppAlert, showFlashMessage, openModal, closeModal, refreshCustomDropdowns, setButtonLoading, markInputError, clearInputError, scrollPillIntoView } from '../utils/ui-helpers.js';
 import { addTransactionToCloud } from './transactions.js';
 import { getStrictDate, generateReceiptNo, formatToGBDate, formatLocalISODate, escapeHtml, escapeJsSingleQuote } from '../utils/helpers.js';
 import { passStockFirewall } from './inventory.js';
@@ -115,7 +115,12 @@ export function getRecycleAttentionCount(list = recycleSimsList) {
 
 export function openRecycleTracker() {
     openModal('modal-recycle-tracker');
-    initRecycleListener();
+    if (isListenerActive) {
+        renderRecycleList();
+        renderRecycleSummary();
+    } else {
+        initRecycleListener();
+    }
 }
 
 export function initRecycleListener() {
@@ -454,6 +459,7 @@ export function filterRecycleByStatus(status, pill) {
         p.classList.toggle('active', isMatch);
         p.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
     });
+    if (pill) scrollPillIntoView(pill);
     renderRecycleList();
 }
 

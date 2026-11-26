@@ -116,7 +116,7 @@ const {
     saveTxEdit
 } = await import('../src/features/transactions.js');
 const { markInputError, clearInputError, openModal, closeModal } = await import('../src/utils/ui-helpers.js');
-const { syncHistoricalDateBanner, returnToToday } = await import('../src/features/reports.js');
+const { syncHistoricalDateBanner, returnToToday, setLedgerFilterField, clearSingleLedgerFilter, getLedgerFilterState, resetLedgerFilters } = await import('../src/features/reports.js');
 const { getStrictDate, formatLocalISODate } = await import('../src/utils/helpers.js');
 const {
     createDefaultLedgerFilters,
@@ -126,6 +126,7 @@ const {
     sortLedgerTransactions,
     countActiveAdvancedFilters,
     isLedgerFiltered,
+    getActiveLedgerFilterChips,
     computeFilteredLedgerTotal,
     extractLedgerAgents
 } = await import('../src/utils/ledger-filters.js');
@@ -394,6 +395,35 @@ test('Upgrade Suite: POS UX, Accessibility & Visual Discipline', async (t) => {
         assert.equal(countActiveAdvancedFilters({ payment: 'Cash', status: 'edited', agent: 'Rahim', sort: 'amount_desc' }), 4);
         assert.equal(isLedgerFiltered(createDefaultLedgerFilters()), false);
         assert.equal(isLedgerFiltered({ ...createDefaultLedgerFilters(), search: 'prime' }), true);
+
+        // Extended search haystack (recycledNumber & time)
+        const recycledTx = { id: 'tx_alpha', name: 'Recycle SIM', recycledNumber: '01711223344', time: '02:45 PM', amount: 400, payment: 'Cash', timestamp: { toMillis: () => 5000 } };
+        const olderStringTx = { id: 'tx_beta', name: 'Prime', amount: 300, payment: 'Cash', timestamp: { seconds: 2 } };
+        assert.equal(matchesLedgerFilters(recycledTx, { ...createDefaultLedgerFilters(), search: '01711223344' }, catalog), true);
+        assert.equal(matchesLedgerFilters(recycledTx, { ...createDefaultLedgerFilters(), search: '02:45 pm' }, catalog), true);
+
+        // Non-numeric IDs fall back to Firestore timestamp ordering cleanly
+        assert.deepEqual(sortLedgerTransactions([olderStringTx, recycledTx], 'newest').map(x => x.id), ['tx_alpha', 'tx_beta']);
+        assert.deepEqual(sortLedgerTransactions([recycledTx, olderStringTx], 'oldest').map(x => x.id), ['tx_beta', 'tx_alpha']);
+
+        // Active advanced filter summary chips & single-facet clearing
+        assert.deepEqual(getActiveLedgerFilterChips(createDefaultLedgerFilters()), []);
+        assert.deepEqual(
+            getActiveLedgerFilterChips({ payment: 'MFS', status: 'edited', agent: 'Rahim', sort: 'amount_desc' }),
+            [
+                { field: 'payment', label: 'Pay: MFS' },
+                { field: 'status', label: 'Edited' },
+                { field: 'agent', label: 'Agent: Rahim' },
+                { field: 'sort', label: 'Sort: Highest Amount' }
+            ]
+        );
+        resetLedgerFilters('desk');
+        setLedgerFilterField('desk', 'payment', 'MFS');
+        setLedgerFilterField('desk', 'status', 'edited');
+        clearSingleLedgerFilter('desk', 'payment');
+        assert.equal(getLedgerFilterState('desk').payment, 'all');
+        assert.equal(getLedgerFilterState('desk').status, 'edited');
+        resetLedgerFilters('desk');
 
         // Agent extraction excludes deleted rows and deduplicates case-insensitively
         assert.deepEqual(extractLedgerAgents(txs), ['Karim', 'Nadia', 'Rahim']);
@@ -724,9 +754,27 @@ test('Upgrade Suite: POS UX, Accessibility & Visual Discipline', async (t) => {
         assert.match(styleCss, /\.bottom-sheet,\s*\.modal-content\s*\{[\s\S]*?max-width:\s*100%;[\s\S]*?overflow-x:\s*clip;/);
         assert.match(styleCss, /\.admin-body\s*\{[\s\S]*?overflow-x:\s*clip;/);
 
-        // 2. Sticky ledger filter bar & store header stay aligned to .tab-content { padding: 16px } without horizontal overhang
-        assert.match(styleCss, /\.ledger-filter-bar\s*\{[\s\S]*?top:\s*-16px;[\s\S]*?margin:\s*-16px\s+-16px\s+12px\s+-16px;[\s\S]*?max-width:\s*calc\(100%\s*\+\s*32px\);/);
-        assert.match(styleCss, /#tab-store\s*>\s*div:first-child\s*\{[\s\S]*?max-width:\s*calc\(100%\s*\+\s*32px\)\s*!important;/);
+        // 2. Sticky ledger filter bar & store header stay cleanly inset rounded cards (NEVER edge-to-edge negative margins)
+        assert.match(styleCss, /\.ledger-filter-bar\s*\{[\s\S]*?position:\s*sticky;[\s\S]*?top:\s*0;[\s\S]*?margin:\s*0\s+0\s+14px\s+0;[\s\S]*?max-width:\s*100%;[\s\S]*?border-radius:\s*18px;/);
+        assert.doesNotMatch(styleCss, /\.ledger-filter-bar\s*\{[^}]*margin:\s*-16px/);
+        assert.match(styleCss, /#tab-store\s*>\s*div:first-child\s*\{[\s\S]*?top:\s*0\s*!important;[\s\S]*?margin:\s*0\s+0\s+14px\s+0\s*!important;[\s\S]*?max-width:\s*100%\s*!important;[\s\S]*?border-radius:\s*18px\s*!important;/);
+        assert.doesNotMatch(styleCss, /#tab-store\s*>\s*div:first-child\s*\{[^}]*calc\(100%\s*\+\s*32px\)/);
+        assert.doesNotMatch(indexHtml, /id="tab-store"[\s\S]{0,250}margin:\s*-16px/);
+
+        // 2b. Filter polish contracts: active chips, options footer, dark-mode pill contrast, Store/User/Recycle consistency
+        assert.match(styleCss, /\.ledger-active-chips\b/);
+        assert.match(styleCss, /\.ledger-active-chip\b/);
+        assert.match(styleCss, /\.ledger-advanced-footer\b/);
+        assert.match(styleCss, /\.ledger-done-btn\b/);
+        assert.match(styleCss, /:root\[data-theme="dark"\]\s+\.desk-filter-pill\.active\s*\{[\s\S]*?background:\s*#38bdf8;[\s\S]*?color:\s*#0f172a;/);
+        assert.match(indexHtml, /id="desk-active-filters"/);
+        assert.match(indexHtml, /id="personal-active-filters"/);
+        assert.match(indexHtml, /id="store-no-results"[\s\S]*?onclick="resetStoreFilters\(\)"/);
+        assert.match(mainJs, /\bclearLedgerFacet\b/);
+        assert.match(adminJs, /onclick="Amolnama\.resetUsersFilters\(\)"/);
+        assert.doesNotMatch(adminJs, /filterUsersByRole\('all'\);\s*Amolnama\.clearUsersSearch\(\)/);
+        assert.match(indexHtml, /id="users-search"[^>]*aria-label=/);
+        assert.match(indexHtml, /data-role-filter="all"[^>]*aria-pressed="true"/);
 
         // 3. No 100vw width/height rules in modal settings or PDF loader (avoids scrollbar/iOS viewport overhang)
         assert.doesNotMatch(styleCss, /#modal-settings\s+\.modal-content\s*\{[^}]*width:\s*100vw/);

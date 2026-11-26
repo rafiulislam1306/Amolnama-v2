@@ -69,6 +69,10 @@ export function matchesLedgerFilters(tx, filterState = {}, catalog = {}) {
             tx.agentName || '',
             tx.notes || '',
             tx.handsetModel || '',
+            tx.recycledNumber || '',
+            tx.trackAs || '',
+            tx.cat || '',
+            tx.time || '',
             tx.payment || '',
             tx.amount !== undefined && tx.amount !== null ? String(tx.amount) : ''
         ].join(' ').toLowerCase();
@@ -83,23 +87,29 @@ export function matchesLedgerFilters(tx, filterState = {}, catalog = {}) {
 
 export function sortLedgerTransactions(txList = [], sortMode = 'newest') {
     const list = Array.isArray(txList) ? [...txList] : [];
-    const getIdVal = (tx) => Number(tx?.id) || 0;
+    const getOrderVal = (tx) => {
+        const numId = Number(tx?.id);
+        if (Number.isFinite(numId) && numId > 0) return numId;
+        if (tx?.timestamp && typeof tx.timestamp.toMillis === 'function') return tx.timestamp.toMillis();
+        if (tx?.timestamp?.seconds) return tx.timestamp.seconds * 1000;
+        return 0;
+    };
     const getAbsAmt = (tx) => Math.abs(Number(tx?.amount) || 0);
 
     list.sort((a, b) => {
         if (sortMode === 'oldest') {
-            return getIdVal(a) - getIdVal(b);
+            return getOrderVal(a) - getOrderVal(b);
         }
         if (sortMode === 'amount_desc') {
             const diff = getAbsAmt(b) - getAbsAmt(a);
-            return diff !== 0 ? diff : (getIdVal(b) - getIdVal(a));
+            return diff !== 0 ? diff : (getOrderVal(b) - getOrderVal(a));
         }
         if (sortMode === 'amount_asc') {
             const diff = getAbsAmt(a) - getAbsAmt(b);
-            return diff !== 0 ? diff : (getIdVal(b) - getIdVal(a));
+            return diff !== 0 ? diff : (getOrderVal(b) - getOrderVal(a));
         }
         // Default: newest first
-        return getIdVal(b) - getIdVal(a);
+        return getOrderVal(b) - getOrderVal(a);
     });
 
     return list;
@@ -120,6 +130,35 @@ export function isLedgerFiltered(filterState = {}) {
         (filterState.search && filterState.search.trim().length > 0) ||
         countActiveAdvancedFilters(filterState) > 0
     );
+}
+
+const STATUS_CHIP_LABELS = {
+    incomplete_onboarding: 'Needs Onboarding',
+    edited: 'Edited',
+    pending: 'Pending'
+};
+
+const SORT_CHIP_LABELS = {
+    oldest: 'Oldest First',
+    amount_desc: 'Highest Amount',
+    amount_asc: 'Lowest Amount'
+};
+
+export function getActiveLedgerFilterChips(filterState = {}) {
+    const chips = [];
+    if (filterState.payment && filterState.payment !== 'all') {
+        chips.push({ field: 'payment', label: `Pay: ${filterState.payment}` });
+    }
+    if (filterState.status && filterState.status !== 'all') {
+        chips.push({ field: 'status', label: STATUS_CHIP_LABELS[filterState.status] || filterState.status });
+    }
+    if (filterState.agent && filterState.agent !== 'all') {
+        chips.push({ field: 'agent', label: `Agent: ${filterState.agent}` });
+    }
+    if (filterState.sort && filterState.sort !== 'newest') {
+        chips.push({ field: 'sort', label: `Sort: ${SORT_CHIP_LABELS[filterState.sort] || filterState.sort}` });
+    }
+    return chips;
 }
 
 export function computeFilteredLedgerTotal(txList = [], paymentFilter = 'all') {
